@@ -82,6 +82,24 @@ function lexer(raw_text) {
           });
         }
         if (TOKEN_VALUES.TEXT_BLOCK.test(content)) {
+          const text_block = matchedValue(content, TOKEN_VALUES.TEXT_BLOCK);
+          const inline_statements = text_block.match(/\b[a-zA-Z0-9\.\-\_\,]+\s*\->\s*\(\s*[a-zA-Z0-9\.\-\_\,\,]+\s*\)[a-zA-Z0-9\.\-\_\,]*\s*\b/g);
+          // console.log(inline_statements);
+          // console.log("-".repeat(30))
+          if(Array.isArray(inline_statements) && inline_statements.length > 0) {
+            inline_statements.forEach(statement => {
+              tokens.push({
+                type: "INLINE_STATEMENT",
+                value: statement
+              })
+            })
+          }
+          tokens.push({
+            type: TOKEN_TYPES.TEXT_BLOCK,
+            value: matchedValue(content, TOKEN_VALUES.TEXT_BLOCK),
+          });
+        }
+        if (TOKEN_VALUES.TEXT_BLOCK.test(content)) {
           tokens.push({
             type: TOKEN_TYPES.TEXT_BLOCK,
             value: matchedValue(content, TOKEN_VALUES.TEXT_BLOCK),
