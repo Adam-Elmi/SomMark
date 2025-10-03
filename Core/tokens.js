@@ -21,7 +21,7 @@ const TOKEN_VALUES = {
   END_BLOCK: /\n\s*\[\s*end\s*\]\s*/gi,
   KEY: /[a-zA-Z0-9]+\s*(?=\=)\s*/g,
   EQUAL: /\s*=\s*/,
-  COLON: ":",
+  COLON: /\s*\:\s*/,
   VALUE: /(?<=\s*\=\s*)(\w+)[^\]]+/g,
   THIN_ARROW: "->",
   OPEN_PAREN: "(",
