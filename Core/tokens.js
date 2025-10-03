@@ -23,7 +23,7 @@ const TOKEN_VALUES = {
   EQUAL: /\s*=\s*/,
   COLON: /\s*\:\s*/,
   VALUE: /(?<=\s*\=\s*)(\w+)[^\]]+/g,
-  THIN_ARROW: "->",
+  THIN_ARROW: /(?<=[a-zA-Z0-9]+\s*)\->/g,
   OPEN_PAREN: "(",
   CLOSE_PAREN: ")",
   OPEN_AT: "@_",
