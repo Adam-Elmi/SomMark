@@ -1,5 +1,5 @@
 [sometext = SomCheat Project Overview, 2025, 10, 3]
-SomCheat->(b) is a platform for Somali developers->(b) to create, share, and learn from tech cheatsheets->(i) that improve coding skills and produc@tivity->(b). This is its official (site Adam)->(website) SomCheat.dev->(SomCheat.dev). We have developed useful features such as:
+SomCheat->(b) is a platform for Somali developers->(b) to create, share, and learn from tech cheatsheets->(i) that improve coding skills and produc@tivity->(b). This is its official website->(SomCheat.dev). We have developed useful features such as:
 
 (Cheatsheet Hub)->(h2)
 Cheatsheet Hub is a collection of categorized cheatsheets for different programming languages and tools.
@@ -18,7 +18,7 @@ Cheatsheet Hub is a collection of categorized cheatsheets for different programm
 [text = SomInfo Project Overview, 101]
 SomInfo->(b) is a platform for Somali developers->(b) to create, share, and learn from tech cheatsheets->(i) that improve coding skills and productivity->(b). This is its official website SomCheat.dev->(SomCheat.dev). We have developed useful features such as:
 
-Cheatsheet Hub ->(h2)
+(Cheatsheet Hub)->(h2)
 Cheatsheet Hub is a collection of categorized cheatsheets for different programming languages and tools.
 
 @_Table_@: Id, Language, Topics
