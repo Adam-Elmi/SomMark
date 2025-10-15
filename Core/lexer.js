@@ -15,7 +15,7 @@ function lexer(raw_source_code) {
     const CONTENT_BLOCKS = raw_source_code.match(
       /\[\s*[a-zA-Z0-9_]+\s*=?\s*([a-zA-Z0-9_]*\s*\,?)+\s*\]\n([\s\S]*?)\n\[\s*end\s*\]\s*\n*/g,
     );
-    // console.log(CONTENT_BLOCKS);
+    console.log(CONTENT_BLOCKS.length);
     if (Array.isArray(CONTENT_BLOCKS) && CONTENT_BLOCKS.length > 0) {
       for (const block of CONTENT_BLOCKS) {
         switch (state) {
@@ -58,10 +58,16 @@ function lexer(raw_source_code) {
           case TOKEN_TYPES.EQUAL:
             if (/\s*([a-zA-Z0-9_]*\s*\,?)+\s*(?=\]\s*\n)/.test(block)) {
               state = TOKEN_TYPES.VALUE;
-              const values = block.match(/\s*([a-zA-Z0-9_]*\s*\,?)+\s*(?=\]\s*\n)/)[0].split(",");
+              const values = block
+                .match(/\s*([a-zA-Z0-9_]*\s*\,?)+\s*(?=\]\s*\n)/)[0]
+                .split(",");
               console.log(values);
-              if(Array.isArray(values) && values.length > 0 && values.length > 1) {
-                for(const value of values) {
+              if (
+                Array.isArray(values) &&
+                values.length > 0 &&
+                values.length > 1
+              ) {
+                for (const value of values) {
                   tokens.push({
                     type: TOKEN_TYPES.VALUE,
                     value: value,
@@ -72,7 +78,9 @@ function lexer(raw_source_code) {
               } else {
                 tokens.push({
                   type: TOKEN_TYPES.VALUE,
-                  value: block.match(/\s*([a-zA-Z0-9_]*\s*\,?)+\s*(?=\]\s*\n)/)[0],
+                  value: block.match(
+                    /\s*([a-zA-Z0-9_]*\s*\,?)+\s*(?=\]\s*\n)/,
+                  )[0],
                   line: line,
                   column: column,
                 });
@@ -92,7 +100,44 @@ function lexer(raw_source_code) {
             } else {
               return false;
             }
+          case TOKEN_TYPES.CLOSE_BRACKET:
+            if (/(?<=\]\n+)([\s\S]*?)(?=\n+\[\s*end\s*\])/s.test(block)) {
+              state = TOKEN_TYPES.CONTENT;
+              const text_block = block.match(
+                /(?<=\]\n+)([\s\S]*?)(?=\n+\[\s*end\s*\])/,
+              )[0];
+              const inline_statements = text_block.match(
+                /[\S]+[^\)]->\([a-zA-Z0-9_]+\)\s*\n?\.?/g,
+              );
+              const inline_statement_with_paren = text_block.match(
+                /\(\s*[\S\s]+\s*\)->\([a-zA-Z0-9_]+\)\s*\n?\.?/g,
+              );
+              // console.log(inline_statement_with_paren)
+              tokens.push({
+                type: TOKEN_TYPES.CONTENT,
+                value: block.match(
+                  /(?<=\]\n+)([\s\S]*?)(?=\n+\[\s*end\s*\])/,
+                )[0],
+                line: line,
+                column: column,
+              });
+            } else {
+              return false;
+            }
+          case TOKEN_TYPES.CONTENT:
+            if (/\s*\[\s*end\s*\]\s*\n*/.test(block)) {
+              state = TOKEN_TYPES.BLOCK_END;
+              tokens.push({
+                type: TOKEN_TYPES.BLOCK_END,
+                value: block.match(/\s*\[\s*end\s*\]\s*\n*/)[0],
+                line: line,
+                column: column,
+              });
+            } else {
+              return false;
+            }
         }
+      state = "START";
       }
     }
   } else {
