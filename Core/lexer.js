@@ -56,11 +56,36 @@ function lexer(raw_source_code) {
               return false;
             }
           case TOKEN_TYPES.EQUAL:
-            if (/\s*(.)+\n/s.test(block)) {
+            if (/\s*([a-zA-Z0-9_]*\s*\,?)+\s*(?=\]\s*\n)/.test(block)) {
               state = TOKEN_TYPES.VALUE;
+              const values = block.match(/\s*([a-zA-Z0-9_]*\s*\,?)+\s*(?=\]\s*\n)/)[0].split(",");
+              console.log(values);
+              if(Array.isArray(values) && values.length > 0 && values.length > 1) {
+                for(const value of values) {
+                  tokens.push({
+                    type: TOKEN_TYPES.VALUE,
+                    value: value,
+                    line: line,
+                    column: column,
+                  });
+                }
+              } else {
+                tokens.push({
+                  type: TOKEN_TYPES.VALUE,
+                  value: block.match(/\s*([a-zA-Z0-9_]*\s*\,?)+\s*(?=\]\s*\n)/)[0],
+                  line: line,
+                  column: column,
+                });
+              }
+            } else {
+              return false;
+            }
+          case TOKEN_TYPES.VALUE:
+            if (/\s*\]\s*\n/s.test(block)) {
+              state = TOKEN_TYPES.CLOSE_BRACKET;
               tokens.push({
-                type: TOKEN_TYPES.VALUE,
-                value: block.match(/\s*(.)+\n/)[0],
+                type: TOKEN_TYPES.CLOSE_BRACKET,
+                value: block.match(/\s*\]\s*\n/)[0],
                 line: line,
                 column: column,
               });
