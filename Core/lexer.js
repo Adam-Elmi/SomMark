@@ -15,7 +15,7 @@ function lexer(raw_source_code) {
       for (let i = 0; i < lines.length; i++) {
         switch (state) {
           case "START":
-            if (/\s*\n*\[\s*/.test(lines[i])) {
+            if (/\s*\[\s*(?=(.)+\s*\=+?\s*(.)+\s*\]\s*\n*?)/.test(lines[i])) {
               state = TOKEN_TYPES.OPEN_BRACKET;
               tokens.push({
                 type: TOKEN_TYPES.OPEN_BRACKET,
@@ -25,15 +25,18 @@ function lexer(raw_source_code) {
                   ? /\s*\n*\[\s*/.exec(lines[i]).index + 1
                   : "UNKNOWN",
               });
-            } else if (/\s*[a-zA-Z0-9_]+\s*/.test(lines[i])) {
+            } else if (/\s*(.)+\s*(?= \s*\=+?\s*)/.test(lines[i])) {
               state = TOKEN_TYPES.BLOCK_IDENTIFIER;
             } else if (/\s*\=+?\s*/.test(lines[i])) {
               state = TOKEN_TYPES.EQUAL;
             } else if (/([a-zA-Z0-9_\,\s])+/.test(lines[i])) {
               state = TOKEN_TYPES.VALUE;
-            } else if (/\s*\]\s*\n?/.test(lines[i])) {
+            } else if (/(?<=\s*\[\s*(.)+\s*\=+?\s*(.)+)\s*\]\s*\n?/.test(lines[i])) {
               state = TOKEN_TYPES.CLOSE_BRACKET;
-            } else if (!/\s*\[\s*(.)+\=+?\s*(.)+\s*\]\s*\n?/.test(lines[i])) {
+            } else if (
+              !/\s*\[\s*(.)+\=+?\s*(.)+\s*\]\s*\n*?/.test(lines[i]) &&
+              !/\s*\[\s*end\s*\]\s*\n*?/.test(lines[i])
+            ) {
               if (/[\s\S]+/.test(lines[i])) {
                 state = TOKEN_TYPES.CONTENT;
               }
@@ -43,7 +46,7 @@ function lexer(raw_source_code) {
               console.error("UNEXPECTED CHARACTER");
             }
           case TOKEN_TYPES.OPEN_BRACKET:
-            if (/\s*[a-zA-Z0-9_]+\s*(?= \s*\=+?\s*)/.test(lines[i])) {
+            if (/\s*(.)+\s*(?=\s*\=+?\s*)/.test(lines[i])) {
               state = TOKEN_TYPES.BLOCK_IDENTIFIER;
               tokens.push({
                 type: TOKEN_TYPES.BLOCK_IDENTIFIER,
@@ -79,7 +82,7 @@ function lexer(raw_source_code) {
               });
             }
           case TOKEN_TYPES.VALUE:
-            if (/\s*\]\s*\n?/.test(lines[i])) {
+            if (/(?<=\s*\[\s*(.)+\s*\=+?\s*(.)+)\s*\]\s*\n?/.test(lines[i])) {
               state = TOKEN_TYPES.CLOSE_BRACKET;
               tokens.push({
                 type: TOKEN_TYPES.CLOSE_BRACKET,
@@ -91,7 +94,10 @@ function lexer(raw_source_code) {
               });
             }
           case TOKEN_TYPES.CLOSE_BRACKET:
-            if (!/\s*\[\s*(.)+\=+?\s*(.)+\s*\]\s*\n?/.test(lines[i])) {
+            if (
+              !/\s*\[\s*(.)+\=+?\s*(.)+\s*\]\s*\n*?/.test(lines[i]) &&
+              !/\s*\[\s*end\s*\]\s*\n*?/.test(lines[i])
+            ) {
               if (/[\s\S]+/.test(lines[i])) {
                 state = TOKEN_TYPES.CONTENT;
                 tokens.push({
