@@ -25,8 +25,7 @@ function lexer(raw_source_code) {
                   ? /\s*\n*\[\s*/.exec(lines[i]).index + 1
                   : "UNKNOWN",
               });
-            }
-            else if (/\s*[a-zA-Z0-9_]+\s*/.test(lines[i])) {
+            } else if (/\s*[a-zA-Z0-9_]+\s*/.test(lines[i])) {
               state = TOKEN_TYPES.BLOCK_IDENTIFIER;
             } else if (/\s*\=+?\s*/.test(lines[i])) {
               state = TOKEN_TYPES.EQUAL;
@@ -34,16 +33,17 @@ function lexer(raw_source_code) {
               state = TOKEN_TYPES.VALUE;
             } else if (/\s*\]\s*\n?/.test(lines[i])) {
               state = TOKEN_TYPES.CLOSE_BRACKET;
-            } else if (/([\s\S]*?)/.test(lines[i])) {
-              state = TOKEN_TYPES.CONTENT;
+            } else if (!/\s*\[\s*(.)+\=+?\s*(.)+\s*\]\s*\n?/.test(lines[i])) {
+              if (/[\s\S]+/.test(lines[i])) {
+                state = TOKEN_TYPES.CONTENT;
+              }
             } else if (/\s*\[\s*end\s*\]\s*\n*/.test(lines[i])) {
               state = TOKEN_TYPES.BLOCK_END;
-            } 
-            else {
+            } else {
               console.error("UNEXPECTED CHARACTER");
             }
           case TOKEN_TYPES.OPEN_BRACKET:
-            if(/\s*[a-zA-Z0-9_]+\s*(?= \s*\=+?\s*)/.test(lines[i])) {
+            if (/\s*[a-zA-Z0-9_]+\s*(?= \s*\=+?\s*)/.test(lines[i])) {
               state = TOKEN_TYPES.BLOCK_IDENTIFIER;
               tokens.push({
                 type: TOKEN_TYPES.BLOCK_IDENTIFIER,
@@ -91,16 +91,18 @@ function lexer(raw_source_code) {
               });
             }
           case TOKEN_TYPES.CLOSE_BRACKET:
-            if (/(.)+?/.test(lines[i])) {
-              state = TOKEN_TYPES.CONTENT;
-              tokens.push({
-                type: TOKEN_TYPES.CONTENT,
-                value: lines[i].match(/(.)+/)[0],
-                line: i + 1,
-                column: /(.)+/.exec(lines[i])
-                  ? /(.)+/.exec(lines[i]).index + 1
-                  : "UNKNOWN",
-              });
+            if (!/\s*\[\s*(.)+\=+?\s*(.)+\s*\]\s*\n?/.test(lines[i])) {
+              if (/[\s\S]+/.test(lines[i])) {
+                state = TOKEN_TYPES.CONTENT;
+                tokens.push({
+                  type: TOKEN_TYPES.CONTENT,
+                  value: lines[i].match(/[\s\S]+/)[0],
+                  line: i + 1,
+                  column: /[\s\S]+/.exec(lines[i])
+                    ? /[\s\S]+/.exec(lines[i]).index + 1
+                    : "UNKNOWN",
+                });
+              }
             }
           case TOKEN_TYPES.CONTENT:
             if (/\s*\[\s*end\s*\]\s*\n*/.test(lines[i])) {
