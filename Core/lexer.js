@@ -9,6 +9,22 @@ const file_content = buffer.toString();
 function lexer(raw_source_code) {
   let state = "START";
   const tokens = [];
+  const add_token = (type, lines, index, pattern) => {
+    if ((type, lines, index, pattern)) {
+      tokens.push({
+        type: type,
+        value: lines[index].match(pattern)[0],
+        line: index + 1,
+        column: pattern.exec(lines[index])
+          ? pattern.exec(lines[index]).index + 1
+          : "UNKNOWN",
+      });
+    } else {
+      throw new Error(
+        "ENSURE THAT ALL ARGUMENTS ARE DEFINED AND THEIR REAL VALUES ARE NOT EQUAL TO NULL OR UNDEFINED.",
+      );
+    }
+  };
   const open_bracket_pattern = /\s*\[\s*(?=(.)+\s*\=+?\s*(.)+\s*\]\s*\n*?)/;
   const block_identifier_pattern = /\s*[a-zA-Z0-9_]+\s*(?= \s*\=+?\s*)/;
   const equal_sign_pattern = /\s*\=+?\s*/;
@@ -24,14 +40,12 @@ function lexer(raw_source_code) {
           case "START":
             if (open_bracket_pattern.test(lines[i])) {
               state = TOKEN_TYPES.OPEN_BRACKET;
-              tokens.push({
-                type: TOKEN_TYPES.OPEN_BRACKET,
-                value: lines[i].match(open_bracket_pattern)[0],
-                line: i + 1,
-                column: open_bracket_pattern.exec(lines[i])
-                  ? open_bracket_pattern.exec(lines[i]).index + 1
-                  : "UNKNOWN",
-              });
+              add_token(
+                TOKEN_TYPES.OPEN_BRACKET,
+                lines,
+                i,
+                open_bracket_pattern,
+              );
             } else if (block_identifier_pattern.test(lines[i])) {
               state = TOKEN_TYPES.BLOCK_IDENTIFIER;
             } else if (equal_sign_pattern.test(lines[i])) {
@@ -55,50 +69,32 @@ function lexer(raw_source_code) {
           case TOKEN_TYPES.OPEN_BRACKET:
             if (block_identifier_pattern.test(lines[i])) {
               state = TOKEN_TYPES.BLOCK_IDENTIFIER;
-              tokens.push({
-                type: TOKEN_TYPES.BLOCK_IDENTIFIER,
-                value: lines[i].match(block_identifier_pattern)[0],
-                line: i + 1,
-                column: block_identifier_pattern.exec(lines[i])
-                  ? block_identifier_pattern.exec(lines[i]).index + 1
-                  : "UNKNOWN",
-              });
+              add_token(
+                TOKEN_TYPES.BLOCK_IDENTIFIER,
+                lines,
+                i,
+                block_identifier_pattern,
+              );
             }
           case TOKEN_TYPES.BLOCK_IDENTIFIER:
             if (equal_sign_pattern.test(lines[i])) {
               state = TOKEN_TYPES.EQUAL;
-              tokens.push({
-                type: TOKEN_TYPES.EQUAL,
-                value: lines[i].match(equal_sign_pattern)[0],
-                line: i + 1,
-                column: equal_sign_pattern.exec(lines[i])
-                ? equal_sign_pattern.exec(lines[i]).index + 1
-                  : "UNKNOWN",
-              });
+              add_token(TOKEN_TYPES.EQUAL, lines, i, equal_sign_pattern);
             }
           case TOKEN_TYPES.EQUAL:
             if (value_pattern.test(lines[i])) {
               state = TOKEN_TYPES.VALUE;
-              tokens.push({
-                type: TOKEN_TYPES.VALUE,
-                value: lines[i].match(value_pattern)[0],
-                line: i + 1,
-                column: value_pattern.exec(lines[i])
-                  ? value_pattern.exec(lines[i]).index + 1
-                  : "UNKNOWN",
-              });
+              add_token(TOKEN_TYPES.VALUE, lines, i, value_pattern);
             }
           case TOKEN_TYPES.VALUE:
             if (close_bracket_pattern.test(lines[i])) {
               state = TOKEN_TYPES.CLOSE_BRACKET;
-              tokens.push({
-                type: TOKEN_TYPES.CLOSE_BRACKET,
-                value: lines[i].match(close_bracket_pattern)[0],
-                line: i + 1,
-                column: close_bracket_pattern.exec(lines[i])
-                  ? close_bracket_pattern.exec(lines[i]).index + 1
-                  : "UNKNOWN",
-              });
+              add_token(
+                TOKEN_TYPES.CLOSE_BRACKET,
+                lines,
+                i,
+                close_bracket_pattern,
+              );
             }
           case TOKEN_TYPES.CLOSE_BRACKET:
             if (
@@ -107,27 +103,13 @@ function lexer(raw_source_code) {
             ) {
               if (content_pattern.test(lines[i])) {
                 state = TOKEN_TYPES.CONTENT;
-                tokens.push({
-                  type: TOKEN_TYPES.CONTENT,
-                  value: lines[i].match(content_pattern)[0],
-                  line: i + 1,
-                  column: content_pattern.exec(lines[i])
-                    ? content_pattern.exec(lines[i]).index + 1
-                    : "UNKNOWN",
-                });
+                add_token(TOKEN_TYPES.CONTENT, lines, i, content_pattern);
               }
             }
           case TOKEN_TYPES.CONTENT:
             if (end_keyword_pattern.test(lines[i])) {
               state = TOKEN_TYPES.END_KEYWORD;
-              tokens.push({
-                type: TOKEN_TYPES.END_KEYWORD,
-                value: lines[i].match(end_keyword_pattern)[0],
-                line: i + 1,
-                column: end_keyword_pattern.exec(lines[i])
-                  ? end_keyword_pattern.exec(lines[i]).index + 1
-                  : "UNKNOWN",
-              });
+              add_token(TOKEN_TYPES.END_KEYWORD, lines, i, end_keyword_pattern);
             }
         }
         state = "START";
