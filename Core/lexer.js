@@ -9,87 +9,94 @@ const file_content = buffer.toString();
 function lexer(raw_source_code) {
   let state = "START";
   const tokens = [];
+  const open_bracket_pattern = /\s*\[\s*(?=(.)+\s*\=+?\s*(.)+\s*\]\s*\n*?)/;
+  const block_identifier_pattern = /\s*[a-zA-Z0-9_]+\s*(?= \s*\=+?\s*)/;
+  const equal_sign_pattern = /\s*\=+?\s*/;
+  const value_pattern = /(?<=\=)\s*(.*?)\s*(?=\s*\]\s*\n*)/;
+  const close_bracket_pattern = /(?<=\s*\[\s*(.)+\s*\=+?\s*(.)+)\s*\]\s*\n?/;
+  const content_pattern = /[\s\S]+/;
+  const end_keyword_pattern = /(?<=\s*\[)\s*end\s*(?=\]\s*\n*?)/;
   if (raw_source_code && typeof raw_source_code === "string") {
     const lines = raw_source_code.split(/\n/);
     if (Array.isArray(lines) && lines.length > 0) {
       for (let i = 0; i < lines.length; i++) {
         switch (state) {
           case "START":
-            if (/\s*\[\s*(?=(.)+\s*\=+?\s*(.)+\s*\]\s*\n*?)/.test(lines[i])) {
+            if (open_bracket_pattern.test(lines[i])) {
               state = TOKEN_TYPES.OPEN_BRACKET;
               tokens.push({
                 type: TOKEN_TYPES.OPEN_BRACKET,
-                value: lines[i].match(/\s*\n*\[\s*/)[0],
+                value: lines[i].match(open_bracket_pattern)[0],
                 line: i + 1,
-                column: /\s*\n*\[\s*/.exec(lines[i])
-                  ? /\s*\n*\[\s*/.exec(lines[i]).index + 1
+                column: open_bracket_pattern.exec(lines[i])
+                  ? open_bracket_pattern.exec(lines[i]).index + 1
                   : "UNKNOWN",
               });
-            } else if (/\s*(.)+\s*(?= \s*\=+?\s*)/.test(lines[i])) {
+            } else if (block_identifier_pattern.test(lines[i])) {
               state = TOKEN_TYPES.BLOCK_IDENTIFIER;
-            } else if (/\s*\=+?\s*/.test(lines[i])) {
+            } else if (equal_sign_pattern.test(lines[i])) {
               state = TOKEN_TYPES.EQUAL;
-            } else if (/([a-zA-Z0-9_\,\s])+/.test(lines[i])) {
+            } else if (value_pattern.test(lines[i])) {
               state = TOKEN_TYPES.VALUE;
-            } else if (/(?<=\s*\[\s*(.)+\s*\=+?\s*(.)+)\s*\]\s*\n?/.test(lines[i])) {
+            } else if (close_bracket_pattern.test(lines[i])) {
               state = TOKEN_TYPES.CLOSE_BRACKET;
             } else if (
               !/\s*\[\s*(.)+\=+?\s*(.)+\s*\]\s*\n*?/.test(lines[i]) &&
               !/\s*\[\s*end\s*\]\s*\n*?/.test(lines[i])
             ) {
-              if (/[\s\S]+/.test(lines[i])) {
+              if (content_pattern.test(lines[i])) {
                 state = TOKEN_TYPES.CONTENT;
               }
-            } else if (/\s*\[\s*end\s*\]\s*\n*/.test(lines[i])) {
-              state = TOKEN_TYPES.BLOCK_END;
+            } else if (end_keyword_pattern.test(lines[i])) {
+              state = TOKEN_TYPES.END_KEYWORD;
             } else {
               console.error("UNEXPECTED CHARACTER");
             }
           case TOKEN_TYPES.OPEN_BRACKET:
-            if (/\s*(.)+\s*(?=\s*\=+?\s*)/.test(lines[i])) {
+            if (block_identifier_pattern.test(lines[i])) {
               state = TOKEN_TYPES.BLOCK_IDENTIFIER;
               tokens.push({
                 type: TOKEN_TYPES.BLOCK_IDENTIFIER,
-                value: lines[i].match(/\s*[a-zA-Z0-9_]+\s*/)[0],
+                value: lines[i].match(block_identifier_pattern)[0],
                 line: i + 1,
-                column: /\s*[a-zA-Z0-9_]+\s*/.exec(lines[i])
-                  ? /\s*[a-zA-Z0-9_]+\s*/.exec(lines[i]).index + 1
+                column: block_identifier_pattern.exec(lines[i])
+                  ? block_identifier_pattern.exec(lines[i]).index + 1
                   : "UNKNOWN",
               });
             }
           case TOKEN_TYPES.BLOCK_IDENTIFIER:
-            if (/\s*\=+?\s*/.test(lines[i])) {
+            if (equal_sign_pattern.test(lines[i])) {
               state = TOKEN_TYPES.EQUAL;
               tokens.push({
                 type: TOKEN_TYPES.EQUAL,
-                value: lines[i].match(/\s*\=+?\s*/)[0],
+                value: lines[i].match(equal_sign_pattern)[0],
                 line: i + 1,
-                column: /\s*\=+?\s*/.exec(lines[i])
-                  ? /\s*\=+?\s*/.exec(lines[i]).index + 1
+                column: equal_sign_pattern.exec(lines[i])
+                ? equal_sign_pattern.exec(lines[i]).index + 1
                   : "UNKNOWN",
               });
             }
           case TOKEN_TYPES.EQUAL:
-            if (/(?<=\=)\s*(.*?)\s*(?=\s*\]\s*\n*)/.test(lines[i])) {
+            if (value_pattern.test(lines[i])) {
               state = TOKEN_TYPES.VALUE;
               tokens.push({
                 type: TOKEN_TYPES.VALUE,
-                value: lines[i].match(/(?<=\=)\s*(.*?)\s*(?=\s*\]\s*\n*)/)[0],
+                value: lines[i].match(value_pattern)[0],
                 line: i + 1,
-                column: /(?<=\=)\s*(.*?)\s*(?=\s*\]\s*\n*)/.exec(lines[i])
-                  ? /(?<=\=)\s*(.*?)\s*(?=\s*\]\s*\n*)/.exec(lines[i]).index + 1
+                column: value_pattern.exec(lines[i])
+                  ? value_pattern.exec(lines[i]).index + 1
                   : "UNKNOWN",
               });
             }
           case TOKEN_TYPES.VALUE:
-            if (/(?<=\s*\[\s*(.)+\s*\=+?\s*(.)+)\s*\]\s*\n?/.test(lines[i])) {
+            if (close_bracket_pattern.test(lines[i])) {
               state = TOKEN_TYPES.CLOSE_BRACKET;
               tokens.push({
                 type: TOKEN_TYPES.CLOSE_BRACKET,
-                value: lines[i].match(/\s*\]\s*\n?/)[0],
+                value: lines[i].match(close_bracket_pattern)[0],
                 line: i + 1,
-                column: /\s*\]\s*\n?/.exec(lines[i])
-                  ? /\s*\]\s*\n?/.exec(lines[i]).index + 1
+                column: close_bracket_pattern.exec(lines[i])
+                  ? close_bracket_pattern.exec(lines[i]).index + 1
                   : "UNKNOWN",
               });
             }
@@ -98,27 +105,27 @@ function lexer(raw_source_code) {
               !/\s*\[\s*(.)+\=+?\s*(.)+\s*\]\s*\n*?/.test(lines[i]) &&
               !/\s*\[\s*end\s*\]\s*\n*?/.test(lines[i])
             ) {
-              if (/[\s\S]+/.test(lines[i])) {
+              if (content_pattern.test(lines[i])) {
                 state = TOKEN_TYPES.CONTENT;
                 tokens.push({
                   type: TOKEN_TYPES.CONTENT,
-                  value: lines[i].match(/[\s\S]+/)[0],
+                  value: lines[i].match(content_pattern)[0],
                   line: i + 1,
-                  column: /[\s\S]+/.exec(lines[i])
-                    ? /[\s\S]+/.exec(lines[i]).index + 1
+                  column: content_pattern.exec(lines[i])
+                    ? content_pattern.exec(lines[i]).index + 1
                     : "UNKNOWN",
                 });
               }
             }
           case TOKEN_TYPES.CONTENT:
-            if (/\s*\[\s*end\s*\]\s*\n*/.test(lines[i])) {
-              state = TOKEN_TYPES.BLOCK_END;
+            if (end_keyword_pattern.test(lines[i])) {
+              state = TOKEN_TYPES.END_KEYWORD;
               tokens.push({
-                type: TOKEN_TYPES.BLOCK_END,
-                value: lines[i].match(/\s*\[\s*end\s*\]\s*\n*/)[0],
+                type: TOKEN_TYPES.END_KEYWORD,
+                value: lines[i].match(end_keyword_pattern)[0],
                 line: i + 1,
-                column: /\s*\[\s*end\s*\]\s*\n*/.exec(lines[i])
-                  ? /\s*\[\s*end\s*\]\s*\n*/.exec(lines[i]).index + 1
+                column: end_keyword_pattern.exec(lines[i])
+                  ? end_keyword_pattern.exec(lines[i]).index + 1
                   : "UNKNOWN",
               });
             }
