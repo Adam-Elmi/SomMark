@@ -10,7 +10,15 @@ function lexer(raw_source_code) {
   let state = "START";
   const tokens = [];
   const add_token = (type, lines, index, pattern) => {
-    if (type && lines && index && pattern) {
+    console.log({
+      type,
+      value: lines[index].match(pattern)[0],
+      line: index + 1,
+      column: pattern.exec(lines[index])
+        ? pattern.exec(lines[index]).index + 1
+        : "UNKNOWN",
+    })
+    if (type && Array.isArray(lines) && lines.length > 0 && pattern) {
       tokens.push({
         type,
         value: lines[index].match(pattern)[0],
@@ -51,10 +59,10 @@ function lexer(raw_source_code) {
                 i,
                 open_bracket_pattern,
               );
-              if (end_keyword_pattern.test(lines[i])) {
-                state = TOKEN_TYPES.END_KEYWORD;
-                console.log("END");
-              }
+              // if (end_keyword_pattern.test(lines[i])) {
+              //   state = TOKEN_TYPES.END_KEYWORD;
+              //   console.log("END");
+              // }
             } else if (end_keyword_pattern.test(lines[i])) {
               state = TOKEN_TYPES.END_KEYWORD;
             } else if (block_identifier_pattern.test(lines[i])) {
