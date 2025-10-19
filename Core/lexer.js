@@ -3,7 +3,7 @@ import TOKEN_TYPES from "./tokenTypes.js";
 
 // Testing
 
-const buffer = await fs.readFile("./Core/example.txt");
+const buffer = await fs.readFile("./Core/example.smark");
 const file_content = buffer.toString();
 
 function lexer(raw_source_code) {
