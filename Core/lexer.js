@@ -10,7 +10,7 @@ function lexer(raw_source_code) {
   let state = "START";
   const tokens = [];
   const add_token = (type, lines, index, pattern) => {
-    if ((type, lines, index, pattern)) {
+    if (type && lines && index && pattern) {
       tokens.push({
         type,
         value: lines[index].match(pattern)[0],
