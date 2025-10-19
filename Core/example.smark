@@ -8,13 +8,16 @@ Cheatsheet Hub is a collection of categorized cheatsheets for different programm
 - 101, JavaScript, Variables, Functions, Regex
 - 202, Python, Loops, Data Structures, OOP
 - 303, C, Memory Management, Pointers, File I/O
+@_end_@
 
 @_List_@: Supported Formats
 - Markdown
 - HTML
 - JSON
+@_end_@
 
 [end]
+
 [text = SomInfo Project Overview, 101]
 SomInfo->(b) is a platform for Somali developers->(b) to create, share, and learn from tech cheatsheets->(i) that improve coding skills and productivity->(b). This is its official website SomCheat.dev->(SomCheat.dev). We have developed useful features such as:
 
@@ -25,9 +28,12 @@ Cheatsheet Hub is a collection of categorized cheatsheets for different programm
 - 101, JavaScript, Variables, Functions, Regex
 - 202, Python, Loops, Data Structures, OOP
 - 303, C, Memory Management, Pointers, File I/O
+@_end_@
 
 @_List_@: Supported Formats
 - Markdown
 - HTML
 - JSON
+@_end_@
+
 [end]
