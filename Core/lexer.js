@@ -9,8 +9,7 @@ const file_content = buffer.toString();
 function lexer(raw_source_code) {
   let state = "START";
   const tokens = [];
-  const stack_1 = [],
-    stack_2 = [];
+  const stack = [];
   const add_token = (type, lines, index, pattern) => {
     if (type && Array.isArray(lines) && lines.length > 0 && pattern) {
       const match = pattern.exec(lines[index]);
@@ -84,7 +83,7 @@ function lexer(raw_source_code) {
           case TOKEN_TYPES.OPEN_BRACKET:
             if (block_identifier_pattern.test(lines[i])) {
               state = TOKEN_TYPES.BLOCK_IDENTIFIER;
-              stack_1.push(TOKEN_TYPES.OPEN_BRACKET);
+              stack.push(TOKEN_TYPES.OPEN_BRACKET);
               add_token(
                 TOKEN_TYPES.BLOCK_IDENTIFIER,
                 lines,
@@ -106,8 +105,8 @@ function lexer(raw_source_code) {
             if (close_bracket_pattern.test(lines[i])) {
               state = TOKEN_TYPES.CLOSE_BRACKET;
               if (end_keyword_pattern.test(lines[i])) {
-                if (stack_1.length > 0) {
-                  stack_1.pop();
+                if (stack.length > 0 && stack.includes(TOKEN_TYPES.OPEN_BRACKET)) {
+                  stack.pop();
                   add_token(
                     TOKEN_TYPES.END_KEYWORD,
                     lines,
@@ -133,14 +132,12 @@ function lexer(raw_source_code) {
                 add_token(TOKEN_TYPES.CONTENT, lines, i, content_pattern);
               }
             }
-
           case TOKEN_TYPES.CONTENT:
             if (open_at_pattern.test(lines[i])) {
               state = TOKEN_TYPES.OPEN_AT;
-              stack_2.push(TOKEN_TYPES.OPEN_AT);
+              stack.push(TOKEN_TYPES.OPEN_AT);
               add_token(TOKEN_TYPES.OPEN_AT, lines, i, open_at_pattern);
             }
-
           case TOKEN_TYPES.OPEN_AT:
             if (at_identifier_pattern.test(lines[i])) {
               state = TOKEN_TYPES.AT_IDENTIFIER;
@@ -151,13 +148,12 @@ function lexer(raw_source_code) {
                 at_identifier_pattern,
               );
             }
-
           case TOKEN_TYPES.AT_IDENTIFIER:
             if (close_at_pattern.test(lines[i])) {
               state = TOKEN_TYPES.CLOSE_AT;
               if (end_keyword_pattern.test(lines[i])) {
-                if (stack_2.length > 0) {
-                  stack_2.pop();
+                if (stack.length > 0 && stack.includes(TOKEN_TYPES.OPEN_AT)) {
+                  stack.pop();
                   add_token(
                     TOKEN_TYPES.END_KEYWORD,
                     lines,
@@ -168,7 +164,6 @@ function lexer(raw_source_code) {
               }
               add_token(TOKEN_TYPES.CLOSE_AT, lines, i, close_at_pattern);
             }
-
           case TOKEN_TYPES.CLOSE_AT:
             if (end_keyword_pattern.test(lines[i])) {
               state = TOKEN_TYPES.END_KEYWORD;
