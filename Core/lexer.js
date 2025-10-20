@@ -164,10 +164,6 @@ function lexer(raw_source_code) {
               }
               add_token(TOKEN_TYPES.CLOSE_AT, lines, i, close_at_pattern);
             }
-          case TOKEN_TYPES.CLOSE_AT:
-            if (end_keyword_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.END_KEYWORD;
-            }
         }
         state = "START";
       }
