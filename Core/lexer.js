@@ -55,6 +55,7 @@ function lexer(raw_source_code) {
                 i,
                 open_bracket_pattern,
               );
+            } else if (block_identifier_pattern.test(lines[i])) {
               state = TOKEN_TYPES.BLOCK_IDENTIFIER;
             } else if (equal_sign_pattern.test(lines[i])) {
               state = TOKEN_TYPES.EQUAL;
@@ -77,7 +78,6 @@ function lexer(raw_source_code) {
               state = TOKEN_TYPES.CLOSE_AT;
             } else if (end_keyword_pattern.test(lines[i])) {
               state = TOKEN_TYPES.END_KEYWORD;
-            } else if (block_identifier_pattern.test(lines[i])) {
             } else {
               console.error(`UNEXPECTED CHARACTER AT LINE ${lines[i]}`);
             }
