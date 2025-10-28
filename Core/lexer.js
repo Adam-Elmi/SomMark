@@ -152,6 +152,7 @@ function lexer(src) {
           temp_str = concat_char(src, i, null, ["]"]);
           if (temp_str) {
             i += temp_str.length - 1;
+             current_char = src[i];
           }
           add_token(TOKEN_TYPES.VALUE, temp_str);
         }
