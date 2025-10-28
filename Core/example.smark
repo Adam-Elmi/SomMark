@@ -1,1 +1,8 @@
-[sometext = SomCheat Project Overview, 2025, 10, 3]
+[text = Welcome Friend]
+This is a test.
+(Hello)->(i) World 
+@_table_@: id, name 
+- 101, Adam
+- 202, Elmi
+@_end_@
+[end]
