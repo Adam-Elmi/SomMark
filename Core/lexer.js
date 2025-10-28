@@ -1,177 +1,137 @@
-import fs from "node:fs/promises";
 import TOKEN_TYPES from "./tokenTypes.js";
-
-// Testing
+import fs from "node:fs/promises";
 
 const buffer = await fs.readFile("./Core/example.smark");
 const file_content = buffer.toString();
 
-function lexer(raw_source_code) {
-  let state = "START";
-  const tokens = [];
-  const stack = [];
-  const add_token = (type, lines, index, pattern) => {
-    if (type && Array.isArray(lines) && lines.length > 0 && pattern) {
-      const match = pattern.exec(lines[index]);
-      if (match) {
-        tokens.push({
-          type,
-          value: match[0],
-          line: index + 1,
-          column: match.index + 1,
-        });
-      }
-    } else {
-      throw new Error(
-        "ENSURE THAT ALL ARGUMENTS ARE DEFINED AND THEIR REAL VALUES ARE NOT EQUAL TO NULL OR UNDEFINED.",
-      );
-    }
-  };
-  const open_bracket_pattern =
-    /\s*\[\s*(?=(.)+\s*\=+?\s*(.)+\s*\]\s*\n*?|end\s*\])/;
-  const block_identifier_pattern = /\s*[a-zA-Z0-9_]+\s*(?= \s*\=+?\s*)/;
-  const equal_sign_pattern = /\s*\=+?\s*/;
-  const value_pattern = /(?<=\=)\s*(.*?)\s*(?=\s*\]\s*\n*)/;
-  const close_bracket_pattern =
-    /(?<=\s*\[\s*(.)+\s*\=+?\s*(.)+|\[\s*end)\s*\]\s*\n?/;
-  const content_pattern = /[\s\S]+[^@_end_@]+/;
-  const open_at_pattern = /\s*@_(?=\s*(.)+_@)/;
-  const at_identifier_pattern = /(?<=\s*@_)\s*[a-zA-Z0-9_]+[^end]+\s*(?=_@)/;
-  const close_at_pattern = /(?<=\s*@_(.)+)\s*_@\s*\:?\s*/;
-  const end_keyword_pattern = /(?<=(\[|@_))\s*end\s*(?=(\]|_@))/;
+// Stacks
+let BLOCK_STACK = [];
+let INLINE_STACK = [];
+let AT_BLOCK_STACK = [];
+let END_BLOCK = [];
 
-  if (raw_source_code && typeof raw_source_code === "string") {
-    const lines = raw_source_code.split(/\n/);
-    if (Array.isArray(lines) && lines.length > 0) {
-      for (let i = 0; i < lines.length; i++) {
-        switch (state) {
-          case "START":
-            if (open_bracket_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.OPEN_BRACKET;
-              add_token(
-                TOKEN_TYPES.OPEN_BRACKET,
-                lines,
-                i,
-                open_bracket_pattern,
-              );
-            } else if (block_identifier_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.BLOCK_IDENTIFIER;
-            } else if (equal_sign_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.EQUAL;
-            } else if (value_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.VALUE;
-            } else if (close_bracket_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.CLOSE_BRACKET;
-            } else if (
-              !/\s*\[\s*(.)+\=+?\s*(.)+\s*\]\s*\n*?/.test(lines[i]) &&
-              !/\s*\[\s*end\s*\]\s*\n*?/.test(lines[i])
-            ) {
-              if (content_pattern.test(lines[i])) {
-                state = TOKEN_TYPES.CONTENT;
-              }
-            } else if (open_at_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.OPEN_AT;
-            } else if (at_identifier_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.AT_IDENTIFIER;
-            } else if (close_at_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.CLOSE_AT;
-            } else if (end_keyword_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.END_KEYWORD;
-            } else {
-              console.error(`UNEXPECTED CHARACTER AT LINE ${lines[i]}`);
-            }
-          case TOKEN_TYPES.OPEN_BRACKET:
-            if (block_identifier_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.BLOCK_IDENTIFIER;
-              stack.push(TOKEN_TYPES.OPEN_BRACKET);
-              add_token(
-                TOKEN_TYPES.BLOCK_IDENTIFIER,
-                lines,
-                i,
-                block_identifier_pattern,
-              );
-            }
-          case TOKEN_TYPES.BLOCK_IDENTIFIER:
-            if (equal_sign_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.EQUAL;
-              add_token(TOKEN_TYPES.EQUAL, lines, i, equal_sign_pattern);
-            }
-          case TOKEN_TYPES.EQUAL:
-            if (value_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.VALUE;
-              add_token(TOKEN_TYPES.VALUE, lines, i, value_pattern);
-            }
-          case TOKEN_TYPES.VALUE:
-            if (close_bracket_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.CLOSE_BRACKET;
-              if (end_keyword_pattern.test(lines[i])) {
-                if (stack.length > 0 && stack.includes(TOKEN_TYPES.OPEN_BRACKET)) {
-                  stack.pop();
-                  add_token(
-                    TOKEN_TYPES.END_KEYWORD,
-                    lines,
-                    i,
-                    end_keyword_pattern,
-                  );
-                }
-              }
-              add_token(
-                TOKEN_TYPES.CLOSE_BRACKET,
-                lines,
-                i,
-                close_bracket_pattern,
-              );
-            }
-          case TOKEN_TYPES.CLOSE_BRACKET:
-            if (
-              !/\s*\[\s*(.)+\=+?\s*(.)+\s*\]\s*\n*?/.test(lines[i]) &&
-              !/\s*\[\s*end\s*\]\s*\n*?/.test(lines[i])
-            ) {
-              if (content_pattern.test(lines[i])) {
-                state = TOKEN_TYPES.CONTENT;
-                add_token(TOKEN_TYPES.CONTENT, lines, i, content_pattern);
-              }
-            }
-          case TOKEN_TYPES.CONTENT:
-            if (open_at_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.OPEN_AT;
-              stack.push(TOKEN_TYPES.OPEN_AT);
-              add_token(TOKEN_TYPES.OPEN_AT, lines, i, open_at_pattern);
-            }
-          case TOKEN_TYPES.OPEN_AT:
-            if (at_identifier_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.AT_IDENTIFIER;
-              add_token(
-                TOKEN_TYPES.AT_IDENTIFIER,
-                lines,
-                i,
-                at_identifier_pattern,
-              );
-            }
-          case TOKEN_TYPES.AT_IDENTIFIER:
-            if (close_at_pattern.test(lines[i])) {
-              state = TOKEN_TYPES.CLOSE_AT;
-              if (end_keyword_pattern.test(lines[i])) {
-                if (stack.length > 0 && stack.includes(TOKEN_TYPES.OPEN_AT)) {
-                  stack.pop();
-                  add_token(
-                    TOKEN_TYPES.END_KEYWORD,
-                    lines,
-                    i,
-                    end_keyword_pattern,
-                  );
-                }
-              }
-              add_token(TOKEN_TYPES.CLOSE_AT, lines, i, close_at_pattern);
-            }
-        }
-        state = "START";
-      }
-    }
-  } else {
-    throw new Error("RAW SOURCE CODE MUST BE A STRING AND NOT EMPTY!");
+const rules = {
+  open_bracket: {
+    token: "[",
+    next_expected_char: ["=", "]"],
+  },
+  block_identifier: {
+    next_expected_char: ["=", "]"],
+    previous: ["["],
+  },
+  equal_sign: {
+    token: "=",
+    next_expected_char: ["]"],
+    previous: ["["],
+  },
+  block_value: {
+    next_expected_char: ["]"],
+    previous: ["[", "="],
+  },
+  close_bracket: {
+    token: "]",
+    next_expected_char: ["\n"],
+    previous: ["[", "="],
+  },
+};
+
+const {
+  open_bracket,
+  block_identifier,
+  equal_sign,
+  block_value,
+  close_bracket,
+} = rules;
+
+function peek(input, index, offset) {
+  if (index + offset < input.length) {
+    return input[index + offset];
   }
-  return tokens;
+  return null;
 }
 
-console.log(lexer(file_content));
+function concat_char(input, index, advance) {
+  let str = "";
+  for (let char_index = index; char_index < input.length; char_index++) {
+    let char = input[char_index];
+
+    if (advance(input, index, char)) {
+      break;
+    } else {
+      str += char;
+    }
+  }
+  return str;
+}
+
+function detector(input, index, expected_char = [], is_single_char = true) {
+  let is_special_token = false;
+  for (let ch = index; ch < input.length; ch++) {
+    let char = input[ch];
+    if (expected_char.includes(char)) {
+      is_special_token = true;
+      break;
+    }
+  }
+  return is_special_token;
+}
+
+function advance(input, index, current_character) {
+  switch (current_character) {
+    case open_bracket.token:
+      let is_special_open_bracket = detector(
+        input,
+        index,
+        open_bracket.next_expected_char,
+      );
+      return is_special_open_bracket;
+    case equal_sign.token:
+      let is_special_equal_sign = detector(
+        input,
+        index,
+        equal_sign.next_expected_char,
+      );
+      return is_special_equal_sign;
+    case "\n":
+      let is_newline = detector(input, index, ["\n"]);
+      return is_newline;
+  }
+}
+
+function lexer(src) {
+  if (src && typeof src === "string") {
+    const tokens = [];
+    const add_token = (type, value) => {
+      tokens.push({ type, value });
+    };
+    let context = "";
+
+    for (let i = 0; i < src.length; i++) {
+      let current_char = src[i];
+      if (current_char === "[" && advance(src, i, current_char)) {
+        add_token(TOKEN_TYPES.OPEN_BRACKET, current_char);
+        BLOCK_STACK.push(current_char);
+      } else if (current_char === "=" && advance(src, i, current_char)) {
+        BLOCK_STACK.push(current_char);
+        add_token(TOKEN_TYPES.EQUAL, current_char);
+      } else if (current_char === "\n" && advance(src, i, current_char)) {
+        add_token(TOKEN_TYPES.NEWLINE, current_char);
+      } else {
+        context = concat_char(src, i, advance);
+        if (context) {
+          i += context.length - 1;
+          current_char = src[i];
+        }
+        add_token(TOKEN_TYPES.CONTENT, context);
+        console.log(BLOCK_STACK);
+      }
+      context = "";
+    }
+    console.log(tokens);
+    return tokens;
+  } else {
+    throw new Error("Invalid Source Code");
+  }
+}
+
+lexer(file_content);
