@@ -43,25 +43,13 @@ const {
   close_bracket,
 } = rules;
 
+let prev_special_token = "";
+
 function peek(input, index, offset) {
   if (index + offset < input.length) {
     return input[index + offset];
   }
   return null;
-}
-
-function concat_char(input, index, advance) {
-  let str = "";
-  for (let char_index = index; char_index < input.length; char_index++) {
-    let char = input[char_index];
-
-    if (advance(input, index, char)) {
-      break;
-    } else {
-      str += char;
-    }
-  }
-  return str;
 }
 
 function detector(input, index, expected_char = [], is_single_char = true) {
@@ -98,6 +86,29 @@ function advance(input, index, current_character) {
   }
 }
 
+function concat_char(input, index, advance, stop_at_char = []) {
+  let str = "";
+  for (let char_index = index; char_index < input.length; char_index++) {
+    let char = input[char_index];
+    if (typeof advance === "function") {
+      if (advance(input, index, char)) {
+        break;
+      } else {
+        str += char;
+      }
+    } else {
+      if(char === "=" || char === "]") {
+        prev_special_token = char;
+      }
+      if (stop_at_char.includes(char)) {
+        break;
+      }
+      str += char;
+    }
+  }
+  return str;
+}
+
 function lexer(src) {
   if (src && typeof src === "string") {
     const tokens = [];
@@ -105,27 +116,37 @@ function lexer(src) {
       tokens.push({ type, value });
     };
     let context = "";
+    let temp_str = "";
 
     for (let i = 0; i < src.length; i++) {
       let current_char = src[i];
       if (current_char === "[" && advance(src, i, current_char)) {
         add_token(TOKEN_TYPES.OPEN_BRACKET, current_char);
         BLOCK_STACK.push(current_char);
+        prev_special_token = current_char;
       } else if (current_char === "=" && advance(src, i, current_char)) {
         BLOCK_STACK.push(current_char);
         add_token(TOKEN_TYPES.EQUAL, current_char);
       } else if (current_char === "\n" && advance(src, i, current_char)) {
         add_token(TOKEN_TYPES.NEWLINE, current_char);
       } else {
-        context = concat_char(src, i, advance);
-        if (context) {
-          i += context.length - 1;
-          current_char = src[i];
+        if (prev_special_token === "[" && BLOCK_STACK.includes("[")) {
+          temp_str = concat_char(src, i, null, ["=", "]"]);
+          if (temp_str) {
+            i += temp_str.length - 1;
+          }
+          add_token(TOKEN_TYPES.BLOCK_IDENTIFIER, temp_str);
+        } else {
+          context = concat_char(src, i, advance);
+          if (context) {
+            i += context.length - 1;
+            current_char = src[i];
+          }
+          add_token(TOKEN_TYPES.CONTENT, context);
         }
-        add_token(TOKEN_TYPES.CONTENT, context);
-        console.log(BLOCK_STACK);
       }
       context = "";
+      temp_str = "";
     }
     console.log(tokens);
     return tokens;
