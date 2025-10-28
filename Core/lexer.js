@@ -4,44 +4,7 @@ import fs from "node:fs/promises";
 const buffer = await fs.readFile("./Core/example.smark");
 const file_content = buffer.toString();
 
-// Stacks
 let BLOCK_STACK = [];
-let INLINE_STACK = [];
-let AT_BLOCK_STACK = [];
-let END_BLOCK = [];
-
-const rules = {
-  open_bracket: {
-    token: "[",
-    next_expected_char: ["=", "]"],
-  },
-  block_identifier: {
-    next_expected_char: ["=", "]"],
-    previous: ["["],
-  },
-  equal_sign: {
-    token: "=",
-    next_expected_char: ["]"],
-    previous: ["["],
-  },
-  block_value: {
-    next_expected_char: ["]"],
-    previous: ["[", "="],
-  },
-  close_bracket: {
-    token: "]",
-    next_expected_char: ["\n"],
-    previous: ["[", "="],
-  },
-};
-
-const {
-  open_bracket,
-  block_identifier,
-  equal_sign,
-  block_value,
-  close_bracket,
-} = rules;
 
 let prev_special_token = "";
 
@@ -65,31 +28,29 @@ function detector(input, index, expected_char = [], is_single_char = true) {
 }
 
 function advance(input, index, current_character) {
+  let _is = false;
   switch (current_character) {
-    case open_bracket.token:
-      let is_special_open_bracket = detector(
+    case "[":
+      _is = detector(
         input,
         index,
-        open_bracket.next_expected_char,
+         ["=", "]"],
       );
-      return is_special_open_bracket;
-    case equal_sign.token:
-      let is_special_equal_sign = detector(
+      return _is;
+    case "=":
+      _is = detector(
         input,
         index,
-        equal_sign.next_expected_char,
+        ["]"],
       );
-      return is_special_equal_sign;
-      case close_bracket.token:
-        let is_close_bracket = detector(
-          input,
-          index,
-          equal_sign.next_expected_char,
-        );
-        return is_close_bracket;
-    case "\n":
-      let is_newline = detector(input, index, ["\n"]);
-      return is_newline;
+      return _is;
+    case "]":
+      _is = detector(
+        input,
+        index,
+         ["\n"],
+      );
+      return _is;
   }
 }
 
@@ -104,7 +65,7 @@ function concat_char(input, index, advance, stop_at_char = []) {
         str += char;
       }
     } else {
-      if(char === "=" || char === "]") {
+      if (char === "=" || char === "]") {
         prev_special_token = char;
       }
       if (stop_at_char.includes(char)) {
@@ -136,27 +97,23 @@ function lexer(src) {
         add_token(TOKEN_TYPES.EQUAL, current_char);
       } else if (current_char === "]" && advance(src, i, current_char)) {
         add_token(TOKEN_TYPES.CLOSE_BRACKET, current_char);
-      }
-      else if (current_char === "\n" && advance(src, i, current_char)) {
+      } else if (current_char === "\n") {
         add_token(TOKEN_TYPES.NEWLINE, current_char);
-      } 
-      else {
+      } else {
         if (prev_special_token === "[") {
           temp_str = concat_char(src, i, null, ["=", "]"]);
           if (temp_str) {
             i += temp_str.length - 1;
           }
           add_token(TOKEN_TYPES.BLOCK_IDENTIFIER, temp_str);
-        }
-        else if(prev_special_token === "=") {
+        } else if (prev_special_token === "=") {
           temp_str = concat_char(src, i, null, ["]"]);
           if (temp_str) {
             i += temp_str.length - 1;
-             current_char = src[i];
+            current_char = src[i];
           }
           add_token(TOKEN_TYPES.VALUE, temp_str);
-        }
-        else {
+        } else {
           context = concat_char(src, i, advance);
           if (context) {
             i += context.length - 1;
