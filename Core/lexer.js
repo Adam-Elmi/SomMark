@@ -15,7 +15,7 @@ function peek(input, index, offset) {
   return null;
 }
 
-function detector(input, index, expected_char = [], is_single_char = true) {
+function detector(input, index, expected_char = []) {
   let is_special_token = false;
   for (let ch = index; ch < input.length; ch++) {
     let char = input[ch];
