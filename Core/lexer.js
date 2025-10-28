@@ -80,6 +80,13 @@ function advance(input, index, current_character) {
         equal_sign.next_expected_char,
       );
       return is_special_equal_sign;
+      case close_bracket.token:
+        let is_close_bracket = detector(
+          input,
+          index,
+          equal_sign.next_expected_char,
+        );
+        return is_close_bracket;
     case "\n":
       let is_newline = detector(input, index, ["\n"]);
       return is_newline;
@@ -127,9 +134,13 @@ function lexer(src) {
       } else if (current_char === "=" && advance(src, i, current_char)) {
         BLOCK_STACK.push(current_char);
         add_token(TOKEN_TYPES.EQUAL, current_char);
-      } else if (current_char === "\n" && advance(src, i, current_char)) {
+      } else if (current_char === "]" && advance(src, i, current_char)) {
+        add_token(TOKEN_TYPES.CLOSE_BRACKET, current_char);
+      }
+      else if (current_char === "\n" && advance(src, i, current_char)) {
         add_token(TOKEN_TYPES.NEWLINE, current_char);
-      } else {
+      } 
+      else {
         if (prev_special_token === "[") {
           temp_str = concat_char(src, i, null, ["=", "]"]);
           if (temp_str) {
