@@ -130,13 +130,21 @@ function lexer(src) {
       } else if (current_char === "\n" && advance(src, i, current_char)) {
         add_token(TOKEN_TYPES.NEWLINE, current_char);
       } else {
-        if (prev_special_token === "[" && BLOCK_STACK.includes("[")) {
+        if (prev_special_token === "[") {
           temp_str = concat_char(src, i, null, ["=", "]"]);
           if (temp_str) {
             i += temp_str.length - 1;
           }
           add_token(TOKEN_TYPES.BLOCK_IDENTIFIER, temp_str);
-        } else {
+        }
+        else if(prev_special_token === "=") {
+          temp_str = concat_char(src, i, null, ["]"]);
+          if (temp_str) {
+            i += temp_str.length - 1;
+          }
+          add_token(TOKEN_TYPES.VALUE, temp_str);
+        }
+        else {
           context = concat_char(src, i, advance);
           if (context) {
             i += context.length - 1;
