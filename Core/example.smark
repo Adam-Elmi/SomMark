@@ -1,7 +1,5 @@
-[text = Hello]
-(somcheat)->(0) This is a test. (Adam)->(i)(Hello)->(i) World (_test)_
-@_table_@: id, name
-- Hello
-- World
-@_end_@
+[Section = Main]
+[Section = Sub-section]
+Hello World
+[end]
 [end]
