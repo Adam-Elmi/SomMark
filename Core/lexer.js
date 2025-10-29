@@ -6,7 +6,7 @@ const file_content = buffer.toString();
 
 let BLOCK_STACK = [];
 let INLINE_STACK = [];
-let AT_BLOCK = [];
+let AT_STACK = [];
 let prev_special_token = "";
 
 function peek(input, index, offset) {
@@ -122,22 +122,27 @@ function lexer(src) {
         peek(src, i, 2) !== "_"
       ) {
         add_token(TOKEN_TYPES.OPEN_AT, current_char + peek(src, i, 1));
-        AT_BLOCK.push(current_char + peek(src, i, 1));
+        AT_STACK.push(current_char + peek(src, i, 1));
         i += (current_char + peek(src, i, 1)).length - 1;
         current_char = src[i];
       } else if (
         current_char === "_" &&
         peek(src, i, 1) === "@" &&
-        AT_BLOCK.length > 0 &&
-        AT_BLOCK[0] === "@_"
+        AT_STACK.length > 0 &&
+        AT_STACK[0] === "@_"
       ) {
         add_token(TOKEN_TYPES.CLOSE_AT, current_char + peek(src, i, 1));
-        AT_BLOCK.push(current_char + peek(src, i, 1));
+        AT_STACK.push(current_char + peek(src, i, 1));
         i += (current_char + peek(src, i, 1)).length - 1;
         current_char = src[i];
-      } else if (
+      } 
+      else if (AT_STACK.length === 2 && current_char === ":") {
+        add_token(TOKEN_TYPES.COLON, current_char);
+        AT_STACK.push(current_char);
+      }
+      else if (
         ((BLOCK_STACK.length === 1 && BLOCK_STACK[0] === "[") ||
-          (AT_BLOCK.length === 1 && AT_BLOCK[0] === "@_")) &&
+          (AT_STACK.length === 1 && AT_STACK[0] === "@_")) &&
         current_char === "e" &&
         peek(src, i, 1) === "n" &&
         peek(src, i, 2) === "d"
@@ -173,23 +178,32 @@ function lexer(src) {
             current_char = src[i];
           }
           add_token(TOKEN_TYPES.VALUE, temp_str);
-        } else if (AT_BLOCK.length === 1) {
+        } else if (AT_STACK.length === 1) {
           temp_str = concat_char(src, i, "active", ["@", "_"]);
           if (temp_str) {
             i += temp_str.length - 1;
             current_char = src[i];
           }
           add_token(TOKEN_TYPES.AT_IDENTIFIER, temp_str);
-        } else {
+        }
+        else if (AT_STACK.length === 3) {
+          temp_str = concat_char(src, i, "active", [":", "\n"]);
+          if (temp_str) {
+            i += temp_str.length - 1;
+            current_char = src[i];
+          }
+          add_token(TOKEN_TYPES.VALUE, temp_str);
+          if(AT_STACK.length === 3) {
+            AT_STACK = [];
+          }
+        }  
+        else {
           context = concat_char(src, i);
           if (context) {
             i += context.length - 1;
             current_char = src[i];
           }
           add_token(TOKEN_TYPES.CONTENT, context);
-          if (AT_BLOCK.length === 2) {
-            AT_BLOCK = [];
-          }
         }
       }
       context = "";
