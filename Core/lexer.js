@@ -48,15 +48,15 @@ function lexer(src) {
 
     for (let i = 0; i < src.length; i++) {
       let current_char = src[i];
-      console.log("Prev token: ", BLOCK_STACK)
-      if (current_char === "[" && BLOCK_STACK.length === 0) {
+      console.log("Prev token: ", prev_special_token)
+      if (current_char === "[" && BLOCK_STACK.length === 0 && peek(src, i, 1) !== "_") {
         add_token(TOKEN_TYPES.OPEN_BRACKET, current_char);
         BLOCK_STACK.push(current_char);
         prev_special_token = current_char;
       } else if (current_char === "=" && BLOCK_STACK.includes("[")) {
         add_token(TOKEN_TYPES.EQUAL, current_char);
         BLOCK_STACK.push(current_char);
-      } else if (current_char === "]" && BLOCK_STACK.includes("[")) {
+      } else if (current_char === "]" && BLOCK_STACK.includes("[") && peek(src, i, 1) === "\n") {
         add_token(TOKEN_TYPES.CLOSE_BRACKET, current_char);
         BLOCK_STACK = [];
       } else if (current_char === "\n") {
