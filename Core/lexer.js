@@ -6,6 +6,7 @@ const file_content = buffer.toString();
 
 let BLOCK_STACK = [];
 let INLINE_STACK = [];
+let AT_BLOCK = [];
 let prev_special_token = "";
 
 function peek(input, index, offset) {
@@ -20,7 +21,13 @@ function concat_char(input, index, mode = "normal", stop_at_char = []) {
   for (let char_index = index; char_index < input.length; char_index++) {
     let char = input[char_index];
     if (mode === "normal") {
-      if (char === "\n" || (char === "(" && peek(input, char_index, 1) !== "_") ||  (char === ")" && peek(input, char_index, 1) !== "_")) {
+      if (
+        char === "\n" ||
+        (char === "(" && peek(input, char_index, 1) !== "_") ||
+        (char === ")" && peek(input, char_index, 1) !== "_") ||
+        (char === "@" && peek(input, char_index, 1) === "_") ||
+        (char === "_" && peek(input, char_index, 1) === "@")
+      ) {
         break;
       }
       str += char;
@@ -28,7 +35,11 @@ function concat_char(input, index, mode = "normal", stop_at_char = []) {
       if (char === "=" || char === "]" || char === "(") {
         prev_special_token = char;
       }
-      if(char === ")" && peek(input, char_index, 1) === "-" && peek(input, char_index, 2) === ">") {
+      if (
+        char === ")" &&
+        peek(input, char_index, 1) === "-" &&
+        peek(input, char_index, 2) === ">"
+      ) {
         prev_special_token = char;
       }
       if (stop_at_char.includes(char)) {
@@ -37,6 +48,7 @@ function concat_char(input, index, mode = "normal", stop_at_char = []) {
       str += char;
     }
   }
+
   return str;
 }
 /*
@@ -74,7 +86,8 @@ function lexer(src) {
       } else if (current_char === "\n") {
         add_token(TOKEN_TYPES.NEWLINE, current_char);
       } else if (
-        current_char === "(" && peek(src, i, 1) !== "_" &&
+        current_char === "(" &&
+        peek(src, i, 1) !== "_" &&
         (INLINE_STACK.length === 0 || INLINE_STACK.includes("("))
       ) {
         add_token(TOKEN_TYPES.OPEN_PAREN, current_char);
@@ -93,7 +106,9 @@ function lexer(src) {
         (current_char === ")" &&
           peek(src, i, 1) === "-" &&
           peek(src, i, 2) === ">") ||
-        (current_char === ")" && INLINE_STACK[2] === "->" && INLINE_STACK[3] === "(")
+        (current_char === ")" &&
+          INLINE_STACK[2] === "->" &&
+          INLINE_STACK[3] === "(")
       ) {
         add_token(TOKEN_TYPES.CLOSE_PAREN, current_char);
         if (INLINE_STACK[2] === "->" && INLINE_STACK[3] === "(") {
@@ -101,17 +116,42 @@ function lexer(src) {
         } else {
           INLINE_STACK.push(current_char);
         }
+      } else if (
+        current_char === "@" &&
+        peek(src, i, 1) === "_" &&
+        peek(src, i, 2) !== "_"
+      ) {
+        add_token(TOKEN_TYPES.OPEN_AT, current_char + peek(src, i, 1));
+        AT_BLOCK.push(current_char + peek(src, i, 1));
+        i += (current_char + peek(src, i, 1)).length - 1;
+        current_char = src[i];
+      } else if (
+        current_char === "_" &&
+        peek(src, i, 1) === "@" &&
+        AT_BLOCK.length > 0 &&
+        AT_BLOCK[0] === "@_"
+      ) {
+        add_token(TOKEN_TYPES.CLOSE_AT, current_char + peek(src, i, 1));
+        AT_BLOCK.push(current_char + peek(src, i, 1));
+        i += (current_char + peek(src, i, 1)).length - 1;
+        current_char = src[i];
+      } else if (
+        ((BLOCK_STACK.length === 1 && BLOCK_STACK[0] === "[") ||
+          (AT_BLOCK.length === 1 && AT_BLOCK[0] === "@_")) &&
+        current_char === "e" &&
+        peek(src, i, 1) === "n" &&
+        peek(src, i, 2) === "d"
+      ) {
+        add_token(TOKEN_TYPES.END_KEYWORD, current_char + peek(src, i, 1) + peek(src, i, 2));
+        i +=(current_char + peek(src, i, 1) + peek(src, i, 2)).length - 1;
+        current_char = src[i];
       } else {
         if (prev_special_token === "[") {
           temp_str = concat_char(src, i, "active", ["=", "]"]);
           if (temp_str) {
             i += temp_str.length - 1;
           }
-          if (temp_str.trim() === "end") {
-            add_token(TOKEN_TYPES.END_KEYWORD, temp_str);
-          } else {
-            add_token(TOKEN_TYPES.BLOCK_IDENTIFIER, temp_str);
-          }
+          add_token(TOKEN_TYPES.BLOCK_IDENTIFIER, temp_str);
         } else if (prev_special_token === "=") {
           temp_str = concat_char(src, i, "active", ["]"]);
           if (temp_str) {
@@ -126,22 +166,30 @@ function lexer(src) {
             current_char = src[i];
           }
           add_token(TOKEN_TYPES.INLINE_IDENTIFIER, temp_str);
-        } 
-        else if (INLINE_STACK.length === 4) {
+        } else if (INLINE_STACK.length === 4) {
           temp_str = concat_char(src, i, "active", ["(", ")"]);
           if (temp_str) {
             i += temp_str.length - 1;
             current_char = src[i];
           }
           add_token(TOKEN_TYPES.VALUE, temp_str);
-        } 
-        else {
+        } else if (AT_BLOCK.length === 1) {
+          temp_str = concat_char(src, i, "active", ["@", "_"]);
+          if (temp_str) {
+            i += temp_str.length - 1;
+            current_char = src[i];
+          }
+          add_token(TOKEN_TYPES.AT_IDENTIFIER, temp_str);
+        } else {
           context = concat_char(src, i);
           if (context) {
             i += context.length - 1;
             current_char = src[i];
           }
           add_token(TOKEN_TYPES.CONTENT, context);
+          if (AT_BLOCK.length === 2) {
+            AT_BLOCK = [];
+          }
         }
       }
       context = "";
