@@ -1,8 +1,3 @@
-[text = Welcome Friend]
-This is a test.
-(Hello)->(i) World 
-@_table_@: id, name 
-- 101, Adam
-- 202, Elmi
-@_end_@
+[text = Hello]
+(somcheat)->(0) This is a test. (Adam)->(i)(Hello)->(i) World (_test)_
 [end]
