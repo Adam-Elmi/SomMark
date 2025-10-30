@@ -75,6 +75,7 @@ function lexer(src) {
 
     for (let i = 0; i < src.length; i++) {
       let current_char = src[i];
+      // Token: Open Bracket
       if (
         current_char === "[" &&
         BLOCK_STACK.length === 0 &&
@@ -85,12 +86,16 @@ function lexer(src) {
         add_token(TOKEN_TYPES.OPEN_BRACKET, current_char);
         BLOCK_STACK.push(current_char);
         prev_special_token = current_char;
-      } else if (current_char === "=" && BLOCK_STACK.includes("[")) {
+      }
+      // Token: Equal Sign
+      else if (current_char === "=" && BLOCK_STACK.includes("[")) {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.EQUAL, current_char);
         BLOCK_STACK.push(current_char);
-      } else if (
+      }
+      // Token: Close Bracket
+      else if (
         current_char === "]" &&
         BLOCK_STACK.includes("[") &&
         peek(src, i, 1) === "\n"
@@ -99,7 +104,9 @@ function lexer(src) {
         column_end = column_start;
         add_token(TOKEN_TYPES.CLOSE_BRACKET, current_char);
         BLOCK_STACK = [];
-      } else if (
+      }
+      // Token: Open Parenthesis
+      else if (
         current_char === "(" &&
         peek(src, i, 1) !== "_" &&
         (INLINE_STACK.length === 0 || INLINE_STACK.includes("("))
@@ -108,7 +115,9 @@ function lexer(src) {
         column_end = column_start;
         add_token(TOKEN_TYPES.OPEN_PAREN, current_char);
         INLINE_STACK.push(current_char);
-      } else if (
+      }
+      // Token: Thin Arrow
+      else if (
         current_char === "-" &&
         INLINE_STACK[0] === "(" &&
         peek(src, i, 1) === ">" &&
@@ -120,7 +129,9 @@ function lexer(src) {
         i += (current_char + peek(src, i, 1)).length - 1;
         current_char = src[i];
         column_end = i + 1;
-      } else if (
+      }
+      // Token: Close Parenthesis
+      else if (
         (current_char === ")" &&
           peek(src, i, 1) === "-" &&
           peek(src, i, 2) === ">") ||
@@ -136,7 +147,9 @@ function lexer(src) {
         } else {
           INLINE_STACK.push(current_char);
         }
-      } else if (
+      }
+      // Token: Open At (@_)
+      else if (
         current_char === "@" &&
         peek(src, i, 1) === "_" &&
         peek(src, i, 2) !== "_"
@@ -147,7 +160,9 @@ function lexer(src) {
         i += (current_char + peek(src, i, 1)).length - 1;
         current_char = src[i];
         column_end = i + 1;
-      } else if (
+      }
+      // Token: Close At (_@)
+      else if (
         current_char === "_" &&
         peek(src, i, 1) === "@" &&
         AT_STACK.length > 0 &&
@@ -159,12 +174,16 @@ function lexer(src) {
         i += (current_char + peek(src, i, 1)).length - 1;
         current_char = src[i];
         column_end = i + 1;
-      } else if (AT_STACK.length === 2 && current_char === ":") {
+      }
+      // Token: Colon
+      else if (AT_STACK.length === 2 && current_char === ":") {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.COLON, current_char);
         AT_STACK.push(current_char);
-      } else if (
+      }
+      // Token: End Keyword
+      else if (
         ((BLOCK_STACK.length === 1 && BLOCK_STACK[0] === "[") ||
           (AT_STACK.length === 1 && AT_STACK[0] === "@_")) &&
         current_char === "e" &&
@@ -179,12 +198,15 @@ function lexer(src) {
         i += (current_char + peek(src, i, 1) + peek(src, i, 2)).length - 1;
         current_char = src[i];
         column_end = i + 1;
-      } else if (current_char === "\n") {
+      }
+      // Token: Newline (\n)
+      else if (current_char === "\n") {
         line += 1;
         column_start = 1;
         column_end = 1;
         add_token(TOKEN_TYPES.NEWLINE, current_char);
       } else {
+        // Token: Block Identifier
         if (prev_special_token === "[") {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", ["=", "]"]);
@@ -194,7 +216,9 @@ function lexer(src) {
             column_end = i + 1;
           }
           add_token(TOKEN_TYPES.BLOCK_IDENTIFIER, temp_str);
-        } else if (
+        }
+        // Token: Value (Block Value)
+        else if (
           BLOCK_STACK.length > 0 &&
           BLOCK_STACK[1] === "=" &&
           prev_special_token === "="
@@ -207,7 +231,9 @@ function lexer(src) {
             column_end = i + 1;
           }
           add_token(TOKEN_TYPES.VALUE, temp_str);
-        } else if (INLINE_STACK.length === 1) {
+        }
+        // Token: Value (Inline Value)
+        else if (INLINE_STACK.length === 1) {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", ["(", ")"]);
           if (temp_str) {
@@ -216,7 +242,9 @@ function lexer(src) {
             column_end = i + 1;
           }
           add_token(TOKEN_TYPES.VALUE, temp_str);
-        } else if (INLINE_STACK.length === 4) {
+        }
+        // Token: Inline Identifier
+        else if (INLINE_STACK.length === 4) {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", ["(", ")"]);
           if (temp_str) {
@@ -225,7 +253,9 @@ function lexer(src) {
             column_end = i + 1;
           }
           add_token(TOKEN_TYPES.INLINE_IDENTIFIER, temp_str);
-        } else if (AT_STACK.length === 1) {
+        }
+        // Token: At Identifier
+        else if (AT_STACK.length === 1) {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", ["@", "_"]);
           if (temp_str) {
@@ -234,7 +264,9 @@ function lexer(src) {
             column_end = i + 1;
           }
           add_token(TOKEN_TYPES.AT_IDENTIFIER, temp_str);
-        } else if (AT_STACK.length === 3) {
+        }
+        // Token: Value (At Value)
+        else if (AT_STACK.length === 3) {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", [":", "\n"]);
           if (temp_str) {
@@ -246,7 +278,9 @@ function lexer(src) {
           if (AT_STACK.length === 3) {
             AT_STACK = [];
           }
-        } else {
+        }
+        // Token: Content (anything else)
+        else {
           column_start = i + 1;
           context = concat_char(src, i);
           if (context) {
