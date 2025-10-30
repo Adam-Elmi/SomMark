@@ -1,8 +1,13 @@
-[Section = 1]
-    [Section = 1.1]
-        [Section = 1.1.1]
-            [Section = 1.1.1.1]
-                [Section = 1.1.1.1.1]
+# Block A
+[Section = A]
+    # Block B
+    [Section = B]
+        # Block C
+        [Section = C]
+            # Block D
+            [Section = D]
+                # Block F
+                [Section = F]
                 Hello World    
                 [end]
             [end]
