@@ -1,5 +1,11 @@
-[Section = Main]
-[Section = Sub-section]
-Hello World
-[end]
+[Section = 1]
+    [Section = 1.1]
+        [Section = 1.1.1]
+            [Section = 1.1.1.1]
+                [Section = 1.1.1.1.1]
+                Hello World    
+                [end]
+            [end]
+        [end]
+    [end]
 [end]
