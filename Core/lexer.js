@@ -72,7 +72,7 @@ function lexer(src) {
       ) {
         column_start = i + 1;
         column_end = column_start;
-        if((peek(src, i, 1) + peek(src, i, 2) + peek(src, i, 3)) !== "end") {
+        if (peek(src, i, 1) + peek(src, i, 2) + peek(src, i, 3) !== "end") {
           depth_index += 1;
         }
         add_token(TOKEN_TYPES.OPEN_BRACKET, current_char);
@@ -96,8 +96,7 @@ function lexer(src) {
         (current_char === "]" &&
           BLOCK_STACK.length > 0 &&
           BLOCK_STACK[0] === "[" &&
-          (BLOCK_STACK[1] === "Block Identifier" || BLOCK_STACK[1] === "end") &&
-          peek(src, i, 1) === "\n")
+          (BLOCK_STACK[1] === "Block Identifier" || BLOCK_STACK[1] === "end"))
       ) {
         column_start = i + 1;
         column_end = column_start;
@@ -303,7 +302,9 @@ function lexer(src) {
             current_char = src[i];
             column_end = i + 1;
           }
-          add_token(TOKEN_TYPES.CONTENT, context);
+          if (context.trim()) {
+            add_token(TOKEN_TYPES.CONTENT, context);
+          }
         }
       }
       context = "";
