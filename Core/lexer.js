@@ -31,7 +31,8 @@ function concat_char(input, index, mode = "normal", stop_at_char = []) {
         (char === "_" &&
           peek(input, char_index, 1) !== "_" &&
           peek(input, char_index, 2) !== "@" &&
-          peek(input, char_index, 2) === "@")
+          peek(input, char_index, 2) === "@") ||
+        (char === "#" && peek(input, char_index, 1) !== "_")
       ) {
         break;
       }
