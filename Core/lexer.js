@@ -23,10 +23,16 @@ function concat_char(input, index, mode = "normal", stop_at_char = []) {
     if (mode === "normal") {
       if (
         char === "\n" ||
+        (char === "[" && peek(input, char_index, 1) !== "_") ||
         (char === "(" && peek(input, char_index, 1) !== "_") ||
         (char === ")" && peek(input, char_index, 1) !== "_") ||
-        (char === "@" && peek(input, char_index, 1) === "_") ||
-        (char === "_" && peek(input, char_index, 1) === "@")
+        (char === "@" &&
+          peek(input, char_index, 1) === "_" &&
+          peek(input, char_index, 2) !== "_") ||
+        (char === "_" &&
+          peek(input, char_index, 1) !== "_" &&
+          peek(input, char_index, 2) !== "@" &&
+          peek(input, char_index, 2) === "@")
       ) {
         break;
       }
@@ -60,6 +66,7 @@ function lexer(src) {
     let line = 1;
     let column_start = 1,
       column_end = 1;
+    let depth = 0;
     const add_token = (type, value) => {
       tokens.push({ type, value, line, column_start, column_end });
     };
@@ -208,7 +215,7 @@ function lexer(src) {
             current_char = src[i];
             column_end = i + 1;
           }
-          add_token(TOKEN_TYPES.INLINE_IDENTIFIER, temp_str);
+          add_token(TOKEN_TYPES.VALUE, temp_str);
         } else if (INLINE_STACK.length === 4) {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", ["(", ")"]);
@@ -217,7 +224,7 @@ function lexer(src) {
             current_char = src[i];
             column_end = i + 1;
           }
-          add_token(TOKEN_TYPES.VALUE, temp_str);
+          add_token(TOKEN_TYPES.INLINE_IDENTIFIER, temp_str);
         } else if (AT_STACK.length === 1) {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", ["@", "_"]);
