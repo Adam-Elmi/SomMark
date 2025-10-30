@@ -84,12 +84,17 @@ function lexer(src) {
       }
       // Token: Close Bracket
       else if (
-        current_char === "]" && i === src.length - 1 ||
-        current_char === "]" &&
-        BLOCK_STACK.length > 0 &&
-        BLOCK_STACK[0] === "[" &&
-        (BLOCK_STACK[1] === "Block Identifier" || BLOCK_STACK[1] === "end") &&
-        peek(src, i, 1) === "\n"
+        (current_char === "]" &&
+          i === src.length - 1 &&
+          BLOCK_STACK.length > 0 &&
+          BLOCK_STACK[0] === "[" &&
+          (BLOCK_STACK[1] === "Block Identifier" ||
+            BLOCK_STACK[1] === "end")) ||
+        (current_char === "]" &&
+          BLOCK_STACK.length > 0 &&
+          BLOCK_STACK[0] === "[" &&
+          (BLOCK_STACK[1] === "Block Identifier" || BLOCK_STACK[1] === "end") &&
+          peek(src, i, 1) === "\n")
       ) {
         column_start = i + 1;
         column_end = column_start;
