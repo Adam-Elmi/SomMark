@@ -16,6 +16,7 @@ const TOKEN_TYPES = {
   OPEN_AT: "OPEN_AT",
   CLOSE_AT: "CLOSE_AT",
   COLON: "COLON",
+  COMMENT: "COMMENT"
 };
 
 export default TOKEN_TYPES;

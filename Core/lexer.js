@@ -246,7 +246,7 @@ function lexer(src) {
         // Token: Value (Inline Value)
         else if (INLINE_STACK.length === 1 && INLINE_STACK[0] === "(") {
           column_start = i + 1;
-          temp_str = concat_char(src, i, "active", ["(", ")"]);
+          temp_str = concat_char(src, i, "active", [")"]);
           if (temp_str) {
             i += temp_str.length - 1;
             current_char = src[i];
@@ -292,6 +292,16 @@ function lexer(src) {
           if (AT_STACK.length === 4) {
             AT_STACK = [];
           }
+        }
+        // Token: Comment
+        else if (current_char === "#" && peek(src, i, 1) !== "_") {
+          temp_str = concat_char(src, i, "active", ["\n"]);
+          if (temp_str) {
+            i += temp_str.length - 1;
+            current_char = src[i];
+            column_end = i + 1;
+          }
+          add_token(TOKEN_TYPES.COMMENT, temp_str);
         }
         // Token: Content (anything else)
         else {
