@@ -84,6 +84,7 @@ function lexer(src) {
       }
       // Token: Close Bracket
       else if (
+        current_char === "]" && i === src.length - 1 ||
         current_char === "]" &&
         BLOCK_STACK.length > 0 &&
         BLOCK_STACK[0] === "[" &&
