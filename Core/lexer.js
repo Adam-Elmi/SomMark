@@ -7,7 +7,6 @@ const file_content = buffer.toString();
 let BLOCK_STACK = [];
 let INLINE_STACK = [];
 let AT_STACK = [];
-let prev_special_token = "";
 
 function peek(input, index, offset) {
   if (index + offset < input.length) {
@@ -38,16 +37,6 @@ function concat_char(input, index, mode = "normal", stop_at_char = []) {
       }
       str += char;
     } else {
-      if (char === "=" || char === "]" || char === "(") {
-        prev_special_token = char;
-      }
-      if (
-        char === ")" &&
-        peek(input, char_index, 1) === "-" &&
-        peek(input, char_index, 2) === ">"
-      ) {
-        prev_special_token = char;
-      }
       if (stop_at_char.includes(char)) {
         break;
       }
@@ -85,7 +74,6 @@ function lexer(src) {
         column_end = column_start;
         add_token(TOKEN_TYPES.OPEN_BRACKET, current_char);
         BLOCK_STACK.push(current_char);
-        prev_special_token = current_char;
       }
       // Token: Equal Sign
       else if (current_char === "=" && BLOCK_STACK.includes("[")) {
@@ -97,12 +85,15 @@ function lexer(src) {
       // Token: Close Bracket
       else if (
         current_char === "]" &&
-        BLOCK_STACK.includes("[") &&
+        BLOCK_STACK.length > 0 &&
+        BLOCK_STACK[0] === "[" &&
+        (BLOCK_STACK[1] === "Block Identifier" || BLOCK_STACK[1] === "end") &&
         peek(src, i, 1) === "\n"
       ) {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.CLOSE_BRACKET, current_char);
+        console.log(BLOCK_STACK);
         BLOCK_STACK = [];
       }
       // Token: Open Parenthesis
@@ -137,12 +128,16 @@ function lexer(src) {
           peek(src, i, 2) === ">") ||
         (current_char === ")" &&
           INLINE_STACK[2] === "->" &&
-          INLINE_STACK[3] === "(")
+          INLINE_STACK[3] === "(") ||
+        (INLINE_STACK.length === 6 &&
+          INLINE_STACK[4] === "(" &&
+          INLINE_STACK[5] === "Inline Identifier")
       ) {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.CLOSE_PAREN, current_char);
-        if (INLINE_STACK[2] === "->" && INLINE_STACK[3] === "(") {
+        INLINE_STACK.push(current_char);
+        if (INLINE_STACK.length === 7) {
           INLINE_STACK = [];
         } else {
           INLINE_STACK.push(current_char);
@@ -171,7 +166,7 @@ function lexer(src) {
         column_start = i + 1;
         add_token(TOKEN_TYPES.CLOSE_AT, current_char + peek(src, i, 1));
         AT_STACK.push(current_char + peek(src, i, 1));
-        if(AT_STACK.includes("end")) {
+        if (AT_STACK.includes("end")) {
           AT_STACK = [];
         }
         i += (current_char + peek(src, i, 1)).length - 1;
@@ -179,7 +174,7 @@ function lexer(src) {
         column_end = i + 1;
       }
       // Token: Colon
-      else if (AT_STACK.length === 2 && current_char === ":") {
+      else if (AT_STACK.length === 3 && current_char === ":") {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.COLON, current_char);
@@ -198,6 +193,7 @@ function lexer(src) {
           TOKEN_TYPES.END_KEYWORD,
           current_char + peek(src, i, 1) + peek(src, i, 2),
         );
+        BLOCK_STACK.push(current_char + peek(src, i, 1) + peek(src, i, 2));
         AT_STACK.push(current_char + peek(src, i, 1) + peek(src, i, 2));
         i += (current_char + peek(src, i, 1) + peek(src, i, 2)).length - 1;
         current_char = src[i];
@@ -211,7 +207,7 @@ function lexer(src) {
         add_token(TOKEN_TYPES.NEWLINE, current_char);
       } else {
         // Token: Block Identifier
-        if (prev_special_token === "[") {
+        if (BLOCK_STACK.length === 1 && BLOCK_STACK[0] === "[") {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", ["=", "]"]);
           if (temp_str) {
@@ -220,12 +216,14 @@ function lexer(src) {
             column_end = i + 1;
           }
           add_token(TOKEN_TYPES.BLOCK_IDENTIFIER, temp_str);
+          BLOCK_STACK.push("Block Identifier");
         }
         // Token: Value (Block Value)
         else if (
-          BLOCK_STACK.length > 0 &&
-          BLOCK_STACK[1] === "=" &&
-          prev_special_token === "="
+          (BLOCK_STACK.length === 3 &&
+            BLOCK_STACK[0] === "[" &&
+            BLOCK_STACK[1] === "Block Identifier",
+          BLOCK_STACK[2] === "=")
         ) {
           temp_str = concat_char(src, i, "active", ["]"]);
           if (temp_str) {
@@ -235,9 +233,10 @@ function lexer(src) {
             column_end = i + 1;
           }
           add_token(TOKEN_TYPES.VALUE, temp_str);
+          BLOCK_STACK.push("Block Value");
         }
         // Token: Value (Inline Value)
-        else if (INLINE_STACK.length === 1) {
+        else if (INLINE_STACK.length === 1 && INLINE_STACK[0] === "(") {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", ["(", ")"]);
           if (temp_str) {
@@ -246,20 +245,22 @@ function lexer(src) {
             column_end = i + 1;
           }
           add_token(TOKEN_TYPES.VALUE, temp_str);
+          INLINE_STACK.push("Inline Value");
         }
         // Token: Inline Identifier
-        else if (INLINE_STACK.length === 4) {
+        else if (INLINE_STACK.length === 5 && INLINE_STACK[4] === "(") {
           column_start = i + 1;
-          temp_str = concat_char(src, i, "active", ["(", ")"]);
+          temp_str = concat_char(src, i, "active", [")"]);
           if (temp_str) {
             i += temp_str.length - 1;
             current_char = src[i];
             column_end = i + 1;
           }
           add_token(TOKEN_TYPES.INLINE_IDENTIFIER, temp_str);
+          INLINE_STACK.push("Inline Identifier");
         }
         // Token: At Identifier
-        else if (AT_STACK.length === 1) {
+        else if (AT_STACK.length === 1 && AT_STACK[0] === "@_") {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", ["@", "_"]);
           if (temp_str) {
@@ -268,9 +269,10 @@ function lexer(src) {
             column_end = i + 1;
           }
           add_token(TOKEN_TYPES.AT_IDENTIFIER, temp_str);
+          AT_STACK.push("At Identifier");
         }
         // Token: Value (At Value)
-        else if (AT_STACK.length === 3 && !AT_STACK.includes("end")) {
+        else if (AT_STACK.length === 4 && !AT_STACK.includes("end")) {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", [":", "\n"]);
           if (temp_str) {
@@ -279,7 +281,7 @@ function lexer(src) {
             column_end = i + 1;
           }
           add_token(TOKEN_TYPES.VALUE, temp_str);
-          if (AT_STACK.length === 3) {
+          if (AT_STACK.length === 4) {
             AT_STACK = [];
           }
         }
