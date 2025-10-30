@@ -55,9 +55,9 @@ function lexer(src) {
     let line = 1;
     let column_start = 1,
       column_end = 1;
-    let depth = 0;
-    const add_token = (type, value) => {
-      tokens.push({ type, value, line, column_start, column_end });
+    let depth_index = 0;
+    const add_token = (type, value, depth = depth_index) => {
+      tokens.push({ type, value, line, column_start, column_end, depth });
     };
     let context = "";
     let temp_str = "";
@@ -72,6 +72,9 @@ function lexer(src) {
       ) {
         column_start = i + 1;
         column_end = column_start;
+        if((peek(src, i, 1) + peek(src, i, 2) + peek(src, i, 3)) !== "end") {
+          depth_index += 1;
+        }
         add_token(TOKEN_TYPES.OPEN_BRACKET, current_char);
         BLOCK_STACK.push(current_char);
       }
