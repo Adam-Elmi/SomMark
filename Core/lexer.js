@@ -171,6 +171,9 @@ function lexer(src) {
         column_start = i + 1;
         add_token(TOKEN_TYPES.CLOSE_AT, current_char + peek(src, i, 1));
         AT_STACK.push(current_char + peek(src, i, 1));
+        if(AT_STACK.includes("end")) {
+          AT_STACK = [];
+        }
         i += (current_char + peek(src, i, 1)).length - 1;
         current_char = src[i];
         column_end = i + 1;
@@ -195,6 +198,7 @@ function lexer(src) {
           TOKEN_TYPES.END_KEYWORD,
           current_char + peek(src, i, 1) + peek(src, i, 2),
         );
+        AT_STACK.push(current_char + peek(src, i, 1) + peek(src, i, 2));
         i += (current_char + peek(src, i, 1) + peek(src, i, 2)).length - 1;
         current_char = src[i];
         column_end = i + 1;
@@ -266,7 +270,7 @@ function lexer(src) {
           add_token(TOKEN_TYPES.AT_IDENTIFIER, temp_str);
         }
         // Token: Value (At Value)
-        else if (AT_STACK.length === 3) {
+        else if (AT_STACK.length === 3 && !AT_STACK.includes("end")) {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", [":", "\n"]);
           if (temp_str) {
