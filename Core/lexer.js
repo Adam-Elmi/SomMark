@@ -7,6 +7,7 @@ const file_content = buffer.toString();
 let BLOCK_STACK = [];
 let INLINE_STACK = [];
 let AT_STACK = [];
+let DEPTH_STACK = [];
 
 function peek(input, index, offset) {
   if (index + offset < input.length) {
@@ -56,8 +57,7 @@ function lexer(src) {
     let line = 1;
     let column_start = 1,
       column_end = 1;
-    let depth_index = 0;
-    const add_token = (type, value, depth = depth_index) => {
+    const add_token = (type, value, depth = DEPTH_STACK.length) => {
       tokens.push({ type, value, line, column_start, column_end, depth });
     };
     let context = "";
@@ -74,7 +74,7 @@ function lexer(src) {
         column_start = i + 1;
         column_end = column_start;
         if (peek(src, i, 1) + peek(src, i, 2) + peek(src, i, 3) !== "end") {
-          depth_index += 1;
+          DEPTH_STACK.push("Block");
         }
         add_token(TOKEN_TYPES.OPEN_BRACKET, current_char);
         BLOCK_STACK.push(current_char);
@@ -102,8 +102,7 @@ function lexer(src) {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.CLOSE_BRACKET, current_char);
-        console.log(BLOCK_STACK);
-        BLOCK_STACK = [];
+        BLOCK_STACK.push(current_char);
       }
       // Token: Open Parenthesis
       else if (
@@ -214,6 +213,16 @@ function lexer(src) {
         column_start = 1;
         column_end = 1;
         add_token(TOKEN_TYPES.NEWLINE, current_char);
+        if (BLOCK_STACK.length === 3 && BLOCK_STACK[1] === "end") {
+          DEPTH_STACK.pop();
+          BLOCK_STACK = [];
+        } else if (
+          BLOCK_STACK.length > 0 &&
+          BLOCK_STACK[0] === "[" &&
+          BLOCK_STACK[1] === "Block Identifier"
+        ) {
+          BLOCK_STACK = [];
+        }
       } else {
         // Token: Block Identifier
         if (BLOCK_STACK.length === 1 && BLOCK_STACK[0] === "[") {
