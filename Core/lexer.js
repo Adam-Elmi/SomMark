@@ -106,9 +106,12 @@ function lexer(src) {
       }
       // Token: Open Parenthesis
       else if (
-        current_char === "(" &&
-        peek(src, i, 1) !== "_" &&
-        (INLINE_STACK.length === 0 || INLINE_STACK.includes("("))
+        (current_char === "(" &&
+          peek(src, i, 1) !== "_" &&
+          INLINE_STACK.length === 0) ||
+        (current_char === "(" &&
+          INLINE_STACK.length === 4 &&
+          INLINE_STACK[3] === "->")
       ) {
         column_start = i + 1;
         column_end = column_start;
@@ -118,9 +121,9 @@ function lexer(src) {
       // Token: Thin Arrow
       else if (
         current_char === "-" &&
-        INLINE_STACK[0] === "(" &&
         peek(src, i, 1) === ">" &&
-        peek(src, i, 2) === "("
+        peek(src, i, 2) === "(" &&
+        INLINE_STACK.length === 3
       ) {
         column_start = i + 1;
         add_token(TOKEN_TYPES.THIN_ARROW, current_char + peek(src, i, 1));
@@ -132,14 +135,9 @@ function lexer(src) {
       // Token: Close Parenthesis
       else if (
         (current_char === ")" &&
-          peek(src, i, 1) === "-" &&
-          peek(src, i, 2) === ">") ||
-        (current_char === ")" &&
-          INLINE_STACK[2] === "->" &&
-          INLINE_STACK[3] === "(") ||
-        (INLINE_STACK.length === 6 &&
-          INLINE_STACK[4] === "(" &&
-          INLINE_STACK[5] === "Inline Identifier")
+          INLINE_STACK.length === 2 &&
+          INLINE_STACK[1] === "Inline Value") ||
+        (INLINE_STACK.length === 6 && INLINE_STACK[5] === "Inline Identifier")
       ) {
         column_start = i + 1;
         column_end = column_start;
@@ -147,8 +145,6 @@ function lexer(src) {
         INLINE_STACK.push(current_char);
         if (INLINE_STACK.length === 7) {
           INLINE_STACK = [];
-        } else {
-          INLINE_STACK.push(current_char);
         }
       }
       // Token: Open At (@_)
@@ -276,6 +272,7 @@ function lexer(src) {
           }
           add_token(TOKEN_TYPES.INLINE_IDENTIFIER, temp_str);
           INLINE_STACK.push("Inline Identifier");
+
         }
         // Token: At Identifier
         else if (AT_STACK.length === 1 && AT_STACK[0] === "@_") {
