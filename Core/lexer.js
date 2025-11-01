@@ -1,8 +1,4 @@
 import TOKEN_TYPES from "./tokenTypes.js";
-import fs from "node:fs/promises";
-
-const buffer = await fs.readFile("./Core/example.smark");
-const file_content = buffer.toString();
 
 let BLOCK_STACK = [];
 let INLINE_STACK = [];
@@ -272,7 +268,6 @@ function lexer(src) {
           }
           add_token(TOKEN_TYPES.INLINE_IDENTIFIER, temp_str);
           INLINE_STACK.push("Inline Identifier");
-
         }
         // Token: At Identifier
         else if (AT_STACK.length === 1 && AT_STACK[0] === "@_") {
@@ -334,4 +329,4 @@ function lexer(src) {
   }
 }
 
-lexer(file_content);
+export default lexer;
