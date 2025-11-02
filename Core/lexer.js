@@ -222,9 +222,9 @@ function lexer(src) {
       ) {
         column_start = i + 1;
         temp_value = current_char + peek(src, i, 1) + peek(src, i, 2);
-        add_token(TOKEN_TYPES.END_KEYWORD, current_char + temp_value);
-        BLOCK_STACK.push(current_char + temp_value);
-        AT_STACK.push(current_char + temp_value);
+        add_token(TOKEN_TYPES.END_KEYWORD, temp_value);
+        BLOCK_STACK.push(temp_value);
+        AT_STACK.push(temp_value);
         i += temp_value.length - 1;
         current_char = src[i];
         column_end = i + 1;
