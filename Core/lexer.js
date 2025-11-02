@@ -161,14 +161,6 @@ function lexer(src) {
         add_token(TOKEN_TYPES.CLOSE_PAREN, current_char);
         INLINE_STACK.push(current_char);
       } else if (
-        INLINE_STACK.length === 6 &&
-        INLINE_STACK[5] === "Inline Identifier"
-      ) {
-        column_start = i + 1;
-        column_end = column_start;
-        add_token(TOKEN_TYPES.CLOSE_PAREN, current_char);
-        INLINE_STACK.push(current_char);
-      } else if (
         INLINE_STACK.length > 0 &&
         INLINE_STACK.length === 6 &&
         INLINE_STACK[5] === "Inline Identifier"
