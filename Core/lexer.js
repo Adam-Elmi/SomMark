@@ -1,63 +1,63 @@
 // @ts-check
 import TOKEN_TYPES from "./tokenTypes.js";
 
-let BLOCK_STACK = [];
-let INLINE_STACK = [];
-let AT_STACK = [];
-let DEPTH_STACK = [];
-
-function peek(input, index, offset) {
-  if (index + offset < input.length) {
-    return input[index + offset];
-  }
-  return null;
-}
-
-function concat_char(input, index, mode = "normal", stop_at_char = []) {
-  let str = "";
-  for (let char_index = index; char_index < input.length; char_index++) {
-    let char = input[char_index];
-    if (mode === "normal") {
-      if (char === "\n") {
-        break;
-      } else if (char === "[" && peek(input, char_index, 1) !== "_") {
-        break;
-      } else if (char === "(" && peek(input, char_index, 1) !== "_") {
-        break;
-      } else if (char === ")" && peek(input, char_index, 1) !== "_") {
-        break;
-      } else if (
-        char === "@" &&
-        peek(input, char_index, 1) === "_" &&
-        peek(input, char_index, 2) !== "_"
-      ) {
-        break;
-      } else if (
-        char === "_" &&
-        peek(input, char_index, 1) !== "_" &&
-        peek(input, char_index, 2) !== "@" &&
-        peek(input, char_index, 2) === "@"
-      ) {
-        break;
-      } else if (char === "#" && peek(input, char_index, 1) !== "_") {
-        break;
-      }
-      str += char;
-    } else if (mode === "active") {
-      if (stop_at_char.includes(char)) {
-        break;
-      }
-      str += char;
-    }
-  }
-
-  return str;
-}
 /*
 (run)->(true)
 */
 function lexer(src) {
   if (src && typeof src === "string") {
+    let BLOCK_STACK = [];
+    let INLINE_STACK = [];
+    let AT_STACK = [];
+    let DEPTH_STACK = [];
+
+    function peek(input, index, offset) {
+      if (index + offset < input.length) {
+        return input[index + offset];
+      }
+      return null;
+    }
+
+    function concat_char(input, index, mode = "normal", stop_at_char = []) {
+      let str = "";
+      for (let char_index = index; char_index < input.length; char_index++) {
+        let char = input[char_index];
+        if (mode === "normal") {
+          if (char === "\n") {
+            break;
+          } else if (char === "[" && peek(input, char_index, 1) !== "_") {
+            break;
+          } else if (char === "(" && peek(input, char_index, 1) !== "_") {
+            break;
+          } else if (char === ")" && peek(input, char_index, 1) !== "_") {
+            break;
+          } else if (
+            char === "@" &&
+            peek(input, char_index, 1) === "_" &&
+            peek(input, char_index, 2) !== "_"
+          ) {
+            break;
+          } else if (
+            char === "_" &&
+            peek(input, char_index, 1) !== "_" &&
+            peek(input, char_index, 2) !== "@" &&
+            peek(input, char_index, 2) === "@"
+          ) {
+            break;
+          } else if (char === "#" && peek(input, char_index, 1) !== "_") {
+            break;
+          }
+          str += char;
+        } else if (mode === "active") {
+          if (stop_at_char.includes(char)) {
+            break;
+          }
+          str += char;
+        }
+      }
+
+      return str;
+    }
     const tokens = [];
     let line = 1;
     let column_start = 1,
