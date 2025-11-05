@@ -255,7 +255,7 @@ function lexer(src) {
             current_char = src[i];
             column_end = i + 1;
           }
-          add_token(TOKEN_TYPES.BLOCK_IDENTIFIER, temp_str);
+          add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
           BLOCK_STACK.push("Block Identifier");
         }
         // Token: Value (Block Value)
@@ -300,7 +300,7 @@ function lexer(src) {
             current_char = src[i];
             column_end = i + 1;
           }
-          add_token(TOKEN_TYPES.INLINE_IDENTIFIER, temp_str);
+          add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
           INLINE_STACK.push("Inline Identifier");
         }
         // Token: At Identifier
@@ -312,7 +312,7 @@ function lexer(src) {
             current_char = src[i];
             column_end = i + 1;
           }
-          add_token(TOKEN_TYPES.AT_IDENTIFIER, temp_str);
+          add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
           AT_STACK.push("At Identifier");
         }
         // Token: Value (At Value)
