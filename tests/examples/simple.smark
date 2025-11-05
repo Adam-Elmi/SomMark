@@ -1,0 +1,7 @@
+[Text = Hello World]
+THIS IS A TEST. (Welcome)->(bold) to SomMark.
+This is another test.
+@_table_@: id, name
+- Adam, 101
+- Elmi, 202
+[end]
