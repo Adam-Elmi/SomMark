@@ -1,9 +1,5 @@
-// @ts-check
 import TOKEN_TYPES from "./tokenTypes.js";
 
-/*
-(run)->(true)
-*/
 function lexer(src) {
   if (src && typeof src === "string") {
     let BLOCK_STACK = [];
@@ -55,13 +51,14 @@ function lexer(src) {
     let line = 1;
     let column_start = 1,
       column_end = 1;
-    const add_token = (type, value, depth = DEPTH_STACK.length) => {
-      tokens.push({ type, value, line, column_start, column_end, depth });
-    };
     let context = "";
     let temp_str = "";
     let temp_value = "";
 
+    function add_token(type, value, depth = DEPTH_STACK.length) {
+      tokens.push({ type, value, line, column_start, column_end, depth });
+    };
+    
     for (let i = 0; i < src.length; i++) {
       let current_char = src[i];
       // Token: Open Bracket
