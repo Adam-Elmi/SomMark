@@ -163,10 +163,7 @@ function lexer(src) {
         previous_value = current_char;
       }
       // Token: Open At (@_)
-      else if (
-        current_char === "@" &&
-        peek(src, i, 1) === "_"
-      ) {
+      else if (current_char === "@" && peek(src, i, 1) === "_") {
         column_start = i + 1;
         temp_value = current_char + peek(src, i, 1);
         add_token(TOKEN_TYPES.OPEN_AT, temp_value);
@@ -209,7 +206,6 @@ function lexer(src) {
         i += temp_value.length - 1;
         current_char = src[i];
         column_end = i + 1;
-          console.log(previous_value)
         if (previous_value === "@_") {
           scope_state = false;
         }
