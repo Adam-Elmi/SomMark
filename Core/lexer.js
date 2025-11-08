@@ -2,9 +2,7 @@ import TOKEN_TYPES from "./tokenTypes.js";
 
 function lexer(src) {
   if (src && typeof src === "string") {
-    let BLOCK_STACK = [];
-    let INLINE_STACK = [];
-    let AT_STACK = [];
+    let previous_value = "";
     let DEPTH_STACK = [];
 
     function peek(input, index, offset) {
@@ -23,17 +21,63 @@ function lexer(src) {
         if (mode === "normal") {
           if (char === "\n") {
             break;
-          } else if (char === "[" && peek(input, char_index, -1) !== "\\") {
-            break;
-          } else if (char === "(" && peek(input, char_index, -1) !== "\\") {
-            break;
-          } else if (
-            char === "@" &&
-            peek(input, char_index, 1) === "_" &&
-            peek(input, char_index, -1) !== "\\"
+          }
+          /* Escape characters */
+          // '[   or   "[
+          else if (
+            char === "[" &&
+            (peek(input, char_index, -1) !== "\'" ||
+              peek(input, char_index, -1) !== '"')
           ) {
             break;
-          } else if (char === "#" && peek(input, char_index, -1) !== "\\") {
+          }
+          // ]'   or   ]"
+          else if (
+            char === "]" &&
+            (peek(input, char_index, 1) !== "\'" ||
+              peek(input, char_index, 1) !== '"')
+          ) {
+            break;
+          }
+          // '(   or   "(
+          else if (
+            char === "(" &&
+            (peek(input, char_index, -1) !== "\'" ||
+              peek(input, char_index, -1) !== '"')
+          ) {
+            break;
+          }
+          // )'   or   )"
+          else if (
+            char === ")" &&
+            (peek(input, char_index, 1) !== "\'" ||
+              peek(input, char_index, 1) !== '"')
+          ) {
+            break;
+          }
+          // '@_   or   "@_
+          else if (
+            char === "@" &&
+            peek(input, char_index, 1) === "_" &&
+            (peek(input, char_index, -1) !== "\'" ||
+              peek(input, char_index, -1) !== '"')
+          ) {
+            break;
+          }
+          // _@'   or   _@"
+          else if (
+            char === "_" &&
+            peek(input, char_index, 1) === "@" &&
+            (peek(input, char_index, 2) !== "\'" ||
+              peek(input, char_index, 2) !== '"')
+          ) {
+            break;
+          }
+          // '#
+          else if (
+            (char === "#" && peek(input, char_index, -1) !== "\'") ||
+            peek(input, char_index, -1) !== '"'
+          ) {
             break;
           }
           str += char;
@@ -57,167 +101,104 @@ function lexer(src) {
 
     function add_token(type, value, depth = DEPTH_STACK.length) {
       tokens.push({ type, value, line, column_start, column_end, depth });
-    };
-    
+    }
+
     for (let i = 0; i < src.length; i++) {
       let current_char = src[i];
       // Token: Open Bracket
-      if (
-        current_char === "[" &&
-        BLOCK_STACK.length === 0 &&
-        peek(src, i, -1) !== "\\"
-      ) {
+      if (current_char === "[") {
         column_start = i + 1;
         column_end = column_start;
         if (peek(src, i, 1) + peek(src, i, 2) + peek(src, i, 3) !== "end") {
           DEPTH_STACK.push("Block");
         }
         add_token(TOKEN_TYPES.OPEN_BRACKET, current_char);
-        BLOCK_STACK.push(current_char);
+        previous_value = current_char;
       }
       // Token: Equal Sign
-      else if (current_char === "=" && BLOCK_STACK.includes("[")) {
+      else if (current_char === "=") {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.EQUAL, current_char);
-        BLOCK_STACK.push(current_char);
+        previous_value = current_char;
       }
       // Token: Close Bracket
-      else if (
-        current_char === "]" &&
-        i === src.length - 1 &&
-        BLOCK_STACK.length > 0 &&
-        BLOCK_STACK[0] === "[" &&
-        (BLOCK_STACK[1] === "Block Identifier" || BLOCK_STACK[1] === "end")
-      ) {
+      else if (current_char === "]") {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.CLOSE_BRACKET, current_char);
-        BLOCK_STACK.push(current_char);
-      } else if (
-        current_char === "]" &&
-        BLOCK_STACK.length > 0 &&
-        BLOCK_STACK[0] === "[" &&
-        (BLOCK_STACK[1] === "Block Identifier" || BLOCK_STACK[1] === "end")
-      ) {
-        column_start = i + 1;
-        column_end = column_start;
-        add_token(TOKEN_TYPES.CLOSE_BRACKET, current_char);
-        BLOCK_STACK.push(current_char);
+        if(previous_value === "end") {
+          DEPTH_STACK.pop();
+        }
+        previous_value = current_char;
       }
       // Token: Open Parenthesis
-      else if (
-        current_char === "(" &&
-        peek(src, i, -1) !== "\\" &&
-        INLINE_STACK.length === 0
-      ) {
+      else if (current_char === "(") {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.OPEN_PAREN, current_char);
-        INLINE_STACK.push(current_char);
-      } else if (
-        current_char === "(" &&
-        INLINE_STACK.length === 4 &&
-        INLINE_STACK[3] === "->"
-      ) {
-        column_start = i + 1;
-        column_end = column_start;
-        add_token(TOKEN_TYPES.OPEN_PAREN, current_char);
-        INLINE_STACK.push(current_char);
+        if (previous_value !== "->") {
+          previous_value = current_char;
+        }
       }
       // Token: Thin Arrow
-      else if (
-        current_char === "-" &&
-        peek(src, i, 1) === ">" &&
-        peek(src, i, 2) === "(" &&
-        INLINE_STACK.length === 3
-      ) {
+      else if (current_char === "-" && peek(src, i, 1) === ">") {
         column_start = i + 1;
         temp_value = current_char + peek(src, i, 1);
         add_token(TOKEN_TYPES.THIN_ARROW, temp_value);
-        INLINE_STACK.push(temp_value);
         i += temp_value.length - 1;
         current_char = src[i];
         column_end = i + 1;
+        previous_value = temp_value;
       }
       // Token: Close Parenthesis
-      else if (
-        current_char === ")" &&
-        INLINE_STACK.length === 2 &&
-        INLINE_STACK[1] === "Inline Value"
-      ) {
+      else if (current_char === ")") {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.CLOSE_PAREN, current_char);
-        INLINE_STACK.push(current_char);
-      } else if (
-        INLINE_STACK.length > 0 &&
-        INLINE_STACK.length === 6 &&
-        INLINE_STACK[5] === "Inline Identifier"
-      ) {
-        column_start = i + 1;
-        column_end = column_start;
-        add_token(TOKEN_TYPES.CLOSE_PAREN, current_char);
-        INLINE_STACK.push(current_char);
-        if (INLINE_STACK.length >= 7) {
-          INLINE_STACK = [];
-        }
+        previous_value = current_char;
       }
       // Token: Open At (@_)
-      else if (
-        current_char === "@" &&
-        peek(src, i, 1) === "_" &&
-        peek(src, i, -1) !== "\\"
-      ) {
+      else if (current_char === "@" && peek(src, i, 1) === "_") {
         column_start = i + 1;
         temp_value = current_char + peek(src, i, 1);
         add_token(TOKEN_TYPES.OPEN_AT, temp_value);
-        AT_STACK.push(temp_value);
         i += temp_value.length - 1;
         current_char = src[i];
         column_end = i + 1;
+        previous_value = temp_value;
       }
       // Token: Close At (_@)
-      else if (
-        current_char === "_" &&
-        peek(src, i, 1) === "@" &&
-        AT_STACK.length > 0 &&
-        AT_STACK[0] === "@_"
-      ) {
+      else if (current_char === "_" && peek(src, i, 1) === "@") {
         column_start = i + 1;
         temp_value = current_char + peek(src, i, 1);
         add_token(TOKEN_TYPES.CLOSE_AT, temp_value);
-        AT_STACK.push(temp_value);
-        if (AT_STACK.includes("end")) {
-          AT_STACK = [];
-        }
         i += temp_value.length - 1;
         current_char = src[i];
         column_end = i + 1;
+        previous_value = temp_value;
       }
       // Token: Colon
-      else if (AT_STACK.length === 3 && current_char === ":") {
+      else if (current_char === ":" && previous_value === "_@") {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.COLON, current_char);
-        AT_STACK.push(current_char);
+        previous_value = current_char;
       }
       // Token: End Keyword
       else if (
-        ((BLOCK_STACK.length === 1 && BLOCK_STACK[0] === "[") ||
-          (AT_STACK.length === 1 && AT_STACK[0] === "@_")) &&
         current_char === "e" &&
         peek(src, i, 1) === "n" &&
-        peek(src, i, 2) === "d"
+        peek(src, i, 2) === "d" &&
+        (previous_value === "[" || previous_value === "@_")
       ) {
         column_start = i + 1;
         temp_value = current_char + peek(src, i, 1) + peek(src, i, 2);
         add_token(TOKEN_TYPES.END_KEYWORD, temp_value);
-        BLOCK_STACK.push(temp_value);
-        AT_STACK.push(temp_value);
         i += temp_value.length - 1;
         current_char = src[i];
         column_end = i + 1;
+        previous_value = temp_value;
       }
       // Token: Newline (\n)
       else if (current_char === "\n") {
@@ -225,102 +206,60 @@ function lexer(src) {
         column_start = 1;
         column_end = 1;
         add_token(TOKEN_TYPES.NEWLINE, current_char);
-        if (BLOCK_STACK.length === 3 && BLOCK_STACK[1] === "end") {
-          DEPTH_STACK.pop();
-          BLOCK_STACK = [];
-        } else if (
-          BLOCK_STACK.length > 0 &&
-          BLOCK_STACK[0] === "[" &&
-          BLOCK_STACK[1] === "Block Identifier"
-        ) {
-          BLOCK_STACK = [];
-        }
       } else {
-        // Token: Block Identifier
-        if (BLOCK_STACK.length === 1 && BLOCK_STACK[0] === "[") {
+        // Token: Block Identifier OR Token: Value (Block Value)
+        if (previous_value === "[" || previous_value === "=") {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", ["=", "]"]);
           if (temp_str.trim()) {
             i += temp_str.length - 1;
             current_char = src[i];
             column_end = i + 1;
-            add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
-            BLOCK_STACK.push("Block Identifier");
+            if (previous_value === "[") {
+              add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
+              previous_value = "Block Identifier";
+            } else {
+              add_token(TOKEN_TYPES.VALUE, temp_str);
+              previous_value = "Block Value";
+            }
           }
         }
-        // Token: Value (Block Value)
-        else if (
-          (BLOCK_STACK.length === 3 &&
-            BLOCK_STACK[0] === "[" &&
-            BLOCK_STACK[1] === "Block Identifier",
-          BLOCK_STACK[2] === "=")
-        ) {
-          temp_str = concat_char(src, i, "active", ["]"]);
-          if (temp_str.trim()) {
-            column_start = i + 1;
-            i += temp_str.length - 1;
-            current_char = src[i];
-            column_end = i + 1;
-            add_token(TOKEN_TYPES.VALUE, temp_str);
-            BLOCK_STACK.push("Block Value");
-          }
-        }
-        // Token: Value (Inline Value)
-        else if (INLINE_STACK.length === 1 && INLINE_STACK[0] === "(") {
+        // Token: Value (Inline Value) OR Token: Inline Identifier
+        else if (previous_value === "(" || previous_value === "->") {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", [")"]);
           if (temp_str.trim()) {
             i += temp_str.length - 1;
             current_char = src[i];
             column_end = i + 1;
-            add_token(TOKEN_TYPES.VALUE, temp_str);
-            INLINE_STACK.push("Inline Value");
+            if (previous_value === "(") {
+              add_token(TOKEN_TYPES.VALUE, temp_str);
+              previous_value = "Inline Value";
+            } else {
+              add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
+              previous_value = "Inline Identifier";
+            }
           }
         }
-        // Token: Inline Identifier
-        else if (
-          INLINE_STACK.length > 0 &&
-          INLINE_STACK.length === 5 &&
-          INLINE_STACK[4] === "("
-        ) {
+        // Token: At Identifier OR Token: Value (At Value)
+        else if (previous_value === "@_" || previous_value === ":") {
           column_start = i + 1;
-          temp_str = concat_char(src, i, "active", [")"]);
+          temp_str = concat_char(src, i, "active", ["@", "_", "\n"]);
           if (temp_str.trim()) {
             i += temp_str.length - 1;
             current_char = src[i];
             column_end = i + 1;
-            add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
-            INLINE_STACK.push("Inline Identifier");
-          }
-        }
-        // Token: At Identifier
-        else if (AT_STACK.length === 1 && AT_STACK[0] === "@_") {
-          column_start = i + 1;
-          temp_str = concat_char(src, i, "active", ["@", "_"]);
-          if (temp_str.trim()) {
-            i += temp_str.length - 1;
-            current_char = src[i];
-            column_end = i + 1;
-            add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
-            AT_STACK.push("At Identifier");
-          }
-        }
-        // Token: Value (At Value)
-        else if (AT_STACK.length === 4 && !AT_STACK.includes("end")) {
-          column_start = i + 1;
-          temp_str = concat_char(src, i, "active", [":", "\n"]);
-          if (temp_str.trim()) {
-            i += temp_str.length - 1;
-            current_char = src[i];
-            column_end = i + 1;
-            add_token(TOKEN_TYPES.VALUE, temp_str);
-          }
-          if (AT_STACK.length === 4) {
-            AT_STACK = [];
+            if (previous_value === "@_") {
+              add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
+              previous_value = "At Identifier";
+            } else {
+              add_token(TOKEN_TYPES.VALUE, temp_str);
+              previous_value = "At Value";
+            }
           }
         }
         // Token: Comment
-        else if (current_char === "#" && peek(src, i, 1) !== "_") {
+        else if (current_char === "#") {
           temp_str = concat_char(src, i, "active", ["\n"]);
           if (temp_str) {
             i += temp_str.length - 1;
