@@ -23,61 +23,40 @@ function lexer(src) {
             break;
           }
           /* Escape characters */
-          // '[   or   "[
-          else if (
-            char === "[" &&
-            (peek(input, char_index, -1) !== "\'" ||
-              peek(input, char_index, -1) !== '"')
-          ) {
+          // '[
+          else if (char === "[" && peek(input, char_index, -1) !== "\'") {
             break;
           }
-          // ]'   or   ]"
-          else if (
-            char === "]" &&
-            (peek(input, char_index, 1) !== "\'" ||
-              peek(input, char_index, 1) !== '"')
-          ) {
+          // ]'
+          else if (char === "]" && peek(input, char_index, 1) !== "\'") {
             break;
           }
-          // '(   or   "(
-          else if (
-            char === "(" &&
-            (peek(input, char_index, -1) !== "\'" ||
-              peek(input, char_index, -1) !== '"')
-          ) {
+          // '(
+          else if (char === "(" && peek(input, char_index, -1) !== "\'") {
             break;
           }
-          // )'   or   )"
-          else if (
-            char === ")" &&
-            (peek(input, char_index, 1) !== "\'" ||
-              peek(input, char_index, 1) !== '"')
-          ) {
+          // )'
+          else if (char === ")" && peek(input, char_index, 1) !== "\'") {
             break;
           }
-          // '@_   or   "@_
+          // '@_
           else if (
             char === "@" &&
             peek(input, char_index, 1) === "_" &&
-            (peek(input, char_index, -1) !== "\'" ||
-              peek(input, char_index, -1) !== '"')
+            peek(input, char_index, -1) !== "\'"
           ) {
             break;
           }
-          // _@'   or   _@"
+          // _@'
           else if (
             char === "_" &&
             peek(input, char_index, 1) === "@" &&
-            (peek(input, char_index, 2) !== "\'" ||
-              peek(input, char_index, 2) !== '"')
+            peek(input, char_index, 2) !== "\'"
           ) {
             break;
           }
           // '#
-          else if (
-            (char === "#" && peek(input, char_index, -1) !== "\'") ||
-            peek(input, char_index, -1) !== '"'
-          ) {
+          else if (char === "#" && peek(input, char_index, -1) !== "\'") {
             break;
           }
           str += char;
@@ -127,7 +106,7 @@ function lexer(src) {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.CLOSE_BRACKET, current_char);
-        if(previous_value === "end") {
+        if (previous_value === "end") {
           DEPTH_STACK.pop();
         }
         previous_value = current_char;
@@ -244,7 +223,7 @@ function lexer(src) {
         // Token: At Identifier OR Token: Value (At Value)
         else if (previous_value === "@_" || previous_value === ":") {
           column_start = i + 1;
-          temp_str = concat_char(src, i, "active", ["@", "_", "\n"]);
+          temp_str = concat_char(src, i, "active", ["_", "\n"]);
           if (temp_str.trim()) {
             i += temp_str.length - 1;
             current_char = src[i];
