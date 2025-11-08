@@ -1,7 +1,16 @@
-[Text = Hello World]
-THIS IS A TEST. (Welcome)->(bold) to SomMark.
-This is another test.
-@_table_@: id, name
-- Adam, 101
-- Elmi, 202
+[SomMark]
+@_code_@: js
+let previous_value = "";
+let DEPTH_STACK = [];
+let scope_state = false;
+
+function peek(input, index, offset) {
+      if (index + offset < input.length) {
+        if (input[index + offset] !== undefined) {
+          return input[index + offset];
+        }
+      }
+      return null;
+  }
+@_end_@
 [end]
