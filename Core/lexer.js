@@ -4,6 +4,7 @@ function lexer(src) {
   if (src && typeof src === "string") {
     let previous_value = "";
     let DEPTH_STACK = [];
+    let scope_state = false;
 
     function peek(input, index, offset) {
       if (index + offset < input.length) {
@@ -24,19 +25,35 @@ function lexer(src) {
           }
           /* Escape characters */
           // '[
-          else if (char === "[" && peek(input, char_index, -1) !== "\'") {
+          else if (
+            char === "[" &&
+            peek(input, char_index, -1) !== "\'" &&
+            scope_state === false
+          ) {
             break;
           }
           // ]'
-          else if (char === "]" && peek(input, char_index, 1) !== "\'") {
+          else if (
+            char === "]" &&
+            peek(input, char_index, 1) !== "\'" &&
+            scope_state === false
+          ) {
             break;
           }
           // '(
-          else if (char === "(" && peek(input, char_index, -1) !== "\'") {
+          else if (
+            char === "(" &&
+            peek(input, char_index, -1) !== "\'" &&
+            scope_state === false
+          ) {
             break;
           }
           // )'
-          else if (char === ")" && peek(input, char_index, 1) !== "\'") {
+          else if (
+            char === ")" &&
+            peek(input, char_index, 1) !== "\'" &&
+            scope_state === false
+          ) {
             break;
           }
           // '@_
@@ -56,7 +73,11 @@ function lexer(src) {
             break;
           }
           // '#
-          else if (char === "#" && peek(input, char_index, -1) !== "\'") {
+          else if (
+            char === "#" &&
+            peek(input, char_index, -1) !== "\'" &&
+            scope_state === false
+          ) {
             break;
           }
           str += char;
@@ -85,7 +106,7 @@ function lexer(src) {
     for (let i = 0; i < src.length; i++) {
       let current_char = src[i];
       // Token: Open Bracket
-      if (current_char === "[") {
+      if (current_char === "[" && scope_state === false) {
         column_start = i + 1;
         column_end = column_start;
         if (peek(src, i, 1) + peek(src, i, 2) + peek(src, i, 3) !== "end") {
@@ -95,14 +116,14 @@ function lexer(src) {
         previous_value = current_char;
       }
       // Token: Equal Sign
-      else if (current_char === "=") {
+      else if (current_char === "=" && scope_state === false) {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.EQUAL, current_char);
         previous_value = current_char;
       }
       // Token: Close Bracket
-      else if (current_char === "]") {
+      else if (current_char === "]" && scope_state === false) {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.CLOSE_BRACKET, current_char);
@@ -112,16 +133,20 @@ function lexer(src) {
         previous_value = current_char;
       }
       // Token: Open Parenthesis
-      else if (current_char === "(") {
+      else if (current_char === "(" && scope_state === false) {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.OPEN_PAREN, current_char);
-        if (previous_value !== "->") {
+        if (previous_value !== "->" && scope_state === false) {
           previous_value = current_char;
         }
       }
       // Token: Thin Arrow
-      else if (current_char === "-" && peek(src, i, 1) === ">") {
+      else if (
+        current_char === "-" &&
+        peek(src, i, 1) === ">" &&
+        scope_state === false
+      ) {
         column_start = i + 1;
         temp_value = current_char + peek(src, i, 1);
         add_token(TOKEN_TYPES.THIN_ARROW, temp_value);
@@ -131,20 +156,27 @@ function lexer(src) {
         previous_value = temp_value;
       }
       // Token: Close Parenthesis
-      else if (current_char === ")") {
+      else if (current_char === ")" && scope_state === false) {
         column_start = i + 1;
         column_end = column_start;
         add_token(TOKEN_TYPES.CLOSE_PAREN, current_char);
         previous_value = current_char;
       }
       // Token: Open At (@_)
-      else if (current_char === "@" && peek(src, i, 1) === "_") {
+      else if (
+        current_char === "@" &&
+        peek(src, i, 1) === "_"
+      ) {
         column_start = i + 1;
         temp_value = current_char + peek(src, i, 1);
         add_token(TOKEN_TYPES.OPEN_AT, temp_value);
         i += temp_value.length - 1;
         current_char = src[i];
         column_end = i + 1;
+        let end_value = peek(src, i, 2) + peek(src, i, 3) + peek(src, i, 4);
+        if (end_value !== "end") {
+          scope_state = true;
+        }
         previous_value = temp_value;
       }
       // Token: Close At (_@)
@@ -177,6 +209,10 @@ function lexer(src) {
         i += temp_value.length - 1;
         current_char = src[i];
         column_end = i + 1;
+          console.log(previous_value)
+        if (previous_value === "@_") {
+          scope_state = false;
+        }
         previous_value = temp_value;
       }
       // Token: Newline (\n)
@@ -187,7 +223,10 @@ function lexer(src) {
         add_token(TOKEN_TYPES.NEWLINE, current_char);
       } else {
         // Token: Block Identifier OR Token: Value (Block Value)
-        if (previous_value === "[" || previous_value === "=") {
+        if (
+          previous_value === "[" ||
+          (previous_value === "=" && scope_state === false)
+        ) {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", ["=", "]"]);
           if (temp_str.trim()) {
@@ -204,7 +243,10 @@ function lexer(src) {
           }
         }
         // Token: Value (Inline Value) OR Token: Inline Identifier
-        else if (previous_value === "(" || previous_value === "->") {
+        else if (
+          previous_value === "(" ||
+          (previous_value === "->" && scope_state === false)
+        ) {
           column_start = i + 1;
           temp_str = concat_char(src, i, "active", [")"]);
           if (temp_str.trim()) {
