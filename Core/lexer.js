@@ -1,4 +1,5 @@
 import TOKEN_TYPES from "./tokenTypes.js";
+import peek from "./helpers/peek.js";
 
 function lexer(src) {
   if (src && typeof src === "string") {
@@ -6,26 +7,12 @@ function lexer(src) {
     let DEPTH_STACK = [];
     let scope_state = false;
 
-    function peek(input, index, offset) {
-      if (index + offset < input.length) {
-        if (input[index + offset] !== undefined) {
-          return input[index + offset];
-        }
-      }
-      return null;
-    }
-
     function concat_char(input, index, mode = "normal", stop_at_char = []) {
       let str = "";
       for (let char_index = index; char_index < input.length; char_index++) {
         let char = input[char_index];
         if (mode === "normal") {
-          if (char === "\n") {
-            break;
-          }
-          /* Escape characters */
-          // '[
-          else if (
+          if (
             char === "[" &&
             peek(input, char_index, -1) !== "\'" &&
             scope_state === false
@@ -210,13 +197,6 @@ function lexer(src) {
           scope_state = false;
         }
         previous_value = temp_value;
-      }
-      // Token: Newline (\n)
-      else if (current_char === "\n") {
-        line += 1;
-        column_start = 1;
-        column_end = 1;
-        add_token(TOKEN_TYPES.NEWLINE, current_char);
       } else {
         // Token: Block Identifier OR Token: Value (Block Value)
         if (
