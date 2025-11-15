@@ -12,7 +12,6 @@ function consume(
   expected_type = "",
   increment = 1,
 ) {
-  console.log(tokens[i].value);
   if (tokens[i].value === expected_token) {
     i += increment;
   } else if (tokens[i].type === expected_type) {
@@ -45,7 +44,6 @@ function parseBlock(tokens, current_index = 0) {
       tokens[i].depth > 1 &&
       peek(tokens, i, 1)?.value !== "end"
     ) {
-      console.log(tokens[i]);
       // nodes[current_index]["id"] = tokens[i].value;
     }
     // Block Identifier
@@ -62,33 +60,37 @@ function parseBlock(tokens, current_index = 0) {
         .split(",");
       i = consume(tokens, i, "=");
       i = consume(tokens, i, null, TOKEN_TYPES.VALUE);
-      i = consume(tokens, i, "]");
+      if(tokens[i].value !== "]") {
+        throw new Error("expected ]");
+      }
     }
-    // Text 
+    // Text
     else if (tokens[i].type === TOKEN_TYPES.CONTENT) {
-      const [node_object, steps] = parseText(tokens, i);
+      const node_object = parseText(tokens, i);
       nodes[current_index]["body"].push(node_object);
-      i += steps;
     }
-    // At Block 
+    // Inline
+    else if (tokens[i].value === "(" && peek(tokens, i, -1).type !== TOKEN_TYPES.CONTENT) {
+      const node_object = parseInlineStatement(tokens, i);
+      nodes[current_index]["body"].push(node_object);
+    }
+    // At Block
     else if (tokens[i].value === "@_" && peek(tokens, i, 1).value !== "end") {
       const [node_object, steps] = parseAtBlock(tokens, i);
       nodes[current_index]["body"].push(node_object);
       i += steps;
-    } else if (tokens[i].value === "@_" && peek(tokens, i, 1).value === "end") {
+    }
+    // End Keyword
+    else if (tokens[i].value === "@_" && peek(tokens, i, 1).value === "end") {
       const steps = parseEndKeyword(tokens, i);
       i += steps;
     }
-    // Block end keyword
-    else if (
-      tokens[i].value === "[" &&
-      tokens[i].depth > 1 &&
-      peek(tokens, i, 1).value === "end"
-    ) {
+    // End Keyword
+    else if (tokens[i].value === "[" && peek(tokens, i, 1).value === "end") {
       const steps = parseEndKeyword(tokens, i);
       i += steps;
     } else {
-      console.log(tokens[i]);
+      console.log(tokens[i], peek(tokens, i, 1));
       break;
     }
   }
@@ -102,32 +104,33 @@ function parseText(tokens, i) {
     inline_statements: [],
   };
   i = consume(tokens, i, null, TOKEN_TYPES.CONTENT);
-  let steps = 1;
   if (tokens[i].value === "(") {
-    const [node_object, count_steps] = parseInlineStatement(tokens, i);
+    const node_object = parseInlineStatement(tokens, i);
     const { value, id } = node_object;
     node.text += value;
     node.inline_statements.push({
       value,
       id,
     });
-    steps += count_steps;
   }
-  return [node, steps];
+  return node;
 }
 
 function parseInlineStatement(tokens, i) {
   const node = {};
-  let count_steps = i;
+  if (peek(tokens, i, -1).type !== TOKEN_TYPES.CONTENT) {
+    node["type"] = "inline statement";
+  }
   i = consume(tokens, i, "(");
+  node["value"] = tokens[i].value;
   i = consume(tokens, i, null, TOKEN_TYPES.VALUE);
   i = consume(tokens, i, ")");
   i = consume(tokens, i, "->");
   i = consume(tokens, i, "(");
+  node["id"] = tokens[i].value;
   i = consume(tokens, i, null, TOKEN_TYPES.IDENTIFIER);
-  i = consume(tokens, i, ")");
-  count_steps = i - count_steps;
-  return [node, count_steps];
+  if (tokens[i].value !== ")") throw new Error("expected )");
+  return node;
 }
 
 function parseAtBlock(tokens, i) {
@@ -136,7 +139,6 @@ function parseAtBlock(tokens, i) {
     arguments: [],
     text: [],
   };
-  let count_steps = i;
   i = consume(tokens, i, "@_");
   node["id"] = tokens[i].value;
   i = consume(tokens, i, null, TOKEN_TYPES.IDENTIFIER);
@@ -145,25 +147,30 @@ function parseAtBlock(tokens, i) {
   node["arguments"].push(tokens[i].value.slice(","));
   i = consume(tokens, i, null, TOKEN_TYPES.VALUE);
   node["text"].push(tokens[i].value);
-  i = consume(tokens, i, null, TOKEN_TYPES.CONTENT);
-  return [node, i - count_steps];
+  if (tokens[i].type !== TOKEN_TYPES.CONTENT) {
+    throw new Error("expected a text");
+  }
+  return node;
 }
 
 function parseEndKeyword(tokens, i) {
-  let count_steps = i;
   switch (tokens[i].value) {
     case "[":
       i = consume(tokens, i, "[");
       i = consume(tokens, i, "end");
-      i = consume(tokens, i, "]");
+      if (tokens[i].value !== "]") {
+        throw new Error("expected ]");
+      }
       break;
     case "@_":
       i = consume(tokens, i, "@_");
       i = consume(tokens, i, "end");
-      i = consume(tokens, i, "_@");
+      if (tokens[i].value !== "_@") {
+        throw new Error("expected _@");
+      }
       break;
   }
-  return i - count_steps;
+  return i;
 }
 
 function parser(tokens) {
