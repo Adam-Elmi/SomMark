@@ -44,6 +44,7 @@ function parseBlock(tokens, current_index = 0) {
       tokens[i].depth > 1 &&
       peek(tokens, i, 1)?.value !== "end"
     ) {
+      console.log(true);
       // nodes[current_index]["id"] = tokens[i].value;
     }
     // Block Identifier
@@ -72,8 +73,9 @@ function parseBlock(tokens, current_index = 0) {
     }
     // Inline
     else if (tokens[i].value === "(" && peek(tokens, i, -1).type !== TOKEN_TYPES.CONTENT) {
-      const node_object = parseInlineStatement(tokens, i);
+      const [node_object, steps] = parseInlineStatement(tokens, i);
       nodes[current_index]["body"].push(node_object);
+      i = steps;
     }
     // At Block
     else if (tokens[i].value === "@_" && peek(tokens, i, 1).value !== "end") {
