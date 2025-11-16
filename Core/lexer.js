@@ -204,7 +204,7 @@ function lexer(src) {
           (previous_value === "=" && scope_state === false)
         ) {
           column_start = i + 1;
-          temp_str = concat_char(src, i, "active", ["=", "]"]);
+          temp_str = concat_char(src, i, "active", ["=", "]", "\n"]);
           if (temp_str.trim()) {
             i += temp_str.length - 1;
             current_char = src[i];
