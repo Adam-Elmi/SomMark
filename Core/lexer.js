@@ -219,7 +219,7 @@ function lexer(src) {
                 previous_value = "Block Identifier";
               }
             } else {
-              add_token(TOKEN_TYPES.VALUE, temp_str);
+              add_token(TOKEN_TYPES.VALUE, temp_str.trim());
               previous_value = "Block Value";
             }
           }
@@ -236,7 +236,7 @@ function lexer(src) {
             current_char = src[i];
             column_end = i + 1;
             if (previous_value === "(") {
-              add_token(TOKEN_TYPES.VALUE, temp_str);
+              add_token(TOKEN_TYPES.VALUE, temp_str.trim());
               previous_value = "Inline Value";
             } else {
               add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
@@ -287,7 +287,7 @@ function lexer(src) {
             column_end = i + 1;
           }
           if (context.trim()) {
-            add_token(TOKEN_TYPES.CONTENT, context);
+            add_token(TOKEN_TYPES.CONTENT, context.trimStart());
           }
         }
       }
