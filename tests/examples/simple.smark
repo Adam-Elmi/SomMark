@@ -1,16 +1,9 @@
-[SomMark]
-@_code_@: js
-let previous_value = "";
-let DEPTH_STACK = [];
-let scope_state = false;
-
-function peek(input, index, offset) {
-      if (index + offset < input.length) {
-        if (input[index + offset] !== undefined) {
-          return input[index + offset];
-        }
-      }
-      return null;
-  }
-@_end_@
+[Block = A]
+(block)->(A) This is outer block (block)->(A)
+  [Block = B]
+  (block)->(B) This is inner block (block)->(B)
+  @_code_@: js
+  console.log("Hello World");
+  @_end_@
+  [end]
 [end]
