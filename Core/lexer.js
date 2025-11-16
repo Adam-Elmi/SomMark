@@ -210,8 +210,14 @@ function lexer(src) {
             current_char = src[i];
             column_end = i + 1;
             if (previous_value === "[") {
-              add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
-              previous_value = "Block Identifier";
+              if (temp_str.trim() === "end") {
+                add_token(TOKEN_TYPES.END_KEYWORD, temp_str.trim());
+                previous_value = temp_str.trim();
+                scope_state = false;
+              } else {
+                add_token(TOKEN_TYPES.IDENTIFIER, temp_str.trim());
+                previous_value = "Block Identifier";
+              }
             } else {
               add_token(TOKEN_TYPES.VALUE, temp_str);
               previous_value = "Block Value";
@@ -247,8 +253,14 @@ function lexer(src) {
             current_char = src[i];
             column_end = i + 1;
             if (previous_value === "@_") {
-              add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
-              previous_value = "At Identifier";
+              if (temp_str.trim() === "end") {
+                add_token(TOKEN_TYPES.END_KEYWORD, temp_str.trim());
+                previous_value = temp_str.trim();
+                scope_state = false;
+              } else {
+                add_token(TOKEN_TYPES.IDENTIFIER, temp_str);
+                previous_value = "At Identifier";
+              }
             } else {
               add_token(TOKEN_TYPES.VALUE, temp_str);
               previous_value = "At Value";
