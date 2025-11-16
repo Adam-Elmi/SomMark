@@ -189,7 +189,66 @@ function parseText(tokens, i) {
   return [textNode, i];
 }
 
-function parseAtBlock() {}
+function parseAtBlock(tokens, i) {
+  const atBlockNode = makeAtBlockNode();
+  if (!current_token(tokens, i) || current_token(tokens, i).value !== "@_") {
+    throw new Error("Expected token '@_'");
+  }
+  i++;
+  console.log(tokens[i]);
+  if (
+    current_token(tokens, i) &&
+    current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER
+  ) {
+    atBlockNode.id = current_token(tokens, i).value;
+  } else {
+    throw new Error("Expected token 'at_identifier'");
+  }
+  i++;
+  if (!current_token(tokens, i) || current_token(tokens, i).value !== "_@") {
+    throw new Error("Expected token '_@'");
+  }
+  i++;
+  if (current_token(tokens, i) && current_token(tokens, i).value === ":") {
+    i++;
+    if (
+      current_token(tokens, i) &&
+      current_token(tokens, i).type === TOKEN_TYPES.VALUE
+    ) {
+      current_token(tokens, i)
+        .value.split(",")
+        .forEach((value) => {
+          atBlockNode.args.push(value);
+        });
+      i++;
+    } else {
+      throw new Error("Expected token 'at_value'");
+    }
+  }
+
+  if (
+    current_token(tokens, i) &&
+    current_token(tokens, i).type === TOKEN_TYPES.CONTENT
+  ) {
+    atBlockNode.text = current_token(tokens, i).value;
+  } else {
+    throw new Error("Expected token 'text'");
+  }
+  i++;
+  if (!current_token(tokens, i) || current_token(tokens, i).value !== "@_") {
+    throw new Error("Expected token '@_'");
+  }
+  i++;
+  if (!current_token(tokens, i) || current_token(tokens, i).value !== "end") {
+    throw new Error("Expected token 'end'");
+  }
+  i++;
+  if (!current_token(tokens, i) || current_token(tokens, i).value !== "_@") {
+    throw new Error("Expected token '_@'");
+  }
+  i++;
+  return [atBlockNode, i];
+}
 
 function parseNode(tokens, i) {
   if (current_token(tokens, i).value === "[" && peek(tokens, i, 1) !== "end") {
@@ -204,6 +263,11 @@ function parseNode(tokens, i) {
     current_token(tokens, i).value === "("
   ) {
     return parseInline(tokens, i);
+  } else if (
+    current_token(tokens, i).value === "@_" &&
+    peek(tokens, i, 1) !== "end"
+  ) {
+    return parseAtBlock(tokens, i);
   }
   return [null, i + 1];
 }
