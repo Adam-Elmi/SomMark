@@ -23,10 +23,10 @@ function makeTextNode() {
   };
 }
 
-function makeCommentNode(value) {
+function makeCommentNode() {
   return {
-    type: "comment",
-    text: value,
+    type: "Comment",
+    text: "",
   };
 }
 
@@ -49,11 +49,13 @@ function makeAtBlockNode() {
 
 function parseBlock(tokens, i) {
   const blockNode = makeBlockNode();
-  if (current_token(tokens, i).value !== "[") {
+  if (
+    current_token(tokens, i).value !== "[" &&
+    peek(tokens, i, 1).value !== "end"
+  ) {
     throw new Error("Expected token '['");
   }
   i++;
-
   if (current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
     blockNode.id = current_token(tokens, i).value;
   } else {
@@ -102,7 +104,7 @@ function parseBlock(tokens, i) {
       if (peek(tokens, i, 2) === null || peek(tokens, i, 2).value !== "]") {
         throw new Error("Expected token ']' after 'end'");
       }
-      i += 2;
+      i += 3;
       break;
     } else {
       let [childNode, nextIndex] = parseNode(tokens, i);
@@ -195,7 +197,6 @@ function parseAtBlock(tokens, i) {
     throw new Error("Expected token '@_'");
   }
   i++;
-  console.log(tokens[i]);
   if (
     current_token(tokens, i) &&
     current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER
@@ -250,8 +251,29 @@ function parseAtBlock(tokens, i) {
   return [atBlockNode, i];
 }
 
+function parseCommentNode(tokens, i) {
+   const commentNode = makeCommentNode();
+  if (
+    current_token(tokens, i) &&
+    current_token(tokens, i).type === TOKEN_TYPES.COMMENT
+  ) {
+    commentNode.text = current_token(tokens, i).value;
+  }
+  i++;
+  return [commentNode, i];
+}
+
 function parseNode(tokens, i) {
-  if (current_token(tokens, i).value === "[" && peek(tokens, i, 1) !== "end") {
+  if (!current_token(tokens, i) || !current_token(tokens, i).value) return [null, i];
+  if (
+    current_token(tokens, i) &&
+    current_token(tokens, i).type === TOKEN_TYPES.COMMENT
+  ) {
+    return parseCommentNode(tokens, i);
+  } else if (
+    current_token(tokens, i).value === "[" &&
+    peek(tokens, i, 1) !== "end"
+  ) {
     return parseBlock(tokens, i);
   } else if (
     current_token(tokens, i) &&
