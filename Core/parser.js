@@ -180,7 +180,8 @@ function parseText(tokens, i) {
   while (i < tokens.length) {
     if (current_token(tokens, i) && current_token(tokens, i).value === "(") {
       const [node, nextIndex] = parseInline(tokens, i);
-      textNode.text += " $" + node.value + "$";
+      let id = node.id.includes(":") ? node.id.slice(0, node.id.indexOf(":")) : node.id;
+      textNode.text += ` $${id}:${node.value}$`;
       textNode.inline.push(node);
       i = nextIndex;
     } else if (
