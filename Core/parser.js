@@ -1,6 +1,5 @@
-import { text } from "node:stream/consumers";
-import peek from "./helpers/peek.js";
 import TOKEN_TYPES from "./tokenTypes.js";
+import peek from "./helpers/peek.js";
 
 function current_token(tokens, i) {
   return tokens[i] || null;
@@ -44,6 +43,13 @@ function makeAtBlockNode() {
     id: "",
     args: [],
     text: "",
+  };
+}
+
+function makeNewlineNode(value) {
+  return {
+    type: "Newline",
+    value,
   };
 }
 
@@ -163,7 +169,7 @@ function parseText(tokens, i) {
   const textNode = makeTextNode();
   if (
     current_token(tokens, i) &&
-    current_token(tokens, i).type === TOKEN_TYPES.CONTENT
+    current_token(tokens, i).type === TOKEN_TYPES.TEXT
   ) {
     textNode.text = current_token(tokens, i).value;
   }
@@ -171,12 +177,12 @@ function parseText(tokens, i) {
   while (i < tokens.length) {
     if (current_token(tokens, i) && current_token(tokens, i).value === "(") {
       const [node, nextIndex] = parseInline(tokens, i);
-      textNode.text += " " + node.value;
+      textNode.text += " $" + node.value + "$";
       textNode.inline.push(node);
       i = nextIndex;
     } else if (
       current_token(tokens, i) &&
-      current_token(tokens, i).type === TOKEN_TYPES.CONTENT
+      current_token(tokens, i).type === TOKEN_TYPES.TEXT
     ) {
       const [node, nextIndex] = parseText(tokens, i);
       textNode.text += " " + node.text;
@@ -226,16 +232,28 @@ function parseAtBlock(tokens, i) {
       throw new Error("Expected token 'at_value'");
     }
   }
-
+  if (
+    !current_token(tokens, i) &&
+    current_token(tokens, i).type !== TOKEN_TYPES.NEWLINE
+  ) {
+    throw new Error("Expected token '\n' after 'at_value'");
+  }
+  i++;
   if (
     current_token(tokens, i) &&
-    current_token(tokens, i).type === TOKEN_TYPES.CONTENT
+    current_token(tokens, i).type === TOKEN_TYPES.TEXT
   ) {
     atBlockNode.text = current_token(tokens, i).value;
   } else {
     throw new Error("Expected token 'text'");
   }
   i++;
+  if (
+    current_token(tokens, i) &&
+    current_token(tokens, i).type === TOKEN_TYPES.NEWLINE
+  ) {
+    i++;
+  }
   if (!current_token(tokens, i) || current_token(tokens, i).value !== "@_") {
     throw new Error("Expected token '@_'");
   }
@@ -252,7 +270,7 @@ function parseAtBlock(tokens, i) {
 }
 
 function parseCommentNode(tokens, i) {
-   const commentNode = makeCommentNode();
+  const commentNode = makeCommentNode();
   if (
     current_token(tokens, i) &&
     current_token(tokens, i).type === TOKEN_TYPES.COMMENT
@@ -264,7 +282,8 @@ function parseCommentNode(tokens, i) {
 }
 
 function parseNode(tokens, i) {
-  if (!current_token(tokens, i) || !current_token(tokens, i).value) return [null, i];
+  if (!current_token(tokens, i) || !current_token(tokens, i).value)
+    return [null, i];
   if (
     current_token(tokens, i) &&
     current_token(tokens, i).type === TOKEN_TYPES.COMMENT
@@ -277,19 +296,24 @@ function parseNode(tokens, i) {
     return parseBlock(tokens, i);
   } else if (
     current_token(tokens, i) &&
-    current_token(tokens, i).type === TOKEN_TYPES.CONTENT
-  ) {
-    return parseText(tokens, i);
-  } else if (
-    current_token(tokens, i) &&
     current_token(tokens, i).value === "("
   ) {
     return parseInline(tokens, i);
+  } else if (
+    current_token(tokens, i) &&
+    current_token(tokens, i).type === TOKEN_TYPES.TEXT
+  ) {
+    return parseText(tokens, i);
   } else if (
     current_token(tokens, i).value === "@_" &&
     peek(tokens, i, 1) !== "end"
   ) {
     return parseAtBlock(tokens, i);
+  } else if (
+    current_token(tokens, i) &&
+    current_token(tokens, i).type === TOKEN_TYPES.NEWLINE
+  ) {
+    return [makeNewlineNode(current_token(tokens, i).value), i + 1];
   }
   return [null, i + 1];
 }
