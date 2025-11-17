@@ -350,7 +350,7 @@ function parser(tokens) {
       i++;
     }
   }
-  return JSON.stringify(ast, null, 2);
+  return ast;
 }
 
 export default parser;
