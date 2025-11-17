@@ -42,7 +42,7 @@ function makeAtBlockNode() {
     type: "AtBlock",
     id: "",
     args: [],
-    text: "",
+    content: [],
   };
 }
 
@@ -53,7 +53,9 @@ function makeNewlineNode(value) {
   };
 }
 
+let depth = [];
 function parseBlock(tokens, i) {
+  depth.push(1);
   const blockNode = makeBlockNode();
   if (
     current_token(tokens, i).value !== "[" &&
@@ -107,6 +109,7 @@ function parseBlock(tokens, i) {
       current_token(tokens, i).value === "[" &&
       peek(tokens, i, 1).value === "end"
     ) {
+      depth.pop();
       if (peek(tokens, i, 2) === null || peek(tokens, i, 2).value !== "]") {
         throw new Error("Expected token ']' after 'end'");
       }
@@ -239,15 +242,23 @@ function parseAtBlock(tokens, i) {
     throw new Error("Expected token '\n' after 'at_value'");
   }
   i++;
-  if (
-    current_token(tokens, i) &&
-    current_token(tokens, i).type === TOKEN_TYPES.TEXT
-  ) {
-    atBlockNode.text = current_token(tokens, i).value;
-  } else {
-    throw new Error("Expected token 'text'");
+  while(i < tokens.length) {
+    if (
+      current_token(tokens, i) &&
+      current_token(tokens, i).type === TOKEN_TYPES.TEXT
+    ) {
+      atBlockNode.content.push(current_token(tokens, i).value);
+      i++;
+    } else if (
+      current_token(tokens, i) &&
+      current_token(tokens, i).type === TOKEN_TYPES.NEWLINE
+    ) {
+      i++;
+      continue;
+    } else {
+      break;
+    }
   }
-  i++;
   if (
     current_token(tokens, i) &&
     current_token(tokens, i).type === TOKEN_TYPES.NEWLINE
@@ -291,7 +302,7 @@ function parseNode(tokens, i) {
     return parseCommentNode(tokens, i);
   } else if (
     current_token(tokens, i).value === "[" &&
-    peek(tokens, i, 1) !== "end"
+    peek(tokens, i, 1).value !== "end"
   ) {
     return parseBlock(tokens, i);
   } else if (
@@ -306,7 +317,7 @@ function parseNode(tokens, i) {
     return parseText(tokens, i);
   } else if (
     current_token(tokens, i).value === "@_" &&
-    peek(tokens, i, 1) !== "end"
+    peek(tokens, i, 1).value !== "end"
   ) {
     return parseAtBlock(tokens, i);
   } else if (
@@ -314,6 +325,11 @@ function parseNode(tokens, i) {
     current_token(tokens, i).type === TOKEN_TYPES.NEWLINE
   ) {
     return [makeNewlineNode(current_token(tokens, i).value), i + 1];
+  } else if (
+    current_token(tokens, i).value === "[" &&
+    peek(tokens, i, 1).value === "end"
+  ) {
+    depth.pop();
   }
   return [null, i + 1];
 }
@@ -322,6 +338,11 @@ function parser(tokens) {
   const ast = [];
   for (let i = 0; i < tokens.length; i++) {
     let [nodes, nextIndex] = parseNode(tokens, i);
+    if(depth.length !== 0) {
+      throw new Error("Block is missing '[end]'");
+    } else if(depth.length === 0) {
+      depth = [];
+    }
     if (nodes) {
       ast.push(nodes);
       i = nextIndex;
