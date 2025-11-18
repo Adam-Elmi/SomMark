@@ -1,0 +1,31 @@
+# Comment block
+[CommentExamples]
+# This entire line is a comment and should be ignored by the parser.
+
+# Comments inside a block:
+This line should render.
+# This should not render.
+This also renders.
+
+# Comments mixed with inline syntax:
+(Adam)->(bold) is the author.   # This explains the sentence.
+# Comments before blocks:
+
+# The following block shows a code snippet.
+@_code_@
+console.log("Hello World");
+@_end_@
+
+# Comments after blocks:
+@_list_@
+- Apple
+- Banana
+- Mango
+@_end_@
+# End of list.
+
+# Multiple comments:
+# First line
+# Second line
+# Third line
+[end]
