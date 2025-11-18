@@ -1,9 +1,0 @@
-[Block = A]
-(block)->(A) This is outer block (block)->(A)
-  [Block = B]
-  (block)->(B) This is inner block (block)->(B)
-  @_code_@: js
-  console.log("Hello World");
-  @_end_@
-  [end]
-[end]
