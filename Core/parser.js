@@ -335,8 +335,61 @@ function parseNode(tokens, i) {
   return [null, i + 1];
 }
 
+let preTextNodes = [];
+
+function astCleanUp(ast) {
+
+  for (let i = 0; i < ast.length; i++) {
+    if(ast[i].type === "Block") {
+      let bNodes = ast[i].body; 
+      for (let j = 0; j < bNodes.length; j++) {
+        const node = bNodes[j];
+        if(node.type === "Text" && preTextNodes.length === 0) {
+          continue;
+        } 
+        else if(node.type === "Text" && preTextNodes.length > 0) {
+          console.log(preTextNodes);
+          for (let k = 0; k < preTextNodes.length; k++) {
+            let n = preTextNodes[k];
+            let temp_text = node.text.split(" ");
+            if(n.type === "Newline") {
+              temp_text.splice(k, 0, n.value);
+              node.text = temp_text.join(" ");
+            } else {
+              let id = n.id.includes(":") ? n.id.slice(0, n.id.indexOf(":")) : n.id;
+              temp_text.splice(k, 0, `$${id}:${n.value}$`);
+              node.text = temp_text.join(" ");
+              node.inline.unshift(n);
+            }
+          }
+          preTextNodes = [];
+        } 
+        else if(node.type === "Inline" && peek(bNodes, j, 1)?.type === "Newline") {
+           preTextNodes = [];
+          continue;
+        }
+        else if(node.type === "Newline" || node.type === "Inline") {
+          preTextNodes.push(node);
+          bNodes.splice(j, 1);
+          j--; 
+        }
+        else if(node.type === "Block") {
+          preTextNodes = [];
+          astCleanUp([node]);
+        }
+        else{
+          preTextNodes = [];
+          break;
+        }
+      }
+    }
+  }
+
+  return ast;
+}
+
 function parser(tokens) {
-  const ast = [];
+  let ast = [];
   for (let i = 0; i < tokens.length; i++) {
     let [nodes, nextIndex] = parseNode(tokens, i);
     if(depth.length !== 0) {
@@ -351,6 +404,8 @@ function parser(tokens) {
       i++;
     }
   }
+  // ast clean up
+  ast = astCleanUp(ast);
   return ast;
 }
 
