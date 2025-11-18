@@ -1,0 +1,27 @@
+[Messages]
+# Note
+@_note_@
+SomMark is readable and simple.
+@_end_@
+
+# Warning
+@_warnings_@
+Only Block nodes can contain other blocks.
+@_end_@
+
+# Tip
+@_tip_@
+Use (bold)->(bold) or (italic)->(italic) for emphasis.
+@_end_@
+
+# Error
+@_error_@
+Unclosed blocks will throw parser errors.
+@_end_@
+
+# Important
+@_important_@
+Always test your SomMark documents first.
+@_end_@
+
+[end]
