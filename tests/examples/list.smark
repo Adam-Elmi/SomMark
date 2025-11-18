@@ -1,0 +1,34 @@
+[ListExamples]
+# Nested bullet list
+@_list_@
+- One
+    - sub-item
+        - sub-item
+            - sub-item
+- Two
+    - sub-item
+        - sub-item
+            - sub-item
+- Three
+    - sub-item
+        - sub-item
+            - sub-item
+@_end_@
+
+# Numbered list
+@_list_@
+1. One
+    - sub-item
+        - sub-item
+            - sub-item
+2. Two
+    - sub-item
+        - sub-item
+            - sub-item
+3. Three
+    - sub-item
+        - sub-item
+            - sub-item
+@_end_@
+
+[end]
