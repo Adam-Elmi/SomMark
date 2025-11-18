@@ -1,0 +1,20 @@
+[InlieExamples]
+# Bold text
+Hello (Adam)->(bold)
+
+# Italic text
+Welcome (Elmi)->(italic)
+
+# Capitalize text
+(eid)->(capital) joined the chat
+
+# URL inline
+Visit (SomCheat)->(url:www.somcheat.dev)
+
+# Repeated inline occurrences
+(Adam)->(bold) Adam (Adam)->(italic) Adam
+
+# Mixing types in one sentence
+Hi (Elmi)->(italic), check (Website)->(url:https://www.somcheat.dev) and (Github repo)->(url:https://github.com/Adam-Elmi/SomCheat)
+
+[end]
