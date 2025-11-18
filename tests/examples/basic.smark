@@ -1,0 +1,22 @@
+[SomMark]
+Hello (Visitor)->(bold), welcome to SomMark!
+SomMark is a clean, human-readable markup language designed for documentation.
+
+To install the CLI:
+@_code_@: sh
+npm install -g sommark
+sommark --version
+@_end_@
+
+Next, create your first file:
+@_code_@: sh
+echo "[Doc]\nHello SomMark!\n[end]" > example.sm
+@_end_@
+
+Now transpile it:
+@_code_@: sh
+sommark example.smark --out example.html
+@_end_@
+
+More info at (SomMark Docs)->(url:https://sommark.dev/docs).
+[end]
