@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import SomMark from "./js/Core/sommark.js";
+import SomMark from "./js/core/sommark.js";
 
 const buffer = await fs.readFile("./tests/examples/basic.smark");
 const file_content = buffer.toString();
