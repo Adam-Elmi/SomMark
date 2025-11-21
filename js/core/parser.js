@@ -54,6 +54,7 @@ function makeNewlineNode(value) {
 }
 
 let depth = [];
+
 function parseBlock(tokens, i) {
   depth.push(1);
   const blockNode = makeBlockNode();
@@ -96,7 +97,6 @@ function parseBlock(tokens, i) {
     }
   }
   i++;
-
   while (i < tokens.length) {
     if (
       current_token(tokens, i).value === "[" &&
@@ -125,6 +125,7 @@ function parseBlock(tokens, i) {
       i = nextIndex;
     }
   }
+  i++;
   return [blockNode, i];
 }
 
@@ -180,7 +181,9 @@ function parseText(tokens, i) {
   while (i < tokens.length) {
     if (current_token(tokens, i) && current_token(tokens, i).value === "(") {
       const [node, nextIndex] = parseInline(tokens, i);
-      let id = node.id.includes(":") ? node.id.slice(0, node.id.indexOf(":")) : node.id;
+      let id = node.id.includes(":")
+        ? node.id.slice(0, node.id.indexOf(":"))
+        : node.id;
       textNode.text += ` $${id}:${node.value}$`;
       textNode.inline.push(node);
       i = nextIndex;
@@ -243,7 +246,7 @@ function parseAtBlock(tokens, i) {
     throw new Error("Expected token '\n' after 'at_value'");
   }
   i++;
-  while(i < tokens.length) {
+  while (i < tokens.length) {
     if (
       current_token(tokens, i) &&
       current_token(tokens, i).type === TOKEN_TYPES.TEXT
@@ -294,8 +297,9 @@ function parseCommentNode(tokens, i) {
 }
 
 function parseNode(tokens, i) {
-  if (!current_token(tokens, i) || !current_token(tokens, i).value)
+  if (!current_token(tokens, i) || !current_token(tokens, i).value) {
     return [null, i];
+  }
   if (
     current_token(tokens, i) &&
     current_token(tokens, i).type === TOKEN_TYPES.COMMENT
@@ -338,46 +342,44 @@ function parseNode(tokens, i) {
 let preTextNodes = [];
 
 function astCleanUp(ast) {
-
   for (let i = 0; i < ast.length; i++) {
-    if(ast[i].type === "Block") {
-      let bNodes = ast[i].body; 
+    if (ast[i].type === "Block") {
+      let bNodes = ast[i].body;
       for (let j = 0; j < bNodes.length; j++) {
         const node = bNodes[j];
-        if(node.type === "Text" && preTextNodes.length === 0) {
+        if (node.type === "Text" && preTextNodes.length === 0) {
           continue;
-        } 
-        else if(node.type === "Text" && preTextNodes.length > 0) {
-          console.log(preTextNodes);
+        } else if (node.type === "Text" && preTextNodes.length > 0) {
           for (let k = 0; k < preTextNodes.length; k++) {
             let n = preTextNodes[k];
             let temp_text = node.text.split(" ");
-            if(n.type === "Newline") {
+            if (n.type === "Newline") {
               temp_text.splice(k, 0, n.value);
               node.text = temp_text.join(" ");
             } else {
-              let id = n.id.includes(":") ? n.id.slice(0, n.id.indexOf(":")) : n.id;
+              let id = n.id.includes(":")
+                ? n.id.slice(0, n.id.indexOf(":"))
+                : n.id;
               temp_text.splice(k, 0, `$${id}:${n.value}$`);
               node.text = temp_text.join(" ");
               node.inline.unshift(n);
             }
           }
           preTextNodes = [];
-        } 
-        else if(node.type === "Inline" && peek(bNodes, j, 1)?.type === "Newline") {
-           preTextNodes = [];
+        } else if (
+          node.type === "Inline" &&
+          peek(bNodes, j, 1)?.type === "Newline"
+        ) {
+          preTextNodes = [];
           continue;
-        }
-        else if(node.type === "Newline" || node.type === "Inline") {
+        } else if (node.type === "Newline" || node.type === "Inline") {
           preTextNodes.push(node);
           bNodes.splice(j, 1);
-          j--; 
-        }
-        else if(node.type === "Block") {
+          j--;
+        } else if (node.type === "Block") {
           preTextNodes = [];
           astCleanUp([node]);
-        }
-        else{
+        } else {
           preTextNodes = [];
           break;
         }
@@ -392,9 +394,9 @@ function parser(tokens) {
   let ast = [];
   for (let i = 0; i < tokens.length; i++) {
     let [nodes, nextIndex] = parseNode(tokens, i);
-    if(depth.length !== 0) {
+    if (depth.length !== 0) {
       throw new Error("Block is missing '[end]'");
-    } else if(depth.length === 0) {
+    } else if (depth.length === 0) {
       depth = [];
     }
     if (nodes) {
