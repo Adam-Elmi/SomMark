@@ -9,47 +9,15 @@ import {
 import addToken from "../helpers/addToken.js";
 import { blockType1, blockType2, inlineType, atType1, atType2, endType1, endType2 } from "../helpers/t_types.js";
 import skipSpaces from "../helpers/skipSpaces.js";
+import concat from "../helpers/concat.js";
 
 function lexer(src) {
   if (src && typeof src === "string") {
-    let previous_value = "";
-    let depth_stack = [];
-    let token_stack = [];
-    let special_tokens = [];
-    let scope_state = false;
-    let _t = [];
-
-    function concat_char(input, index, mode = "normal", stop_at_char = []) {
-      let str = "";
-      for (let char_index = index; char_index < input.length; char_index++) {
-        let char = input[char_index];
-        if (mode === "normal") {
-          if (char === "\n") {
-            break;
-          } else if (char === "[" && scope_state === false) {
-            break;
-          } else if (char === "(" && scope_state === false) {
-            break;
-          }
-          str += char;
-        } else if (mode === "active") {
-          if (stop_at_char.includes(char)) {
-            break;
-          }
-          str += char;
-        } else if(mode === "skip") {
-          
-        }
-      }
-
-      return str;
-    }
     const tokens = [];
-    let line = 1;
-    let col = 1;
-    let context = "";
-    let temp_str = "";
-    let temp_value = "";
+    let scope_state = false;
+    let line = 1, col = 1;
+    let depth_stack = [], special_tokens = [], token_stack = [], _t = [];
+    let context = "", temp_str = "", temp_value = "", previous_value = "";
 
     for (let i = 0; i < src.length; i++) {
       let current_char = src[i];
@@ -288,7 +256,7 @@ function lexer(src) {
           previous_value === "[" ||
           (previous_value === "=" && scope_state === false)
         ) {
-          temp_str = concat_char(src, i, "active", ["=", "]", "\n"]);
+          temp_str = concat(src, i, "active", ["=", "]", "\n"], scope_state);
           const [next, column] = updateColumn(src, i, temp_str, col, false);
           i = next;
           const { start, end } = column;
@@ -329,7 +297,7 @@ function lexer(src) {
           previous_value === "(" ||
           (previous_value === "->" && scope_state === false)
         ) {
-          temp_str = concat_char(src, i, "active", [")"]);
+          temp_str = concat(src, i, "active", [")"], scope_state);
           const [next, column] = updateColumn(src, i, temp_str, col, false);
           i = next;
           const { start, end } = column;
@@ -343,6 +311,12 @@ function lexer(src) {
                 "Inline Value",
                 temp_str.trim(),
               );
+              // Needs a fix??
+              i -= temp_str.length
+              token_stack = [];
+              special_tokens = [];
+              _t = [];
+              console.log(temp_str);
               previous_value = "Inline Value";
             } else {
               // Token: Inline Identifier
@@ -358,7 +332,7 @@ function lexer(src) {
         }
         // Token: At Identifier OR Token: At Value OR Token: End Keyword
         else if (previous_value === "@_" || previous_value === ":") {
-          temp_str = concat_char(src, i, "active", ["_", "\n"]);
+          temp_str = concat(src, i, "active", ["_", "\n"], scope_state);
           if (temp_str.trim()) {
             const [next, column] = updateColumn(src, i, temp_str, col, false);
             i = next;
@@ -423,7 +397,7 @@ function lexer(src) {
         }
         // Token: Comment
         else if (current_char === "#") {
-          temp_str = concat_char(src, i, "active", ["\n"]);
+          temp_str = concat(src, i, "active", ["\n"], scope_state);
           if (temp_str) {
             const [next, column] = updateColumn(src, i, temp_str, col, false);
             i = next;
@@ -433,7 +407,7 @@ function lexer(src) {
         }
         // Token: Text
         else {
-          context = concat_char(src, i);
+          context = concat(src, i, "normal", null, scope_state);
           const [next, column] = updateColumn(src, i, context, col, false);
           i = next;
           const { start, end } = column;
