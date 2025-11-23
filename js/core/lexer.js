@@ -229,21 +229,6 @@ function lexer(src) {
         updateStack(token_stack, special_tokens, current_char, current_char);
         previous_value = current_char;
       }
-      // Token: End Keyword
-      else if (
-        current_char === "e" &&
-        peek(src, i, 1) === "n" &&
-        peek(src, i, 2) === "d" &&
-        (previous_value === "[" || previous_value === "@_")
-      ) {
-        temp_value = current_char + peek(src, i, 1) + peek(src, i, 2);
-        const [next, column] = updateColumn(src, i, temp_value, col, false);
-        i = next;
-        const { start, end } = column;
-        _t.push({type: "", value: "", line, start, end, depth: depth_stack.length });
-        updateStack(token_stack, special_tokens, temp_value, temp_value);
-        previous_value = temp_value;
-      }
       // Token: Newline
       else if (current_char === "\n") {
         line++;
