@@ -1,5 +1,6 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
+import { ParserError } from "../helpers/errors.js";
 
 function current_token(tokens, i) {
   return tokens[i] || null;
@@ -62,16 +63,26 @@ function parseBlock(tokens, i) {
     current_token(tokens, i).value !== "[" &&
     peek(tokens, i, 1).value !== "end"
   ) {
-    throw new Error("Expected token '['");
+    throw new ParserError("Expected token '['");
   }
   i++;
   if (current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
     blockNode.id = current_token(tokens, i).value;
   } else {
     if (current_token(tokens, i).value === "=") {
-      throw new Error("Expected token 'block identifier' before '='");
+      throw new ParserError(
+        "Expected token 'block identifier' before '='",
+        current_token(tokens, i).line,
+        current_token(tokens, i).column_start,
+        current_token(tokens, i).column_end,
+      );
     } else {
-      throw new Error("Expected token '[' before block identifier");
+      throw new ParserError(
+        "Expected token '[' before block identifier",
+        current_token(tokens, i).line,
+        current_token(tokens, i).column_start,
+        current_token(tokens, i).column_end,
+      );
     }
   }
   i++;
@@ -84,16 +95,32 @@ function parseBlock(tokens, i) {
           blockNode.args.push(value);
         });
     } else {
-      throw new Error("Expected token 'block value' after '='");
+      throw new ParserError(
+        "Expected token 'block value' after '='",
+        current_token(tokens, i).line,
+        current_token(tokens, i).column_start,
+        current_token(tokens, i).column_end,
+      );
     }
     i++;
   }
 
   if (current_token(tokens, i) && current_token(tokens, i).value !== "]") {
-    if (current_token(tokens, i).value === "=") {
-      throw new Error("Expected token ']' after block value");
+    console.log(tokens[i]);
+    if (peek(tokens, i, -1) && peek(tokens, i, -1).type === TOKEN_TYPES.VALUE) {
+      throw new ParserError(
+        "Expected token ']' after block value",
+        current_token(tokens, i).line,
+        current_token(tokens, i).column_start,
+        current_token(tokens, i).column_end,
+      ).message;
     } else {
-      throw new Error("Expected token ']' after block identifier");
+      throw new ParserError(
+        "Expected token ']' after block identifier",
+        current_token(tokens, i).line,
+        current_token(tokens, i).column_start,
+        current_token(tokens, i).column_end,
+      );
     }
   }
   i++;
@@ -125,7 +152,6 @@ function parseBlock(tokens, i) {
       i = nextIndex;
     }
   }
-  i++;
   return [blockNode, i];
 }
 
