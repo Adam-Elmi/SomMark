@@ -1,8 +1,8 @@
-function concat(input, index, mode = "normal", stop_at_char = [], scope_state) {
+function concat(input, index, exclude_stop_char = true, stop_at_char = [], scope_state) {
   let str = "";
   for (let char_index = index; char_index < input.length; char_index++) {
     let char = input[char_index];
-    if (mode === "normal") {
+    if (exclude_stop_char) {
       if (char === "\n") {
         break;
       } else if (char === "[" && scope_state === false) {
@@ -11,13 +11,11 @@ function concat(input, index, mode = "normal", stop_at_char = [], scope_state) {
         break;
       }
       str += char;
-    } else if (mode === "active") {
+    } else {
       if (stop_at_char.includes(char)) {
         break;
       }
       str += char;
-    } else if(mode === "skip") {
-      
     }
   }
 
