@@ -21,12 +21,22 @@ function lexer(src) {
 			temp_str = "",
 			temp_value = "",
 			previous_value = "";
+		const tokenNames = {
+			block_id: "Block Identifier",
+			block_value: "Block Value",
+			inline_id: "Inline Identifier",
+			inline_value: "Inline Value",
+			at_id: "At Identifier",
+			at_value: "At Value",
+			end_keyword: "end"
+		};
+		const { block_id, block_value, inline_id, inline_value, at_id, at_value, end_keyword } = tokenNames;
 
 		for (let i = 0; i < src.length; i++) {
 			let current_char = src[i];
 			// Token: Open Bracket
 			if (current_char === "[" && scope_state === false) {
-				if (peek(src, i, 1) + peek(src, i, 2) + peek(src, i, 3) !== "end") {
+				if (peek(src, i, 1) + peek(src, i, 2) + peek(src, i, 3) !== end_keyword) {
 					depth_stack.push("Block");
 				}
 				const { start, end } = updateColumn(src, i, null, col);
@@ -46,17 +56,17 @@ function lexer(src) {
 				const { start, end } = updateColumn(src, i, null, col);
 				_t.push({ type: "", value: "", line, start, end, depth: depth_stack.length });
 				updateStack(token_stack, special_tokens, current_char, current_char);
-				if (previous_value === "end") {
+				if (previous_value === end_keyword) {
 					depth_stack.pop();
 				}
 
-				if (previous_value !== "end" && peek(src, i, 1) !== "\n") {
+				if (previous_value !== end_keyword && peek(src, i, 1) !== "\n") {
 					i++;
 					temp_value = skipSpaces(src, i);
 					i += temp_value.length - 1;
 				}
 
-				if (peek(src, i, 1) !== "\n" && !token_stack.includes("end")) {
+				if (peek(src, i, 1) !== "\n" && !token_stack.includes(end_keyword)) {
 					addToken(tokens, {
 						type: TOKEN_TYPES.TEXT,
 						value: special_tokens.join(""),
@@ -69,8 +79,8 @@ function lexer(src) {
 					special_tokens = [];
 					_t = [];
 				} else if (peek(src, i, 1) === "\n") {
-					const expected_tokens = ["[", "Block Identifier", "=", "Block Value", "]"];
-					const another_expected = ["[", "Block Identifier", "]"];
+					const expected_tokens = ["[", block_id, "=", block_value, "]"];
+					const another_expected = ["[", block_id, "]"];
 					// is block?
 					if (isExpected(token_stack, expected_tokens) || isExpected(token_stack, another_expected)) {
 						for (let t = 0; t < special_tokens.length; t++) {
@@ -89,8 +99,8 @@ function lexer(src) {
 					}
 				}
 
-				if (previous_value === "end") {
-					const endblock_tokens = ["[", "end", "]"];
+				if (previous_value === end_keyword) {
+					const endblock_tokens = ["[", end_keyword, "]"];
 					// is end block?
 					if (isExpected(token_stack, endblock_tokens)) {
 						for (let t = 0; t < special_tokens.length; t++) {
@@ -142,7 +152,7 @@ function lexer(src) {
 					special_tokens = [];
 					_t = [];
 				}
-				const expected_tokens = ["(", "Inline Value", ")", "->", "(", "Inline Identifier", ")"];
+				const expected_tokens = ["(", inline_value, ")", "->", "(", inline_id, ")"];
 				// is inline?
 				console.log(token_stack);
 				if (isExpected(token_stack, expected_tokens)) {
@@ -175,7 +185,7 @@ function lexer(src) {
 				const { start, end } = column;
 				_t.push({ type: "", value: "", line, start, end, depth: depth_stack.length });
 				updateStack(token_stack, special_tokens, temp_value, temp_value);
-				if (previous_value !== "end" && peek(src, i, 1) !== "\n") {
+				if (previous_value !== end_keyword && peek(src, i, 1) !== "\n") {
 					i++;
 					temp_value = skipSpaces(src, i);
 					i += temp_value.length - 1;
@@ -190,8 +200,8 @@ function lexer(src) {
 						depth: depth_stack.length
 					});
 				}
-				if (peek(src, i, 1) === "\n" && previous_value !== "end") {
-					const at_tokens = ["@_", "At Identifier", "_@"];
+				if (peek(src, i, 1) === "\n" && previous_value !== end_keyword) {
+					const at_tokens = ["@_", at_id, "_@"];
 					// is at block?
 					if (isExpected(token_stack, at_tokens)) {
 						scope_state = true;
@@ -204,8 +214,8 @@ function lexer(src) {
 						special_tokens = [];
 						_t = [];
 					}
-				} else if (previous_value === "end") {
-					const endblock_tokens = ["@_", "end", "_@"];
+				} else if (previous_value === end_keyword) {
+					const endblock_tokens = ["@_", end_keyword, "_@"];
 					// is end block?
 					if (isExpected(token_stack, endblock_tokens)) {
 						scope_state = false;
@@ -252,21 +262,21 @@ function lexer(src) {
 					if (temp_str.trim()) {
 						if (previous_value === "[") {
 							// Token: End Keyword
-							if (temp_str.trim() === "end") {
+							if (temp_str.trim() === end_keyword) {
 								updateStack(token_stack, special_tokens, temp_str, temp_str);
 								previous_value = temp_str.trim();
 								scope_state = false;
 							}
 							// Token: Block Identifier
 							else {
-								updateStack(token_stack, special_tokens, "Block Identifier", temp_str.trim());
-								previous_value = "Block Identifier";
+								updateStack(token_stack, special_tokens, block_id, temp_str.trim());
+								previous_value = block_id;
 							}
 						}
 						// Token: Value (Block Value)
 						else {
-							updateStack(token_stack, special_tokens, "Block Value", temp_str.trim());
-							previous_value = "Block Value";
+							updateStack(token_stack, special_tokens, block_value, temp_str.trim());
+							previous_value = block_value;
 						}
 					}
 				}
@@ -280,18 +290,18 @@ function lexer(src) {
 					if (temp_str.trim()) {
 						if (previous_value === "(") {
 							// Token: Inline Value
-							updateStack(token_stack, special_tokens, "Inline Value", temp_str.trim());
+							updateStack(token_stack, special_tokens, inline_value, temp_str.trim());
 							// Needs a fix??
 							i -= temp_str.length;
 							token_stack = [];
 							special_tokens = [];
 							_t = [];
 							console.log(temp_str);
-							previous_value = "Inline Value";
+							previous_value = inline_value;
 						} else {
 							// Token: Inline Identifier
-							updateStack(token_stack, special_tokens, "Inline Identifier", temp_str.trim());
-							previous_value = "Inline Identifier";
+							updateStack(token_stack, special_tokens, inline_id, temp_str.trim());
+							previous_value = inline_id;
 						}
 					}
 				}
@@ -305,20 +315,20 @@ function lexer(src) {
 						_t.push({ type: "", value: "", line, start, end, depth: depth_stack.length });
 						if (previous_value === "@_") {
 							// Token: End Keyword
-							if (temp_str.trim() === "end") {
+							if (temp_str.trim() === end_keyword) {
 								updateStack(token_stack, special_tokens, temp_str.trim(), temp_str.trim());
 								previous_value = temp_str.trim();
 								scope_state = false;
 							}
 							// Token: At Identifier
 							else {
-								updateStack(token_stack, special_tokens, "At Identifier", temp_str.trim());
-								previous_value = "At Identifier";
+								updateStack(token_stack, special_tokens, at_id, temp_str.trim());
+								previous_value = at_id;
 							}
 						}
 						// Token: At Value
 						else {
-							updateStack(token_stack, special_tokens, "At Value", temp_str.trim());
+							updateStack(token_stack, special_tokens, at_value, temp_str.trim());
 							if (peek(src, i, 1) !== "\n") {
 								addToken(tokens, {
 									type: TOKEN_TYPES.NEWLINE,
@@ -329,7 +339,7 @@ function lexer(src) {
 									depth: depth_stack.length
 								});
 							}
-							const expected_tokens = ["@_", "At Identifier", "_@", ":", "At Value"];
+							const expected_tokens = ["@_", at_id, "_@", ":", at_value];
 							// is at block?
 							if (isExpected(token_stack, expected_tokens)) {
 								scope_state = true;
@@ -342,7 +352,7 @@ function lexer(src) {
 								special_tokens = [];
 								_t = [];
 							}
-							previous_value = "At Value";
+							previous_value = at_value;
 						}
 					}
 				}
