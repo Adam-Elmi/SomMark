@@ -241,7 +241,7 @@ function lexer(src) {
           previous_value === "[" ||
           (previous_value === "=" && scope_state === false)
         ) {
-          temp_str = concat(src, i, "active", ["=", "]", "\n"], scope_state);
+          temp_str = concat(src, i, false, ["=", "]", "\n"], scope_state);
           const [next, column] = updateColumn(src, i, temp_str, col, false);
           i = next;
           const { start, end } = column;
@@ -282,7 +282,7 @@ function lexer(src) {
           previous_value === "(" ||
           (previous_value === "->" && scope_state === false)
         ) {
-          temp_str = concat(src, i, "active", [")"], scope_state);
+          temp_str = concat(src, i, false, [")"], scope_state);
           const [next, column] = updateColumn(src, i, temp_str, col, false);
           i = next;
           const { start, end } = column;
@@ -317,7 +317,7 @@ function lexer(src) {
         }
         // Token: At Identifier OR Token: At Value OR Token: End Keyword
         else if (previous_value === "@_" || previous_value === ":") {
-          temp_str = concat(src, i, "active", ["_", "\n"], scope_state);
+          temp_str = concat(src, i, false, ["_", "\n"], scope_state);
           if (temp_str.trim()) {
             const [next, column] = updateColumn(src, i, temp_str, col, false);
             i = next;
@@ -382,7 +382,7 @@ function lexer(src) {
         }
         // Token: Comment
         else if (current_char === "#") {
-          temp_str = concat(src, i, "active", ["\n"], scope_state);
+          temp_str = concat(src, i, false, ["\n"], scope_state);
           if (temp_str) {
             const [next, column] = updateColumn(src, i, temp_str, col, false);
             i = next;
@@ -392,7 +392,7 @@ function lexer(src) {
         }
         // Token: Text
         else {
-          context = concat(src, i, "normal", null, scope_state);
+          context = concat(src, i, true, null, scope_state);
           const [next, column] = updateColumn(src, i, context, col, false);
           i = next;
           const { start, end } = column;
