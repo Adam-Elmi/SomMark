@@ -1,6 +1,7 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
 import { ParserError } from "../helpers/errors.js";
+import { resetArray } from "../helpers/updateData.js";
 
 function current_token(tokens, i) {
 	return tokens[i] || null;
@@ -313,19 +314,19 @@ function astCleanUp(ast) {
 							node.inline.unshift(n);
 						}
 					}
-					preTextNodes = [];
+					resetArray(preTextNodes);
 				} else if (node.type === "Inline" && peek(bNodes, j, 1)?.type === "Newline") {
-					preTextNodes = [];
+					resetArray(preTextNodes);
 					continue;
 				} else if (node.type === "Newline" || node.type === "Inline") {
 					preTextNodes.push(node);
 					bNodes.splice(j, 1);
 					j--;
 				} else if (node.type === "Block") {
-					preTextNodes = [];
+					resetArray(preTextNodes);
 					astCleanUp([node]);
 				} else {
-					preTextNodes = [];
+					resetArray(preTextNodes);
 					break;
 				}
 			}
@@ -342,7 +343,7 @@ function parser(tokens) {
 		if (depth.length !== 0) {
 			throw new Error("Block is missing '[end]'");
 		} else if (depth.length === 0) {
-			depth = [];
+			resetArray(depth);
 		}
 		if (nodes) {
 			ast.push(nodes);
