@@ -41,13 +41,19 @@ function lexer(src) {
 			// Token: Open Bracket
 			if (current_char === "[" && scope_state === false) {
 				// Push to depth_stack if next is not 'end keyword'
-				temp_value = concat(src, i + 1, false, ["]"], scope_state);
-				if (temp_value.trim() !== end_keyword) {
-					depth_stack.push("Block");
+				// temp_value = concat(src, i + 1, false, ["]"], scope_state);
+				// if (temp_value.trim() !== end_keyword || !temp_value.includes(end_keyword)) {
+				// 	depth_stack.push("Block");
+				// }
+				if (i === 0) {
+					// Update Column
+					start = 1;
+					end = start;
+				} else {
+					// Update Column
+					start++;
+					end = start;
 				}
-				// Update Column
-				start++;
-				end = end + 1;
 				// if next is '\n' then it is not a block, reset all arrays
 				if (peek(src, i, 1) === "\n") {
 					// Update Column
@@ -72,11 +78,11 @@ function lexer(src) {
 			else if (current_char === "=" && token_stack.length > 0 && scope_state === false) {
 				// Update Column
 				start++;
-				end = end + 1;
+				end = start;
 				_t.push({ type: "", value: "", line, start, end, depth: depth_stack.length });
 				updateStack(token_stack, special_tokens, current_char, current_char);
 				// if next is '\n' then it is not a block, reset all arrays
-				if (peek(src, i, 1) === "\n") {
+				if (peek(src, i, 1) === "\n" || peek(src, i, 1) === "]") {
 					// Update Column
 					start++;
 					end = end + special_tokens.join("").length;
@@ -96,12 +102,9 @@ function lexer(src) {
 			else if (current_char === "]" && token_stack.length > 0 && scope_state === false) {
 				// Update Column
 				start++;
-				end = end + 1;
+				end = start;
 				_t.push({ type: "", value: "", line, start, end, depth: depth_stack.length });
 				updateStack(token_stack, special_tokens, current_char, current_char);
-				if (previous_value === end_keyword) {
-					depth_stack.pop();
-				}
 				if (previous_value !== end_keyword && peek(src, i, 1) !== "\n") {
 					i++;
 					temp_value = skipSpaces(src, i);
@@ -127,6 +130,11 @@ function lexer(src) {
 						const another_expected = ["[", block_id, "]"];
 						// is block?
 						if (isExpected(token_stack, expected_tokens) || isExpected(token_stack, another_expected)) {
+							depth_stack.push("Block");
+							_t = _t.map(tk => {
+								tk.depth = depth_stack.length;
+								return tk;
+							});
 							for (let t = 0; t < special_tokens.length; t++) {
 								let token_props;
 								if (special_tokens.length === expected_tokens.length) {
@@ -145,6 +153,12 @@ function lexer(src) {
 					const endblock_tokens = ["[", end_keyword, "]"];
 					// is end block?
 					if (isExpected(token_stack, endblock_tokens)) {
+					// Remainder: Need a fix
+						depth_stack.pop();
+						_t = _t.map(tk => {
+							tk.depth = depth_stack.length;
+							return tk;
+						});
 						for (let t = 0; t < special_tokens.length; t++) {
 							let token_props;
 							token_props = updateProps(token_props, _t, special_tokens, t, endType1);
@@ -159,7 +173,7 @@ function lexer(src) {
 			else if (current_char === "(" && scope_state === false) {
 				// Update Column
 				start++;
-				end = end + 1;
+				end = start;
 				_t.push({ type: "", value: "", line, start, end, depth: depth_stack.length });
 				updateStack(token_stack, special_tokens, current_char, current_char);
 				if (previous_value !== "->" && scope_state === false) {
@@ -211,7 +225,7 @@ function lexer(src) {
 			else if (current_char === ")" && token_stack.length > 0 && scope_state === false) {
 				// Update Column
 				start++;
-				end = end + 1;
+				end = start;
 				_t.push({ type: "", value: "", line, start, end, depth: depth_stack.length });
 				updateStack(token_stack, special_tokens, current_char, current_char);
 				if (previous_value === inline_value) {
@@ -438,7 +452,7 @@ function lexer(src) {
 				}
 				// Token: Inline Value OR Token: Inline Identifier
 				else if (previous_value === "(" || (previous_value === "->" && token_stack.length > 0 && scope_state === false)) {
-					temp_str = concat(src, i, false, [")"], scope_state);
+					temp_str = concat(src, i, false, [")", "["], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
 					start++;
