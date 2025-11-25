@@ -40,11 +40,6 @@ function lexer(src) {
 			let current_char = src[i];
 			// Token: Open Bracket
 			if (current_char === "[" && scope_state === false) {
-				// Push to depth_stack if next is not 'end keyword'
-				// temp_value = concat(src, i + 1, false, ["]"], scope_state);
-				// if (temp_value.trim() !== end_keyword || !temp_value.includes(end_keyword)) {
-				// 	depth_stack.push("Block");
-				// }
 				if (i === 0) {
 					// Update Column
 					start = 1;
