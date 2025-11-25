@@ -148,12 +148,12 @@ function lexer(src) {
 					const endblock_tokens = ["[", end_keyword, "]"];
 					// is end block?
 					if (isExpected(token_stack, endblock_tokens)) {
-					// Remainder: Need a fix
-						depth_stack.pop();
+					// Remainder: Needs a fix
 						_t = _t.map(tk => {
 							tk.depth = depth_stack.length;
 							return tk;
 						});
+						depth_stack.pop();
 						for (let t = 0; t < special_tokens.length; t++) {
 							let token_props;
 							token_props = updateProps(token_props, _t, special_tokens, t, endType1);
