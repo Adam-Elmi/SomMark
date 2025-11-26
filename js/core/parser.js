@@ -60,31 +60,31 @@ let depth = [];
 function parseBlock(tokens, i) {
 	depth.push(1);
 	const blockNode = makeBlockNode();
-	if (current_token(tokens, i).value !== "[" && peek(tokens, i, 1).value !== "end") {
+	if (current_token(tokens, i).type !== TOKEN_TYPES.OPEN_BRACKET && peek(tokens, i, 1).type !== TOKEN_TYPES.END_KEYWORD) {
 		throw new ParserError("Expected token '['");
 	}
 	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		blockNode.id = current_token(tokens, i).value;
 	} else {
-		if (current_token(tokens, i).value === "=") {
+		if (current_token(tokens, i).type === TOKEN_TYPES.EQUAL) {
 			throw new ParserError(
 				"Expected token 'block identifier' before '='",
 				current_token(tokens, i).line,
-				current_token(tokens, i).column_start,
-				current_token(tokens, i).column_end
+				current_token(tokens, i).start,
+				current_token(tokens, i).end
 			);
 		} else {
 			throw new ParserError(
 				"Expected token '[' before block identifier",
 				current_token(tokens, i).line,
-				current_token(tokens, i).column_start,
-				current_token(tokens, i).column_end
+				current_token(tokens, i).start,
+				current_token(tokens, i).end
 			);
 		}
 	}
 	i++;
-	if (current_token(tokens, i) && current_token(tokens, i).value === "=") {
+	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.EQUAL) {
 		i++;
 		if (current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
 			current_token(tokens, i)
@@ -93,7 +93,12 @@ function parseBlock(tokens, i) {
 					blockNode.args.push(value);
 				});
 		} else {
-			throw new ParserError("Expected token 'block value' after '='", current_token(tokens, i).line, current_token(tokens, i).column_start, current_token(tokens, i).column_end);
+			throw new ParserError(
+				"Expected token 'block value' after '='",
+				current_token(tokens, i).line,
+				current_token(tokens, i).start,
+				current_token(tokens, i).end
+			);
 		}
 		i++;
 	}
@@ -101,10 +106,19 @@ function parseBlock(tokens, i) {
 	if (current_token(tokens, i) && current_token(tokens, i).value !== "]") {
 		console.log(tokens[i]);
 		if (peek(tokens, i, -1) && peek(tokens, i, -1).type === TOKEN_TYPES.VALUE) {
-			throw new ParserError("Expected token ']' after block value", current_token(tokens, i).line, current_token(tokens, i).column_start, current_token(tokens, i).column_end)
-				.message;
+			throw new ParserError(
+				"Expected token ']' after block value",
+				current_token(tokens, i).line,
+				current_token(tokens, i).start,
+				current_token(tokens, i).end
+			).message;
 		} else {
-			throw new ParserError("Expected token ']' after block identifier", current_token(tokens, i).line, current_token(tokens, i).column_start, current_token(tokens, i).column_end);
+			throw new ParserError(
+				"Expected token ']' after block identifier",
+				current_token(tokens, i).line,
+				current_token(tokens, i).start,
+				current_token(tokens, i).end
+			);
 		}
 	}
 	i++;
@@ -113,9 +127,12 @@ function parseBlock(tokens, i) {
 			const [childNode, nextIndex] = parseBlock(tokens, i);
 			blockNode.body.push(childNode);
 			i = nextIndex;
-		} else if (current_token(tokens, i).value === "[" && peek(tokens, i, 1).value === "end") {
+		} else if (
+			current_token(tokens, i).type === TOKEN_TYPES.OPEN_BRACKET &&
+			peek(tokens, i, 1).type === TOKEN_TYPES.END_KEYWORD
+		) {
 			depth.pop();
-			if (peek(tokens, i, 2) === null || peek(tokens, i, 2).value !== "]") {
+			if (peek(tokens, i, 2) === null || peek(tokens, i, 2).type !== TOKEN_TYPES.CLOSE_BRACKET) {
 				throw new Error("Expected token ']' after 'end'");
 			}
 			i += 3;
@@ -135,7 +152,7 @@ function parseBlock(tokens, i) {
 
 function parseInline(tokens, i) {
 	const inlineNode = makeInlineNode();
-	if (!current_token(tokens, i) || current_token(tokens, i).value !== "(") {
+	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_PAREN) {
 		throw new error("Expected token '('");
 	}
 	i++;
@@ -145,15 +162,15 @@ function parseInline(tokens, i) {
 		throw new Error("Expected token 'inline value'");
 	}
 	i++;
-	if (!current_token(tokens, i) || current_token(tokens, i).value !== ")") {
+	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
 		throw new error("Expected token ')'");
 	}
 	i++;
-	if (!current_token(tokens, i) || current_token(tokens, i).value !== "->") {
+	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.THIN_ARROW) {
 		throw new error("Expected token '->'");
 	}
 	i++;
-	if (!current_token(tokens, i) || current_token(tokens, i).value !== "(") {
+	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_PAREN) {
 		throw new error("Expected token '('");
 	}
 	i++;
@@ -163,7 +180,7 @@ function parseInline(tokens, i) {
 		throw new Error("Expected token 'inline identifier'");
 	}
 	i++;
-	if (!current_token(tokens, i) || current_token(tokens, i).value !== ")") {
+	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
 		throw new error("Expected token ')'");
 	}
 	i++;
@@ -177,7 +194,7 @@ function parseText(tokens, i) {
 	}
 	i++;
 	while (i < tokens.length) {
-		if (current_token(tokens, i) && current_token(tokens, i).value === "(") {
+		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.OPEN_PAREN) {
 			const [node, nextIndex] = parseInline(tokens, i);
 			let id = node.id.includes(":") ? node.id.slice(0, node.id.indexOf(":")) : node.id;
 			textNode.text += ` $${id}:${node.value}$`;
@@ -199,7 +216,7 @@ function parseText(tokens, i) {
 
 function parseAtBlock(tokens, i) {
 	const atBlockNode = makeAtBlockNode();
-	if (!current_token(tokens, i) || current_token(tokens, i).value !== "@_") {
+	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_AT) {
 		throw new Error("Expected token '@_'");
 	}
 	i++;
@@ -209,11 +226,11 @@ function parseAtBlock(tokens, i) {
 		throw new Error("Expected token 'at_identifier'");
 	}
 	i++;
-	if (!current_token(tokens, i) || current_token(tokens, i).value !== "_@") {
+	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT) {
 		throw new Error("Expected token '_@'");
 	}
 	i++;
-	if (current_token(tokens, i) && current_token(tokens, i).value === ":") {
+	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COLON) {
 		i++;
 		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
 			current_token(tokens, i)
@@ -244,15 +261,15 @@ function parseAtBlock(tokens, i) {
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.NEWLINE) {
 		i++;
 	}
-	if (!current_token(tokens, i) || current_token(tokens, i).value !== "@_") {
+	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_AT) {
 		throw new Error("Expected token '@_'");
 	}
 	i++;
-	if (!current_token(tokens, i) || current_token(tokens, i).value !== "end") {
+	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.END_KEYWORD) {
 		throw new Error("Expected token 'end'");
 	}
 	i++;
-	if (!current_token(tokens, i) || current_token(tokens, i).value !== "_@") {
+	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT) {
 		throw new Error("Expected token '_@'");
 	}
 	i++;
@@ -274,17 +291,17 @@ function parseNode(tokens, i) {
 	}
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COMMENT) {
 		return parseCommentNode(tokens, i);
-	} else if (current_token(tokens, i).value === "[" && peek(tokens, i, 1).value !== "end") {
+	} else if (current_token(tokens, i).value === "[" && peek(tokens, i, 1).type !== TOKEN_TYPES.END_KEYWORD) {
 		return parseBlock(tokens, i);
-	} else if (current_token(tokens, i) && current_token(tokens, i).value === "(") {
+	} else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.OPEN_PAREN) {
 		return parseInline(tokens, i);
 	} else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
 		return parseText(tokens, i);
-	} else if (current_token(tokens, i).value === "@_" && peek(tokens, i, 1).value !== "end") {
+	} else if (current_token(tokens, i).value === "@_" && peek(tokens, i, 1).type !== TOKEN_TYPES.END_KEYWORD) {
 		return parseAtBlock(tokens, i);
 	} else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.NEWLINE) {
 		return [makeNewlineNode(current_token(tokens, i).value), i + 1];
-	} else if (current_token(tokens, i).value === "[" && peek(tokens, i, 1).value === "end") {
+	} else if (current_token(tokens, i).value === "[" && peek(tokens, i, 1).type === TOKEN_TYPES.END_KEYWORD) {
 		depth.pop();
 	}
 	return [null, i + 1];
