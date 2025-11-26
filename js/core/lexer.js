@@ -107,7 +107,6 @@ function lexer(src) {
 					} else if (peek(src, i, 1) === "\n") {
 						const expected_tokens = ["[", block_id, "=", block_value, "]"];
 						const another_expected = ["[", block_id, "]"];
-						console.log(token_stack);
 						// is block?
 						if (isExpected(token_stack, expected_tokens) || isExpected(token_stack, another_expected)) {
 							depth_stack.push("Block");
