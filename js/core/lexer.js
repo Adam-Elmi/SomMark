@@ -36,6 +36,20 @@ function lexer(src) {
 			tk.push(props);
 		}
 
+		function add_as_text(start, end, line, special_tokens) {
+			// Update Column
+			start++;
+			end = end + special_tokens.join("").length;
+			addToken(tokens, {
+				type: TOKEN_TYPES.TEXT,
+				value: special_tokens.join(""),
+				line,
+				start,
+				end,
+				depth: depth_stack.length
+			});
+		}
+
 		for (let i = 0; i < src.length; i++) {
 			let current_char = src[i];
 			// Token: Open Bracket
@@ -51,17 +65,7 @@ function lexer(src) {
 				}
 				// if next is '\n' then it is not a block, reset all arrays
 				if (peek(src, i, 1) === "\n") {
-					// Update Column
-					start++;
-					end = end + special_tokens.join("").length;
-					addToken(tokens, {
-						type: TOKEN_TYPES.TEXT,
-						value: special_tokens.join(""),
-						line,
-						start,
-						end,
-						depth: depth_stack.length
-					});
+					add_as_text(start, end, line, special_tokens);
 					resetArray(token_stack, special_tokens, _t);
 				} else {
 					_t.push({ type: "", value: "", line, start, end, depth: depth_stack.length });
@@ -78,17 +82,7 @@ function lexer(src) {
 				updateStack(token_stack, special_tokens, current_char, current_char);
 				// if next is '\n' then it is not a block, reset all arrays
 				if (peek(src, i, 1) === "\n" || peek(src, i, 1) === "]") {
-					// Update Column
-					start++;
-					end = end + special_tokens.join("").length;
-					addToken(tokens, {
-						type: TOKEN_TYPES.TEXT,
-						value: special_tokens.join(""),
-						line,
-						start,
-						end,
-						depth: depth_stack.length
-					});
+					add_as_text(start, end, line, special_tokens);
 					resetArray(token_stack, special_tokens, _t);
 				}
 				previous_value = current_char;
@@ -108,21 +102,12 @@ function lexer(src) {
 				if (i < src.length - 1) {
 					// if next is not '\n' then it is not a block, reset all arrays
 					if (peek(src, i, 1) !== "\n") {
-						// Update Column
-						start++;
-						end = end + special_tokens.join("").length;
-						addToken(tokens, {
-							type: TOKEN_TYPES.TEXT,
-							value: special_tokens.join(""),
-							line,
-							start,
-							end,
-							depth: depth_stack.length
-						});
+						add_as_text(start, end, line, special_tokens);
 						resetArray(token_stack, special_tokens, _t);
 					} else if (peek(src, i, 1) === "\n") {
 						const expected_tokens = ["[", block_id, "=", block_value, "]"];
 						const another_expected = ["[", block_id, "]"];
+						console.log(token_stack);
 						// is block?
 						if (isExpected(token_stack, expected_tokens) || isExpected(token_stack, another_expected)) {
 							depth_stack.push("Block");
@@ -148,11 +133,6 @@ function lexer(src) {
 					const endblock_tokens = ["[", end_keyword, "]"];
 					// is end block?
 					if (isExpected(token_stack, endblock_tokens)) {
-					// Remainder: Needs a fix
-						_t = _t.map(tk => {
-							tk.depth = depth_stack.length;
-							return tk;
-						});
 						depth_stack.pop();
 						for (let t = 0; t < special_tokens.length; t++) {
 							let token_props;
@@ -176,17 +156,7 @@ function lexer(src) {
 				}
 				// if next is '\n' then it is not inline statement, reset all arrays
 				if (peek(src, i, 1) === "\n") {
-					// Update Column
-					start++;
-					end = end + special_tokens.join("").length;
-					addToken(tokens, {
-						type: TOKEN_TYPES.TEXT,
-						value: special_tokens.join(""),
-						line,
-						start,
-						end,
-						depth: depth_stack.length
-					});
+					add_as_text(start, end, line, special_tokens);
 					resetArray(token_stack, special_tokens, _t);
 				}
 			}
@@ -199,19 +169,9 @@ function lexer(src) {
 				end = end + temp_value.length;
 				_t.push({ type: "", value: "", line, start, end, depth: depth_stack.length });
 				updateStack(token_stack, special_tokens, temp_value, temp_value);
-				// if next is not '\n' then it is not inline statement, reset all arrays
+				// if next is not '(' then it is not inline statement, reset all arrays
 				if (peek(src, i, 1) !== "(") {
-					// Update Column
-					start++;
-					end = end + special_tokens.join("").length;
-					addToken(tokens, {
-						type: TOKEN_TYPES.TEXT,
-						value: special_tokens.join(""),
-						line,
-						start,
-						end,
-						depth: depth_stack.length
-					});
+					add_as_text(start, end, line, special_tokens);
 					resetArray(token_stack, special_tokens, _t);
 				}
 				previous_value = temp_value;
@@ -226,17 +186,7 @@ function lexer(src) {
 				if (previous_value === inline_value) {
 					// if next is not '-' and next + 1 is not '>' then it is not inline statement, reset all arrays
 					if (peek(src, i, 1) !== "-" && peek(src, i, 2) !== ">") {
-						// Update Column
-						start++;
-						end = end + special_tokens.join("").length;
-						addToken(tokens, {
-							type: TOKEN_TYPES.TEXT,
-							value: special_tokens.join(""),
-							line,
-							start,
-							end,
-							depth: depth_stack.length
-						});
+						add_as_text(start, end, line, special_tokens);
 						resetArray(token_stack, special_tokens, _t);
 					}
 				} else if (previous_value === inline_id) {
@@ -264,17 +214,7 @@ function lexer(src) {
 				updateStack(token_stack, special_tokens, temp_value, temp_value);
 				// if next is '\n' then it is not at_block, reset all arrays
 				if (peek(src, i, 1) === "\n") {
-					// Update Column
-					start++;
-					end = end + special_tokens.join("").length;
-					addToken(tokens, {
-						type: TOKEN_TYPES.TEXT,
-						value: special_tokens.join(""),
-						line,
-						start,
-						end,
-						depth: depth_stack.length
-					});
+					add_as_text(start, end, line, special_tokens);
 					resetArray(token_stack, special_tokens, _t);
 				}
 				previous_value = temp_value;
@@ -295,17 +235,7 @@ function lexer(src) {
 				}
 				// if next is not ':' and not '\n' then it is not at_block, reset all arrays
 				if (peek(src, i, 1) !== ":" && peek(src, i, 1) !== "\n") {
-					// Update Column
-					start++;
-					end = end + special_tokens.join("").length;
-					addToken(tokens, {
-						type: TOKEN_TYPES.TEXT,
-						value: special_tokens.join(""),
-						line,
-						start,
-						end,
-						depth: depth_stack.length
-					});
+					add_as_text(start, end, line, special_tokens);
 					resetArray(token_stack, special_tokens, _t);
 				}
 				if (previous_value === at_id) {
@@ -342,18 +272,9 @@ function lexer(src) {
 				end = end + temp_str.length;
 				_t.push({ type: "", value: "", line, start, end, depth: depth_stack.length });
 				updateStack(token_stack, special_tokens, current_char, current_char);
+				// if next is '\n' then it is not at_block, reset all arrays
 				if (peek(src, i, 1) === "\n") {
-					// Update Column
-					start++;
-					end = end + special_tokens.join("").length;
-					addToken(tokens, {
-						type: TOKEN_TYPES.TEXT,
-						value: special_tokens.join(""),
-						line,
-						start,
-						end,
-						depth: depth_stack.length
-					});
+					add_as_text(start, end, line, special_tokens);
 					resetArray(token_stack, special_tokens, _t);
 				}
 				previous_value = current_char;
@@ -372,7 +293,7 @@ function lexer(src) {
 					depth: depth_stack.length
 				});
 			}
-			// Token: Block Identifier OR Token: Value (Block Value) OR Token: End Keyword
+			// Token: Block Identifier OR Token: Block Value OR Token: End Keyword
 			else {
 				if (previous_value === "[" || (previous_value === "=" && token_stack.length > 0 && scope_state === false)) {
 					temp_str = concat(src, i, false, ["=", "]", "\n"], scope_state);
@@ -386,18 +307,9 @@ function lexer(src) {
 							// Token: End Keyword
 							if (temp_str.trim() === end_keyword) {
 								updateStack(token_stack, special_tokens, temp_str, temp_str);
+								// if next is not ']' then it is not end block, reset all arrays
 								if (peek(src, i, 1) !== "]") {
-									// Update Column
-									start++;
-									end = end + special_tokens.join("").length;
-									addToken(tokens, {
-										type: TOKEN_TYPES.TEXT,
-										value: special_tokens.join(""),
-										line,
-										start,
-										end,
-										depth: depth_stack.length
-									});
+									add_as_text(start, end, line, special_tokens);
 									resetArray(token_stack, special_tokens, _t);
 								}
 								previous_value = temp_str.trim();
@@ -406,18 +318,9 @@ function lexer(src) {
 							// Token: Block Identifier
 							else {
 								updateStack(token_stack, special_tokens, block_id, temp_str.trim());
+								// if next is not '=' and not ']' then it is not a block, reset all arrays
 								if (peek(src, i, 1) !== "=" && peek(src, i, 1) !== "]") {
-									// Update Column
-									start++;
-									end = end + special_tokens.join("").length;
-									addToken(tokens, {
-										type: TOKEN_TYPES.TEXT,
-										value: special_tokens.join(""),
-										line,
-										start,
-										end,
-										depth: depth_stack.length
-									});
+									add_as_text(start, end, line, special_tokens);
 									resetArray(token_stack, special_tokens, _t);
 								}
 								previous_value = block_id;
@@ -426,19 +329,9 @@ function lexer(src) {
 						// Token: Block Value
 						else if (previous_value === "=") {
 							updateStack(token_stack, special_tokens, block_value, temp_str.trim());
-							// if next is ']' then it is not a block, reset all arrays
+							// if next is not ']' then it is not a block, reset all arrays
 							if (peek(src, i, 1) !== "]") {
-								// Update Column
-								start++;
-								end = end + special_tokens.join("").length;
-								addToken(tokens, {
-									type: TOKEN_TYPES.TEXT,
-									value: special_tokens.join(""),
-									line,
-									start,
-									end,
-									depth: depth_stack.length
-								});
+								add_as_text(start, end, line, special_tokens);
 								resetArray(token_stack, special_tokens, _t);
 							}
 							previous_value = block_value;
@@ -459,17 +352,7 @@ function lexer(src) {
 							updateStack(token_stack, special_tokens, inline_value, temp_str.trim());
 							// if next is not ')' then it is not inline statement, reset all arrays
 							if (peek(src, i, 1) !== ")") {
-								// Update Column
-								start++;
-								end = end + special_tokens.join("").length;
-								addToken(tokens, {
-									type: TOKEN_TYPES.TEXT,
-									value: special_tokens.join(""),
-									line,
-									start,
-									end,
-									depth: depth_stack.length
-								});
+								add_as_text(start, end, line, special_tokens);
 								resetArray(token_stack, special_tokens, _t);
 							}
 							previous_value = inline_value;
@@ -478,17 +361,7 @@ function lexer(src) {
 							updateStack(token_stack, special_tokens, inline_id, temp_str.trim());
 							// if next is not ')' then it is not inline statement, reset all arrays
 							if (peek(src, i, 1) !== ")") {
-								// Update Column
-								start++;
-								end = end + special_tokens.join("").length;
-								addToken(tokens, {
-									type: TOKEN_TYPES.TEXT,
-									value: special_tokens.join(""),
-									line,
-									start,
-									end,
-									depth: depth_stack.length
-								});
+								add_as_text(start, end, line, special_tokens);
 								resetArray(token_stack, special_tokens, _t);
 							}
 							previous_value = inline_id;
@@ -508,18 +381,9 @@ function lexer(src) {
 							// Token: End Keyword
 							if (temp_str.trim() === end_keyword) {
 								updateStack(token_stack, special_tokens, temp_str.trim(), temp_str.trim());
+								// if next is not '_' and next + 1 is not '@' then it is not end block, reset all arrays
 								if (peek(src, i, 1) !== "_" && peek(src, i, 2) !== "@") {
-									// Update Column
-									start++;
-									end = end + special_tokens.join("").length;
-									addToken(tokens, {
-										type: TOKEN_TYPES.TEXT,
-										value: special_tokens.join(""),
-										line,
-										start,
-										end,
-										depth: depth_stack.length
-									});
+									add_as_text(start, end, line, special_tokens);
 									resetArray(token_stack, special_tokens, _t);
 								}
 								previous_value = temp_str.trim();
@@ -528,18 +392,9 @@ function lexer(src) {
 							// Token: At Identifier
 							else {
 								updateStack(token_stack, special_tokens, at_id, temp_str.trim());
+								// if next is not '_' and next + 1 is not '@' then it is not at_block, reset all arrays
 								if (peek(src, i, 1) !== "_" && peek(src, i, 2) !== "@") {
-									// Update Column
-									start++;
-									end = end + special_tokens.join("").length;
-									addToken(tokens, {
-										type: TOKEN_TYPES.TEXT,
-										value: special_tokens.join(""),
-										line,
-										start,
-										end,
-										depth: depth_stack.length
-									});
+									add_as_text(start, end, line, special_tokens);
 									resetArray(token_stack, special_tokens, _t);
 								}
 								previous_value = at_id;
@@ -548,21 +403,13 @@ function lexer(src) {
 						// Token: At Value
 						else {
 							updateStack(token_stack, special_tokens, at_value, temp_str.trim());
+							// if next is not '\n' then it is not at_block, reset all arrays
 							if (peek(src, i, 1) !== "\n") {
-								// Update Column
-								start++;
-								end = end + special_tokens.join("").length;
-								addToken(tokens, {
-									type: TOKEN_TYPES.TEXT,
-									value: special_tokens.join(""),
-									line,
-									start,
-									end,
-									depth: depth_stack.length
-								});
+								add_as_text(start, end, line, special_tokens);
+								resetArray(token_stack, special_tokens, _t);
 							}
 							const expected_tokens = ["@_", at_id, "_@", ":", at_value];
-							// is at block?
+							// is at_block?
 							if (isExpected(token_stack, expected_tokens)) {
 								scope_state = true;
 								for (let t = 0; t < special_tokens.length; t++) {
