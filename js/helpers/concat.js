@@ -1,3 +1,4 @@
+import peek from "./peek.js";
 function concat(input, index, exclude_stop_char = true, stop_at_char = [], scope_state) {
   let str = "";
   for (let char_index = index; char_index < input.length; char_index++) {
@@ -8,6 +9,8 @@ function concat(input, index, exclude_stop_char = true, stop_at_char = [], scope
       } else if (char === "[" && scope_state === false) {
         break;
       } else if (char === "(" && scope_state === false) {
+        break;
+      } else if (char === "@" && peek(input, char_index, 1) === "_" && scope_state === false) {
         break;
       }
       str += char;
