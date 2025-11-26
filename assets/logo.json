@@ -1,4 +1,28 @@
 {
-  "font": "jaro",
-  "colors": ["#F80753", "#920431"]
+	"letter": {
+		"font": "jaro",
+		"color": "#FFFFFF",
+		"stroke-color": "#110B52",
+		"stroke-transparent": "13%"
+	},
+	"background": {
+		"colors": {
+			"color-1": {
+				"color": "#F80753",
+				"gradient-stop-position": "0%",
+				"transparent": "100%"
+			},
+			"color-2": {
+				"color": "#920431",
+				"gradient-stop-position": "100%",
+				"transparent": "100%"
+			}
+		}
+	},
+	"arrow": {
+		"font": "Karantina",
+		"color": "#FFFFFF",
+		"stroke-color": "#585394",
+		"stroke-transparent": "26%"
+	}
 }
