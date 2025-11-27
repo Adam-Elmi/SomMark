@@ -12,7 +12,6 @@ function lexer(src) {
 		let depth_stack = [];
 		let context = "",
 			temp_str = "",
-			temp_value = "",
 			previous_value = "";
 		const tokenNames = {
 			block_id: "Block Identifier",
@@ -81,13 +80,13 @@ function lexer(src) {
 			}
 			// Token: Thin Arrow
 			else if (current_char === "-" && peek(src, i, 1) === ">" && scope_state === false) {
-				temp_value = current_char + peek(src, i, 1);
-				i += temp_value.length - 1;
+				temp_str = current_char + peek(src, i, 1);
+				i += temp_str.length - 1;
 				// Update Column
 				start++;
-				end = end + temp_value.length;
-				addToken(TOKEN_TYPES.THIN_ARROW, temp_value);
-				previous_value = temp_value;
+				end = end + temp_str.length;
+				addToken(TOKEN_TYPES.THIN_ARROW, temp_str);
+				previous_value = temp_str;
 			}
 			// Token: Close Parenthesis
 			else if (current_char === ")" && scope_state === false) {
@@ -99,24 +98,24 @@ function lexer(src) {
 			}
 			// Token: Open At (@_)
 			else if (current_char === "@" && peek(src, i, 1) === "_") {
-				temp_value = current_char + peek(src, i, 1);
-				i += temp_value.length - 1;
+				temp_str = current_char + peek(src, i, 1);
+				i += temp_str.length - 1;
 				// Update Column
 				start++;
-				end = end + temp_value.length;
+				end = end + temp_str.length;
 				scope_state = true;
-				addToken(TOKEN_TYPES.OPEN_BRACKET, temp_value);
-				previous_value = temp_value;
+				addToken(TOKEN_TYPES.OPEN_BRACKET, temp_str);
+				previous_value = temp_str;
 			}
 			// Token: Close At (_@)
 			else if (current_char === "_" && peek(src, i, 1) === "@") {
-				temp_value = current_char + peek(src, i, 1);
-				i += temp_value.length - 1;
+				temp_str = current_char + peek(src, i, 1);
+				i += temp_str.length - 1;
 				// Update Column
 				start++;
-				end = end + temp_value.length;
-				addToken(TOKEN_TYPES.OPEN_BRACKET, temp_value);
-				previous_value = temp_value;
+				end = end + temp_str.length;
+				addToken(TOKEN_TYPES.OPEN_BRACKET, temp_str);
+				previous_value = temp_str;
 			}
 			// Token: Colon
 			else if (current_char === ":" && previous_value === "_@") {
@@ -242,7 +241,7 @@ function lexer(src) {
 			}
 			context = "";
 			temp_str = "";
-			temp_value = "";
+			temp_str = "";
 		}
 		return tokens;
 	} else {
