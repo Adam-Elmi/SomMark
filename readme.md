@@ -1,4 +1,4 @@
-# SomMark
+# SomMark 
 ![Logo](./assets/smark.logo.svg)
 SomMark is a structural markup language for writing structured documents and converting them into HTML or Markdown.
 
