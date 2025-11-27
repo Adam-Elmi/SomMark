@@ -109,7 +109,7 @@ function lexer(src) {
 				previous_value = current_char;
 			}
 			// Token: Open Parenthesis
-			else if (current_char === "(") {
+			else if (current_char === "(" && !scope_state) {
 				// Update Column
 				start++;
 				end = start;
@@ -127,7 +127,7 @@ function lexer(src) {
 				previous_value = temp_str;
 			}
 			// Token: Close Parenthesis
-			else if (current_char === ")") {
+			else if (current_char === ")" && !scope_state) {
 				// Update Column
 				start++;
 				end = start;
@@ -208,7 +208,7 @@ function lexer(src) {
 					}
 				}
 				// Token: Inline Value OR Token: Inline Identifier
-				else if (previous_value === "(" || previous_value === "->") {
+				else if (previous_value === "(" || (previous_value === "->" && !scope_state)) {
 					temp_str = concat(src, i, false, [")", "["], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
