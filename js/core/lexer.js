@@ -114,7 +114,9 @@ function lexer(src) {
 				start++;
 				end = start;
 				addToken(TOKEN_TYPES.OPEN_PAREN, current_char);
-				previous_value = current_char;
+				if (previous_value !== "->") {
+					previous_value = current_char;
+				}
 			}
 			// Token: Thin Arrow
 			else if (current_char === "-" && peek(src, i, 1) === ">") {
@@ -142,7 +144,7 @@ function lexer(src) {
 				start++;
 				end = end + temp_str.length;
 				scope_state = true;
-				addToken(TOKEN_TYPES.OPEN_BRACKET, temp_str);
+				addToken(TOKEN_TYPES.OPEN_AT, temp_str);
 				previous_value = temp_str;
 			}
 			// Token: Close At (_@)
@@ -152,7 +154,7 @@ function lexer(src) {
 				// Update Column
 				start++;
 				end = end + temp_str.length;
-				addToken(TOKEN_TYPES.OPEN_BRACKET, temp_str);
+				addToken(TOKEN_TYPES.CLOSE_AT, temp_str);
 				previous_value = temp_str;
 			}
 			// Token: Colon
@@ -219,7 +221,7 @@ function lexer(src) {
 							// Token: Inline Value
 							addToken(TOKEN_TYPES.VALUE, temp_str);
 							previous_value = inline_value;
-						} else {
+						} else if(previous_value === "->") {
 							// Token: Inline Identifier
 							addToken(TOKEN_TYPES.IDENTIFIER, temp_str);
 							previous_value = inline_id;

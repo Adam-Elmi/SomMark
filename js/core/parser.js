@@ -330,7 +330,6 @@ function parseAtBlock(tokens, i) {
 			current_token(tokens, i).value
 		).message;
 	}
-	console.log(current_token(tokens, i).value === "\n" ? "\\n" : current_token(tokens, i).value);
 	while (i < tokens.length) {
 		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
 			atBlockNode.content.push(current_token(tokens, i).value);
