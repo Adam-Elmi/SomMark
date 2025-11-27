@@ -1,6 +1,44 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
-import concat from "../helpers/concat.js";
+
+function concat(input, index, exclude_stop_char = true, stop_at_char = [], scope_state, include_then_break = false) {
+	let str = "";
+	for (let char_index = index; char_index < input.length; char_index++) {
+		let char = input[char_index];
+		if (exclude_stop_char) {
+			if (char === "\n") {
+				break;
+			} else if (char === "[" && scope_state === false) {
+				break;
+			} else if (char === "=" && scope_state === false) {
+				break;
+			} else if (char === "]" && scope_state === false) {
+				break;
+			} else if (char === "(" && scope_state === false) {
+				break;
+			} else if (char === "-" && peek(input, char_index, 1) === ">" && scope_state === false) {
+				break;
+			} else if (char === "@" && peek(input, char_index, 1) === "_" && scope_state === false) {
+				break;
+			} else if (char === "_" && peek(input, char_index, 1) === "@" && scope_state === false) {
+				break;
+			} else if (char === "#" && scope_state === false) {
+				break;
+			} else if (char === "`" && scope_state === false) {
+				break;
+			}
+			str += char;
+		} else {
+			if (stop_at_char.includes(char)) {
+				include_then_break ? (str += char) : null;
+				break;
+			}
+			str += char;
+		}
+	}
+
+	return str;
+}
 
 function lexer(src) {
 	if (src && typeof src === "string") {
@@ -71,7 +109,7 @@ function lexer(src) {
 				previous_value = current_char;
 			}
 			// Token: Open Parenthesis
-			else if (current_char === "(" && scope_state === false) {
+			else if (current_char === "(") {
 				// Update Column
 				start++;
 				end = start;
@@ -79,7 +117,7 @@ function lexer(src) {
 				previous_value = current_char;
 			}
 			// Token: Thin Arrow
-			else if (current_char === "-" && peek(src, i, 1) === ">" && scope_state === false) {
+			else if (current_char === "-" && peek(src, i, 1) === ">") {
 				temp_str = current_char + peek(src, i, 1);
 				i += temp_str.length - 1;
 				// Update Column
@@ -89,7 +127,7 @@ function lexer(src) {
 				previous_value = temp_str;
 			}
 			// Token: Close Parenthesis
-			else if (current_char === ")" && scope_state === false) {
+			else if (current_char === ")") {
 				// Update Column
 				start++;
 				end = start;
@@ -170,7 +208,7 @@ function lexer(src) {
 					}
 				}
 				// Token: Inline Value OR Token: Inline Identifier
-				else if (previous_value === "(" || (previous_value === "->" && scope_state === false)) {
+				else if (previous_value === "(" || (previous_value === "->")) {
 					temp_str = concat(src, i, false, [")", "["], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
@@ -235,12 +273,11 @@ function lexer(src) {
 					start++;
 					end = end + context.length;
 					if (context.trim()) {
-						addToken(TOKEN_TYPES.TEXT, temp_str);
+						addToken(TOKEN_TYPES.TEXT, context);
 					}
 				}
 			}
 			context = "";
-			temp_str = "";
 			temp_str = "";
 		}
 		return tokens;
