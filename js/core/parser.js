@@ -161,6 +161,10 @@ function parseBlock(tokens, i) {
 				continue;
 			}
 			blockNode.body.push(childNode);
+			// Remove unnecessary newline at the start
+			if (blockNode.body[0].value === "\n") {
+				blockNode.body.splice(0, 1);
+			}
 			i = nextIndex;
 		}
 	}
