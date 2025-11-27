@@ -61,27 +61,25 @@ function parseBlock(tokens, i) {
 	depth.push(1);
 	const blockNode = makeBlockNode();
 	if (current_token(tokens, i).type !== TOKEN_TYPES.OPEN_BRACKET && peek(tokens, i, 1).type !== TOKEN_TYPES.END_KEYWORD) {
-		throw new ParserError("Expected token '['");
+		throw new ParserError(
+			"Expected token '['",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		blockNode.id = current_token(tokens, i).value;
 	} else {
-		if (current_token(tokens, i).type === TOKEN_TYPES.EQUAL) {
-			throw new ParserError(
-				"Expected token 'block identifier' before '='",
-				current_token(tokens, i).line,
-				current_token(tokens, i).start,
-				current_token(tokens, i).end
-			);
-		} else {
-			throw new ParserError(
-				"Expected token '[' before block identifier",
-				current_token(tokens, i).line,
-				current_token(tokens, i).start,
-				current_token(tokens, i).end
-			);
-		}
+		throw new ParserError(
+			"Expected token 'block identifier' after '['",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.EQUAL) {
@@ -97,8 +95,9 @@ function parseBlock(tokens, i) {
 				"Expected token 'block value' after '='",
 				current_token(tokens, i).line,
 				current_token(tokens, i).start,
-				current_token(tokens, i).end
-			);
+				current_token(tokens, i).end,
+				current_token(tokens, i).value
+			).message;
 		}
 		i++;
 	}
@@ -110,18 +109,29 @@ function parseBlock(tokens, i) {
 				"Expected token ']' after block value",
 				current_token(tokens, i).line,
 				current_token(tokens, i).start,
-				current_token(tokens, i).end
+				current_token(tokens, i).end,
+				current_token(tokens, i).value
 			).message;
 		} else {
 			throw new ParserError(
 				"Expected token ']' after block identifier",
 				current_token(tokens, i).line,
 				current_token(tokens, i).start,
-				current_token(tokens, i).end
-			);
+				current_token(tokens, i).end,
+				current_token(tokens, i).value
+			).message;
 		}
 	}
 	i++;
+	if (!current_token(tokens, i) || current_token(tokens, i).value !== "\n") {
+		throw new ParserError(
+			"Expected token '\\n'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
+	}
 	while (i < tokens.length) {
 		if (current_token(tokens, i).value === "[" && peek(tokens, i, 1).value !== "end") {
 			const [childNode, nextIndex] = parseBlock(tokens, i);
@@ -133,7 +143,13 @@ function parseBlock(tokens, i) {
 		) {
 			depth.pop();
 			if (peek(tokens, i, 2) === null || peek(tokens, i, 2).type !== TOKEN_TYPES.CLOSE_BRACKET) {
-				throw new Error("Expected token ']' after 'end'");
+				throw new ParserError(
+					"Expected token ']' after 'end'",
+					current_token(tokens, i).line,
+					current_token(tokens, i).start,
+					current_token(tokens, i).end,
+					current_token(tokens, i).value
+				).message;
 			}
 			i += 3;
 			break;
@@ -154,35 +170,77 @@ function parseBlock(tokens, i) {
 function parseInline(tokens, i) {
 	const inlineNode = makeInlineNode();
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_PAREN) {
-		throw new error("Expected token '('");
+		throw new ParserError(
+			"Expected token '('",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
 		inlineNode.value = current_token(tokens, i).value;
 	} else {
-		throw new Error("Expected token 'inline value'");
+		throw new ParserError(
+			"Expected token 'inline value'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
-		throw new error("Expected token ')'");
+		throw new ParserError(
+			"Expected token ')'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.THIN_ARROW) {
-		throw new error("Expected token '->'");
+		throw new ParserError(
+			"Expected token '->'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_PAREN) {
-		throw new error("Expected token '('");
+		throw new ParserError(
+			"Expected token '('",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		inlineNode.id = current_token(tokens, i).value;
 	} else {
-		throw new Error("Expected token 'inline identifier'");
+		throw new ParserError(
+			"Expected token 'inline identifier'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
-		throw new error("Expected token ')'");
+		throw new ParserError(
+			"Expected token ')'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	return [inlineNode, i];
@@ -202,17 +260,35 @@ function parseText(tokens, i) {
 function parseAtBlock(tokens, i) {
 	const atBlockNode = makeAtBlockNode();
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_AT) {
-		throw new Error("Expected token '@_'");
+		throw new ParserError(
+			"Expected token '@_'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		atBlockNode.id = current_token(tokens, i).value;
 	} else {
-		throw new Error("Expected token 'at_identifier'");
+		throw new ParserError(
+			"Expected token 'at_identifier'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT) {
-		throw new Error("Expected token '_@'");
+		throw new ParserError(
+			"Expected token '_@'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COLON) {
@@ -225,13 +301,35 @@ function parseAtBlock(tokens, i) {
 				});
 			i++;
 		} else {
-			throw new Error("Expected token 'at_value'");
+			throw new ParserError(
+				"Expected token 'at_value'",
+				current_token(tokens, i).line,
+				current_token(tokens, i).start,
+				current_token(tokens, i).end,
+				current_token(tokens, i).value
+			).message;
 		}
 	}
 	if (!current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.NEWLINE) {
-		throw new Error("Expected token '\n' after 'at_value'");
+		throw new ParserError(
+			"Expected token '\n' after 'at_value'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
+	if(current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.TEXT) {
+	throw new ParserError(
+		"Expected token 'Text'",
+		current_token(tokens, i).line,
+		current_token(tokens, i).start,
+		current_token(tokens, i).end,
+		current_token(tokens, i).value
+	).message;
+	}
+	console.log(current_token(tokens, i).value === "\n" ? "\\n" : current_token(tokens, i).value)
 	while (i < tokens.length) {
 		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
 			atBlockNode.content.push(current_token(tokens, i).value);
@@ -247,17 +345,44 @@ function parseAtBlock(tokens, i) {
 		i++;
 	}
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_AT) {
-		throw new Error("Expected token '@_'");
+		throw new ParserError(
+			"Expected token '@_'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.END_KEYWORD) {
-		throw new Error("Expected token 'end'");
+		throw new ParserError(
+			"Expected token 'end'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT) {
-		throw new Error("Expected token '_@'");
+		throw new ParserError(
+			"Expected token '_@'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
 	i++;
+	if (!current_token(tokens, i) || current_token(tokens, i).value !== "\n") {
+		throw new ParserError(
+			"Expected token '\\n'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
+	}
 	return [atBlockNode, i];
 }
 
@@ -311,7 +436,13 @@ function parser(tokens) {
 	for (let i = 0; i < tokens.length; i++) {
 		let [nodes, nextIndex] = parseNode(tokens, i);
 		if (depth.length !== 0) {
-			throw new Error("Block is missing '[end]'");
+			throw new ParserError(
+				"Block is missing '[end]'",
+				current_token(tokens, i).line,
+				current_token(tokens, i).start,
+				current_token(tokens, i).end,
+				current_token(tokens, i).value
+			).message;
 		} else if (depth.length === 0) {
 			resetArray(depth);
 		}
