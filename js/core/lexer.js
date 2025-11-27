@@ -188,7 +188,8 @@ function lexer(src) {
 					// Update Column
 					start++;
 					end = end + temp_str.length;
-					if (temp_str.trim()) {
+					temp_str = temp_str.trim();
+					if (temp_str) {
 						if (previous_value === "[") {
 							// Token: End Keyword
 							if (temp_str.trim() === end_keyword) {
@@ -216,12 +217,13 @@ function lexer(src) {
 					// Update Column
 					start++;
 					end = end + temp_str.length;
-					if (temp_str.trim()) {
+					temp_str = temp_str.trim();
+					if (temp_str) {
 						if (previous_value === "(") {
 							// Token: Inline Value
 							addToken(TOKEN_TYPES.VALUE, temp_str);
 							previous_value = inline_value;
-						} else if(previous_value === "->") {
+						} else if (previous_value === "->") {
 							// Token: Inline Identifier
 							addToken(TOKEN_TYPES.IDENTIFIER, temp_str);
 							previous_value = inline_id;
@@ -231,8 +233,9 @@ function lexer(src) {
 				// Token: At Identifier OR Token: At Value OR Token: End Keyword
 				else if (previous_value === "@_" || previous_value === ":") {
 					temp_str = concat(src, i, false, ["_", "\n"], scope_state);
-					if (temp_str.trim()) {
-						i += temp_str.length - 1;
+					i += temp_str.length - 1;
+					temp_str = temp_str.trim();
+					if (temp_str) {
 						// Update Column
 						start++;
 						end = end + temp_str.length;
@@ -250,7 +253,7 @@ function lexer(src) {
 							}
 						}
 						// Token: At Value
-						else {
+						else if (previous_value === ":") {
 							addToken(TOKEN_TYPES.VALUE, temp_str);
 							previous_value = at_value;
 						}
@@ -262,6 +265,7 @@ function lexer(src) {
 					// Update Column
 					start++;
 					end = end + temp_str.length;
+					temp_str = temp_str.trim();
 					if (temp_str) {
 						i += temp_str.length - 1;
 						addToken(TOKEN_TYPES.COMMENT, temp_str);
