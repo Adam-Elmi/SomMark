@@ -53,11 +53,13 @@ function makeNewlineNode(value) {
 	};
 }
 
-let depth = [];
+let block_stack = [];
+let end_stack = [];
 
 // Parse Block
 function parseBlock(tokens, i) {
-	depth.push(1);
+	block_stack.push(1);
+	end_stack.pop();
 	const blockNode = makeBlockNode();
 	if (current_token(tokens, i).type !== TOKEN_TYPES.OPEN_BRACKET && peek(tokens, i, 1).type !== TOKEN_TYPES.END_KEYWORD) {
 		throw new ParserError(
@@ -140,7 +142,7 @@ function parseBlock(tokens, i) {
 			current_token(tokens, i).type === TOKEN_TYPES.OPEN_BRACKET &&
 			peek(tokens, i, 1).type === TOKEN_TYPES.END_KEYWORD
 		) {
-			depth.pop();
+			block_stack.pop();
 			if (peek(tokens, i, 2) === null || peek(tokens, i, 2).type !== TOKEN_TYPES.CLOSE_BRACKET) {
 				throw new ParserError(
 					"Expected token ']' after 'end'",
@@ -425,7 +427,7 @@ function parseNode(tokens, i) {
 	}
 	// End Block
 	else if (current_token(tokens, i).value === "[" && peek(tokens, i, 1).type === TOKEN_TYPES.END_KEYWORD) {
-		depth.pop();
+		end_stack.push(1);
 	}
 	return [null, i + 1];
 }
@@ -434,9 +436,18 @@ function parser(tokens) {
 	let ast = [];
 	for (let i = 0; i < tokens.length; i++) {
 		let [nodes, nextIndex] = parseNode(tokens, i);
-		if (depth.length !== 0) {
+		if (block_stack.length !== 0) {
 			throw new ParserError(
 				"Block is missing '[end]'",
+				current_token(tokens, i).line,
+				current_token(tokens, i).start,
+				current_token(tokens, i).end,
+				current_token(tokens, i).value
+			).message;
+		}
+		if (end_stack.length !== 0) {
+			throw new ParserError(
+				"There is extra '[end]'",
 				current_token(tokens, i).line,
 				current_token(tokens, i).start,
 				current_token(tokens, i).end,
