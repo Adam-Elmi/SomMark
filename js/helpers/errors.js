@@ -1,21 +1,16 @@
-const red = "\x1b[31m";
-const green = "\x1b[32m";
-const yellow = "\x1b[33m";
-const blue = "\x1b[34m";
-const magenta = "\x1b[35m";
-const cyan = "\x1b[36m";
-const reset = "\x1b[0m";
+import colorize from "./colorize.js";
 
 class ParserError extends Error {
-  constructor(message, line, columnStart, columnEnd) {
-    super(message);
-    this.message = `${red}${message}${reset} at line ${yellow}${line}${reset}, from column ${yellow}${columnStart}${reset} to ${yellow}${columnEnd}${reset}`;
-    this.line = line;
-    this.columnStart = columnStart;
-    this.columnEnd = columnEnd;
-    this.name = "\x1b[31mAdam"
-    this.stack = '  Hello'
-  }
+	constructor(message, line, start, end, token = "Unknown") {
+		super(message);
+    this.name = "ParserError";
+    this.message = `${colorize("cyan", this.name)}:\n-------------------------------------------------------\n${colorize("red", message)} at line ${colorize("yellow", line)}, from column ${colorize("yellow", start)} to ${colorize("yellow", end)}\n-------------------------------------------------------\n${colorize("blue", "Token we got")}: ${colorize("magenta", token === "\n" ? "\\n" : "'" +token + "'")} at line ${colorize("yellow", line)}, from column ${colorize("yellow", start)} to ${colorize("yellow", end)}\n-------------------------------------------------------\n
+		`;
+		this.line = line;
+		this.start = start;
+		this.end = end;
+		this.token = token;
+	}
 }
 
 export { ParserError };
