@@ -8,23 +8,23 @@ function concat(input, index, exclude_stop_char = true, stop_at_char = [], scope
 		if (exclude_stop_char) {
 			if (char === "\n") {
 				break;
-			} else if (char === "[" && scope_state === false) {
+			} else if (char === "[" && !scope_state) {
 				break;
-			} else if (char === "=" && scope_state === false) {
+			} else if (char === "=" && !scope_state) {
 				break;
-			} else if (char === "]" && scope_state === false) {
+			} else if (char === "]" && !scope_state) {
 				break;
-			} else if (char === "(" && scope_state === false) {
+			} else if (char === "(" && !scope_state) {
 				break;
-			} else if (char === "-" && peek(input, char_index, 1) === ">" && scope_state === false) {
+			} else if (char === "-" && peek(input, char_index, 1) === ">" && !scope_state) {
 				break;
-			} else if (char === "@" && peek(input, char_index, 1) === "_" && scope_state === false) {
+			} else if (char === "@" && peek(input, char_index, 1) === "_" && !scope_state) {
 				break;
-			} else if (char === "_" && peek(input, char_index, 1) === "@" && scope_state === false) {
+			} else if (char === "_" && peek(input, char_index, 1) === "@" && !scope_state) {
 				break;
-			} else if (char === "#" && scope_state === false) {
+			} else if (char === "#" && !scope_state) {
 				break;
-			} else if (char === "`" && scope_state === false) {
+			} else if (char === "`" && !scope_state) {
 				break;
 			}
 			str += char;
@@ -69,7 +69,7 @@ function lexer(src) {
 		for (let i = 0; i < src.length; i++) {
 			let current_char = src[i];
 			// Token: Open Bracket
-			if (current_char === "[" && scope_state === false) {
+			if (current_char === "[" && !scope_state) {
 				if (i === 0) {
 					// Update Column
 					start = 1;
@@ -90,7 +90,7 @@ function lexer(src) {
 				previous_value = current_char;
 			}
 			// Token: Equal Sign
-			else if (current_char === "=" && scope_state === false) {
+			else if (current_char === "=" && !scope_state) {
 				// Update Column
 				start++;
 				end = start;
@@ -98,7 +98,7 @@ function lexer(src) {
 				previous_value = current_char;
 			}
 			// Token: Close Bracket
-			else if (current_char === "]" && scope_state === false) {
+			else if (current_char === "]" && !scope_state) {
 				// Update Column
 				start++;
 				end = start;
@@ -171,7 +171,7 @@ function lexer(src) {
 				addToken(TOKEN_TYPES.NEWLINE, current_char);
 			}
 			// Escape character
-			else if (current_char === "`" && scope_state === false) {
+			else if (current_char === "`" && !scope_state) {
 				temp_str = current_char + concat(src, i + 1, false, ["`"], scope_state, true);
 				if (temp_str && temp_str.length > 0) {
 					i += temp_str.length;
@@ -180,7 +180,7 @@ function lexer(src) {
 			}
 			// Token: Block Identifier OR Token: Block Value OR Token: End Keyword
 			else {
-				if (previous_value === "[" || (previous_value === "=" && scope_state === false)) {
+				if (previous_value === "[" || (previous_value === "=" && !scope_state)) {
 					temp_str = concat(src, i, false, ["=", "]", "\n"], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
@@ -208,7 +208,7 @@ function lexer(src) {
 					}
 				}
 				// Token: Inline Value OR Token: Inline Identifier
-				else if (previous_value === "(" || (previous_value === "->")) {
+				else if (previous_value === "(" || previous_value === "->") {
 					temp_str = concat(src, i, false, [")", "["], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
