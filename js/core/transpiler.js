@@ -27,10 +27,23 @@ function transpileToHtml(ast, i) {
 						context += n.text;
 						break;
 					case "Inline":
-						context += n.value;
+						target = html_mapping.outputs.find(value => value.id === n.id);
+						if (target) {
+							context += target.output(n.args, n.value);
+						}
 						break;
 					case "Newline":
 						context += n.value;
+						break;
+					case "AtBlock":
+						target = html_mapping.outputs.find(value => value.id === n.id);
+						if (target) {
+							let content = "";
+							for (const value of n.content) {
+								content += value;
+							}
+							context += target.output(n.args, content);
+						}
 						break;
 					case "Block":
 						target = html_mapping.outputs.find(value => value.id === n.id);
@@ -48,7 +61,6 @@ function transpileToHtml(ast, i) {
 
 function transpiler(ast) {
 	let output = "";
-	console.log(ast);
 	for (let i = 0; i < ast.length; i++) {
 		if (ast[i].type === "Block") {
 			output += transpileToHtml(ast, i);
