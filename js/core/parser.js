@@ -1,7 +1,6 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
 import { ParserError } from "../helpers/errors.js";
-import { resetArray } from "../helpers/updateData.js";
 
 function current_token(tokens, i) {
 	return tokens[i] || null;
@@ -320,16 +319,16 @@ function parseAtBlock(tokens, i) {
 		).message;
 	}
 	i++;
-	if(current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.TEXT) {
-	throw new ParserError(
-		"Expected token 'Text'",
-		current_token(tokens, i).line,
-		current_token(tokens, i).start,
-		current_token(tokens, i).end,
-		current_token(tokens, i).value
-	).message;
+	if (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.TEXT) {
+		throw new ParserError(
+			"Expected token 'Text'",
+			current_token(tokens, i).line,
+			current_token(tokens, i).start,
+			current_token(tokens, i).end,
+			current_token(tokens, i).value
+		).message;
 	}
-	console.log(current_token(tokens, i).value === "\n" ? "\\n" : current_token(tokens, i).value)
+	console.log(current_token(tokens, i).value === "\n" ? "\\n" : current_token(tokens, i).value);
 	while (i < tokens.length) {
 		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
 			atBlockNode.content.push(current_token(tokens, i).value);
@@ -443,8 +442,6 @@ function parser(tokens) {
 				current_token(tokens, i).end,
 				current_token(tokens, i).value
 			).message;
-		} else if (depth.length === 0) {
-			resetArray(depth);
 		}
 		if (nodes) {
 			ast.push(nodes);
