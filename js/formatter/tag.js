@@ -40,7 +40,7 @@ class TagBuilder {
 			inner: this.children
 		};
 		const { lt, gt, slash, name, props, inner } = components;
-		return `${lt}${name} ${props}${this.is_self_close ? "" : gt}${this.is_self_close ? "" : inner}${this.is_self_close ? "" : lt}${slash}${this.is_self_close ? "" : name}${gt}`;
+		return `${lt}${name}${props ? " " + props : ""}${this.is_self_close ? "" : gt}${this.is_self_close ? "" : inner}${this.is_self_close ? "" : lt}${slash}${this.is_self_close ? "" : name}${gt}`;
 	}
 }
 export default TagBuilder;
