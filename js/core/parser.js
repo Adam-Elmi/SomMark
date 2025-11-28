@@ -171,6 +171,7 @@ function parseBlock(tokens, i) {
 			i = nextIndex;
 		}
 	}
+  i++;
 	return [blockNode, i];
 }
 
