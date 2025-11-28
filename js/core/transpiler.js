@@ -70,7 +70,7 @@ function transpileToHtml(ast, i) {
 						break;
 					case "Comment":
 						let commentFormat = `<!--${n.text.replace("#", "")}-->`;
-						context += " ".repeat(n.depth) + "\n" + commentFormat;
+						context += "\n" + " ".repeat(n.depth) + commentFormat;
 						break;
 					case "Block":
 						target = matchedValue(html_mapping.outputs, n.id);
