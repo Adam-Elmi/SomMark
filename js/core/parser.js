@@ -464,6 +464,15 @@ function parser(tokens) {
 	let ast = [];
 	for (let i = 0; i < tokens.length; i++) {
 		let [nodes, nextIndex] = parseNode(tokens, i);
+		if (current_token(tokens, i).type !== TOKEN_TYPES.COMMENT && current_token(tokens, i).depth === 0) {
+			throw new ParserError(
+				"Expected token '['",
+				getPreviousData(tokens, i).line,
+				getPreviousData(tokens, i).start,
+				getPreviousData(tokens, i).end,
+				getPreviousData(tokens, i).value
+			).message;
+		}
 		if (block_stack.length !== 0) {
 			throw new ParserError(
 				"Block is missing '[end]'",
