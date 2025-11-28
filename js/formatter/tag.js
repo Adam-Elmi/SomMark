@@ -9,7 +9,7 @@ class TagBuilder {
 	attributes(obj, ...arr) {
 		if (obj && obj instanceof Object) {
 			Object.entries(obj).forEach(([key, value]) => {
-				this.attr.push(`${key}="${value}"`);
+				this.attr.push(`${key}="${value ? value : ""}"`);
 			});
 		}
 		if (arr && Array.isArray(arr)) {
