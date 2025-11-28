@@ -13,6 +13,7 @@ const isFileExist = await fs
 const config_file = isFileExist ? await import(file_path) : null;
 // console.log(config_file.default);
 
+// Extracting target identifier
 function matchedValue(outputs, targetId) {
 	let result;
 	for (const renderOutput of outputs) {
@@ -32,7 +33,7 @@ function matchedValue(outputs, targetId) {
 	}
 	return result;
 }
-
+// Transpiling to Html
 function transpileToHtml(ast, i) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
@@ -86,11 +87,29 @@ function transpileToHtml(ast, i) {
 	return result;
 }
 
+//  Transpiling to markdown
+function transpileToMarkdown(ast, i) {
+	const node = ast[i];
+	let result = "";
+	let target = matchedValue(markdown_mapping.outputs, node.id);
+	if (target) {
+	  result += target.renderOutput(node.args, "");
+		for (const body_node of node.body) {
+			switch (body_node.type) {
+				case "Text":
+					result += body_node.text;
+					break;
+			}
+		}
+	}
+  return result;
+}
+
 function transpiler(ast) {
 	let output = "";
 	for (let i = 0; i < ast.length; i++) {
 		if (ast[i].type === "Block") {
-			output += transpileToHtml(ast, i);
+			output += transpileToMarkdown(ast, i);
 		} else if (ast[i].type === "Comment") {
 			let commentFormat = `<!--${ast[i].text.replace("#", "")}-->`;
 			output += " ".repeat(ast[i].depth) + commentFormat + "\n";
