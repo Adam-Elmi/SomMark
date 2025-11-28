@@ -278,7 +278,8 @@ function lexer(src) {
 					// Update Column
 					start++;
 					end = end + context.length;
-					if (context.trim()) {
+          context = context.trim();
+					if (context) {
 						addToken(TOKEN_TYPES.TEXT, context);
 					}
 				}
