@@ -11,21 +11,24 @@ function makeBlockNode() {
 		type: "Block",
 		id: "",
 		args: [],
-		body: []
+		body: [],
+		depth: 0
 	};
 }
 
 function makeTextNode() {
 	return {
 		type: "Text",
-		text: ""
+		text: "",
+		depth: 0
 	};
 }
 
 function makeCommentNode() {
 	return {
 		type: "Comment",
-		text: ""
+		text: "",
+		depth: 0
 	};
 }
 
@@ -33,7 +36,8 @@ function makeInlineNode() {
 	return {
 		type: "Inline",
 		value: "",
-		id: ""
+		id: "",
+		depth: 0
 	};
 }
 
@@ -42,14 +46,16 @@ function makeAtBlockNode() {
 		type: "AtBlock",
 		id: "",
 		args: [],
-		content: []
+		content: [],
+		depth: 0
 	};
 }
 
 function makeNewlineNode(value) {
 	return {
 		type: "Newline",
-		value
+		value,
+		depth: 0
 	};
 }
 
@@ -73,6 +79,7 @@ function parseBlock(tokens, i) {
 	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		blockNode.id = current_token(tokens, i).value;
+    blockNode.depth = current_token(tokens, i).depth;
 	} else {
 		throw new ParserError(
 			"Expected token 'block identifier' after '['",
@@ -182,6 +189,7 @@ function parseInline(tokens, i) {
 	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
 		inlineNode.value = current_token(tokens, i).value;
+    inlineNode.depth = current_token(tokens, i).depth;
 	} else {
 		throw new ParserError(
 			"Expected token 'inline value'",
@@ -252,6 +260,7 @@ function parseText(tokens, i) {
 	const textNode = makeTextNode();
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
 		textNode.text = current_token(tokens, i).value;
+    textNode.depth = current_token(tokens, i).depth;
 	}
 	i++;
 	return [textNode, i];
@@ -272,6 +281,7 @@ function parseAtBlock(tokens, i) {
 	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		atBlockNode.id = current_token(tokens, i).value;
+    atBlockNode.depth = current_token(tokens, i).depth;
 	} else {
 		throw new ParserError(
 			"Expected token 'at_identifier'",
@@ -391,6 +401,7 @@ function parseCommentNode(tokens, i) {
 	const commentNode = makeCommentNode();
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COMMENT) {
 		commentNode.text = current_token(tokens, i).value;
+    commentNode.depth = current_token(tokens, i).depth;
 	}
 	i++;
 	return [commentNode, i];
