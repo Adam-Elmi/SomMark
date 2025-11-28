@@ -3,17 +3,17 @@ class Mapping {
 	constructor() {
 		this.outputs = [];
 	}
-	create(id, output) {
-		if (id && output) {
-			if (typeof id !== "string") {
-				throw new Error("argument 'id' expected to be a string");
+	create(id, renderOutput) {
+		if (id && renderOutput) {
+			if (typeof id !== "string" && !Array.isArray(id)) {
+				throw new Error("argument 'id' expected to be a string or array");
 			}
-			if (typeof output !== "function") {
-				throw new Error("argument 'output' expected to be a function");
+			if (typeof renderOutput !== "function") {
+				throw new Error("argument 'renderOutput' expected to be a function");
 			}
 			this.outputs.push({
 				id,
-				output
+				renderOutput
 			});
 		} else {
 			throw new Error("Expected arguments are not defined");
