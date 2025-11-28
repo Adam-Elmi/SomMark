@@ -12,14 +12,34 @@ const isFileExist = await fs
 	.catch(() => false);
 const config_file = isFileExist ? await import(file_path) : null;
 // console.log(config_file.default);
+ 
+function matchedValue(outputs, targetId) {
+	let result;
+	for (const renderOutput of outputs) {
+		if (typeof renderOutput.id === "string") {
+			if (renderOutput.id === targetId) {
+				result = renderOutput;
+				break;
+			}
+		} else if (Array.isArray(renderOutput.id)) {
+			for (const id of renderOutput.id) {
+				if (id === targetId) {
+					result = renderOutput;
+					break;
+				}
+			}
+		}
+	}
+	return result;
+}
 
 function transpileToHtml(ast, i) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
 	if (node.type === "Block") {
-		let target = html_mapping.outputs.find(value => value.id === node.id);
+		let target = matchedValue(html_mapping.outputs, node.id);
 		if (target) {
-			result = target.output(node.args, "<%smark>" + " ".repeat(node.depth));
+			result = target.renderOutput(node.args, "<%smark>" + ( node.depth > 1 ? " ".repeat(node.depth) : ""));
 			let context = "";
 			for (const n of node.body) {
 				switch (n.type) {
@@ -27,26 +47,26 @@ function transpileToHtml(ast, i) {
 						context += " ".repeat(n.depth) + n.text;
 						break;
 					case "Inline":
-						target = html_mapping.outputs.find(value => value.id === n.id);
+						target = matchedValue(html_mapping.outputs, n.id);
 						if (target) {
-							context += target.output(n.args, n.value);
+							context += target.renderOutput(n.args, n.value);
 						}
 						break;
 					case "Newline":
 						context += n.value;
 						break;
 					case "AtBlock":
-						target = html_mapping.outputs.find(value => value.id === n.id);
+						target = matchedValue(html_mapping.outputs, n.id);
 						if (target) {
 							let content = "";
 							for (const value of n.content) {
 								content += value;
 							}
-							context += target.output(n.args, content);
+							context += target.renderOutput(n.args, content);
 						}
 						break;
 					case "Block":
-						target = html_mapping.outputs.find(value => value.id === n.id);
+						target = matchedValue(html_mapping.outputs, n.id);
 						context += " ".repeat(n.depth) + transpileToHtml(n, i);
 						break;
 				}
@@ -60,13 +80,13 @@ function transpileToHtml(ast, i) {
 }
 
 function transpiler(ast) {
-	let output = "";
+	let renderOutput = "";
 	for (let i = 0; i < ast.length; i++) {
 		if (ast[i].type === "Block") {
-			output += transpileToHtml(ast, i);
+			renderOutput += transpileToHtml(ast, i);
 		}
 	}
-	return output;
+	return renderOutput;
 }
 
 export default transpiler;
