@@ -4,7 +4,7 @@ class TagBuilder {
 		this.children = "";
 		this.attr = [];
 		this.render = this.render;
-		this.isInline = false;
+		this.is_self_close = false;
 	}
 	attributes(obj, ...arr) {
 		if (obj && obj instanceof Object) {
@@ -27,7 +27,7 @@ class TagBuilder {
 		return this;
 	}
 	selfClose() {
-		this.isInline = true;
+		this.is_self_close = true;
 		return this;
 	}
 	render() {
@@ -40,7 +40,7 @@ class TagBuilder {
 			inner: this.children
 		};
 		const { lt, gt, slash, name, props, inner } = components;
-		return `${lt}${name} ${props}${this.isInline ? "" : gt}${this.isInline ? "" : inner}${this.isInline ? "" : lt}${slash}${this.isInline ? "" : name}${gt}`;
+		return `${lt}${name} ${props}${this.is_self_close ? "" : gt}${this.is_self_close ? "" : inner}${this.is_self_close ? "" : lt}${slash}${this.is_self_close ? "" : name}${gt}`;
 	}
 }
 export default TagBuilder;
