@@ -19,12 +19,12 @@ function transpileToHtml(ast, i) {
 	if (node.type === "Block") {
 		let target = html_mapping.outputs.find(value => value.id === node.id);
 		if (target) {
-			result = target.output(node.args, "<%smark>");
+			result = target.output(node.args, "<%smark>" + " ".repeat(node.depth));
 			let context = "";
 			for (const n of node.body) {
 				switch (n.type) {
 					case "Text":
-						context += n.text;
+						context += " ".repeat(n.depth) + n.text;
 						break;
 					case "Inline":
 						target = html_mapping.outputs.find(value => value.id === n.id);
@@ -47,7 +47,7 @@ function transpileToHtml(ast, i) {
 						break;
 					case "Block":
 						target = html_mapping.outputs.find(value => value.id === n.id);
-						context += transpileToHtml(n, i);
+						context += " ".repeat(n.depth) + transpileToHtml(n, i);
 						break;
 				}
 			}
