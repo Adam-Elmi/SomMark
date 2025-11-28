@@ -1,9 +1,9 @@
 import TagBuilder from "../formatter/tag.js";
-import Markdown from "../formatter/mark.js";
+import MarkdownBuilder from "../formatter/mark.js";
 class Mapping {
 	constructor() {
 		this.outputs = [];
-    this.md = new Markdown();
+    this.md = new MarkdownBuilder();
 	}
 	create(id, renderOutput) {
 		if (id && renderOutput) {
