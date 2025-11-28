@@ -12,7 +12,7 @@ const isFileExist = await fs
 	.catch(() => false);
 const config_file = isFileExist ? await import(file_path) : null;
 // console.log(config_file.default);
- 
+
 function matchedValue(outputs, targetId) {
 	let result;
 	for (const renderOutput of outputs) {
@@ -39,17 +39,20 @@ function transpileToHtml(ast, i) {
 	if (node.type === "Block") {
 		let target = matchedValue(html_mapping.outputs, node.id);
 		if (target) {
-			result = target.renderOutput(node.args, "<%smark>" + ( node.depth > 1 ? " ".repeat(node.depth) : ""));
+			result =
+				(node.depth > 1 ? " ".repeat(node.depth) : "") +
+				target.renderOutput(node.args, "<%smark>" + (node.depth > 1 ? " ".repeat(node.depth) : "")) +
+				"\n";
 			let context = "";
 			for (const n of node.body) {
 				switch (n.type) {
 					case "Text":
-						context += " ".repeat(n.depth) + n.text;
+						context += "\n" + " ".repeat(n.depth) + n.text;
 						break;
 					case "Inline":
 						target = matchedValue(html_mapping.outputs, n.id);
 						if (target) {
-							context += target.renderOutput(n.args, n.value);
+							context += "\n" + target.renderOutput(n.args, n.value);
 						}
 						break;
 					case "Newline":
@@ -60,14 +63,18 @@ function transpileToHtml(ast, i) {
 						if (target) {
 							let content = "";
 							for (const value of n.content) {
-								content += value;
+								content += "\n" + value;
 							}
 							context += target.renderOutput(n.args, content);
 						}
 						break;
+					case "Comment":
+						let commentFormat = `<!--${n.text.replace("#", "")}-->`;
+						context += " ".repeat(n.depth) + "\n" + commentFormat;
+						break;
 					case "Block":
 						target = matchedValue(html_mapping.outputs, n.id);
-						context += " ".repeat(n.depth) + transpileToHtml(n, i);
+						context += transpileToHtml(n, i);
 						break;
 				}
 			}
@@ -80,13 +87,16 @@ function transpileToHtml(ast, i) {
 }
 
 function transpiler(ast) {
-	let renderOutput = "";
+	let output = "";
 	for (let i = 0; i < ast.length; i++) {
 		if (ast[i].type === "Block") {
-			renderOutput += transpileToHtml(ast, i);
+			output += transpileToHtml(ast, i);
+		} else if (ast[i].type === "Comment") {
+			let commentFormat = `<!--${ast[i].text.replace("#", "")}-->`;
+			output += " ".repeat(ast[i].depth) + commentFormat + "\n";
 		}
 	}
-	return renderOutput;
+	return output;
 }
 
 export default transpiler;
