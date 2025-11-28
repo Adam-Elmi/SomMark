@@ -1,7 +1,7 @@
 import parser from "./parser.js";
 import peek from "../helpers/peek.js";
-import html_mapping from "../mapping/default_mode/smark.html.js";
-import markdown_mapping from "../mapping/default_mode/smark.md.js";
+import html from "../mapping/default_mode/smark.html.js";
+import markdown from "../mapping/default_mode/smark.md.js";
 import fs from "node:fs/promises";
 import path from "path";
 
@@ -38,7 +38,7 @@ function transpileToHtml(ast, i) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
 	if (node.type === "Block") {
-		let target = matchedValue(html_mapping.outputs, node.id);
+		let target = matchedValue(html.outputs, node.id);
 		if (target) {
 			result =
 				(node.depth > 1 ? " ".repeat(node.depth) : "") +
@@ -51,7 +51,7 @@ function transpileToHtml(ast, i) {
 						context += "\n" + " ".repeat(n.depth) + n.text;
 						break;
 					case "Inline":
-						target = matchedValue(html_mapping.outputs, n.id);
+						target = matchedValue(html.outputs, n.id);
 						if (target) {
 							context += "\n" + target.renderOutput(n.args, n.value);
 						}
@@ -60,7 +60,7 @@ function transpileToHtml(ast, i) {
 						context += n.value;
 						break;
 					case "AtBlock":
-						target = matchedValue(html_mapping.outputs, n.id);
+						target = matchedValue(html.outputs, n.id);
 						if (target) {
 							let content = "";
 							for (const value of n.content) {
@@ -74,7 +74,7 @@ function transpileToHtml(ast, i) {
 						context += "\n" + " ".repeat(n.depth) + commentFormat;
 						break;
 					case "Block":
-						target = matchedValue(html_mapping.outputs, n.id);
+						target = matchedValue(html.outputs, n.id);
 						context += transpileToHtml(n, i);
 						break;
 				}
@@ -91,7 +91,7 @@ function transpileToHtml(ast, i) {
 function transpileToMarkdown(ast, i) {
 	const node = ast[i];
 	let result = "";
-	let target = matchedValue(markdown_mapping.outputs, node.id);
+	let target = matchedValue(markdown.outputs, node.id);
 	if (target) {
 	  result += target.renderOutput(node.args, "");
 		for (const body_node of node.body) {
