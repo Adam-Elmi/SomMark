@@ -1,6 +1,5 @@
 class MarkdownBuilder {
-	constructor() {
-	}
+	constructor() {}
 	// Headings
 	heading(text, level) {
 		// Heading levels:
@@ -24,29 +23,64 @@ class MarkdownBuilder {
 			} else if (level < min) {
 				level = min;
 			}
-			return `${"#".repeat(level)} ${text}`;
+			return `${"#".repeat(level)} ${text}\n`;
 		}
 		return text;
 	}
-}
-function url(type = "", text, url, title = "") {
-	/*
-	Format:
-	[text](url "optional title")
-	----------------------------
-	Example:
-	[SomCheat](https://www.somcheat.dev "SomCheat site")
-	----------------------------
-	Info:
-	Optional title: is used for tooltip
-	*/
-	if (!text && !url) {
-		return "";
+	// Url
+	url(type = "", text, url = "", title = "") {
+		/*
+		Format:
+		[text](url "optional title")
+		----------------------------
+		Example:
+		[SomCheat](https://www.somcheat.dev "SomCheat site")
+		----------------------------
+		Info:
+		Optional title: is used for tooltip
+		*/
+		if (!text && !url) {
+			return "";
+		}
+		return ` ${type === "image" ? "!" : ""}[${text}](${url + (title ? " " : "")}${title}) `;
 	}
-	return `${type === "image" ? "!" : ""}[${text}](${url + (title ? " " : "")}${title})`;
-}
-function codeBlock(code, language) {
-	/*
+	// Bold
+	bold(text, is_underscore = false) {
+		/*
+ Example: **text** or __text__
+*/
+		if (!text) {
+			return "";
+		}
+		const format = is_underscore ? "__" : "**";
+		return ` ${format}${text}${format} `;
+	}
+	// Italic
+	italic(text, is_underscore = false) {
+		/*
+ Example: *text* or _text_
+*/
+		if (!text) {
+			return "";
+		}
+		const format = is_underscore ? "_" : "*";
+		return ` ${format}${text}${format} `;
+	}
+	// Emphasis
+	emphasis(text, is_underscore = false) {
+		/*
+Bold and Italic
+Example: ***text***
+*/
+		if (!text) {
+			return "";
+		}
+		const format = is_underscore ? "___" : "***";
+		return ` ${format}${text}${format}`;
+	}
+	// Code Block
+	codeBlock(code, language) {
+		/*
 	Format:
 	``` + language
 	...code block..
@@ -56,82 +90,59 @@ function codeBlock(code, language) {
 	console.log('Hello from SomMark');
 	```
 	*/
-	if (!code) {
-		return "";
-	}
-	const blocks = [];
-	if (Array.isArray(code)) {
-		for (const code_block of code) {
-			blocks.push(code_block);
+		if (!code) {
+			return "";
 		}
-		if (!language) {
-			return "```" + "\n" + blocks.join("\n") + "\n```";
+		const blocks = [];
+		if (Array.isArray(code)) {
+			for (const code_block of code) {
+				blocks.push(code_block);
+			}
+			if (!language) {
+				return "\n```" + "\n" + blocks.join("\n") + "\n```\n";
+			}
+			return "\n```" + language + "\n" + blocks.join("\n") + "\n```\n";
+		} else if (typeof code === "string") {
+			if (!language) {
+				return "\n```" + "\n" + code + "\n```\n";
+			}
+			return "\n```" + language + "\n" + code + "\n```\n";
 		}
-		return "```" + language + "\n" + blocks.join("\n") + "\n```";
-	} else if (typeof code === "string") {
-		if (!language) {
-			return "```" + "\n" + code + "\n```";
+		if (!code && !language) {
+			return "";
 		}
-		return "```" + language + "\n" + code + "\n```";
 	}
-	if (!code && !language) {
-		return "";
+	// Horizontal rule
+	horizontal(format = "*" || "_" || "-") {
+		/*
+		Format: --- or ___ or ***
+		*/
+		if (!format) {
+			return "\n***\n";
+		}
+		return format === "*" ? "\n***\n" : format === "_" ? "___" : format === "*" ? "***" : "";
 	}
-}
-function bold(text, is_underscore = false) {
-	/*
- Example: **text** or __text__
-*/
-	if (!text) {
-		return "";
-	}
-	const format = is_underscore ? "__" : "**";
-	return `${format}${text}${format}`;
-}
-function italic(text) {
-	/*
- Example: *text* or _text_
-*/
-	if (!text) {
-		return "";
-	}
-	const format = is_underscore ? "_" : "*";
-	return `${format}${text}${format}`;
-}
-function boldItalic(text) {
-	/*
-Bold and Italic
-Example: ***text***
-*/
-	if (!text) {
-		return "";
-	}
-	const format = is_underscore ? "___" : "***";
-	return `${format}${text}${format}`;
-}
-function horizontal(format = "*" || "_" || "-") {
-	/*
- Format: --- or ___ or ***
- */
-	if (!format) {
-		return "\n***\n";
-	}
-	return format === "*" ? "\n***\n" : format === "_" ? "___" : format === "*" ? "***" : "";
-}
-function escape(text, char) {
-	/*
-  Special characters:
-  `\` `*` `_` `{` `}` `[` `]` `(` `)` `#` `+` `-` `.` `!` `>` `|`
+	// Escape
+	escape(text) {
+		/*
+		Special characters:
+    `\` `*` `_` `{` `}` `[` `]` `(` `)` `#` `+` `-` `.` `!` `>` `|`
   */
-	if (!text) {
-		return "";
-	}
-	if (text && !char) {
+		const special_char = ["\\", "*", "_", "{", "}", "[", "]", "(", ")", "#", "+", "-", ".", "!", ">", "|"];
+		if (!text) {
+			return "";
+		}
+
+		text = text.split("").map(char => {
+			if (special_char.includes(char)) {
+				return `\\${char}`;
+			}
+			return char;
+		}).join("");
 		return text;
 	}
-	text = text.replaceAll(char, `\\${char}`);
-	return text;
 }
+
 function list() {
 	/*
   Unordered list:
