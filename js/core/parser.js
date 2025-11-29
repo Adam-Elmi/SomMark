@@ -1,6 +1,7 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
 import { parserError } from "./validator.js";
+import PREDEFINED_IDS from "./ids.js";
 
 function current_token(tokens, i) {
 	return tokens[i] || null;
@@ -58,7 +59,6 @@ function makeNewlineNode(value) {
 		depth: 0
 	};
 }
-
 let block_stack = [];
 let end_stack = [];
 
@@ -156,7 +156,22 @@ function parseInline(tokens, i) {
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
-		inlineNode.id = current_token(tokens, i).value;
+		for (const id of PREDEFINED_IDS) {
+			if (current_token(tokens, i).value.includes(`${id}:`)) {
+				console.log(id);
+				inlineNode.id = id;
+				const currentValue = current_token(tokens, i).value;
+				if (currentValue.includes('"')) {
+					inlineNode.data = currentValue.slice(currentValue.indexOf(`${id}:`) + `${id}:`.length, currentValue.indexOf('"')).trim();
+					inlineNode.title = currentValue.slice(currentValue.indexOf('"'));
+				} else {
+					inlineNode.data = currentValue.slice(currentValue.indexOf(`${id}:`) + `${id}:`.length).trim();
+				}
+				break;
+			} else {
+				inlineNode.id = current_token(tokens, i).value;
+			}
+		}
 	} else {
 		parserError("Inline Identifier", tokens[i].line, tokens[i].start, tokens[i].end);
 	}
