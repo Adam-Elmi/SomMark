@@ -42,7 +42,7 @@ markdown.create(["code", "codeBlock"], (args, children) => {
 });
 // Link
 markdown.create("link", (args, children) => {
-	return md.url("", children, args[0], args[1]);
+	return md.url("link", children, args[0], args[1]);
 });
 // Image
 markdown.create("image", (args, children) => {
