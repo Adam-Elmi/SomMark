@@ -10,7 +10,7 @@ sommark --version
 
 Next, create your first file:
 @_code_@: sh
-echo "[Doc]\nHello SomMark!\n[end]" > example.sm
+echo "[Doc]\nHello SomMark!\n[end]" > example.smark
 @_end_@
 
 Now transpile it:
