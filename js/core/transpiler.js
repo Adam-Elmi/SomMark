@@ -1,7 +1,7 @@
-import parser from "./parser.js";
 import peek from "../helpers/peek.js";
 import html from "../mapping/default_mode/smark.html.js";
 import markdown from "../mapping/default_mode/smark.md.js";
+import PREDEFINED_IDS from "./ids.js";
 import fs from "node:fs/promises";
 import path from "path";
 
@@ -89,20 +89,48 @@ function transpileToHtml(ast, i) {
 
 //  Transpiling to markdown
 function transpileToMarkdown(ast, i) {
-	const node = ast[i];
+	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
 	let target = matchedValue(markdown.outputs, node.id);
 	if (target) {
-	  result += target.renderOutput(node.args, "");
+		result += target.renderOutput(node.args, "");
 		for (const body_node of node.body) {
 			switch (body_node.type) {
 				case "Text":
 					result += body_node.text;
 					break;
+				case "Inline":
+					target = matchedValue(markdown.outputs, body_node.id);
+					if (target) {
+						let metadata = [];
+						for (const id of PREDEFINED_IDS) {
+							if (typeof target.id === "string" && target.id === id) {
+								if (body_node.hasOwnProperty("data")) {
+									metadata.push(body_node.data);
+								}
+								if (body_node.hasOwnProperty("title")) {
+									metadata.push(body_node.title);
+								}
+								break;
+							}
+						}
+						result += target.renderOutput((metadata.length > 0 ? metadata : ""), body_node.value);
+					}
+					break;
+				case "AtBlock":
+					target = matchedValue(markdown.outputs, body_node.id);
+					if (target) {
+						result += target.renderOutput(body_node.args, body_node.content);
+					}
+					break;
+				case "Block":
+					target = matchedValue(markdown.outputs, body_node.id);
+					result += transpileToMarkdown(body_node, i);
+					break;
 			}
 		}
 	}
-  return result;
+	return result;
 }
 
 function transpiler(ast) {
