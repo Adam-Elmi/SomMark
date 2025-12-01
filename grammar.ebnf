@@ -1,0 +1,24 @@
+OpenAt = "@", "_";
+CloseAt = "_", "@";
+ThinArrow = "-", ">";
+SpecialSymbols = "[" | "]" | "(" | ")" | ":", "\n";
+Text = ? any character except SpecialSymbols, OpenAt, CloseAt and ThinArrow ?;
+Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+Letter = "A" | "B" | "C" | "D" | "E" | "F" | "G"
+       | "H" | "I" | "J" | "K" | "L" | "M" | "N"
+       | "O" | "P" | "Q" | "R" | "S" | "T" | "U"
+       | "V" | "W" | "X" | "Y" | "Z" | "a" | "b"
+       | "c" | "d" | "e" | "f" | "g" | "h" | "i"
+       | "j" | "k" | "l" | "m" | "n" | "o" | "p"
+       | "q" | "r" | "s" | "t" | "u" | "v" | "w"
+       | "x" | "y" | "z" ;
+Identifier = Letter, {Letter | Digit | "_"};
+Value = Text;
+EndKeyword = "end";
+BlockStart = "[", Identifier, ["="], [Value], "]", "\n";
+BlockEnd = "[", EndKeyword, "]", ["\n"];
+InlineStatement = "(", Value, ")", ThinArrow, "(", Identifier, ")";
+AtBlockStart = OpenAt, Identifier, CloseAt, "\n", [":"], [Value];
+AtBlockEnd = OpenAt, EndKeyword, CloseAt, "\n";
+EscapeCharacter = "`";
+EscapeStatement = EscapeCharacter, Text, EscapeCharacter;
