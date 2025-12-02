@@ -35,9 +35,9 @@ class Mapping {
 	tag = tagName => {
 		return new TagBuilder(tagName);
 	};
-	setHeader = (customHeader = [], options = { title, flatELements, rawData, resetData: false }) => {
+	setHeader = (customHeader = [], options = { title, elements, rawData, resetData: false }) => {
 		let headerData = "";
-		let { title, flatELements, rawData, resetData } = options;
+		let { title, elements, rawData, resetData } = options;
 		if (resetData) {
 			this.predefinedData = "";
 		}
@@ -47,8 +47,8 @@ class Mapping {
 		if (typeof title === "string") {
 			// console.log(title);
 		}
-		if (Array.isArray(flatELements)) {
-			this.getElements(flatELements);
+		if (Array.isArray(elements)) {
+			this.getElements(elements);
 		}
 		if (Array.isArray(rawData)) {
 			for (const data of rawData) {
@@ -69,16 +69,13 @@ class Mapping {
 			if (element instanceof Object) {
 				let propsLen = Object.keys(element);
 				if (propsLen.length > 0 && element.hasOwnProperty("tagName")) {
-					const { tagName, text, children, ...allProps } = element;
+					const { tagName, text, ...allProps } = element;
 					this.predefinedData +=
 						"  " +
 						this.tag(tagName)
 							.attributes(allProps)
 							.body(text ? text : "") +
 						(i === elements.length - 1 ? "" : "\n");
-					if (Array.isArray(children) && children.length > 0) {
-						this.getElements(children);
-					}
 				}
 			}
 		}
