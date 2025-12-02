@@ -21,7 +21,7 @@ function matchedValue(outputs, targetId) {
 	}
 	return result;
 }
-// Transpiling to Html
+
 function generateOutput(ast, i, file) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
