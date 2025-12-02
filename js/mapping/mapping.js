@@ -3,7 +3,18 @@ import MarkdownBuilder from "../formatter/mark.js";
 class Mapping {
 	constructor() {
 		this.outputs = [];
-    this.md = new MarkdownBuilder();
+		this.md = new MarkdownBuilder();
+		this.predefinedData =
+			"  " +
+			this.tag("meta").selfClose().attributes({ charset: "UTF-8" }).body() +
+			"\n" +
+			"  " +
+			this.tag("meta").selfClose().attributes({ name: "viewport", content: "width=device-width, initial-scale=1.0" }).body() +
+			"\n" +
+			"  " +
+			this.tag("title").body("SomMark Page") +
+			"\n";
+		this.header = this.predefinedData;
 	}
 	create(id, renderOutput) {
 		if (id && renderOutput) {
@@ -21,8 +32,56 @@ class Mapping {
 			throw new Error("Expected arguments are not defined");
 		}
 	}
-	tag(tagName) {
+	tag = tagName => {
 		return new TagBuilder(tagName);
+	};
+	setHeader = (customHeader = [], options = { title, flatELements, rawData, resetData: false }) => {
+		let headerData = "";
+		let { title, flatELements, rawData, resetData } = options;
+		if (resetData) {
+			this.predefinedData = "";
+		}
+		if (!title) {
+			title = "SomMark";
+		}
+		if (typeof title === "string") {
+			// console.log(title);
+		}
+		if (Array.isArray(flatELements)) {
+			this.getElements(flatELements);
+		}
+		if (Array.isArray(rawData)) {
+			for (const data of rawData) {
+				if (typeof data === "string") {
+					this.predefinedData += "\n" + "  " + data + "\n";
+				}
+			}
+		}
+		if (this.predefinedData) {
+			headerData += this.tag("head").body("\n" + this.predefinedData) + "\n";
+		}
+		this.header = headerData;
+		return headerData;
+	};
+	getElements(elements) {
+		for (let i = 0; i < elements.length; i++) {
+			let element = elements[i];
+			if (element instanceof Object) {
+				let propsLen = Object.keys(element);
+				if (propsLen.length > 0 && element.hasOwnProperty("tagName")) {
+					const { tagName, text, children, ...allProps } = element;
+					this.predefinedData +=
+						"  " +
+						this.tag(tagName)
+							.attributes(allProps)
+							.body(text ? text : "") +
+						(i === elements.length - 1 ? "" : "\n");
+					if (Array.isArray(children) && children.length > 0) {
+						this.getElements(children);
+					}
+				}
+			}
+		}
 	}
 }
 export default Mapping;
