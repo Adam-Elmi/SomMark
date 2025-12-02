@@ -4,6 +4,7 @@ import markdown from "../mapping/default_mode/smark.md.js";
 import PREDEFINED_IDS from "./ids.js";
 import fs from "node:fs/promises";
 import path from "path";
+import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT, NEWLINE } from "./names.js";
 
 const file_path = path.join(process.cwd(), "smark.config.js");
 const isFileExist = await fs
@@ -34,10 +35,10 @@ function matchedValue(outputs, targetId) {
 	return result;
 }
 // Transpiling to Html
-function transpileToHtml(ast, i) {
+function structuredOutput(ast, i) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
-	if (node.type === "Block") {
+	if (node.type === BLOCK) {
 		let target = matchedValue(html.outputs, node.id);
 		if (target) {
 			result =
@@ -47,19 +48,19 @@ function transpileToHtml(ast, i) {
 			let context = "";
 			for (const n of node.body) {
 				switch (n.type) {
-					case "Text":
+					case TEXT:
 						context += "\n" + " ".repeat(n.depth) + n.text;
 						break;
-					case "Inline":
+					case INLINE:
 						target = matchedValue(html.outputs, n.id);
 						if (target) {
 							context += "\n" + target.renderOutput(n.args, n.value);
 						}
 						break;
-					case "Newline":
+					case NEWLINE:
 						context += n.value;
 						break;
-					case "AtBlock":
+					case ATBLOCK:
 						target = matchedValue(html.outputs, n.id);
 						if (target) {
 							let content = "";
@@ -69,13 +70,13 @@ function transpileToHtml(ast, i) {
 							context += target.renderOutput(n.args, content);
 						}
 						break;
-					case "Comment":
+					case COMMENT:
 						let commentFormat = `<!--${n.text.replace("#", "")}-->`;
 						context += "\n" + " ".repeat(n.depth) + commentFormat;
 						break;
-					case "Block":
+					case BLOCK:
 						target = matchedValue(html.outputs, n.id);
-						context += transpileToHtml(n, i);
+						context += structuredOutput(n, i);
 						break;
 				}
 			}
@@ -88,7 +89,7 @@ function transpileToHtml(ast, i) {
 }
 
 //  Transpiling to markdown
-function transpileToMarkdown(ast, i) {
+function flatOutput(ast, i) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
 	let target = matchedValue(markdown.outputs, node.id);
@@ -96,10 +97,10 @@ function transpileToMarkdown(ast, i) {
 		result += target.renderOutput(node.args, "");
 		for (const body_node of node.body) {
 			switch (body_node.type) {
-				case "Text":
+				case TEXT:
 					result += body_node.text;
 					break;
-				case "Inline":
+				case INLINE:
 					target = matchedValue(markdown.outputs, body_node.id);
 					if (target) {
 						let metadata = [];
@@ -114,18 +115,21 @@ function transpileToMarkdown(ast, i) {
 								break;
 							}
 						}
-						result += target.renderOutput((metadata.length > 0 ? metadata : ""), body_node.value);
+						result += target.renderOutput(metadata.length > 0 ? metadata : "", body_node.value);
 					}
 					break;
-				case "AtBlock":
+				case ATBLOCK:
 					target = matchedValue(markdown.outputs, body_node.id);
 					if (target) {
 						result += target.renderOutput(body_node.args, body_node.content);
 					}
 					break;
-				case "Block":
+				case NEWLINE:
+					result += body_node.value;
+					break;
+				case BLOCK:
 					target = matchedValue(markdown.outputs, body_node.id);
-					result += transpileToMarkdown(body_node, i);
+					result += flatOutput(body_node, i);
 					break;
 			}
 		}
@@ -133,15 +137,22 @@ function transpileToMarkdown(ast, i) {
 	return result;
 }
 
-function transpiler(ast) {
+function transpiler(ast, format) {
+	if (!format) {
+		throw new Error("Please define the format to transpile");
+	}
 	let output = "";
 	for (let i = 0; i < ast.length; i++) {
-		if (ast[i].type === "Block") {
-			output += transpileToMarkdown(ast, i);
-		} else if (ast[i].type === "Comment") {
+		if (ast[i].type === BLOCK) {
+			output += structuredOutput(ast, i);
+		} else if (ast[i].type === COMMENT) {
 			let commentFormat = `<!--${ast[i].text.replace("#", "")}-->`;
 			output += " ".repeat(ast[i].depth) + commentFormat + "\n";
 		}
+	}
+	if (format === "html") {
+		const document = "<!DOCTYPE html>\n" + "<html>\n" + html.header + "<body>\n" + output + "</body>";
+		return document;
 	}
 	return output;
 }
