@@ -159,7 +159,6 @@ function parseInline(tokens, i) {
 	if (!current_token(tokens, i) || current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		for (const id of PREDEFINED_IDS) {
 			if (current_token(tokens, i).value.includes(`${id}:`)) {
-				console.log(id);
 				inlineNode.id = id;
 				const currentValue = current_token(tokens, i).value;
 				if (currentValue.includes('"')) {
