@@ -2,6 +2,7 @@ import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
 import { parserError } from "./validator.js";
 import PREDEFINED_IDS from "./ids.js";
+import { BLOCK, TEXT, INLINE, ATBLOCK, NEWLINE, COMMENT } from "./names.js";
 
 function current_token(tokens, i) {
 	return tokens[i] || null;
@@ -9,7 +10,7 @@ function current_token(tokens, i) {
 
 function makeBlockNode() {
 	return {
-		type: "Block",
+		type: BLOCK,
 		id: "",
 		args: [],
 		body: [],
@@ -19,7 +20,7 @@ function makeBlockNode() {
 
 function makeTextNode() {
 	return {
-		type: "Text",
+		type: TEXT,
 		text: "",
 		depth: 0
 	};
@@ -27,7 +28,7 @@ function makeTextNode() {
 
 function makeCommentNode() {
 	return {
-		type: "Comment",
+		type: COMMENT,
 		text: "",
 		depth: 0
 	};
@@ -35,7 +36,7 @@ function makeCommentNode() {
 
 function makeInlineNode() {
 	return {
-		type: "Inline",
+		type: INLINE,
 		value: "",
 		id: "",
 		depth: 0
@@ -44,7 +45,7 @@ function makeInlineNode() {
 
 function makeAtBlockNode() {
 	return {
-		type: "AtBlock",
+		type: ATBLOCK,
 		id: "",
 		args: [],
 		content: [],
@@ -54,7 +55,7 @@ function makeAtBlockNode() {
 
 function makeNewlineNode(value) {
 	return {
-		type: "Newline",
+		type: NEWLINE,
 		value,
 		depth: 0
 	};
