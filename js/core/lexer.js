@@ -1,5 +1,6 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
+import { block_value, block_id, inline_id, inline_value, at_id, at_value, end_keyword } from "./names.js";
 
 function concat(input, index, exclude_stop_char = true, stop_at_char = [], scope_state, include_then_break = false) {
 	let str = "";
@@ -51,17 +52,7 @@ function lexer(src) {
 		let context = "",
 			temp_str = "",
 			previous_value = "";
-		const tokenNames = {
-			block_id: "Block Identifier",
-			block_value: "Block Value",
-			inline_id: "Inline Identifier",
-			inline_value: "Inline Value",
-			at_id: "At Identifier",
-			at_value: "At Value",
-			end_keyword: "end"
-		};
-		const { block_id, block_value, inline_id, inline_value, at_id, at_value, end_keyword } = tokenNames;
-
+		
 		function addToken(type, value) {
 			tokens.push({ type, value, line, start, end, depth: depth_stack.length });
 		}
@@ -188,8 +179,7 @@ function lexer(src) {
 					// Update Column
 					start++;
 					end = end + temp_str.length;
-					temp_str = temp_str.trim();
-					if (temp_str) {
+					if (temp_str.trim()) {
 						if (previous_value === "[") {
 							// Token: End Keyword
 							if (temp_str.trim() === end_keyword) {
