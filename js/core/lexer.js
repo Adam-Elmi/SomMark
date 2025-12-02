@@ -224,8 +224,7 @@ function lexer(src) {
 				else if (previous_value === "@_" || previous_value === ":") {
 					temp_str = concat(src, i, false, ["_", "\n"], scope_state);
 					i += temp_str.length - 1;
-					temp_str = temp_str.trim();
-					if (temp_str) {
+					if (temp_str.trim()) {
 						// Update Column
 						start++;
 						end = end + temp_str.length;
