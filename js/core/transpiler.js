@@ -37,7 +37,7 @@ function generateOutput(ast, i, format, file) {
 		for (const body_node of node.body) {
 			switch (body_node.type) {
 				case TEXT:
-					context += (format === "html" ? "\n" + " ".repeat(body_node.depth) : "") + body_node.text;
+					context += (format === "html" ? " ".repeat(body_node.depth) : "") + body_node.text;
 					break;
 				case INLINE:
 					target = matchedValue(file.outputs, body_node.id);
@@ -86,9 +86,9 @@ function generateOutput(ast, i, format, file) {
       result += context;
 		}
 	} else {
-		console.log("Unknown blocks:", node.id);
+    throw new Error("Unknown blocks: " + node.id);
 	}
-	return result;
+  return result;
 }
 
 function transpiler(ast, format, file) {
