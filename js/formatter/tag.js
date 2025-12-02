@@ -3,7 +3,6 @@ class TagBuilder {
 		this.tagName = tagName;
 		this.children = "";
 		this.attr = [];
-		this.render = this.render;
 		this.is_self_close = false;
 	}
 	attributes(obj, ...arr) {
@@ -24,13 +23,13 @@ class TagBuilder {
 			let space = this.children ? " " : "";
 			this.children += space + nodes;
 		}
-		return this;
+		return this.builder();
 	}
 	selfClose() {
 		this.is_self_close = true;
 		return this;
 	}
-	render() {
+	builder() {
 		const components = {
 			lt: "<",
 			gt: ">",
