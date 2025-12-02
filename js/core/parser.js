@@ -78,8 +78,9 @@ let block_stack = [];
 let end_stack = [];
 let tokens_stack = [];
 let line = 1,
-	start = 1,
-	end = 1;
+  start = 1,
+  end = 1,
+  value = "";
 
 const updateData = (tokens, i) => {
 	if (tokens[i]) {
@@ -87,23 +88,22 @@ const updateData = (tokens, i) => {
 		line = tokens[i].line;
 		start = tokens[i].start;
 		end = tokens[i].end;
+    value = tokens[i].value;
 	}
 };
 
 const errorMessage = (tokens, i, expectedValue, behindValue) => {
-	let recievedValue = tokens[i].value;
-	if (i === tokens.length - 1) {
-		recievedValue = behindValue;
+	if (tokens[i]) {
+		return [
+			`<$blue:{line}$><$red:Here where error occurred: $> {N} ${tokens_stack.join("")}{N}${" ".repeat(tokens_stack.join("").length + 1) + "<$yellow:^$>"}{N}{N}`,
+			`<$red:Expected token$> <$blue:'${expectedValue}'$> ${behindValue ? "after <$blue:'" + behindValue + "'$>" : ""} at line <$yellow:${line}$>,`,
+			` from column <$yellow: ${start}$> to <$yellow: ${end}$>`,
+			`{N}<$yellow:Received:$> <$blue:'${value === "\n" ? "\\n' (newline)" : value}'$>`,
+			` at line <$yellow:${tokens[i].line}$>,`,
+			` from column <$yellow: ${tokens[i].start}$> to <$yellow: ${tokens[i].end}$>{N}`,
+			"<$blue:{line}$>"
+		];
 	}
-	return [
-		`<$blue:{line}$><$red:Here where error occurred: $> {N} ${tokens_stack.join("")}{N}${" ".repeat(tokens_stack.join("").length + 1) + "<$yellow:^$>"}{N}{N}`,
-		`<$red:Expected token$> <$blue:'${expectedValue}'$> ${behindValue ? "after <$blue:'" + behindValue +  "'$>" : ""} at line <$yellow:${line}$>,`,
-		` from column <$yellow: ${start}$> to <$yellow: ${end}$>`,
-		`{N}<$yellow:Received:$> <$blue:'${recievedValue === "\n" ? "\\n' (newline)" : tokens[i].value}'$>`,
-		` at line <$yellow:${tokens[i].line}$>,`,
-		` from column <$yellow: ${tokens[i].start}$> to <$yellow: ${tokens[i].end}$>{N}`,
-		"<$blue:{line}$>"
-	];
 };
 
 // Parse Block
@@ -153,6 +153,8 @@ function parseBlock(tokens, i) {
 	if (!current_token(tokens, i) || current_token(tokens, i).value !== "\n") {
 		parserError(parserError(errorMessage(tokens, i, "\\n", "]")));
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	tokens_stack.length = 0;
 	while (i < tokens.length) {
@@ -204,6 +206,8 @@ function parseBlock(tokens, i) {
 // Parse Inline Statements
 function parseInline(tokens, i) {
 	const inlineNode = makeInlineNode();
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
 		inlineNode.value = current_token(tokens, i).value;
@@ -211,20 +215,28 @@ function parseInline(tokens, i) {
 	} else {
 		parserError(errorMessage(tokens, i, inline_value, "("));
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
 		parserError(errorMessage(tokens, i, ")", inline_value));
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.THIN_ARROW) {
 		parserError(errorMessage(tokens, i, "->", ")"));
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_PAREN) {
-		parserError(errorMessage(tokens, i, ")", "->"));
+		parserError(errorMessage(tokens, i, "(", "->"));
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
-	if (!current_token(tokens, i) || current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
+	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		for (const id of PREDEFINED_IDS) {
 			if (current_token(tokens, i).value.includes(`${id}:`)) {
 				inlineNode.id = id;
@@ -245,10 +257,15 @@ function parseInline(tokens, i) {
 	} else {
 		parserError(errorMessage(tokens, i, inline_id, "("));
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
 		parserError(errorMessage(tokens, i, ")", inline_id));
 	}
+	// Update Data
+	updateData(tokens, i);
+	tokens_stack.length = 0;
 	i++;
 	return [inlineNode, i];
 }
@@ -260,6 +277,8 @@ function parseText(tokens, i) {
 		textNode.text = current_token(tokens, i).value;
 		textNode.depth = current_token(tokens, i).depth;
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	return [textNode, i];
 }
@@ -267,6 +286,8 @@ function parseText(tokens, i) {
 // Parse At_Block
 function parseAtBlock(tokens, i) {
 	const atBlockNode = makeAtBlockNode();
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		atBlockNode.id = current_token(tokens, i).value;
@@ -274,12 +295,18 @@ function parseAtBlock(tokens, i) {
 	} else {
 		parserError(errorMessage(tokens, i, at_id, "@_"));
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT) {
-		parserError(errorMessage(tokens, i, "@_", at_id));
+		parserError(errorMessage(tokens, i, "_@", at_id));
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COLON) {
+		// Update Data
+		updateData(tokens, i);
 		i++;
 		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
 			current_token(tokens, i)
@@ -287,6 +314,8 @@ function parseAtBlock(tokens, i) {
 				.forEach(value => {
 					atBlockNode.args.push(value);
 				});
+			// Update Data
+			updateData(tokens, i);
 			i++;
 		} else {
 			parserError(errorMessage(tokens, i, at_value, ":"));
@@ -295,6 +324,8 @@ function parseAtBlock(tokens, i) {
 	if (!current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.NEWLINE) {
 		parserError(errorMessage(tokens, i, "\\n", "@_"));
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.TEXT) {
 		parserError(errorMessage(tokens, i, "Text", "\\n"));
@@ -302,8 +333,12 @@ function parseAtBlock(tokens, i) {
 	while (i < tokens.length) {
 		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
 			atBlockNode.content.push(current_token(tokens, i).value);
+			// Update Data
+			updateData(tokens, i);
 			i++;
 		} else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.NEWLINE) {
+			// Update Data
+			updateData(tokens, i);
 			i++;
 			continue;
 		} else {
@@ -311,24 +346,33 @@ function parseAtBlock(tokens, i) {
 		}
 	}
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.NEWLINE) {
+		// Update Data
+		updateData(tokens, i);
 		i++;
 	}
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_AT) {
 		parserError(errorMessage(tokens, i, "@_", "\\n"));
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.END_KEYWORD) {
 		parserError(errorMessage(tokens, i, end_keyword, "@_"));
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT) {
 		parserError(errorMessage(tokens, i, "_@", end_keyword));
 	}
-
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).value !== "\n") {
 		parserError(errorMessage(tokens, i, "\\n", "_@"));
 	}
+	tokens_stack.length = 0;
+	i++;
 	return [atBlockNode, i];
 }
 
@@ -339,6 +383,8 @@ function parseCommentNode(tokens, i) {
 		commentNode.text = current_token(tokens, i).value;
 		commentNode.depth = current_token(tokens, i).depth;
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	return [commentNode, i];
 }
