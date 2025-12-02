@@ -2,7 +2,21 @@ import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
 import { parserError } from "./validator.js";
 import PREDEFINED_IDS from "./ids.js";
-import { BLOCK, TEXT, INLINE, ATBLOCK, NEWLINE, COMMENT } from "./names.js";
+import {
+	BLOCK,
+	TEXT,
+	INLINE,
+	ATBLOCK,
+	NEWLINE,
+	COMMENT,
+	block_id,
+	block_value,
+	inline_id,
+	inline_value,
+	at_id,
+	at_value,
+	end_keyword
+} from "./names.js";
 
 function current_token(tokens, i) {
 	return tokens[i] || null;
@@ -62,13 +76,43 @@ function makeNewlineNode(value) {
 }
 let block_stack = [];
 let end_stack = [];
+let tokens_stack = [];
+let line = 1,
+	start = 1,
+	end = 1;
+
+const updateData = (tokens, i) => {
+	if (tokens[i]) {
+		tokens_stack.push(tokens[i].value);
+		line = tokens[i].line;
+		start = tokens[i].start;
+		end = tokens[i].end;
+	}
+};
+
+const errorMessage = (tokens, i, expectedValue, behindValue) => {
+	let recievedValue = tokens[i].value;
+	if (i === tokens.length - 1) {
+		recievedValue = behindValue;
+	}
+	return [
+		`<$blue:{line}$><$red:Here where error occurred: $> {N} ${tokens_stack.join("")}{N}${" ".repeat(tokens_stack.join("").length + 1) + "<$yellow:^$>"}{N}{N}`,
+		`<$red:Expected token$> <$blue:'${expectedValue}'$> ${behindValue ? "after <$blue:'" + behindValue +  "'$>" : ""} at line <$yellow:${line}$>,`,
+		` from column <$yellow: ${start}$> to <$yellow: ${end}$>`,
+		`{N}<$yellow:Received:$> <$blue:'${recievedValue === "\n" ? "\\n' (newline)" : tokens[i].value}'$>`,
+		` at line <$yellow:${tokens[i].line}$>,`,
+		` from column <$yellow: ${tokens[i].start}$> to <$yellow: ${tokens[i].end}$>{N}`,
+		"<$blue:{line}$>"
+	];
+};
 
 // Parse Block
 function parseBlock(tokens, i) {
 	block_stack.push(1);
 	end_stack.pop();
 	const blockNode = makeBlockNode();
-	// consume '['
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		blockNode.id = current_token(tokens, i).value;
@@ -76,8 +120,12 @@ function parseBlock(tokens, i) {
 	} else {
 		parserError("Block Identifier", tokens[i].line, tokens[i].start, tokens[i].end);
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.EQUAL) {
+		// Update Data
+		updateData(tokens, i);
 		i++;
 		if (current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
 			current_token(tokens, i)
@@ -88,33 +136,53 @@ function parseBlock(tokens, i) {
 		} else {
 			parserError("Block Value", tokens[i].line, tokens[i].start, tokens[i].end);
 		}
+		// Update Data
+		updateData(tokens, i);
 		i++;
 	}
 	if (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_BRACKET) {
 		if (peek(tokens, i, -1) && peek(tokens, i, -1).type === TOKEN_TYPES.VALUE) {
-			parserError("]", tokens[i].line, tokens[i].start, tokens[i].end);
+			parserError(errorMessage(tokens, i, "]", block_value));
 		} else {
-			parserError("]", tokens[i].line, tokens[i].start, tokens[i].end);
+			parserError(parserError(errorMessage(tokens, i, "]", block_id)));
 		}
 	}
+	// Update Data
+	updateData(tokens, i);
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).value !== "\n") {
-		parserError("\\n", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(parserError(errorMessage(tokens, i, "\\n", "]")));
 	}
+	i++;
+	tokens_stack.length = 0;
 	while (i < tokens.length) {
 		if (current_token(tokens, i).value === "[" && peek(tokens, i, 1).value !== "end") {
 			const [childNode, nextIndex] = parseBlock(tokens, i);
 			blockNode.body.push(childNode);
 			i = nextIndex;
+			// Update Data
+			updateData(tokens, i);
 		} else if (
 			current_token(tokens, i).type === TOKEN_TYPES.OPEN_BRACKET &&
 			peek(tokens, i, 1).type === TOKEN_TYPES.END_KEYWORD
 		) {
-			block_stack.pop();
-			if (peek(tokens, i, 2) === null || peek(tokens, i, 2).type !== TOKEN_TYPES.CLOSE_BRACKET) {
-				parserError("end", tokens[i].line, tokens[i].start, tokens[i].end);
+			// Update Data
+			updateData(tokens, i);
+			i++;
+			if (current_token(tokens, i).type === TOKEN_TYPES.END_KEYWORD) {
+				// Update Data
+				updateData(tokens, i);
+				if (peek(tokens, i, 1) && peek(tokens, i, 1).type === TOKEN_TYPES.CLOSE_BRACKET) {
+					// Update Data
+					updateData(tokens, i + 1);
+				} else {
+					parserError(errorMessage(tokens, i, "]", end_keyword));
+				}
 			}
-			i += 3;
+			block_stack.pop();
+			i += 2;
+			// Update Data
+			updateData(tokens, i);
 			break;
 		} else {
 			let [childNode, nextIndex] = parseNode(tokens, i);
@@ -141,19 +209,19 @@ function parseInline(tokens, i) {
 		inlineNode.value = current_token(tokens, i).value;
 		inlineNode.depth = current_token(tokens, i).depth;
 	} else {
-		parserError("Inline Value", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, inline_value, "("));
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
-		parserError(")", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, ")", inline_value));
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.THIN_ARROW) {
-		parserError("->", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, "->", ")"));
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_PAREN) {
-		parserError("(", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, ")", "->"));
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
@@ -162,7 +230,9 @@ function parseInline(tokens, i) {
 				inlineNode.id = id;
 				const currentValue = current_token(tokens, i).value;
 				if (currentValue.includes('"')) {
-					inlineNode.data = currentValue.slice(currentValue.indexOf(`${id}:`) + `${id}:`.length, currentValue.indexOf('"')).trim();
+					inlineNode.data = currentValue
+						.slice(currentValue.indexOf(`${id}:`) + `${id}:`.length, currentValue.indexOf('"'))
+						.trim();
 					inlineNode.title = currentValue.slice(currentValue.indexOf('"'));
 				} else {
 					inlineNode.data = currentValue.slice(currentValue.indexOf(`${id}:`) + `${id}:`.length).trim();
@@ -173,11 +243,11 @@ function parseInline(tokens, i) {
 			}
 		}
 	} else {
-		parserError("Inline Identifier", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, inline_id, "("));
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
-		parserError(")", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, ")", inline_id));
 	}
 	i++;
 	return [inlineNode, i];
@@ -202,11 +272,11 @@ function parseAtBlock(tokens, i) {
 		atBlockNode.id = current_token(tokens, i).value;
 		atBlockNode.depth = current_token(tokens, i).depth;
 	} else {
-		parserError("At Identifier", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, at_id, "@_"));
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT) {
-		parserError("_@", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, "@_", at_id));
 	}
 	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COLON) {
@@ -219,15 +289,15 @@ function parseAtBlock(tokens, i) {
 				});
 			i++;
 		} else {
-			parserError("At Value", tokens[i].line, tokens[i].start, tokens[i].end);
+			parserError(errorMessage(tokens, i, at_value, ":"));
 		}
 	}
 	if (!current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.NEWLINE) {
-		parserError("\\n", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, "\\n", "@_"));
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.TEXT) {
-		parserError("Text", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, "Text", "\\n"));
 	}
 	while (i < tokens.length) {
 		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
@@ -244,20 +314,20 @@ function parseAtBlock(tokens, i) {
 		i++;
 	}
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_AT) {
-		parserError("@_", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, "@_", "\\n"));
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.END_KEYWORD) {
-		parserError("end", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, end_keyword, "@_"));
 	}
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT) {
-		parserError("_@", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, "_@", end_keyword));
 	}
 
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).value !== "\n") {
-		parserError("\\n", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, "\\n", "_@"));
 	}
 	return [atBlockNode, i];
 }
@@ -313,13 +383,13 @@ function parser(tokens) {
 	for (let i = 0; i < tokens.length; i++) {
 		let [nodes, nextIndex] = parseNode(tokens, i);
 		if (current_token(tokens, i).type !== TOKEN_TYPES.COMMENT && current_token(tokens, i).depth === 0) {
-			parserError("[", tokens[i].line, tokens[i].start, tokens[i].end);
+			parserError(errorMessage(tokens, i, "[", ""));
 		}
 		if (block_stack.length !== 0) {
-			parserError("[end]", tokens[i].line, tokens[i].start, tokens[i].end);
+			parserError(errorMessage(tokens, i, "[end]", ""));
 		}
 		if (end_stack.length !== 0) {
-			parserError("Block", tokens[i].line, tokens[i].start, tokens[i].end);
+			parserError(errorMessage(tokens, i, "Block", ""));
 		}
 		if (nodes) {
 			ast.push(nodes);
