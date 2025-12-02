@@ -22,20 +22,22 @@ function matchedValue(outputs, targetId) {
 	return result;
 }
 
-function generateOutput(ast, i, file) {
+function generateOutput(ast, i, format, file) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
 	let target = matchedValue(file.outputs, node.id);
 	if (target) {
-		result =
-			(node.depth > 1 ? " ".repeat(node.depth) : "") +
-			target.renderOutput(node.args, "<%smark>" + (node.depth > 1 ? " ".repeat(node.depth) : "")) +
-			"\n";
+		result +=
+			format === "html"
+				? (node.depth > 1 ? " ".repeat(node.depth) : "") +
+					target.renderOutput(node.args, "<%smark>" + (node.depth > 1 ? " ".repeat(node.depth) : "")) +
+					"\n"
+				: target.renderOutput(node.args, "");
 		let context = "";
 		for (const body_node of node.body) {
 			switch (body_node.type) {
 				case TEXT:
-					context += "\n" + " ".repeat(body_node.depth) + body_node.text;
+					context += (format === "html" ? "\n" + " ".repeat(body_node.depth) : "") + body_node.text;
 					break;
 				case INLINE:
 					target = matchedValue(file.outputs, body_node.id);
@@ -52,7 +54,7 @@ function generateOutput(ast, i, file) {
 								break;
 							}
 						}
-						context += "\n" + target.renderOutput(metadata.length > 0 ? metadata : "", body_node.value);
+						context += (format === "html" ? "\n" : "") + target.renderOutput(metadata.length > 0 ? metadata : "", body_node.value);
 					}
 					break;
 				case NEWLINE:
@@ -63,22 +65,26 @@ function generateOutput(ast, i, file) {
 					if (target) {
 						let content = "";
 						for (const value of body_node.content) {
-							content += "\n" + value;
+							content += (format === "html" ? "\n" : "") + value;
 						}
 						context += target.renderOutput(body_node.args, content);
 					}
 					break;
 				case COMMENT:
 					let commentFormat = `<!--${body_node.text.replace("#", "")}-->`;
-					context += "\n" + " ".repeat(body_node.depth) + commentFormat;
+					context +=  " ".repeat(body_node.depth) + commentFormat;
 					break;
 				case BLOCK:
 					target = matchedValue(file.outputs, body_node.id);
-					context += generateOutput(body_node, i, file);
+					context += generateOutput(body_node, i, format, file);
 					break;
 			}
 		}
-		result = result.replace("<%smark>", context);
+		if (format === "html") {
+			result = result.replace("<%smark>", context);
+		} else {
+      result += context;
+		}
 	} else {
 		console.log("Unknown blocks:", node.id);
 	}
@@ -92,7 +98,7 @@ function transpiler(ast, format, file) {
 	let output = "";
 	for (let i = 0; i < ast.length; i++) {
 		if (ast[i].type === BLOCK) {
-			output += generateOutput(ast, i, file);
+			output += generateOutput(ast, i, format, file);
 		} else if (ast[i].type === COMMENT) {
 			let commentFormat = `<!--${ast[i].text.replace("#", "")}-->`;
 			output += commentFormat + "\n";
