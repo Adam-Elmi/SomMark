@@ -115,7 +115,7 @@ function parseBlock(tokens, i) {
 	updateData(tokens, i);
 	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
-		blockNode.id = current_token(tokens, i).value;
+		blockNode.id = current_token(tokens, i).value.trim();
 		blockNode.depth = current_token(tokens, i).depth;
 	} else {
 		parserError("Block Identifier", tokens[i].line, tokens[i].start, tokens[i].end);
