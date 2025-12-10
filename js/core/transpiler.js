@@ -1,5 +1,6 @@
 import PREDEFINED_IDS from "./ids.js";
 import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT, NEWLINE } from "./names.js";
+import { transpilerError } from "./validator.js";
 
 // Extracting target identifier
 function matchedValue(outputs, targetId) {
@@ -54,7 +55,8 @@ function generateOutput(ast, i, format, file) {
 								break;
 							}
 						}
-						context += (format === "html" ? "\n" : "") + target.renderOutput(metadata.length > 0 ? metadata : "", body_node.value);
+						context +=
+							(format === "html" ? "\n" : "") + target.renderOutput(metadata.length > 0 ? metadata : "", body_node.value);
 					}
 					break;
 				case NEWLINE:
@@ -64,8 +66,8 @@ function generateOutput(ast, i, format, file) {
 					target = matchedValue(file.outputs, body_node.id);
 					if (target) {
 						let content = "";
-            for (let v = 0; v < body_node.content.length; v++) {
-              let value = body_node.content[v];
+						for (let v = 0; v < body_node.content.length; v++) {
+							let value = body_node.content[v];
 							content += v === 0 ? value : "\n" + value;
 						}
 						context += target.renderOutput(body_node.args, content);
@@ -73,7 +75,7 @@ function generateOutput(ast, i, format, file) {
 					break;
 				case COMMENT:
 					let commentFormat = `<!--${body_node.text.replace("#", "")}-->`;
-					context +=  " ".repeat(body_node.depth) + commentFormat;
+					context += " ".repeat(body_node.depth) + commentFormat;
 					break;
 				case BLOCK:
 					target = matchedValue(file.outputs, body_node.id);
@@ -84,17 +86,25 @@ function generateOutput(ast, i, format, file) {
 		if (format === "html") {
 			result = result.replace("<%smark>", context);
 		} else {
-      result += context;
+			result += context;
 		}
 	} else {
-    throw new Error("Unknown blocks: " + node.id);
+		transpilerError([`{line}<$red:Unknown Identifier$>: <$yellow:${node.id}$>{line}`]);
 	}
-  return result;
+	return result;
 }
 
+const accepted_formats = ["html", "md", "mdx"];
+ 
 function transpiler(ast, format, file) {
 	if (!format) {
-		throw new Error("Please define the format to transpile");
+		transpilerError(["{line}<$red:Invalid Format$>: <$yellow:Format argument is not defined$>{line}"]);
+	}
+	if (!accepted_formats.includes(format)) {
+		transpilerError([
+		`{line}<$red:Unknown Format$>: <$yellow:You provided unknown format:$> <$green:'${format}'$>`,
+		`{N}<$yellow:These are accepted formats:$> [<$cyan: ${accepted_formats.join(", ")}$>]{line}`
+		]);
 	}
 	let output = "";
 	for (let i = 0; i < ast.length; i++) {
@@ -106,7 +116,7 @@ function transpiler(ast, format, file) {
 		}
 	}
 	if (format === "html") {
-		const document = "<!DOCTYPE html>\n" + "<html>\n" + file.header + "<body>\n" + output + "</body>";
+		const document = "<!DOCTYPE html>\n" + "<html>\n" + file.header + "<body>\n" + output + "</body>\n" + "</html>\n";
 		return document;
 	}
 	return output;
