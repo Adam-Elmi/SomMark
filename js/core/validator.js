@@ -17,7 +17,6 @@ function formatMessage(text) {
 	text = text.replace(pattern, (match, color, content) => {
 		return colorize(color, content.trim());
 	});
-
 	text = text.replaceAll("{line}", horizontal_rule);
 	text = text.replaceAll("{N}", "\n");
 
@@ -33,8 +32,15 @@ function formatMessage(text) {
 class ParserError extends Error {
 	constructor(message) {
 		super(message);
-		this.name = "ParserError";
+		this.name = "Parser Error";
 		this.message = formatMessage(`<$cyan:[${this.name}]$>:`) + formatMessage(message);
+	}
+}
+class TranspilerError extends Error {
+	constructor(message) {
+		super(message);
+		this.name = "Transpiler Error";
+		this.message = formatMessage(`<$cyan:[${this.name}]$>:`) + "\n" + formatMessage(message);
 	}
 }
 
@@ -44,4 +50,14 @@ function parserError(errorMessage) {
 	}
 }
 
-export { parserError };
+function transpilerError(errorMessage) {
+	if (Array.isArray(errorMessage) && errorMessage.length > 0) {
+		throw new TranspilerError(errorMessage).message;
+	}
+}
+
+// function report(name, message) {
+// 	return formatMessage(name) + "\n" + formatMessage(message);
+// }
+
+export { parserError, transpilerError };
