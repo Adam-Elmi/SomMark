@@ -1,12 +1,13 @@
 import lexer from "./lexer.js";
 import parser from "./parser.js";
 import transpiler from "./transpiler.js";
-import html from "../mapping/default_mode/smark.html.js";
+
 
 class SomMark {
-  constructor(src, format) {
+  constructor(src, format, targetFile) {
     this.src = src;
     this.format = format;
+    this.targetFile = targetFile;
   }
   lex() {
     return lexer(this.src);
@@ -17,7 +18,7 @@ class SomMark {
   }
   transpile() {
     const ast = this.parse();
-    return transpiler(ast, this.format, html);
+    return transpiler(ast, this.format, this.targetFile);
   }
 }
 
