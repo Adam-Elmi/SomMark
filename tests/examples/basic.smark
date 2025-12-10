@@ -1,4 +1,4 @@
-[SomMark]
+[Heading = 1, SomMark]
 Hello (Visitor)->(bold), welcome to SomMark!
 SomMark is a clean, human-readable markup language designed for documentation.
 
