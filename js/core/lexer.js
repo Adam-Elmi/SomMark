@@ -2,11 +2,11 @@ import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
 import { block_value, block_id, inline_id, inline_value, at_id, at_value, end_keyword } from "./names.js";
 
-function concat(input, index, exclude_stop_char = true, stop_at_char = [], scope_state, include_then_break = false) {
+function concat(input, index, stop_at_char = [], scope_state, include_then_break = false) {
 	let str = "";
 	for (let char_index = index; char_index < input.length; char_index++) {
 		let char = input[char_index];
-		if (exclude_stop_char) {
+		if (stop_at_char === null) {
 			if (char === "\n") {
 				break;
 			} else if (char === "[" && !scope_state) {
@@ -30,7 +30,7 @@ function concat(input, index, exclude_stop_char = true, stop_at_char = [], scope
 			}
 			str += char;
 		} else {
-			if (stop_at_char.includes(char)) {
+			if (Array.isArray(stop_at_char) && stop_at_char.includes(char)) {
 				include_then_break ? (str += char) : null;
 				break;
 			}
@@ -71,7 +71,7 @@ function lexer(src) {
 					end = start;
 				}
 				// Push to depth if next token is not end_keyword
-				temp_str = concat(src, i + 1, false, ["]"], scope_state);
+				temp_str = concat(src, i + 1, ["]"], scope_state);
 				if (temp_str && temp_str.length > 0) {
 					if (temp_str.trim() !== end_keyword) {
 						depth_stack.push("Block");
@@ -165,7 +165,7 @@ function lexer(src) {
 			}
 			// Escape character
 			else if (current_char === "`" && !scope_state) {
-				temp_str = current_char + concat(src, i + 1, false, ["`"], scope_state, true);
+				temp_str = current_char + concat(src, i + 1, ["`"], scope_state, true);
 				if (temp_str && temp_str.length > 0) {
 					i += temp_str.length;
 					addToken(TOKEN_TYPES.TEXT, temp_str);
@@ -174,7 +174,7 @@ function lexer(src) {
 			// Token: Block Identifier OR Token: Block Value OR Token: End Keyword
 			else {
 				if (previous_value === "[" || (previous_value === "=" && !scope_state)) {
-					temp_str = concat(src, i, false, ["=", "]", "\n"], scope_state);
+					temp_str = concat(src, i, ["=", "]", "\n"], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
 					start++;
@@ -202,7 +202,7 @@ function lexer(src) {
 				}
 				// Token: Inline Value OR Token: Inline Identifier
 				else if (previous_value === "(" || (previous_value === "->" && !scope_state)) {
-					temp_str = concat(src, i, false, [")", "["], scope_state);
+					temp_str = concat(src, i, [")", "["], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
 					start++;
@@ -222,7 +222,7 @@ function lexer(src) {
 				}
 				// Token: At Identifier OR Token: At Value OR Token: End Keyword
 				else if (previous_value === "@_" || previous_value === ":") {
-					temp_str = concat(src, i, false, ["_", "\n"], scope_state);
+					temp_str = concat(src, i, ["_", "\n"], scope_state);
 					i += temp_str.length - 1;
 					if (temp_str.trim()) {
 						// Update Column
@@ -250,7 +250,7 @@ function lexer(src) {
 				}
 				// Token: Comment
 				else if (current_char === "#") {
-					temp_str = concat(src, i, false, ["\n"], scope_state);
+					temp_str = concat(src, i, ["\n"], scope_state);
 					// Update Column
 					start++;
 					end = end + temp_str.length;
@@ -262,7 +262,7 @@ function lexer(src) {
 				}
 				// Token: Text
 				else {
-					context = concat(src, i, true, null, scope_state);
+					context = concat(src, i, null, scope_state);
 					i += context.length - 1;
 					// Update Column
 					start++;
