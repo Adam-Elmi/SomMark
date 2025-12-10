@@ -64,8 +64,9 @@ function generateOutput(ast, i, format, file) {
 					target = matchedValue(file.outputs, body_node.id);
 					if (target) {
 						let content = "";
-						for (const value of body_node.content) {
-							content += (format === "html" ? "\n" : "") + value;
+            for (let v = 0; v < body_node.content.length; v++) {
+              let value = body_node.content[v];
+							content += v === 0 ? value : "\n" + value;
 						}
 						context += target.renderOutput(body_node.args, content);
 					}
