@@ -67,11 +67,11 @@ function makeAtBlockNode() {
 	};
 }
 
-function makeNewlineNode(value) {
+function makeNewlineNode(value, depth = 0) {
 	return {
 		type: NEWLINE,
 		value,
-		depth: 0
+		depth: depth
 	};
 }
 let block_stack = [];
@@ -415,7 +415,7 @@ function parseNode(tokens, i) {
 	}
 	// Newline
 	else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.NEWLINE) {
-		return [makeNewlineNode(current_token(tokens, i).value), i + 1];
+		return [makeNewlineNode(current_token(tokens, i).value, current_token(tokens, i).depth), i + 1];
 	}
 	// End Block
 	else if (current_token(tokens, i).value === "[" && peek(tokens, i, 1).type === TOKEN_TYPES.END_KEYWORD) {
@@ -428,6 +428,9 @@ function parser(tokens) {
 	let ast = [];
 	for (let i = 0; i < tokens.length; i++) {
 		let [nodes, nextIndex] = parseNode(tokens, i);
+		if(current_token(tokens, i).type === TOKEN_TYPES.NEWLINE && current_token(tokens, i).depth === 0) {
+      continue;
+		}
 		if (current_token(tokens, i).type !== TOKEN_TYPES.COMMENT && current_token(tokens, i).depth === 0) {
 			parserError(errorMessage(tokens, i, "[", ""));
 		}
