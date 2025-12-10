@@ -1,10 +1,12 @@
 import TagBuilder from "../formatter/tag.js";
 import MarkdownBuilder from "../formatter/mark.js";
 class Mapping {
+	#predefinedData;
+	#header;
 	constructor() {
 		this.outputs = [];
 		this.md = new MarkdownBuilder();
-		this.predefinedData =
+		this.#predefinedData =
 			"  " +
 			this.tag("meta").selfClose().attributes({ charset: "UTF-8" }).body() +
 			"\n" +
@@ -14,7 +16,7 @@ class Mapping {
 			"  " +
 			this.tag("title").body("SomMark Page") +
 			"\n";
-		this.header = this.predefinedData;
+		this.#header = this.#predefinedData;
 	}
 	create(id, renderOutput) {
 		if (id && renderOutput) {
@@ -39,7 +41,7 @@ class Mapping {
 		let headerData = "";
 		let { title, elements, rawData, resetData } = options;
 		if (resetData) {
-			this.predefinedData = "";
+			this.#predefinedData = "";
 		}
 		if (!title) {
 			title = "SomMark";
@@ -48,29 +50,29 @@ class Mapping {
 			// console.log(title);
 		}
 		if (Array.isArray(elements)) {
-			this.getElements(elements);
+			this.#getElements(elements);
 		}
 		if (Array.isArray(rawData)) {
 			for (const data of rawData) {
 				if (typeof data === "string") {
-					this.predefinedData += "\n" + "  " + data + "\n";
+					this.#predefinedData += "\n" + "  " + data + "\n";
 				}
 			}
 		}
-		if (this.predefinedData) {
-			headerData += this.tag("head").body("\n" + this.predefinedData) + "\n";
+		if (this.#predefinedData) {
+			headerData += this.tag("head").body("\n" + this.#predefinedData) + "\n";
 		}
-		this.header = headerData;
+		this.#header = headerData;
 		return headerData;
 	};
-	getElements(elements) {
+	#getElements(elements) {
 		for (let i = 0; i < elements.length; i++) {
 			let element = elements[i];
 			if (element instanceof Object) {
 				let propsLen = Object.keys(element);
 				if (propsLen.length > 0 && element.hasOwnProperty("tagName")) {
 					const { tagName, text, ...allProps } = element;
-					this.predefinedData +=
+					this.#predefinedData +=
 						"  " +
 						this.tag(tagName)
 							.attributes(allProps)
