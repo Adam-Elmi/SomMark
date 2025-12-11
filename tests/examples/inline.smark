@@ -1,4 +1,4 @@
-[InlieExamples]
+[Block]
 # Bold text
 Hello (Adam)->(bold)
 
@@ -9,12 +9,12 @@ Welcome (Elmi)->(italic)
 (eid)->(capital) joined the chat
 
 # URL inline
-Visit (SomCheat)->(url:www.somcheat.dev)
+Visit (SomCheat)->(link:www.somcheat.dev)
 
 # Repeated inline occurrences
 (Adam)->(bold) Adam (Adam)->(italic) Adam
 
 # Mixing types in one sentence
-Hi (Elmi)->(italic), check (Website)->(url:https://www.somcheat.dev) and (Github repo)->(url:https://github.com/Adam-Elmi/SomCheat)
+Hi (Elmi)->(italic), check (Website)->(link:https://www.somcheat.dev) and (Github repo)->(link:https://github.com/Adam-Elmi/SomCheat)
 
 [end]
