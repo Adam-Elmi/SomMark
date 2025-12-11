@@ -1,9 +1,9 @@
-[LinkExamples]
+[Block]
 Inline links:
-- (SomMark's Website)->(url:https://sommark.dev)
-- (GitHub Repo)->(url:https://github.com/Adam-Elmi/SomMark)
+- (SomMark's Website)->(link:https://sommark.dev)
+- (GitHub Repo)->(link:https://github.com/Adam-Elmi/SomMark)
 
 Link inside paragraph:
-SomMark documentation lives at (Docs)->(url:https://sommark.dev/docs) and all official plugins live at (Tools)->(url:https://sommark.dev/plugins).
+SomMark documentation lives at (Docs)->(link:https://sommark.dev/docs) and all official plugins live at (Tools)->(link:https://sommark.dev/plugins).
 
 [end]
