@@ -1,5 +1,5 @@
 # Comment block
-[CommentExamples]
+[Block]
 # This entire line is a comment and should be ignored by the parser.
 
 # Comments inside a block:
