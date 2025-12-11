@@ -1,12 +1,16 @@
 import colorize from "../helpers/colorize.js";
 
 function formatMessage(text) {
-	/* Format:
+	/* 
+	Format:
 	{line} = Horizontal line
 	{N} = Newline
   <color: Text> = Colored Text
+  
+  [No Nest]
   -----------------------------
-	Example: <red: Expected token> <magenta: ']'> {N} at line <red: 1> {N} column <green: 2> {line} */
+	Example: <$red: Expected token$> <$magenta: ']'$> {N} at line <$red: 1$> {N} column <$green: 2$> {line} 
+	*/
 	const horizontal_rule = "\n----------------------------------------------------------------------------------------------\n";
 	const pattern = /<\$([^:]+):([^$]+)\$>/g;
 
