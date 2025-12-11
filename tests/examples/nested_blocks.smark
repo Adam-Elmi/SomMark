@@ -1,9 +1,9 @@
 # This demonstrates nested SomMark blocks.
-[Section = A]
-    [Section = B]
-        [Section = C]
-            [Section = D]
-                [Section = F]
+[Block = A]
+    [Block = B]
+        [Block = C]
+            [Block = D]
+                [Block = F]
                 Hello World    
                 [end]
             [end]
