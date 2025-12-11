@@ -18,5 +18,5 @@ Now transpile it:
 sommark example.smark --out example.html
 @_end_@
 
-More info at (SomMark Docs)->(url:https://sommark.dev/docs).
+More info at (SomMark Docs)->(link:https://sommark.dev/docs).
 [end]
