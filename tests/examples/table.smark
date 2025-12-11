@@ -1,4 +1,4 @@
-[TableExamples]
+[Block]
 Simple user table:
 
 @_table_@: user, role, status
