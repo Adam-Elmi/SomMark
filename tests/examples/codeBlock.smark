@@ -1,4 +1,4 @@
-[CodeBlock]
+[Block]
 Lua example:
 @_code_@: lua
 function add(a, b)
