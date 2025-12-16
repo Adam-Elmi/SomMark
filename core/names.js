@@ -1,0 +1,13 @@
+export const BLOCK = "Block",
+	TEXT = "Text",
+	INLINE = "Inline",
+	ATBLOCK = "AtBlock",
+	NEWLINE = "Newline",
+	COMMENT = "Comment",
+	block_id = "Block Identifier",
+	block_value = "Block Value",
+	inline_id = "Inline Identifier",
+	inline_value = "Inline Value",
+	at_id = "At Identifier",
+	at_value = "At Value",
+	end_keyword = "end";
