@@ -1,15 +1,15 @@
 import colorize from "../helpers/colorize.js";
 
 function formatMessage(text) {
-	/* 
+	/*
 	Format:
 	{line} = Horizontal line
 	{N} = Newline
   <color: Text> = Colored Text
-  
+
   [No Nest]
   -----------------------------
-	Example: <$red: Expected token$> <$magenta: ']'$> {N} at line <$red: 1$> {N} column <$green: 2$> {line} 
+	Example: <$red: Expected token$> <$magenta: ']'$> {N} at line <$red: 1$> {N} column <$green: 2$> {line}
 	*/
 	const horizontal_rule = "\n----------------------------------------------------------------------------------------------\n";
 	const pattern = /<\$([^:]+):([^$]+)\$>/g;
@@ -37,7 +37,7 @@ class ParserError extends Error {
 	constructor(message) {
 		super(message);
 		this.name = "Parser Error";
-		this.message = formatMessage(`<$cyan:[${this.name}]$>:`) + formatMessage(message);
+		this.message = formatMessage(`<$cyan:[${this.name}]$>:`) + "\n" + formatMessage(message);
 	}
 }
 class TranspilerError extends Error {
@@ -60,8 +60,16 @@ function transpilerError(errorMessage) {
 	}
 }
 
-// function report(name, message) {
-// 	return formatMessage(name) + "\n" + formatMessage(message);
-// }
+function report(type, message) {
+	const msg = formatMessage(message);
+	switch (type) {
+		case "parser":
+			throw new ParserError(msg).message;
+		case "transpiler":
+			throw new TranspilerError(msg).message;
+		default:
+			throw new Error(msg).message;
+	}
+}
 
-export { parserError, transpilerError };
+export { parserError, transpilerError, report };
