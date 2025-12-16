@@ -45,14 +45,14 @@ function lexer(src) {
 	if (src && typeof src === "string") {
 		const tokens = [];
 		let scope_state = false;
-		let line = 1,
-			start = 1,
-			end = 1;
+    let line = 1;
+    let start;
+		let	end;
 		let depth_stack = [];
 		let context = "",
 			temp_str = "",
 			previous_value = "";
-		
+
 		function addToken(type, value) {
 			tokens.push({ type, value, line, start, end, depth: depth_stack.length });
 		}
@@ -67,7 +67,7 @@ function lexer(src) {
 					end = start;
 				} else {
 					// Update Column
-					start++;
+					start = end !== undefined ? end + 1 : 1;
 					end = start;
 				}
 				// Push to depth if next token is not end_keyword
@@ -83,7 +83,7 @@ function lexer(src) {
 			// Token: Equal Sign
 			else if (current_char === "=" && !scope_state) {
 				// Update Column
-				start++;
+				start = end !== undefined ? end + 1 : 1;
 				end = start;
 				addToken(TOKEN_TYPES.EQUAL, current_char);
 				previous_value = current_char;
@@ -91,7 +91,7 @@ function lexer(src) {
 			// Token: Close Bracket
 			else if (current_char === "]" && !scope_state) {
 				// Update Column
-				start++;
+				start = end !== undefined ? end + 1 : 1;
 				end = start;
 				addToken(TOKEN_TYPES.CLOSE_BRACKET, current_char);
 				if (previous_value === end_keyword) {
@@ -102,7 +102,7 @@ function lexer(src) {
 			// Token: Open Parenthesis
 			else if (current_char === "(" && !scope_state) {
 				// Update Column
-				start++;
+				start = end !== undefined ? end + 1 : 1;
 				end = start;
 				addToken(TOKEN_TYPES.OPEN_PAREN, current_char);
 				if (previous_value !== "->") {
@@ -114,15 +114,15 @@ function lexer(src) {
 				temp_str = current_char + peek(src, i, 1);
 				i += temp_str.length - 1;
 				// Update Column
-				start++;
-				end = end + temp_str.length;
+				start = end !== undefined ? end + 1 : 1;
+				end = start + temp_str.length;
 				addToken(TOKEN_TYPES.THIN_ARROW, temp_str);
 				previous_value = temp_str;
 			}
 			// Token: Close Parenthesis
 			else if (current_char === ")" && !scope_state) {
 				// Update Column
-				start++;
+				start = end !== undefined ? end + 1 : 1;
 				end = start;
 				addToken(TOKEN_TYPES.CLOSE_PAREN, current_char);
 				previous_value = current_char;
@@ -132,8 +132,8 @@ function lexer(src) {
 				temp_str = current_char + peek(src, i, 1);
 				i += temp_str.length - 1;
 				// Update Column
-				start++;
-				end = end + temp_str.length;
+				start = end !== undefined ? end + 1 : 1;
+				end = start + temp_str.length;
 				scope_state = true;
 				addToken(TOKEN_TYPES.OPEN_AT, temp_str);
 				previous_value = temp_str;
@@ -143,15 +143,15 @@ function lexer(src) {
 				temp_str = current_char + peek(src, i, 1);
 				i += temp_str.length - 1;
 				// Update Column
-				start++;
-				end = end + temp_str.length;
+				start = end !== undefined ? end + 1 : 1;
+				end = start + temp_str.length;
 				addToken(TOKEN_TYPES.CLOSE_AT, temp_str);
 				previous_value = temp_str;
 			}
 			// Token: Colon
 			else if (current_char === ":" && previous_value === "_@") {
 				// Update Column
-				start++;
+				start = end !== undefined ? end + 1 : 1;
 				end = start;
 				addToken(TOKEN_TYPES.COLON, current_char);
 				previous_value = current_char;
@@ -177,8 +177,8 @@ function lexer(src) {
 					temp_str = concat(src, i, ["=", "]", "\n"], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
-					start++;
-					end = end + temp_str.length;
+					start = end !== undefined ? end + 1 : 1;
+					end = start + temp_str.length;
 					if (temp_str.trim()) {
 						if (previous_value === "[") {
 							// Token: End Keyword
@@ -205,8 +205,8 @@ function lexer(src) {
 					temp_str = concat(src, i, [")", "["], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
-					start++;
-					end = end + temp_str.length;
+					start = end !== undefined ? end + 1 : 1;
+					end = start + temp_str.length;
 					temp_str = temp_str.trim();
 					if (temp_str) {
 						if (previous_value === "(") {
@@ -226,8 +226,8 @@ function lexer(src) {
 					i += temp_str.length - 1;
 					if (temp_str.trim()) {
 						// Update Column
-						start++;
-						end = end + temp_str.length;
+						start = end !== undefined ? end + 1 : 1;
+						end = start + temp_str.length;
 						if (previous_value === "@_") {
 							// Token: End Keyword
 							if (temp_str.trim() === end_keyword) {
@@ -252,8 +252,8 @@ function lexer(src) {
 				else if (current_char === "#") {
 					temp_str = concat(src, i, ["\n"], scope_state);
 					// Update Column
-					start++;
-					end = end + temp_str.length;
+					start = end !== undefined ? end + 1 : 1;
+					end = start + temp_str.length;
 					temp_str = temp_str.trim();
 					if (temp_str) {
 						i += temp_str.length - 1;
@@ -265,9 +265,9 @@ function lexer(src) {
 					context = concat(src, i, null, scope_state);
 					i += context.length - 1;
 					// Update Column
-					start++;
-					end = end + context.length;
-          context = context.trim();
+					start = end !== undefined ? end + 1 : 1;
+					end = start + context.length;
+					context = context.trim();
 					if (context) {
 						addToken(TOKEN_TYPES.TEXT, context);
 					}
