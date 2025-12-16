@@ -167,7 +167,7 @@ function lexer(src) {
 			else if (current_char === "`" && !scope_state) {
 				temp_str = current_char + concat(src, i + 1, ["`"], scope_state, true);
 				if (temp_str && temp_str.length > 0) {
-					i += temp_str.length;
+					i += temp_str.length - 1;
 					addToken(TOKEN_TYPES.TEXT, temp_str);
 				}
 			}
