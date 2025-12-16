@@ -89,7 +89,7 @@ function generateOutput(ast, i, format, file) {
 			result += context;
 		}
 	} else {
-		transpilerError([`{line}<$red:Unknown Identifier$>: <$yellow:${node.id}$>{line}`]);
+		transpilerError([`{line}<$yellow:Identifier$> <$blue:'${node.id}'$> <$yellow: is not found in mapping table$>{line}`]);
 	}
 	return result;
 }
