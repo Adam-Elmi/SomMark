@@ -1,6 +1,6 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
-import { parserError } from "./validator.js";
+import { parserError, report } from "./validator.js";
 import PREDEFINED_IDS from "./ids.js";
 import {
 	BLOCK,
@@ -78,9 +78,9 @@ let block_stack = [];
 let end_stack = [];
 let tokens_stack = [];
 let line = 1,
-  start = 1,
-  end = 1,
-  value = "";
+	start = 1,
+	end = 1,
+	value = "";
 
 const updateData = (tokens, i) => {
 	if (tokens[i]) {
@@ -88,7 +88,7 @@ const updateData = (tokens, i) => {
 		line = tokens[i].line;
 		start = tokens[i].start;
 		end = tokens[i].end;
-    value = tokens[i].value;
+		value = tokens[i].value;
 	}
 };
 
@@ -115,10 +115,17 @@ function parseBlock(tokens, i) {
 	updateData(tokens, i);
 	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
-		blockNode.id = current_token(tokens, i).value.trim();
+		const id = current_token(tokens, i).value.trim();
+		if (!/^[a-zA-Z]+$/.test(id)) {
+			report(
+				"parser",
+				`{line}<$red:Invalid Identifier:$><$blue: '${id}'$>{N}<$yellow:Identifier must contain only letters$> <$cyan: (A–Z, a–z).$>`
+			);
+		}
+		blockNode.id = id;
 		blockNode.depth = current_token(tokens, i).depth;
 	} else {
-		parserError("Block Identifier", tokens[i].line, tokens[i].start, tokens[i].end);
+		parserError(errorMessage(tokens, i, block_id, "["));
 	}
 	// Update Data
 	updateData(tokens, i);
@@ -134,7 +141,7 @@ function parseBlock(tokens, i) {
 					blockNode.args.push(value);
 				});
 		} else {
-			parserError("Block Value", tokens[i].line, tokens[i].start, tokens[i].end);
+			parserError(errorMessage(tokens, i, block_value, "="));
 		}
 		// Update Data
 		updateData(tokens, i);
@@ -144,14 +151,14 @@ function parseBlock(tokens, i) {
 		if (peek(tokens, i, -1) && peek(tokens, i, -1).type === TOKEN_TYPES.VALUE) {
 			parserError(errorMessage(tokens, i, "]", block_value));
 		} else {
-			parserError(parserError(errorMessage(tokens, i, "]", block_id)));
+			parserError(errorMessage(tokens, i, "]", block_id));
 		}
 	}
 	// Update Data
 	updateData(tokens, i);
 	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).value !== "\n") {
-		parserError(parserError(errorMessage(tokens, i, "\\n", "]")));
+		parserError(errorMessage(tokens, i, "\\n", "]"));
 	}
 	// Update Data
 	updateData(tokens, i);
@@ -428,8 +435,8 @@ function parser(tokens) {
 	let ast = [];
 	for (let i = 0; i < tokens.length; i++) {
 		let [nodes, nextIndex] = parseNode(tokens, i);
-		if(current_token(tokens, i).type === TOKEN_TYPES.NEWLINE && current_token(tokens, i).depth === 0) {
-      continue;
+		if (current_token(tokens, i).type === TOKEN_TYPES.NEWLINE && current_token(tokens, i).depth === 0) {
+			continue;
 		}
 		if (current_token(tokens, i).type !== TOKEN_TYPES.COMMENT && current_token(tokens, i).depth === 0) {
 			parserError(errorMessage(tokens, i, "[", ""));
