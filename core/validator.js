@@ -72,4 +72,13 @@ function report(type, message) {
 	}
 }
 
-export { parserError, transpilerError, report };
+function validateId(id) {
+	if (!/^[a-zA-Z]+$/.test(id)) {
+		report(
+			"parser",
+			`{line}<$red:Invalid Identifier:$><$blue: '${id}'$>{N}<$yellow:Identifier must contain only letters$> <$cyan: (A–Z, a–z).$>{line}`
+		);
+	}
+}
+
+export { parserError, transpilerError, report, validateId };
