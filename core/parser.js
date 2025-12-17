@@ -1,6 +1,6 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
-import { parserError, report } from "./validator.js";
+import { parserError, validateId } from "./validator.js";
 import PREDEFINED_IDS from "./ids.js";
 import {
 	BLOCK,
@@ -116,12 +116,7 @@ function parseBlock(tokens, i) {
 	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		const id = current_token(tokens, i).value.trim();
-		if (!/^[a-zA-Z]+$/.test(id)) {
-			report(
-				"parser",
-				`{line}<$red:Invalid Identifier:$><$blue: '${id}'$>{N}<$yellow:Identifier must contain only letters$> <$cyan: (A–Z, a–z).$>`
-			);
-		}
+		validateId(id);
 		blockNode.id = id;
 		blockNode.depth = current_token(tokens, i).depth;
 	} else {
@@ -246,7 +241,7 @@ function parseInline(tokens, i) {
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		for (const id of PREDEFINED_IDS) {
 			if (current_token(tokens, i).value.includes(`${id}:`)) {
-				inlineNode.id = id;
+				inlineNode.id = id.trim();
 				const currentValue = current_token(tokens, i).value;
 				if (currentValue.includes('"')) {
 					inlineNode.data = currentValue
@@ -261,6 +256,7 @@ function parseInline(tokens, i) {
 				inlineNode.id = current_token(tokens, i).value;
 			}
 		}
+		validateId(inlineNode.id);
 	} else {
 		parserError(errorMessage(tokens, i, inline_id, "("));
 	}
@@ -297,7 +293,9 @@ function parseAtBlock(tokens, i) {
 	updateData(tokens, i);
 	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
-		atBlockNode.id = current_token(tokens, i).value;
+    const id =  current_token(tokens, i).value.trim();
+    validateId(id);
+		atBlockNode.id = id;
 		atBlockNode.depth = current_token(tokens, i).depth;
 	} else {
 		parserError(errorMessage(tokens, i, at_id, "@_"));
