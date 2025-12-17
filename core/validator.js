@@ -33,52 +33,69 @@ function formatMessage(text) {
 	return text;
 }
 
-class ParserError extends Error {
-	constructor(message) {
+class CustomError extends Error {
+	constructor(message, name) {
 		super(message);
-		this.name = "Parser Error";
+		this.name = name;
 		this.message = formatMessage(`<$cyan:[${this.name}]$>:`) + "\n" + formatMessage(message);
+		if (Error.captureStackTrace) {
+			Error.captureStackTrace(this, this.constructor);
+		}
 	}
 }
-class TranspilerError extends Error {
+
+class ParserError extends CustomError {
 	constructor(message) {
-		super(message);
-		this.name = "Transpiler Error";
-		this.message = formatMessage(`<$cyan:[${this.name}]$>:`) + "\n" + formatMessage(message);
+		super(message, "Parser Error");
 	}
 }
 
-function parserError(errorMessage) {
-	if (Array.isArray(errorMessage) && errorMessage.length > 0) {
-		throw new ParserError(errorMessage).message;
+class TranspilerError extends CustomError {
+	constructor(message) {
+		super(message, "Transpiler Error");
 	}
 }
 
-function transpilerError(errorMessage) {
-	if (Array.isArray(errorMessage) && errorMessage.length > 0) {
-		throw new TranspilerError(errorMessage).message;
+class CLIError extends CustomError {
+	constructor(message) {
+		super(message, "CLI Error");
 	}
 }
 
-function report(type, message) {
-	const msg = formatMessage(message);
+function getError(type) {
+	const validate_msg = msg => Array.isArray(msg) && msg.length > 0;
 	switch (type) {
 		case "parser":
-			throw new ParserError(msg).message;
+			return errorMessage => {
+				if (validate_msg(errorMessage)) {
+					throw new ParserError(errorMessage).message;
+				}
+			};
 		case "transpiler":
-			throw new TranspilerError(msg).message;
-		default:
-			throw new Error(msg).message;
+			return errorMessage => {
+				if (validate_msg(errorMessage)) {
+					throw new TranspilerError(errorMessage).message;
+				}
+			};
+		case "cli":
+			return errorMessage => {
+				if (validate_msg(errorMessage)) {
+					throw new CLIError(errorMessage).message;
+				}
+			};
 	}
 }
+
+const parserError = getError("parser");
+const transpilerError = getError("transpiler");
+const cliError = getError("cli");
 
 function validateId(id) {
 	if (!/^[a-zA-Z]+$/.test(id)) {
-		report(
-			"parser",
+		parserError([
 			`{line}<$red:Invalid Identifier:$><$blue: '${id}'$>{N}<$yellow:Identifier must contain only letters$> <$cyan: (A–Z, a–z).$>{line}`
-		);
+		]);
 	}
 }
 
-export { parserError, transpilerError, report, validateId };
+export { parserError, transpilerError, validateId, cliError };
