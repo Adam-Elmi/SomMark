@@ -293,8 +293,8 @@ function parseAtBlock(tokens, i) {
 	updateData(tokens, i);
 	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
-    const id =  current_token(tokens, i).value.trim();
-    validateId(id);
+		const id = current_token(tokens, i).value.trim();
+		validateId(id);
 		atBlockNode.id = id;
 		atBlockNode.depth = current_token(tokens, i).depth;
 	} else {
