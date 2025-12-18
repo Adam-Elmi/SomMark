@@ -2,7 +2,6 @@ import TagBuilder from "../formatter/tag.js";
 import MarkdownBuilder from "../formatter/mark.js";
 class Mapping {
 	#predefinedData;
-	#header;
 	constructor() {
 		this.outputs = [];
 		this.md = new MarkdownBuilder();
@@ -16,7 +15,7 @@ class Mapping {
 			"  " +
 			this.tag("title").body("SomMark Page") +
 			"\n";
-		this.#header = this.#predefinedData;
+		this.header = this.#predefinedData;
 	}
 	create(id, renderOutput) {
 		if (id && renderOutput) {
@@ -62,7 +61,7 @@ class Mapping {
 		if (this.#predefinedData) {
 			headerData += this.tag("head").body("\n" + this.#predefinedData) + "\n";
 		}
-		this.#header = headerData;
+		this.header = headerData;
 		return headerData;
 	};
 	#getElements(elements) {
