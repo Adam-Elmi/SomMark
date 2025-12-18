@@ -5,7 +5,7 @@ SomMark is a clean, human-readable markup language designed for documentation.
 To install the CLI:
 @_code_@: sh
 npm install -g sommark
-smark --version
+smark -v
 @_end_@
 
 Next, create your first file:
