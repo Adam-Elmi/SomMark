@@ -1,17 +1,16 @@
 {
 	"name": "sommark",
+	"version": "1.0.0",
 	"description": "SomMark is a structural markup language for writing structured documents and converting them into HTML or Markdown.",
 	"main": "smark.config.js",
 	"directories": {
 		"test": "tests"
 	},
 	"type": "module",
-	"scripts": {
-	},
+	"scripts": {},
 	"bin": {
-	  "smark": "./cli/cli.mjs"
-	}
-	,
+		"smark": "./cli/cli.mjs"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Adam-Elmi/SomMark.git"
