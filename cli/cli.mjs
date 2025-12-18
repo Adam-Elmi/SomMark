@@ -3,38 +3,29 @@ import projectJson from "../package.json" with { type: "json" };
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { cliError } from "../core/validator.js";
+import { cliError, formatMessage } from "../core/validator.js";
 import lexer from "../core/lexer.js";
 import parser from "../core/parser.js";
 import transpiler from "../core/transpiler.js";
 import html from "../mapping/default_mode/smark.html.js";
 import md from "../mapping/default_mode/smark.md.js";
 
-/*
-Cli features:
-- Show the version
-- Transpile to html (FILE)
-- Transpile to md (FILE)
-- Display output (No File)
-*/
-
-function getDescriptive() {
-	return [
-		projectJson.version && typeof parseFloat(projectJson.version) === "number" ? projectJson.version : "",
-		"SomMark is a structural markup language for writing structured documents.",
-		"Copyright (C) Adam Elmi",
-		"Github: https://github.com/Adam-Elmi/SomMark"
-	]
-		.filter(value => value !== "")
-		.join("\n");
+if (process.argv.length <= 2) {
+	console.log(
+		[
+			projectJson.version && typeof parseFloat(projectJson.version) === "number" ? projectJson.version : "",
+			"SomMark is a structural markup language for writing structured documents.",
+			"Copyright (C) Adam Elmi",
+			"Github: https://github.com/Adam-Elmi/SomMark"
+		]
+			.filter(value => value !== "")
+			.join("\n")
+	);
 }
 
-function getVersion() {
-	if (Array.isArray(process.argv) && process.argv.length > 0) {
-		if (projectJson && projectJson.version !== undefined && process.argv[2] === "-v") {
-			return projectJson.version;
-		}
-		return getDescriptive();
+if (process.argv.length > 0) {
+	if (projectJson && projectJson.version !== undefined && process.argv[2] === "-v") {
+		console.log(projectJson.version);
 	}
 }
 
@@ -60,7 +51,7 @@ async function readContent(path) {
 	return content;
 }
 
-const CONFIG_FILE_NAME = "smark.config.json";
+const CONFIG_FILE_NAME = "smark.config.js";
 const currentDir = process.cwd();
 const configPath = path.join(currentDir, CONFIG_FILE_NAME);
 
@@ -75,9 +66,7 @@ async function loadConfig() {
 	if (isExist(configPath)) {
 		try {
 			const configURL = pathToFileURL(configPath).href;
-			const loadedModule = await import(configURL, {
-				with: { type: "json" }
-			});
+			const loadedModule = await import(configURL);
 			config = loadedModule.default;
 		} catch (error) {
 			console.error(`Error loading configuration file ${CONFIG_FILE_NAME}:`, error.message);
@@ -101,19 +90,41 @@ async function transpile(src, format, mappingFile = "") {
 		cliError([`{line}<$red:File$> <$blue:'${mappingFile}'$> <$red: is not found$>{line}`]);
 	}
 }
-async function generateFile(format) {
+async function generateFile() {
 	try {
-		if (Array.isArray(process.argv) && process.argv.length > 0) {
-			if (process.argv[2] === `--${format}`) {
+		const format_option = process.argv[2] ?? "";
+		const format = format_option.replaceAll("-", "") ?? "";
+		if (format_option !== "--html" && format_option !== "--md") {
+			cliError([
+				"{line}",
+				"[<$yellow: STATUS$> : <$red: FAIL$>]{line}",
+				`<$red:Unrecognized format$> <$blue: ${format_option}$> {N}<$yellow: Only these formats$> <$green:--html$> and <$green:--md$> <$yellow: are accepted.$>{line}`
+			]);
+		}
+		if (format && ["html", "md"].includes(format)) {
+			if (Array.isArray(process.argv) && process.argv.length > 0) {
 				if (await isExist(process.argv[3])) {
 					const file = path.parse(process.argv[3]);
 					if (file.ext === ".smark") {
 						if (!process.argv[4]) {
-              const config = await loadConfig();
+							const config = await loadConfig();
 							const outputDir = config.outputDir;
 							const outputFile = config.outputFile;
-							// const content = (await readContent(config.mode === "default" ? ).toString();
-							await createFile(outputDir, `${outputFile}.${format}`, content);
+							if (config.mode === "default") {
+								config.mappingFile = format === "html" ? html : format === "md" ? md : null;
+							}
+							let source_code = await readContent(process.argv[3]);
+							source_code = source_code.toString();
+							const output = await transpile(source_code, format, config.mappingFile);
+							await createFile(outputDir, `${outputFile}.${format}`, output);
+							console.log(
+								formatMessage(
+									[
+										`{line}[<$yellow: STATUS$> : <$green: SUCCESS$>]{line}<$blue: File$> <$yellow:'${outputFile}.${format}'$> <$blue: is successfully created`,
+										` in directory$> <$yellow: '${outputDir}'$>{line}`
+									].join("")
+								)
+							);
 						}
 					} else {
 						cliError([
@@ -121,7 +132,10 @@ async function generateFile(format) {
 						]);
 					}
 				} else {
-					cliError([`{line}<$red:File$> <$blue:'${process.argv[3] ?? "Unknown"}'$> <$red: is not found$>{line}`]);
+					cliError([
+						`{line}<$red:File$> <$blue:'${process.argv[3] ?? "Unknown"}'$> <$red: is not found.$>`,
+						`${process.argv[3] ? "" : "{N}<$magenta:<Unknown>$> -> <$yellow:means you did not define the file path.$>"}{line}`
+					]);
 				}
 			}
 		}
@@ -129,13 +143,4 @@ async function generateFile(format) {
 		console.error(err);
 	}
 }
-
-const cli = {
-	description: () => getDescriptive(),
-	version: () => getVersion(),
-	run: function () {
-		this.version();
-	}
-};
-
-generateFile("html");
+generateFile();
