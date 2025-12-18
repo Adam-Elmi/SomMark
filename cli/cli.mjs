@@ -10,6 +10,34 @@ import transpiler from "../core/transpiler.js";
 import html from "../mapping/default_mode/smark.html.js";
 import md from "../mapping/default_mode/smark.md.js";
 
+const options = ["-v", "--version", "-h", "--help", "--html", "--md"];
+
+function getHelp(unknown_option = true) {
+	const msg = [
+		`${unknown_option && process.argv[2] ? `<$red:Unrecognized option$> <$blue: '${process.argv[2]}'$>` : "<$cyan:[Help]$>"}`,
+		"{N}<$yellow:Usage:$> <$blue:smark [options] [targetFile] [option] [outputFile] [outputDir]$>",
+		"{N}<$yellow:Available options are:$>",
+		"{N}  <$green:-h or --help$>      <$cyan: show help message$>",
+		"{N}  <$green:-v or --version$>   <$cyan: show version information$>",
+		"{N}  <$green:--html$>            <$cyan: transpile to html$>",
+		"{N}  <$green:--md$>              <$cyan: transpile to markdown$>"
+	].join("");
+	const help_msg = formatMessage(msg);
+	if (!options.includes(process.argv[2]) && unknown_option) {
+		console.log(help_msg);
+		process.exit(0);
+	} else if (process.argv[2] === "-h") {
+		console.log(help_msg);
+		process.exit(0);
+	}
+}
+
+if (process.argv[2] && (process.argv[2] === "-h" || process.argv[2] === "--help")) {
+	getHelp(false);
+} else {
+	getHelp();
+}
+
 if (process.argv.length <= 2) {
 	console.log(
 		[
@@ -23,10 +51,8 @@ if (process.argv.length <= 2) {
 	);
 }
 
-if (process.argv.length > 0) {
-	if (projectJson && projectJson.version !== undefined && process.argv[2] === "-v") {
-		console.log(projectJson.version);
-	}
+if (projectJson && projectJson.version !== undefined && (process.argv[2] === "-v" || process.argv[2] === "--version")) {
+	console.log(projectJson.version);
 }
 
 const isExist = async path => {
@@ -43,6 +69,9 @@ const isExist = async path => {
 };
 
 async function createFile(folder, file, content) {
+	if (!(await isExist(folder))) {
+		await fs.mkdir(folder, { recursive: true });
+	}
 	await fs.writeFile(path.join(folder, file), content);
 }
 
@@ -90,42 +119,45 @@ async function transpile(src, format, mappingFile = "") {
 		cliError([`{line}<$red:File$> <$blue:'${mappingFile}'$> <$red: is not found$>{line}`]);
 	}
 }
+
+async function generateOutput(outputDir, outputFile, format) {
+	let source_code = await readContent(process.argv[3]);
+	source_code = source_code.toString();
+	const output = await transpile(source_code, format, config.mappingFile);
+	await createFile(outputDir, `${outputFile}.${format}`, output);
+}
 async function generateFile() {
 	try {
 		const format_option = process.argv[2] ?? "";
 		const format = format_option.replaceAll("-", "") ?? "";
-		if (format_option !== "--html" && format_option !== "--md") {
-			cliError([
-				"{line}",
-				"[<$yellow: STATUS$> : <$red: FAIL$>]{line}",
-				`<$red:Unrecognized format$> <$blue: ${format_option}$> {N}<$yellow: Only these formats$> <$green:--html$> and <$green:--md$> <$yellow: are accepted.$>{line}`
-			]);
-		}
 		if (format && ["html", "md"].includes(format)) {
 			if (Array.isArray(process.argv) && process.argv.length > 0) {
 				const targetFile = process.argv[3] ? path.parse(process.argv[3]) : "";
 				if (await isExist(process.argv[3])) {
 					const file = path.parse(process.argv[3]);
 					if (file.ext === ".smark") {
-						if (!process.argv[4]) {
-							const config = await loadConfig();
-							const outputDir = config.outputDir;
-							const outputFile = config.outputFile;
+						const config = await loadConfig();
+						const success_msg = (outputDir, outputFile) => {
+							return formatMessage(
+								[
+									`{line}[<$yellow: STATUS$> : <$green: SUCCESS$>]{line}<$blue: File$> <$yellow:'${outputFile}.${format}'$> <$blue: is successfully created`,
+									` in directory$> <$yellow: '${outputDir}'$>{line}`
+								].join("")
+							);
+						};
+						if (process.argv[4] === undefined) {
 							if (config.mode === "default") {
 								config.mappingFile = format === "html" ? html : format === "md" ? md : null;
 							}
-							let source_code = await readContent(process.argv[3]);
-							source_code = source_code.toString();
-							const output = await transpile(source_code, format, config.mappingFile);
-							await createFile(outputDir, `${outputFile}.${format}`, output);
-							console.log(
-								formatMessage(
-									[
-										`{line}[<$yellow: STATUS$> : <$green: SUCCESS$>]{line}<$blue: File$> <$yellow:'${outputFile}.${format}'$> <$blue: is successfully created`,
-										` in directory$> <$yellow: '${outputDir}'$>{line}`
-									].join("")
-								)
-							);
+							generateOutput(config.outputDir, config.outputFile, format);
+							console.log(success_msg(config.outputDir, config.outputFile));
+						} else if (process.argv[4] === "-o") {
+							if (process.argv[5] !== undefined) {
+								config.outputFile = path.parse(process.argv[5]).name;
+								config.outputDir = process.argv[6] !== undefined ? process.argv[6] : config.outputDir;
+								generateOutput(config.outputDir, config.outputFile, format);
+								console.log(success_msg(config.outputDir, config.outputFile));
+							}
 						}
 					} else {
 						cliError([
