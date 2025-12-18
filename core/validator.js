@@ -98,4 +98,4 @@ function validateId(id) {
 	}
 }
 
-export { parserError, transpilerError, validateId, cliError };
+export { parserError, transpilerError, validateId, cliError, formatMessage };
