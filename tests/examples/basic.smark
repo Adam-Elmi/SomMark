@@ -10,13 +10,15 @@ sommark --version
 
 Next, create your first file:
 @_code_@: sh
-echo "[Doc]\nHello SomMark!\n[end]" > example.smark
+echo "[Doc]
+Hello SomMark!
+[end]" > example.smark
 @_end_@
 
 Now transpile it:
 @_code_@: sh
-sommark example.smark --out example.html
+smark --html ./example.smark -o output.html ./generate
 @_end_@
-
+`[Hello Adam]`
 More info at (SomMark Docs)->(link:https://sommark.dev/docs).
 [end]
