@@ -22,5 +22,5 @@ Now transpile it:
 ``` sh
 smark --html ./example.smark -o output.html ./generate
 ```
-`[Hello Adam]`
+[Hello Adam]
 More info at [SomMark Docs](https://sommark.dev/docs) .
