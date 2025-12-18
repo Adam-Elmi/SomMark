@@ -103,6 +103,7 @@ async function generateFile() {
 		}
 		if (format && ["html", "md"].includes(format)) {
 			if (Array.isArray(process.argv) && process.argv.length > 0) {
+				const targetFile = process.argv[3] ? path.parse(process.argv[3]) : "";
 				if (await isExist(process.argv[3])) {
 					const file = path.parse(process.argv[3]);
 					if (file.ext === ".smark") {
@@ -133,7 +134,7 @@ async function generateFile() {
 					}
 				} else {
 					cliError([
-						`{line}<$red:File$> <$blue:'${process.argv[3] ?? "Unknown"}'$> <$red: is not found.$>`,
+						`{line}<$magenta:File$> <$blue:'${process.argv[3] ? targetFile.name + targetFile.ext : "Unknown"}'$> <$magenta: is not found$>${(await isExist(targetFile.dir)) ? ` <$magenta: in directory$> <$yellow:${targetFile.dir}$>` : "."}`,
 						`${process.argv[3] ? "" : "{N}<$magenta:<Unknown>$> -> <$yellow:means you did not define the file path.$>"}{line}`
 					]);
 				}
