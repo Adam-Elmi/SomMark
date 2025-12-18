@@ -6,19 +6,21 @@ To install the CLI:
 
 ``` sh
 npm install -g sommark
-sommark --version
+smark -v
 ```
 
 Next, create your first file:
 
 ``` sh
-echo "[Doc]\nHello SomMark!\n[end]" > example.smark
+echo "[Doc]
+Hello SomMark!
+[end]" > example.smark
 ```
 
 Now transpile it:
 
 ``` sh
-sommark example.smark --out example.html
+smark --html ./example.smark -o output.html ./generate
 ```
 `[Hello Adam]`
 More info at [SomMark Docs](https://sommark.dev/docs) .
