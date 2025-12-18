@@ -149,7 +149,7 @@ async function generateFile() {
 							if (config.mode === "default") {
 								config.mappingFile = format === "html" ? html : format === "md" ? md : null;
 							}
-							generateOutput(config.outputDir, config.outputFile, format);
+							await generateOutput(config.outputDir, config.outputFile, format);
 							console.log(success_msg(config.outputDir, config.outputFile));
 						} else if (process.argv[4] === "-o") {
 							if (process.argv[5] !== undefined) {
