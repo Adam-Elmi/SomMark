@@ -38,6 +38,9 @@ function generateOutput(ast, i, format, file) {
 		for (const body_node of node.body) {
 			switch (body_node.type) {
 				case TEXT:
+				if(body_node.text.startsWith("`") && body_node.text.endsWith("`")) {
+          body_node.text = body_node.text.slice(1, body_node.text.length - 1);
+				}
 					context += (format === "html" ? " ".repeat(body_node.depth) : "") + body_node.text;
 					break;
 				case INLINE:
