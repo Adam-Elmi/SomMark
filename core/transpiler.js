@@ -38,10 +38,14 @@ function generateOutput(ast, i, format, file) {
 		for (const body_node of node.body) {
 			switch (body_node.type) {
 				case TEXT:
-				if(body_node.text.startsWith("`") && body_node.text.endsWith("`")) {
-          body_node.text = body_node.text.slice(1, body_node.text.length - 1);
-				}
-					context += (format === "html" ? " ".repeat(body_node.depth) : "") + body_node.text;
+					if (body_node.text.startsWith("`") && body_node.text.endsWith("`")) {
+						body_node.text = body_node.text.slice(1, body_node.text.length - 1);
+					}
+					if (format === "html") {
+						context += " ".repeat(body_node.depth) + `<p>${body_node.text}</p>`;
+					} else {
+						context += body_node.text;
+					}
 					break;
 				case INLINE:
 					target = matchedValue(file.outputs, body_node.id);
@@ -98,15 +102,15 @@ function generateOutput(ast, i, format, file) {
 }
 
 const accepted_formats = ["html", "md", "mdx"];
- 
+
 function transpiler(ast, format, file) {
 	if (!format) {
 		transpilerError(["{line}<$red:Invalid Format$>: <$yellow:Format argument is not defined$>{line}"]);
 	}
 	if (!accepted_formats.includes(format)) {
 		transpilerError([
-		`{line}<$red:Unknown Format$>: <$yellow:You provided unknown format:$> <$green:'${format}'$>`,
-		`{N}<$yellow:Accepted formats are:$> [<$cyan: ${accepted_formats.join(", ")}$>]{line}`
+			`{line}<$red:Unknown Format$>: <$yellow:You provided unknown format:$> <$green:'${format}'$>`,
+			`{N}<$yellow:Accepted formats are:$> [<$cyan: ${accepted_formats.join(", ")}$>]{line}`
 		]);
 	}
 	let output = "";
