@@ -2,27 +2,27 @@ import Mapping from "../mapping.js";
 const markdown = new Mapping();
 const { md } = markdown;
 // Headings
-markdown.create("Heading", (args) => {
-  return md.heading(args[1], args[0]);
+markdown.create("Heading", args => {
+	return md.heading(args[1], args[0]);
 });
 // Inline Headings
 markdown.create("h1", (_, children) => {
-  return md.heading(children, 1);
+	return md.heading(children, 1);
 });
 markdown.create("h2", (_, children) => {
-  return md.heading(children, 2);
+	return md.heading(children, 2);
 });
 markdown.create("h3", (_, children) => {
-  return md.heading(children, 3);
+	return md.heading(children, 3);
 });
 markdown.create("h4", (_, children) => {
-  return md.heading(children, 4);
+	return md.heading(children, 4);
 });
 markdown.create("h5", (_, children) => {
-  return md.heading(children, 5);
+	return md.heading(children, 5);
 });
 markdown.create("h6", (_, children) => {
-  return md.heading(children, 6);
+	return md.heading(children, 6);
 });
 // Bold
 markdown.create(["bold", "b"], (_, children) => {
@@ -55,5 +55,9 @@ markdown.create(["horizontal", "h"], (_, children) => {
 // Escape Characters
 markdown.create(["escape", "s"], (_, children) => {
 	return md.escape(children);
+});
+// Table
+markdown.create("table", (args, children) => {
+	return md.table(args, children.split("\n"));
 });
 export default markdown;
