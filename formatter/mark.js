@@ -133,43 +133,52 @@ Example: ***text***
 			return "";
 		}
 
-		text = text.split("").map(char => {
-			if (special_char.includes(char)) {
-				return `\\${char}`;
-			}
-			return char;
-		}).join("");
+		text = text
+			.split("")
+			.map(char => {
+				if (special_char.includes(char)) {
+					return `\\${char}`;
+				}
+				return char;
+			})
+			.join("");
 		return text;
 	}
-}
-
-function list() {
-	/*
-  Unordered list:
-  - Item 1
-  - Item 2
-    - Nested item
-      - Nested item
-  - Item 3
-  - Item 4
- 	----------------------------
-  1. First
-  2. Second
-     1. Nested
-      1. Nested
-  3. Third
-  4. Four
-  5. Five
-  */
-}
-function table() {
-	/*
+	// Table
+	table(headers, rows) {
+		/*
 Example:
 | Name  | Age | City       |
 |-------|-----|------------|
 | Adam  | 23  | Hargeisa   |
 | Elmi  | 30  | Hargeisa   |
 */
+		let result = "";
+		const isNotEmptyArray = arr => Array.isArray(arr) && arr.length > 0;
+		if (isNotEmptyArray(headers) && isNotEmptyArray(rows)) {
+			for (let i = 0; i < headers.length; i++) {
+				const header = headers[i];
+				result += i === 0 ? `| ${header} |` : ` ${header} |${i === headers.length - 1 ? "\n" : ""}`;
+			}
+			for (let i = 0; i < headers.length; i++) {
+				const header = headers[i];
+				result +=
+					i === 0
+						? `|${"-".repeat(header.length + 2)}|`
+						: `${"-".repeat(header.length + 2)}|${i === headers.length - 1 ? "\n" : ""}`;
+			}
+			rows = rows.map(row => {
+				let newRow = row;
+				newRow = row.replaceAll(/[,-]/g, " |");
+				return newRow.trim();
+			});
+			for (const row of rows) {
+				result += `${row} |\n`;
+			}
+		}
+		return result;
+	}
 }
+
 function blockQuote() {}
 export default MarkdownBuilder;
