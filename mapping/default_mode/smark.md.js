@@ -1,6 +1,10 @@
 import Mapping from "../mapping.js";
 const markdown = new Mapping();
 const { md } = markdown;
+// Block
+markdown.create("Block", (_, children) => {
+  return children;
+});
 // Headings
 markdown.create("Heading", args => {
 	return md.heading(args[1], args[0]);
