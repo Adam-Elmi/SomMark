@@ -1,4 +1,4 @@
-[Block]
+[Heading = 1, Table]
 Simple user table:
 
 @_table_@: user, role, status
