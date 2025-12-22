@@ -57,6 +57,7 @@ function generateOutput(ast, i, format, file) {
 									metadata.push(body_node.data);
 								}
 								if (body_node.hasOwnProperty("title")) {
+									if (format === "html") body_node.title = body_node.title.replaceAll('"', "");
 									metadata.push(body_node.title);
 								}
 								break;
