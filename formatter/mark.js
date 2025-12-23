@@ -2,13 +2,6 @@ class MarkdownBuilder {
 	constructor() {}
 	// Headings
 	heading(text, level) {
-		// Heading levels:
-		// level 1 -> #
-		// level 2 -> ##
-		// level 3 -> ###
-		// level 4 -> ####
-		// level 5 -> #####
-		// level 6 -> ######
 		if (!text && !level) {
 			return "";
 		}
@@ -29,16 +22,6 @@ class MarkdownBuilder {
 	}
 	// Url
 	url(type = "", text, url = "", title = "") {
-		/*
-		Format:
-		[text](url "optional title")
-		----------------------------
-		Example:
-		[SomCheat](https://www.somcheat.dev "SomCheat site")
-		----------------------------
-		Info:
-		Optional title: is used for tooltip
-		*/
 		if (!text && !url) {
 			return "";
 		}
@@ -46,9 +29,6 @@ class MarkdownBuilder {
 	}
 	// Bold
 	bold(text, is_underscore = false) {
-		/*
- Example: **text** or __text__
-*/
 		if (!text) {
 			return "";
 		}
@@ -57,9 +37,6 @@ class MarkdownBuilder {
 	}
 	// Italic
 	italic(text, is_underscore = false) {
-		/*
- Example: *text* or _text_
-*/
 		if (!text) {
 			return "";
 		}
@@ -68,10 +45,6 @@ class MarkdownBuilder {
 	}
 	// Emphasis
 	emphasis(text, is_underscore = false) {
-		/*
-Bold and Italic
-Example: ***text***
-*/
 		if (!text) {
 			return "";
 		}
@@ -80,16 +53,6 @@ Example: ***text***
 	}
 	// Code Block
 	codeBlock(code, language) {
-		/*
-	Format:
-	``` + language
-	...code block..
-	```
-	Example:
-	```js
-	console.log('Hello from SomMark');
-	```
-	*/
 		if (!code) {
 			return "";
 		}
@@ -114,9 +77,6 @@ Example: ***text***
 	}
 	// Horizontal rule
 	horizontal(format = "*" || "_" || "-") {
-		/*
-		Format: --- or ___ or ***
-		*/
 		if (!format) {
 			return "\n***\n";
 		}
@@ -124,10 +84,6 @@ Example: ***text***
 	}
 	// Escape
 	escape(text) {
-		/*
-		Special characters:
-    `\` `*` `_` `{` `}` `[` `]` `(` `)` `#` `+` `-` `.` `!` `>` `|`
-  */
 		const special_char = ["\\", "*", "_", "{", "}", "[", "]", "(", ")", "#", "+", "-", ".", "!", ">", "|"];
 		if (!text) {
 			return "";
@@ -146,13 +102,6 @@ Example: ***text***
 	}
 	// Table
 	table(headers, rows) {
-		/*
-Example:
-| Name  | Age | City       |
-|-------|-----|------------|
-| Adam  | 23  | Hargeisa   |
-| Elmi  | 30  | Hargeisa   |
-*/
 		let result = "";
 		const isNotEmptyArray = arr => Array.isArray(arr) && arr.length > 0;
 		if (isNotEmptyArray(headers) && isNotEmptyArray(rows)) {
@@ -179,6 +128,4 @@ Example:
 		return result;
 	}
 }
-
-function blockQuote() {}
 export default MarkdownBuilder;
