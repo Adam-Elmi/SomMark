@@ -1,4 +1,4 @@
-import Mapping from "./mapping/mapping.js";
+import Mapping from "./mappers/mapper.js";
 
 const custom_html = new Mapping();
 const { tag } = custom_html;
