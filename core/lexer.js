@@ -267,8 +267,7 @@ function lexer(src) {
 					// Update Column
 					start = end !== undefined ? end + 1 : 1;
 					end = start + context.length;
-					context = context.trim();
-					if (context) {
+					if (context.trim()) {
 						addToken(TOKEN_TYPES.TEXT, context);
 					}
 				}
