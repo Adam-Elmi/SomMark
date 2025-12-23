@@ -21,5 +21,8 @@
 	"bugs": {
 		"url": "https://github.com/Adam-Elmi/SomMark/issues"
 	},
-	"homepage": "https://github.com/Adam-Elmi/SomMark#readme"
+	"homepage": "https://github.com/Adam-Elmi/SomMark#readme",
+	"dependencies": {
+		"highlight.js": "^11.11.1"
+	}
 }
