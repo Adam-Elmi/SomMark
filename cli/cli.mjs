@@ -7,8 +7,8 @@ import { cliError, formatMessage } from "../core/validator.js";
 import lexer from "../core/lexer.js";
 import parser from "../core/parser.js";
 import transpiler from "../core/transpiler.js";
-import html from "../mapping/default_mode/smark.html.js";
-import md from "../mapping/default_mode/smark.md.js";
+import html from "../mappers/default_mode/smark.html.js";
+import md from "../mappers/default_mode/smark.md.js";
 
 const options = ["-v", "--version", "-h", "--help", "--html", "--md"];
 
