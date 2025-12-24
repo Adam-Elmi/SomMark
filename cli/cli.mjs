@@ -9,8 +9,9 @@ import parser from "../core/parser.js";
 import transpiler from "../core/transpiler.js";
 import html from "../mappers/default_mode/smark.html.js";
 import md from "../mappers/default_mode/smark.md.js";
+import mdx from "../mappers/default_mode/smark.mdx.js";
 
-const options = ["-v", "--version", "-h", "--help", "--html", "--md"];
+const options = ["-v", "--version", "-h", "--help", "--html", "--md", "--mdx"];
 
 function getHelp(unknown_option = true) {
 	const msg = [
@@ -20,7 +21,8 @@ function getHelp(unknown_option = true) {
 		"{N}  <$green:-h or --help$>      <$cyan: show help message$>",
 		"{N}  <$green:-v or --version$>   <$cyan: show version information$>",
 		"{N}  <$green:--html$>            <$cyan: transpile to html$>",
-		"{N}  <$green:--md$>              <$cyan: transpile to markdown$>"
+		"{N}  <$green:--md$>              <$cyan: transpile to markdown$>",
+		"{N}  <$green:--mdx>              <$cyan: transpile to mdx>"
 	].join("");
 	const help_msg = formatMessage(msg);
 	if (!options.includes(process.argv[2]) && unknown_option) {
@@ -112,7 +114,7 @@ async function loadConfig() {
 
 async function transpile(src, format, mappingFile = "") {
 	if ((await loadConfig()).mode === "default") {
-		return transpiler(parser(lexer(src)), format, format === "html" ? html : md);
+		return transpiler(parser(lexer(src)), format, format === "html" ? html : format === "md" ? md : mdx);
 	} else if (mappingFile && isExist(mappingFile)) {
 		return transpiler(parser(lexer(src)), format, mappingFile);
 	} else {
@@ -130,7 +132,7 @@ async function generateFile() {
 	try {
 		const format_option = process.argv[2] ?? "";
 		const format = format_option.replaceAll("-", "") ?? "";
-		if (format && ["html", "md"].includes(format)) {
+		if (format && ["html", "md", "mdx"].includes(format)) {
 			if (Array.isArray(process.argv) && process.argv.length > 0) {
 				const targetFile = process.argv[3] ? path.parse(process.argv[3]) : "";
 				if (await isExist(process.argv[3])) {
@@ -147,7 +149,7 @@ async function generateFile() {
 						};
 						if (process.argv[4] === undefined) {
 							if (config.mode === "default") {
-								config.mappingFile = format === "html" ? html : format === "md" ? md : null;
+								config.mappingFile = format === "html" ? html : format === "md" ? md : format === "mdx" ? mdx : null;
 							}
 							await generateOutput(config.outputDir, config.outputFile, format);
 							console.log(success_msg(config.outputDir, config.outputFile));
