@@ -18,6 +18,40 @@ class TagBuilder {
 		}
 		return this;
 	}
+	props(propsList) {
+		if (Array.isArray(propsList) && propsList.length > 0) {
+			for (const prop of propsList) {
+				if (typeof prop !== "object" || prop === null || !Object.prototype.hasOwnProperty.call(prop, "type")) {
+					throw new TypeError("prop expects an object with property { type }");
+				}
+				const [_, key2] = Object.keys(prop);
+				const [type, value] = Object.values(prop);
+				if (prop && type) {
+					switch (type) {
+						case "string":
+							this.attr.push(`${key2}="${value}"`);
+							break;
+						case "other":
+							this.attr.push(`${key2}={${value}}`);
+							break;
+					}
+				}
+			}
+			return this;
+		}
+		/*
+			props(
+			[
+			{type: "string", userId: args[0]},
+			{type: "number", userId: args[0]},
+			{type: "boolean", userId: args[0]},
+			{type: "null", userId: args[0]},
+			{type: "undefined", userId: args[0]},
+			{type: "array", userId: args[0]},
+			{type: "object", userId: args[0]},
+		 ])
+		 */
+	}
 	body(nodes) {
 		if (nodes) {
 			let space = this.children ? " " : "";
@@ -27,7 +61,7 @@ class TagBuilder {
 	}
 	selfClose() {
 		this.is_self_close = true;
-		return this;
+		return this.builder();
 	}
 	builder() {
 		const components = {
