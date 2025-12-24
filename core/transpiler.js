@@ -2,19 +2,22 @@ import PREDEFINED_IDS from "./ids.js";
 import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT, NEWLINE } from "./names.js";
 import { transpilerError } from "./validator.js";
 
+const formats = { html: "html", md: "md", mdx: "mdx" };
+const { html, md, mdx } = formats;
+
 // Extracting target identifier
 function matchedValue(outputs, targetId) {
 	let result;
-	for (const renderOutput of outputs) {
-		if (typeof renderOutput.id === "string") {
-			if (renderOutput.id === targetId) {
-				result = renderOutput;
+	for (const outputValue of outputs) {
+		if (typeof outputValue.id === "string") {
+			if (outputValue.id === targetId) {
+				result = outputValue;
 				break;
 			}
-		} else if (Array.isArray(renderOutput.id)) {
-			for (const id of renderOutput.id) {
+		} else if (Array.isArray(outputValue.id)) {
+			for (const id of outputValue.id) {
 				if (id === targetId) {
-					result = renderOutput;
+					result = outputValue;
 					break;
 				}
 			}
@@ -29,11 +32,11 @@ function generateOutput(ast, i, format, file) {
 	let target = matchedValue(file.outputs, node.id);
 	if (target) {
 		result +=
-			format === "html"
+			format === html
 				? (node.depth > 1 ? " ".repeat(node.depth) : "") +
-					target.renderOutput(node.args, "<%smark>" + (node.depth > 1 ? " ".repeat(node.depth) : "")) +
+					target.render({ args: node.args, content: "<%smark>" + (node.depth > 1 ? " ".repeat(node.depth) : "") }) +
 					"\n"
-				: target.renderOutput(node.args, "");
+				: target.render({ args: node.args, content: "" });
 		let context = "";
 		for (const body_node of node.body) {
 			switch (body_node.type) {
@@ -41,7 +44,7 @@ function generateOutput(ast, i, format, file) {
 					if (body_node.text.startsWith("`") && body_node.text.endsWith("`")) {
 						body_node.text = body_node.text.slice(1, body_node.text.length - 1);
 					}
-					if (format === "html") {
+					if (format === html) {
 						context += " ".repeat(body_node.depth) + `<p>${body_node.text}</p>`;
 					} else {
 						context += body_node.text;
@@ -57,14 +60,15 @@ function generateOutput(ast, i, format, file) {
 									metadata.push(body_node.data);
 								}
 								if (body_node.hasOwnProperty("title")) {
-									if (format === "html") body_node.title = body_node.title.replaceAll('"', "");
+									if (format === html) body_node.title = body_node.title.replaceAll('"', "");
 									metadata.push(body_node.title);
 								}
 								break;
 							}
 						}
 						context +=
-							(format === "html" ? "\n" : "") + target.renderOutput(metadata.length > 0 ? metadata : "", body_node.value);
+							(format === html ? "\n" : "") +
+							target.render({ args: metadata.length > 0 ? metadata : "", content: body_node.value });
 					}
 					break;
 				case NEWLINE:
@@ -78,7 +82,7 @@ function generateOutput(ast, i, format, file) {
 							let value = body_node.content[v];
 							content += v === 0 ? value : "\n" + value;
 						}
-						context += target.renderOutput(body_node.args, content);
+						context += target.render({ args: body_node.args, content });
 					}
 					break;
 				case COMMENT:
@@ -91,18 +95,21 @@ function generateOutput(ast, i, format, file) {
 					break;
 			}
 		}
-		if (format === "html") {
+		if (format === html) {
 			result = result.replace("<%smark>", context);
 		} else {
 			result += context;
 		}
 	} else {
-		transpilerError([`{line}<$yellow:Identifier$> <$blue:'${node.id}'$> <$yellow: is not found in mapping table$>{line}`]);
+		transpilerError([
+			"{line}<$red:Invalid Identifier:$> ",
+			`<$yellow:Identifier$> <$blue:'${node.id}'$> <$yellow: is not found in mapping table$>{line}`
+		]);
 	}
 	return result;
 }
 
-const accepted_formats = ["html", "md", "mdx"];
+const accepted_formats = Object.values(formats);
 
 function transpiler(ast, format, file) {
 	if (!format) {
@@ -123,7 +130,7 @@ function transpiler(ast, format, file) {
 			output += commentFormat + "\n";
 		}
 	}
-	if (format === "html") {
+	if (format === html) {
 		const document = "<!DOCTYPE html>\n" + "<html>\n" + file.header + "<body>\n" + output + "</body>\n" + "</html>\n";
 		return document;
 	}
