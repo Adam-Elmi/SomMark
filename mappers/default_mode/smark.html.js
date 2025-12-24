@@ -1,6 +1,6 @@
 import Mapper from "../mapper.js";
 const html = new Mapper();
-const { tag, setHeader, code, cssTheme } = html;
+const { tag, setHeader, code, cssTheme, list } = html;
 
 // Block
 html.create("Block", ({ content }) => {
@@ -59,6 +59,9 @@ html.create("image", ({ args, content }) => {
 html.create("code", ({ args, content }) => {
 	return code(args, content);
 });
-
+// List
+html.create("list", ({ content }) => {
+	return list(content);
+});
 setHeader({ rawData: [cssTheme()] });
 export default html;
