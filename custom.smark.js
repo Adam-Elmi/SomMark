@@ -1,10 +1,10 @@
-import Mapping from "./mappers/mapper.js";
+import Mapper from "./mappers/mapper.js";
 
-const custom_html = new Mapping();
+const custom_html = new Mapper();
 const { tag } = custom_html;
 
-custom_html.create("Hello", (args, children) => {
-	return tag("p").body(children);
+custom_html.create("Hello", ({args, content}) => {
+	return tag("p").body(content);
 });
 
 export default custom_html;
