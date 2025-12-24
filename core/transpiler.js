@@ -32,9 +32,9 @@ function generateOutput(ast, i, format, file) {
 	let target = matchedValue(file.outputs, node.id);
 	if (target) {
 		result +=
-			format === html
+			format === html || format === mdx
 				? (node.depth > 1 ? " ".repeat(node.depth) : "") +
-					target.render({ args: node.args, content: "<%smark>" + (node.depth > 1 ? " ".repeat(node.depth) : "") }) +
+					target.render({ args: node.args, content: "\n<%smark>" + (node.depth > 1 ? " ".repeat(node.depth) : "") }) +
 					"\n"
 				: target.render({ args: node.args, content: "" });
 		let context = "";
@@ -67,7 +67,7 @@ function generateOutput(ast, i, format, file) {
 							}
 						}
 						context +=
-							(format === html ? "\n" : "") +
+							(format === html || format === mdx ? "\n" : "") +
 							target.render({ args: metadata.length > 0 ? metadata : "", content: body_node.value });
 					}
 					break;
@@ -95,7 +95,7 @@ function generateOutput(ast, i, format, file) {
 					break;
 			}
 		}
-		if (format === html) {
+		if (format === html || format === mdx) {
 			result = result.replace("<%smark>", context);
 		} else {
 			result += context;
