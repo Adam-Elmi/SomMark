@@ -1,6 +1,7 @@
 import TagBuilder from "../formatter/tag.js";
 import MarkdownBuilder from "../formatter/mark.js";
 import { highlightCode, cssTheme } from "../lib/highlight.js";
+import escapeHTML from "../helpers/escapeHTML.js";
 class Mapper {
 	#predefinedData;
 	#countCalls;
@@ -19,6 +20,7 @@ class Mapper {
 		this.highlightCode = highlightCode;
 		this.cssTheme = cssTheme;
 		this.#countCalls = 0;
+    this.escapeHTML = escapeHTML;
 	}
 	create(id, renderOutput) {
 		if (!id || !renderOutput) {
@@ -83,6 +85,60 @@ class Mapper {
 				.attributes({ class: `hljs language-${args[0].trim()}` })
 				.body(value)
 		);
-	}
+	};
+	parseList = (data, indentSize = 2) => {
+		if (typeof data === "string") {
+			data = data.split("\n");
+		}
+		const root = { level: -1, children: [] };
+		const stack = [root];
+
+		const getLevel = line => {
+			const spaces = line.match(/^\s*/)[0].length;
+			return Math.floor(spaces / indentSize);
+		};
+
+		for (const raw of data) {
+			const level = getLevel(raw);
+			const text = raw.trim();
+
+			const node = { text, children: [] };
+
+			while (stack.length && stack[stack.length - 1].level >= level) {
+				stack.pop();
+			}
+
+			stack[stack.length - 1].children.push(node);
+			stack.push({ ...node, level });
+		}
+
+		return root.children;
+	};
+	list = (data, as = "ul") => {
+		const nodes = this.parseList(data);
+		if (!Array.isArray(nodes) || nodes.length === 0) return "";
+
+		const tag = as === "ol" ? "ol" : "ul";
+
+		const renderItems = items => {
+			let html = `<${tag}>`;
+
+			for (const item of items) {
+				html += `<li>`;
+
+				html += this.escapeHTML(item.text);
+				if (item.children && item.children.length > 0) {
+					html += renderItems(item.children);
+				}
+
+				html += `</li>`;
+			}
+
+			html += `</${tag}>`;
+			return html;
+		};
+
+		return renderItems(nodes);
+	};
 }
 export default Mapper;
