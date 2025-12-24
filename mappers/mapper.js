@@ -9,10 +9,10 @@ class Mapper {
 		this.md = new MarkdownBuilder();
 		this.#predefinedData =
 			"  " +
-			this.tag("meta").selfClose().attributes({ charset: "UTF-8" }).body() +
+			this.tag("meta").attributes({ charset: "UTF-8" }).selfClose() +
 			"\n" +
 			"  " +
-			this.tag("meta").selfClose().attributes({ name: "viewport", content: "width=device-width, initial-scale=1.0" }).body() +
+			this.tag("meta").attributes({ name: "viewport", content: "width=device-width, initial-scale=1.0" }).selfClose() +
 			"\n" +
 			"  ";
 		this.header = this.#predefinedData;
