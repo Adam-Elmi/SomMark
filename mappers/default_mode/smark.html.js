@@ -1,44 +1,44 @@
 import Mapper from "../mapper.js";
 const html = new Mapper();
-const { tag, setHeader, highlightCode, cssTheme } = html;
+const { tag, setHeader, code, cssTheme } = html;
 
 // Block
-html.create("Block", ({ args, content }) => {
+html.create("Block", ({ content }) => {
 	return content;
 });
 // Section
-html.create("Section", ({ args, content }) => {
+html.create("Section", ({ content }) => {
 	return tag("section").body(content);
 });
 // Headings
-html.create("h1", ({ args, content }) => {
+html.create("h1", ({ content }) => {
 	return tag("h1").body(content);
 });
-html.create("h2", ({ args, content }) => {
+html.create("h2", ({ content }) => {
 	return tag("h2").body(content);
 });
-html.create("h3", ({ args, content }) => {
+html.create("h3", ({ content }) => {
 	return tag("h3").body(content);
 });
-html.create("h4", ({ args, content }) => {
+html.create("h4", ({ content }) => {
 	return tag("h4").body(content);
 });
-html.create("h5", ({ args, content }) => {
+html.create("h5", ({ content }) => {
 	return tag("h5").body(content);
 });
-html.create("h6", ({ args, content }) => {
+html.create("h6", ({ content }) => {
 	return tag("h6").body(content);
 });
 // Bold
-html.create(["bold", "b"], ({ args, content }) => {
+html.create(["bold", "b"], ({ content }) => {
 	return tag("strong").body(content);
 });
 // Italic
-html.create(["italic", "i"], ({ args, content }) => {
+html.create(["italic", "i"], ({ content }) => {
 	return tag("i").body(content);
 });
 // Italic
-html.create(["emphasis", "e"], ({ args, content }) => {
+html.create(["emphasis", "e"], ({ content }) => {
 	return tag("span").attributes({ style: "font-weight:bold; font-style: italic;" }).body(content);
 });
 // Colored Text
@@ -57,12 +57,7 @@ html.create("image", ({ args, content }) => {
 });
 // Code
 html.create("code", ({ args, content }) => {
-	const value = highlightCode(content, args[0].trim());
-	return tag("pre").body(
-		tag("code")
-			.attributes({ class: `hljs language-${args[0].trim()}` })
-			.body(value)
-	);
+	return code(args, content);
 });
 
 setHeader({ rawData: [cssTheme()] });
