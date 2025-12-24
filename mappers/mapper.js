@@ -76,5 +76,13 @@ class Mapper {
 		this.header = headerData;
 		return headerData;
 	};
+	code = (args, content) => {
+		const value = highlightCode(content, args[0].trim());
+		return this.tag("pre").body(
+			this.tag("code")
+				.attributes({ class: `hljs language-${args[0].trim()}` })
+				.body(value)
+		);
+	}
 }
 export default Mapper;
