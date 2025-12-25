@@ -2,7 +2,7 @@ import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
 import { block_value, block_id, inline_id, inline_value, at_id, at_value, end_keyword } from "./names.js";
 
-function concat(input, index, stop_at_char = [], scope_state, include_then_break = false) {
+function concat(input, index, stop_at_char = [], scope_state, include_then_break = false, escapeChar = "") {
 	let str = "";
 	for (let char_index = index; char_index < input.length; char_index++) {
 		let char = input[char_index];
@@ -30,7 +30,12 @@ function concat(input, index, stop_at_char = [], scope_state, include_then_break
 			}
 			str += char;
 		} else {
-			if (Array.isArray(stop_at_char) && stop_at_char.includes(char)) {
+			if (char === escapeChar && peek(input, char_index, 1) === "`") {
+				str += char + peek(input, char_index, 1);
+				break;
+			} else if (char === escapeChar && peek(input, char_index, 1) !== "`") {
+				break;
+			} else if (char !== escapeChar && Array.isArray(stop_at_char) && stop_at_char.includes(char)) {
 				include_then_break ? (str += char) : null;
 				break;
 			}
@@ -45,9 +50,9 @@ function lexer(src) {
 	if (src && typeof src === "string") {
 		const tokens = [];
 		let scope_state = false;
-    let line = 1;
-    let start;
-		let	end;
+		let line = 1;
+		let start;
+		let end;
 		let depth_stack = [];
 		let context = "",
 			temp_str = "",
@@ -168,7 +173,11 @@ function lexer(src) {
 				temp_str = current_char + concat(src, i + 1, ["`"], scope_state, true);
 				if (temp_str && temp_str.length > 0) {
 					i += temp_str.length - 1;
-					addToken(TOKEN_TYPES.TEXT, temp_str);
+					if (previous_value === "(") {
+						addToken(TOKEN_TYPES.VALUE, temp_str);
+					} else {
+						addToken(TOKEN_TYPES.TEXT, temp_str);
+					}
 				}
 			}
 			// Token: Block Identifier OR Token: Block Value OR Token: End Keyword
@@ -202,7 +211,7 @@ function lexer(src) {
 				}
 				// Token: Inline Value OR Token: Inline Identifier
 				else if (previous_value === "(" || (previous_value === "->" && !scope_state)) {
-					temp_str = concat(src, i, [")", "["], scope_state);
+					temp_str = concat(src, i, [")", "["], scope_state, true, ")");
 					i += temp_str.length - 1;
 					// Update Column
 					start = end !== undefined ? end + 1 : 1;
