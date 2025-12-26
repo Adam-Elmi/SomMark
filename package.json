@@ -7,7 +7,10 @@
 		"test": "tests"
 	},
 	"type": "module",
-	"scripts": {},
+	"scripts": {
+		"test": "vitest",
+		"test:run": "vitest run"
+	},
 	"bin": {
 		"smark": "./cli/cli.mjs"
 	},
@@ -24,5 +27,8 @@
 	"homepage": "https://github.com/Adam-Elmi/SomMark#readme",
 	"dependencies": {
 		"highlight.js": "^11.11.1"
+	},
+	"devDependencies": {
+		"vitest": "^4.0.16"
 	}
 }
