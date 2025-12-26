@@ -1,0 +1,7 @@
+[case_9 = missing one of the parentheses or both of them]
+This is a test. This is another test. This is a (bold text)->(b.
+
+This is a test. This is another test. This is a (bold text)->b).
+
+This is a test. This is another test. This is a (bold text)->b.
+[end]

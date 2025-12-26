@@ -1,0 +1,5 @@
+[case_8 = missing value in inline statement]
+This is a test for missing value in inline statement.
+(Hello World)->()
+This is a paragraph.
+[end]
