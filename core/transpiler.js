@@ -109,18 +109,7 @@ function generateOutput(ast, i, format, file) {
 	return result;
 }
 
-const accepted_formats = Object.values(formats);
-
-function transpiler(ast, format, file) {
-	if (!format) {
-		transpilerError(["{line}<$red:Invalid Format$>: <$yellow:Format argument is not defined$>{line}"]);
-	}
-	if (!accepted_formats.includes(format)) {
-		transpilerError([
-			`{line}<$red:Unknown Format$>: <$yellow:You provided unknown format:$> <$green:'${format}'$>`,
-			`{N}<$yellow:Accepted formats are:$> [<$cyan: ${accepted_formats.join(", ")}$>]{line}`
-		]);
-	}
+function transpiler(ast, format, file, includeDocument = true) {
 	let output = "";
 	for (let i = 0; i < ast.length; i++) {
 		if (ast[i].type === BLOCK) {
@@ -130,7 +119,7 @@ function transpiler(ast, format, file) {
 			output += commentFormat + "\n";
 		}
 	}
-	if (format === html) {
+	if (includeDocument && format === html) {
 		const document = "<!DOCTYPE html>\n" + "<html>\n" + file.header + "<body>\n" + output + "</body>\n" + "</html>\n";
 		return document;
 	}
