@@ -62,6 +62,12 @@ class CLIError extends CustomError {
 	}
 }
 
+class RuntimeError extends CustomError {
+	constructor(message) {
+		super(message, "Runtime Error");
+	}
+}
+
 function getError(type) {
 	const validate_msg = msg => Array.isArray(msg) && msg.length > 0;
 	switch (type) {
@@ -83,12 +89,19 @@ function getError(type) {
 					throw new CLIError(errorMessage).message;
 				}
 			};
+		case "runtime":
+			return errorMessage => {
+				if (validate_msg(errorMessage)) {
+					throw new RuntimeError(errorMessage).message;
+				}
+			};
 	}
 }
 
 const parserError = getError("parser");
 const transpilerError = getError("transpiler");
 const cliError = getError("cli");
+const runtimeError = getError("runtime");
 
 function validateId(id) {
 	if (!/^[a-zA-Z0-9]+$/.test(id)) {
@@ -98,4 +111,4 @@ function validateId(id) {
 	}
 }
 
-export { parserError, transpilerError, validateId, cliError, formatMessage };
+export { parserError, transpilerError, validateId, cliError, runtimeError, formatMessage };
