@@ -45,7 +45,7 @@ function generateOutput(ast, i, format, file) {
 						body_node.text = body_node.text.slice(1, body_node.text.length - 1);
 					}
 					if (format === html) {
-						context += " ".repeat(body_node.depth) + `<p>${body_node.text}</p>`;
+						context += `<p>${body_node.text}</p>`;
 					} else {
 						context += body_node.text;
 					}
