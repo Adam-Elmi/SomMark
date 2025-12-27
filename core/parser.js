@@ -133,7 +133,7 @@ function parseBlock(tokens, i) {
 			current_token(tokens, i)
 				.value.split(",")
 				.forEach(value => {
-					blockNode.args.push(value);
+					blockNode.args.push(value.trim());
 				});
 		} else {
 			parserError(errorMessage(tokens, i, block_value, "="));
