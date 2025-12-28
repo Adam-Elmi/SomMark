@@ -317,7 +317,7 @@ function parseAtBlock(tokens, i) {
 			current_token(tokens, i)
 				.value.split(",")
 				.forEach(value => {
-					atBlockNode.args.push(value);
+					atBlockNode.args.push(value.trim());
 				});
 			// Update Data
 			updateData(tokens, i);
