@@ -20,7 +20,7 @@ class Mapper {
 		this.highlightCode = highlightCode;
 		this.cssTheme = cssTheme;
 		this.#countCalls = 0;
-    this.escapeHTML = escapeHTML;
+		this.escapeHTML = escapeHTML;
 	}
 	create(id, renderOutput) {
 		if (!id || !renderOutput) {
@@ -100,7 +100,16 @@ class Mapper {
 
 		for (const raw of data) {
 			const level = getLevel(raw);
-			const text = raw.trim();
+			const text = raw
+				.split(" ")
+				.map(value => {
+					if (value[0] === "-") {
+						value = value.slice(1);
+					}
+					return value;
+				})
+				.join(" ")
+				.trimStart();
 
 			const node = { text, children: [] };
 
