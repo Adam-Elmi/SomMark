@@ -41,8 +41,12 @@ function generateOutput(ast, i, format, file) {
 		for (const body_node of node.body) {
 			switch (body_node.type) {
 				case TEXT:
-					if (body_node.text.startsWith("`") && body_node.text.endsWith("`")) {
-						body_node.text = body_node.text.slice(1, body_node.text.length - 1);
+					if (body_node.text.length === 2 && body_node.text[0] === "`" && body_node.text[1] === "`") {
+					  body_node.text = body_node.text.replace("`", "");
+					} else {
+						if (body_node.text.startsWith("`") && body_node.text.endsWith("`")) {
+							body_node.text = body_node.text.slice(1, body_node.text.length - 1);
+						}
 					}
 					if (format === html) {
 						context += `<p>${body_node.text}</p>`;
