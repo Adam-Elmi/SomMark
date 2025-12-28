@@ -60,7 +60,7 @@ html.create("code", ({ args, content }) => {
 	return code(args, content);
 });
 // List
-html.create("list", ({ content }) => {
+html.create(["list", "List"], ({ content }) => {
 	return list(content);
 });
 setHeader({ rawData: [cssTheme()] });
