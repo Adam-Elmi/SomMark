@@ -28,7 +28,7 @@ function getHelp(unknown_option = true) {
 	if (!options.includes(process.argv[2]) && unknown_option) {
 		console.log(help_msg);
 		process.exit(0);
-	} else if (process.argv[2] === "-h") {
+	} else if (process.argv[2] === "-h" || process.argv[2] === "--help") {
 		console.log(help_msg);
 		process.exit(0);
 	}
