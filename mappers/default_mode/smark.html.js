@@ -63,5 +63,13 @@ html.create("code", ({ args, content }) => {
 html.create(["list", "List"], ({ content }) => {
 	return list(content);
 });
-setHeader({ rawData: [cssTheme()] });
+// Table
+html.create("table", ({ content, args }) => {
+	return html.htmlTable(content.split(/\n/), args);
+});
+// Horizontal Rule
+html.create("hr", () => {
+	return tag("hr").selfClose();
+});
+setHeader([cssTheme()]);
 export default html;
