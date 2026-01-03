@@ -1,5 +1,5 @@
 class MarkdownBuilder {
-	constructor() {}
+	constructor() { }
 	// Headings
 	heading(text, level) {
 		if (!text && !level) {
@@ -118,7 +118,13 @@ class MarkdownBuilder {
 			}
 			rows = rows.map(row => {
 				let newRow = row;
-				newRow = row.replaceAll(/[,-]/g, " |");
+				if (newRow.charAt(0) !== "-") {
+					newRow = `- ${newRow}`;
+				}
+				newRow = newRow.replaceAll(/[,-]/g, " |");
+				if (newRow.trim().charAt(1) !== " ") {
+					newRow = newRow.trim().slice(0, 1) + " " + newRow.trim().slice(1);
+				}
 				return newRow.trim();
 			});
 			for (const row of rows) {
