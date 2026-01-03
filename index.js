@@ -30,6 +30,15 @@ class SomMark {
 			this.targetFile = formats[this.format];
 		}
 	}
+	removeOutput(id) {
+		this.targetFile.outputs = this.targetFile.outputs.filter(output => {
+			if (Array.isArray(output.id)) {
+				return !output.id.some(singleId => singleId === id);
+			} else {
+				return output.id !== id;
+			}
+		});
+	}
 	lex() {
 		return lexer(this.src);
 	}
