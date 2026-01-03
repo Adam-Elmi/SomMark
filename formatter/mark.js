@@ -33,7 +33,7 @@ class MarkdownBuilder {
 			return "";
 		}
 		const format = is_underscore ? "__" : "**";
-		return ` ${format}${text}${format} `;
+		return `${format}${text}${format}`;
 	}
 	// Italic
 	italic(text, is_underscore = false) {
@@ -41,7 +41,7 @@ class MarkdownBuilder {
 			return "";
 		}
 		const format = is_underscore ? "_" : "*";
-		return ` ${format}${text}${format} `;
+		return `${format}${text}${format}`;
 	}
 	// Emphasis
 	emphasis(text, is_underscore = false) {
@@ -49,7 +49,7 @@ class MarkdownBuilder {
 			return "";
 		}
 		const format = is_underscore ? "___" : "***";
-		return ` ${format}${text}${format}`;
+		return `${format}${text}${format}`;
 	}
 	// Code Block
 	codeBlock(code, language) {
@@ -76,7 +76,7 @@ class MarkdownBuilder {
 		}
 	}
 	// Horizontal rule
-	horizontal(format = "*" || "_" || "-") {
+	horizontal(format = "*") {
 		if (!format) {
 			return "\n***\n";
 		}
