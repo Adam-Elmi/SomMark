@@ -1,4 +1,4 @@
-[case_10 = missing the thin arrow]
+[case10 = missing the thin arrow]
 This is a test. This is another test. This is a (bold text)>b.
 This is a test. This is another test. This is a (bold text)-b.
 This is a test. This is another test. This is a (bold text)b.
