@@ -106,7 +106,7 @@ const runtimeError = getError("runtime");
 function validateId(id) {
 	if (!/^[a-zA-Z0-9]+$/.test(id)) {
 		parserError([
-			`{line}<$red:Invalid Identifier:$><$blue: '${id}'$>{N}<$yellow:Identifier must contain only letters$> <$cyan: (A–Z, a–z).$>{line}`
+			`{line}<$red:Invalid Identifier:$><$blue: '${id}'$>{N}<$yellow:Identifier must contain only letters and numbers$> <$cyan: (A–Z, a–z, 0–9).$>{line}`
 		]);
 	}
 }
