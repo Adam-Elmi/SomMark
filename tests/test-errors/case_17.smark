@@ -1,0 +1,4 @@
+[case17 bad header]
+Identifiers cannot contain spaces in headers
+This should fail because header identifier is invalid
+[end]
