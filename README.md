@@ -48,13 +48,13 @@ A **Block** is a container.
 It holds arguments and child content.
 
 ```ini
-[Section = arg1, arg2, arg3]
+[Block = arg1, arg2, arg3]
 This is the body.
 These texts are considered as children.
 [end]
 ```
 
-* `Section` is the block name
+* `Block` is the block name
 * Arguments are optional
 * Everything inside is treated as block content
 
@@ -65,7 +65,7 @@ These texts are considered as children.
 An **Inline Statement** is used inside text to apply formatting or behavior such as color, links, or styles.
 
 ```ini
-[Section]
+[Block]
 This is the (text)->(color:red).
 These words are (important)->(bold).
 [end]
@@ -81,7 +81,7 @@ Sometimes inline statements are not enough.
 **At Blocks** are used for complex structures like tables, lists, code blocks, and custom content.
 
 ```ini
-[Section]
+[Block]
 @_table_@: month, revenue, expenses
 - January, 1200, 400
 - February, 1400, 600
@@ -135,7 +135,7 @@ This makes SomMark highly extensible and future-proof.
 To prevent SomMark from parsing syntax, use the escape character (`` ` ``):
 
 ```ini
-[Section]
+[Block]
 This is a text `[Hello]` not a block.
 Also this `(world)` is not inline syntax.
 [end]
