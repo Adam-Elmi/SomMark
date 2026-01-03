@@ -9,7 +9,8 @@
 	"type": "module",
 	"scripts": {
 		"test": "vitest",
-		"test:run": "vitest run"
+		"test:run": "vitest run",
+		"test:watch": "vitest watch"
 	},
 	"bin": {
 		"smark": "./cli/cli.mjs"
