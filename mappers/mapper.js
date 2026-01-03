@@ -3,23 +3,25 @@ import MarkdownBuilder from "../formatter/mark.js";
 import { highlightCode, cssTheme } from "../lib/highlight.js";
 import escapeHTML from "../helpers/escapeHTML.js";
 class Mapper {
-	#predefinedData;
-	#countCalls;
+	#predefinedHeaderData;
+	#customElements;
 	constructor() {
 		this.outputs = [];
 		this.md = new MarkdownBuilder();
-		this.#predefinedData =
+		this.title = "SomMark Page";
+		this.#predefinedHeaderData =
 			"  " +
 			this.tag("meta").attributes({ charset: "UTF-8" }).selfClose() +
 			"\n" +
 			"  " +
 			this.tag("meta").attributes({ name: "viewport", content: "width=device-width, initial-scale=1.0" }).selfClose() +
 			"\n" +
-			"  ";
-		this.header = this.#predefinedData;
+			"  " + this.tag("meta").attributes({ "http-equiv": "X-UA-Compatible", content: "IE=edge" }).selfClose() +
+			"\n" + "  " + this.tag("title").body(this.title) + "\n";
+		this.header = this.#predefinedHeaderData + "\n" + "";
+		this.#customElements = "";
 		this.highlightCode = highlightCode;
 		this.cssTheme = cssTheme;
-		this.#countCalls = 0;
 		this.escapeHTML = escapeHTML;
 	}
 	create(id, renderOutput) {
@@ -48,35 +50,29 @@ class Mapper {
 
 		this.outputs.push({ id, render });
 	}
+	removeOutput(id) {
+		this.outputs = this.outputs.filter(output => {
+			if (Array.isArray(output.id)) {
+				return !output.id.some(singleId => singleId === id);
+			} else {
+				return output.id !== id;
+			}
+		});
+	}
 
 	tag = tagName => {
 		return new TagBuilder(tagName);
 	};
-	setHeader = (options = { title, rawData, resetData: false }) => {
-		this.#countCalls++;
-		let headerData = "";
-		let { title, rawData, resetData } = options;
-		if (resetData && this.#countCalls === 1) {
-			this.#predefinedData = "";
-		}
-		if (!title) {
-			title = "SomMark Page";
-		}
-		if (typeof title === "string" && this.#countCalls === 1) {
-			this.#predefinedData += this.tag("title").body(title) + "\n";
-		}
-		if (Array.isArray(rawData) && this.#countCalls === 1) {
+	setHeader = (rawData) => {
+		this.#customElements = "";
+		if (Array.isArray(rawData)) {
 			for (const data of rawData) {
 				if (typeof data === "string") {
-					this.#predefinedData += "  " + data + "\n";
+					this.#customElements += data + "\n";
 				}
 			}
 		}
-		if (this.#predefinedData) {
-			headerData += this.tag("head").body("\n" + this.#predefinedData) + "\n";
-		}
-		this.header = headerData;
-		return headerData;
+		this.header += this.#customElements;
 	};
 	code = (args, content) => {
 		const value = highlightCode(content, args[0].trim());
@@ -85,6 +81,49 @@ class Mapper {
 				.attributes({ class: `hljs language-${args[0].trim()}` })
 				.body(value)
 		);
+	};
+	htmlTable = (data, headers, defaultStyle = true) => {
+		const isAddedStyle = this.header.includes(".sommark-table");
+		if (!data) return "";
+
+		const css = `<style>
+.sommark-table{border-collapse:collapse;width:100%;border:1px solid #e1e1e1}
+.sommark-table th,.sommark-table td{border:1px solid #e1e1e1;padding:6px 8px;text-align:left}
+.sommark-table th{background:#f6f8fa;font-weight:600}
+.sommark-table tr:nth-child(even){background:#fbfbfb}
+</style>\n`;
+
+		if (defaultStyle && !isAddedStyle) {
+			try {
+				this.setHeader([css]);
+			} catch (e) {
+				console.error("Error setting table CSS in header:", e);
+			}
+		}
+
+		if (typeof data === "string") {
+			data = data.split(/\r?\n/);
+		} else if (!Array.isArray(data) || data.length === 0) {
+			return "";
+		}
+
+		let tableHTML = `<table class="sommark-table">\n<thead>\n<tr>`;
+		for (const header of headers) {
+			tableHTML += `<th>${this.escapeHTML(header)}</th>`;
+		}
+		tableHTML += "</tr>\n</thead>\n<tbody>\n";
+
+		for (const row of data) {
+			const rowData = row.split(",").map(cell => cell.trim());
+			tableHTML += "<tr>";
+			for (const cell of rowData) {
+				tableHTML += `<td>${this.escapeHTML(cell.replace("-", "").trim())}</td>`;
+			}
+			tableHTML += "</tr>\n";
+		}
+
+		tableHTML += "</tbody>\n</table>";
+		return tableHTML;
 	};
 	parseList = (data, indentSize = 2) => {
 		if (typeof data === "string") {
