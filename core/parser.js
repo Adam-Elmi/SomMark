@@ -78,7 +78,7 @@ let block_stack = [];
 let end_stack = [];
 let tokens_stack = [];
 let line = 1,
-	start = 1,
+	start = 1,	
 	end = 1,
 	value = "";
 
@@ -326,13 +326,13 @@ function parseAtBlock(tokens, i) {
 			parserError(errorMessage(tokens, i, at_value, ":"));
 		}
 	}
-	if (!current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.NEWLINE) {
-		parserError(errorMessage(tokens, i, "\\n", "@_"));
+	if (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.NEWLINE) {
+		parserError(errorMessage(tokens, i, "\\n", "_@"));
 	}
 	// Update Data
 	updateData(tokens, i);
 	i++;
-	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.TEXT) {
+	if (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.TEXT) {
 		parserError(errorMessage(tokens, i, "Text", "\\n"));
 	}
 	while (i < tokens.length) {
