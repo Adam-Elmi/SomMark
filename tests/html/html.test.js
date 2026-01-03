@@ -1,41 +1,26 @@
 import { describe, it, expect } from "vitest";
 import SomMark from "../../index.js";
 import html from "../../mappers/default_mode/smark.html.js";
+import { removeWhiteSpaces, removeNewline } from "../../helpers/removeChar.js";
 
-function removeWhiteSpaces(text) {
-	if (text) {
-		return text
-			.split("")
-			.filter(char => !/\s/.test(char))
-			.join("");
-	}
-}
-function removeNewline(text) {
-	if (text) {
-		return text.split("\n").join("");
-	}
-}
-
-/*
-  Testig Blocks
-*/
-describe("Transpiling -> [HTML]: Testing Blocks", () => {
+// Block
+describe("HTML Transpiler — Blocks", () => {
 	html.create("Test", ({ args, content }) => {
 		return html.tag("div").attributes({ title: args[0], "data-test-id": args[1], "data-failed-tests": args[2] }).body(content);
 	});
-	it("returns <section><p>Test</p></section>", () => {
+	it("transpiles [Section] to <section><p>Test</p></section>", () => {
 		let output = new SomMark({ src: "[Section]\nTest\n[end]", format: "html", includeDocument: false }).transpile();
 		output = removeWhiteSpaces(output);
 		expect(output).toBe("<section><p>Test</p></section>");
 	});
-	it("returns <p>Hello</p><p>World</p>", () => {
+	it("transpiles [Block] with multiple paragraphs", () => {
 		let output = new SomMark({ src: "[Block]\nHello\nWorld\n[end]", format: "html", includeDocument: false }).transpile();
 		output = removeWhiteSpaces(output);
 		expect(output).toBe("<p>Hello</p><p>World</p>");
 	});
-	it("It returns a block with its arguments", () => {
+	it("transpiles block with attributes to div", () => {
 		const expectedValue =
-			'<div title="Transpiler-Test" data-test-id="Test-101" data-failed-tests="5"><p>Block Arguments</p></div>';
+			'<div title="Transpiler-Test" data-test-id="Test-101" data-failed-tests="5"> <p>Block Arguments</p></div>';
 		let output = new SomMark({
 			src: "[Test = Transpiler-Test, Test-101, 5 ]\nBlock Arguments\n[end]",
 			format: "html",
@@ -44,12 +29,40 @@ describe("Transpiling -> [HTML]: Testing Blocks", () => {
 		output = removeNewline(output);
 		expect(output).toBe(expectedValue);
 	});
+	html.create("Container", ({ content }) => {
+		return html
+			.tag("div")
+			.body(content);
+	});
+	it("transpiles nested Container blocks into nested divs", () => {
+		const expectedValue = "<div><div><div><div><div><div><p>SomMark</p></div></div></div></div></div></div>";
+		let output = new SomMark({
+			src: "[Container]\n[Container]\n[Container]\n[Container]\n[Container]\n[Container]\nSomMark\n[end]\n[end]\n[end]\n[end]\n[end]\n[end]",
+			format: "html",
+			includeDocument: false
+		}).transpile();
+		output = removeWhiteSpaces(output);
+		expect(output).toBe(expectedValue);
+	});
+	it("transpiles block into image tag", () => {
+		html.create("Image", ({ args, content }) => {
+			return html
+				.tag("img")
+				.attributes({ src: args[0], alt: args[1] }).selfClose();
+		});
+		let output = new SomMark({
+			src: "[Image = https://example.com/image.png, Example Image]\n[end]",
+			format: "html",
+			includeDocument: false
+		}).transpile();
+		output = removeNewline(output);
+		expect(output).toBe('<img src="https://example.com/image.png" alt="Example Image" />');
+	});
 });
-/*
-  Testig Inline Statements
-*/
-describe("Transpiling -> [HTML] Testing Inline Statement", () => {
-	it("returns strong tag", () => {
+
+// Inline
+describe("HTML Transpiler — Inline statements", () => {
+	it("transpiles bold inline to <strong>", () => {
 		let inlineStatement_1 = new SomMark({
 			src: "[Block]\n(SomMark)->(bold)[end]",
 			format: "html",
@@ -58,7 +71,7 @@ describe("Transpiling -> [HTML] Testing Inline Statement", () => {
 		inlineStatement_1 = removeWhiteSpaces(inlineStatement_1);
 		expect(inlineStatement_1).toBe("<strong>SomMark</strong>");
 	});
-	it("returns span tag with style attribute", () => {
+	it("transpiles inline style to <span style=...>", () => {
 		let inlineStatement_2 = new SomMark({
 			src: "[Block]\n(SomMark)->(color:red)[end]",
 			format: "html",
@@ -67,7 +80,7 @@ describe("Transpiling -> [HTML] Testing Inline Statement", () => {
 		inlineStatement_2 = removeNewline(inlineStatement_2);
 		expect(inlineStatement_2).toBe('<span style="color:red">SomMark</span>');
 	});
-	it("returns anchor tag with href and title attributes", () => {
+	it("transpiles inline link to <a href=... title=...>", () => {
 		let inlineStatement_3 = new SomMark({
 			src: '[Block]\n(My Site)->(link:https://example.com "Title")[end]',
 			format: "html",
@@ -77,11 +90,10 @@ describe("Transpiling -> [HTML] Testing Inline Statement", () => {
 		expect(inlineStatement_3).toBe('<a href="https://example.com" title="Title">My Site</a>');
 	});
 });
-/*
-  Testig At Blocks
-*/
-describe("Transpiling -> [HTML] Testing At Blocks", () => {
-	it("returns list elements", () => {
+
+// AtBlock
+describe("HTML Transpiler — @-blocks", () => {
+	it("transpiles @_List_@ to nested <ul> list", () => {
 		let output = new SomMark({
 			src: "[Block]\n@_List_@\n- Item 1\n   - Sub-Item 1\n  - Sub-Item 2\n-Item 2\n- Item 3\n@_end_@\n[end]",
 			format: "html",
@@ -96,7 +108,7 @@ describe("Transpiling -> [HTML] Testing At Blocks", () => {
 			.attributes({ style: `font-size:${args[0]}px`, title: args[1] })
 			.body(content);
 	});
-	it("returns p tag", () => {
+	it("transpiles @_Text_@ to <p> with attributes", () => {
 		let output = new SomMark({
 			src: "[Block]\n@_Text_@:26, text\nThis is a test\n@_end_@\n[end]",
 			format: "html",
@@ -104,5 +116,16 @@ describe("Transpiling -> [HTML] Testing At Blocks", () => {
 		}).transpile();
 		output = removeNewline(output);
 		expect(output).toBe('<p style="font-size:26px" title="text">This is a test</p>');
+	});
+	it("transpiles @_table_@ to <table>", () => {
+		let output = new SomMark({
+			src: "[Block]\n@_table_@: user, role, status\n- Adam, Admin, active\n- Elmi, Developer, active\n- Eid, Tester, disabled\n@_end_@\n[end]",
+			format: "html",
+			includeDocument: false
+		}).transpile();
+		output = removeNewline(output);
+		expect(output).toBe(
+			"<table class=\"sommark-table\"><thead><tr><th>user</th><th>role</th><th>status</th></tr></thead><tbody><tr><td>Adam</td><td>Admin</td><td>active</td></tr><tr><td>Elmi</td><td>Developer</td><td>active</td></tr><tr><td>Eid</td><td>Tester</td><td>disabled</td></tr></tbody></table>"
+		);
 	});
 });
