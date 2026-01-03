@@ -42,7 +42,7 @@ markdown.create(["emphasis", "e"], ({ content }) => {
 	return md.emphasis(content);
 });
 // Code Blocks
-markdown.create(["code", "codeBlock"], ({ args, content }) => {
+markdown.create(["code", "Code", "codeBlock", "CodeBlock"], ({ args, content }) => {
 	return md.codeBlock(content, args[0]);
 });
 // Link
@@ -65,4 +65,9 @@ markdown.create(["escape", "s"], ({ content }) => {
 markdown.create("table", ({ args, content }) => {
 	return md.table(args, content.split("\n"));
 });
+// List
+markdown.create(["list", "List"], ({ content }) => {
+	return content;
+});
 export default markdown;
+
