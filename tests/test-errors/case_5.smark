@@ -1,6 +1,4 @@
-[case_5 = missing end block]
-This is a test for missing end block
-
-[paragraph]
-This is a paragraph.
+[case5]
+This case contains a stray opening bracket in the body which should be treated as an error
+This line includes a [ character that is not part of a block header
 [end]
