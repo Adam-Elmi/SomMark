@@ -1,0 +1,5 @@
+[case15]
+Broken inline statement (missing closing parenthesis)
+[This is an identifier with an illegal character]
+Identifiers may only contain letters, digits and underscore; this uses a $ sign
+[end]
