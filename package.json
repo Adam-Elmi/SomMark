@@ -23,14 +23,18 @@
 		"url": "git+https://github.com/Adam-Elmi/SomMark.git"
 	},
 	"keywords": [
+	  "language",
     "markup",
+    "markup-lanuage",
     "documentation",
     "parser",
     "transpiler",
     "html",
     "markdown",
     "mdx",
-    "dsl"
+    "dsl",
+    "mapper",
+    "mapping"
   ],
 	"author": "Adam Elmi",
 	"license": "MIT",
