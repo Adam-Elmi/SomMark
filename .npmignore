@@ -1,0 +1,15 @@
+assets
+tests
+examples
+node_modules
+.vscode
+.prettierrc
+custom.smark.js
+example.smark
+hello.html
+hello.smark
+output.html
+output.md
+output.mdx
+sample.js
+smark.config.js
