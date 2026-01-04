@@ -50,6 +50,12 @@ class ParserError extends CustomError {
 	}
 }
 
+class LexerError extends CustomError {
+	constructor(message) {
+		super(message, "Lexer Error");
+	}
+}
+
 class TranspilerError extends CustomError {
 	constructor(message) {
 		super(message, "Transpiler Error");
@@ -83,6 +89,12 @@ function getError(type) {
 					throw new TranspilerError(errorMessage).message;
 				}
 			};
+		case "lexer":
+			return errorMessage => {
+				if (validate_msg(errorMessage)) {
+					throw new LexerError(errorMessage).message;
+				}
+			};
 		case "cli":
 			return errorMessage => {
 				if (validate_msg(errorMessage)) {
@@ -98,6 +110,7 @@ function getError(type) {
 	}
 }
 
+const lexerError = getError("lexer");
 const parserError = getError("parser");
 const transpilerError = getError("transpiler");
 const cliError = getError("cli");
@@ -111,4 +124,4 @@ function validateId(id) {
 	}
 }
 
-export { parserError, transpilerError, validateId, cliError, runtimeError, formatMessage };
+export { parserError, lexerError, transpilerError, validateId, cliError, runtimeError, formatMessage };
