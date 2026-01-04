@@ -112,11 +112,11 @@ async function loadConfig() {
 	return config;
 }
 
-async function transpile(src, format, mappingFile = "") {
+async function transpile({ src, format, mappingFile = "" }) {
 	if ((await loadConfig()).mode === "default") {
-		return transpiler(parser(lexer(src)), format, format === "html" ? html : format === "md" ? md : mdx);
+		return transpiler({ ast: parser(lexer(src)), format, mapperFile: format === "html" ? html : format === "md" ? md : mdx });
 	} else if (mappingFile && isExist(mappingFile)) {
-		return transpiler(parser(lexer(src)), format, mappingFile);
+		return transpiler({ ast: parser(lexer(src)), format, mappingFile });
 	} else {
 		cliError([`{line}<$red:File$> <$blue:'${mappingFile}'$> <$red: is not found$>{line}`]);
 	}
@@ -125,7 +125,7 @@ async function transpile(src, format, mappingFile = "") {
 async function generateOutput(outputDir, outputFile, format) {
 	let source_code = await readContent(process.argv[3]);
 	source_code = source_code.toString();
-	const output = await transpile(source_code, format, config.mappingFile);
+	const output = await transpile({ src: source_code, format, mappingFile: config.mappingFile });
 	await createFile(outputDir, `${outputFile}.${format}`, output);
 }
 async function generateFile() {
