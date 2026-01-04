@@ -1,6 +1,7 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
 import { block_value, block_id, inline_id, inline_value, at_id, at_value, end_keyword } from "./names.js";
+import { lexerError } from "./validator.js";
 
 function concat(input, index, stop_at_char = [], scope_state, include_then_break = false, escapeChar = "") {
 	let str = "";
@@ -285,7 +286,7 @@ function lexer(src) {
 		}
 		return tokens;
 	} else {
-		throw new Error("Invalid Source Code");
+		lexerError(["{line}<$red:Invalid Source Code:$> <$yellow:Source code is not a string or is empty.$>{line}"]);
 	}
 }
 
