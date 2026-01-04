@@ -51,7 +51,6 @@ describe("Transpiling -> [MD]: Blocks & Inline", () => {
 
     it("returns code block with language", () => {
         let output = new SomMark({ src: "[Block]\n@_code_@: js\nsommark\n@_end_@\n[end]", format: "md" }).transpile();
-        console.log("OUTPUT:", output);
         output = removeWhiteSpaces(output);
         expect(output).toBe("```jssommark```");
     });
@@ -95,7 +94,6 @@ describe("Transpiling -> [MD]: Lists and Tables", () => {
             includeDocument: false
         }).transpile();
         output = removeNewline(output);
-        console.log("TABLE OUTPUT:", output);
         expect(output.includes("| Name | Age |")).toBe(true);
         expect(output.includes("|------|-----|")).toBe(true);
         expect(output.includes("| John | 30 |")).toBe(true);
