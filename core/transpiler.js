@@ -113,18 +113,18 @@ function generateOutput(ast, i, format, file) {
 	return result;
 }
 
-function transpiler(ast, format, file, includeDocument = true) {
+function transpiler({ast, format, mapperFile, includeDocument = true }) {
 	let output = "";
 	for (let i = 0; i < ast.length; i++) {
 		if (ast[i].type === BLOCK) {
-			output += generateOutput(ast, i, format, file);
+			output += generateOutput(ast, i, format, mapperFile);
 		} else if (ast[i].type === COMMENT) {
 			let commentFormat = `<!--${ast[i].text.replace("#", "")}-->`;
 			output += commentFormat + "\n";
 		}
 	}
 	if (includeDocument && format === html) {
-		const document = "<!DOCTYPE html>\n" + "<html>\n" + file.header + "<body>\n" + output + "</body>\n" + "</html>\n";
+		const document = "<!DOCTYPE html>\n" + "<html>\n" + mapperFile.header + "<body>\n" + output + "</body>\n" + "</html>\n";
 		return document;
 	}
 	return output;
