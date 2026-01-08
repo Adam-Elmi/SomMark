@@ -22,7 +22,7 @@ function getHelp(unknown_option = true) {
 		"{N}  <$green:-v or --version$>   <$cyan: show version information$>",
 		"{N}  <$green:--html$>            <$cyan: transpile to html$>",
 		"{N}  <$green:--md$>              <$cyan: transpile to markdown$>",
-		"{N}  <$green:--mdx>              <$cyan: transpile to mdx>"
+		"{N}  <$green:--mdx$>             <$cyan: transpile to mdx$>"
 	].join("");
 	const help_msg = formatMessage(msg);
 	if (!options.includes(process.argv[2]) && unknown_option) {
