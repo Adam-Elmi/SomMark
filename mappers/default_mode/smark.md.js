@@ -7,8 +7,7 @@ markdown.create("Block", ({ content }) => {
 });
 // Headings
 markdown.create("Heading", ({ args, content }) => {
-	console.log(args, content);
-	return md.heading(args[1], args[0]);
+	return md.heading(args[1], args[0]) + content;
 });
 // Inline Headings
 markdown.create("h1", ({ content }) => {
@@ -44,7 +43,7 @@ markdown.create(["emphasis", "e"], ({ content }) => {
 // Code Blocks
 markdown.create(["code", "Code", "codeBlock", "CodeBlock"], ({ args, content }) => {
 	return md.codeBlock(content, args[0]);
-});
+}, { escape: false });
 // Link
 markdown.create("link", ({ args, content }) => {
 	return md.url("link", content, args[0], args[1]);
@@ -64,10 +63,10 @@ markdown.create(["escape", "s"], ({ content }) => {
 // Table
 markdown.create("table", ({ args, content }) => {
 	return md.table(args, content.split("\n"));
-});
+}, { escape: false });
 // List
 markdown.create(["list", "List"], ({ content }) => {
 	return content;
-});
+}, { escape: false });
 export default markdown;
 
