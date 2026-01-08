@@ -1,6 +1,6 @@
 {
 	"name": "sommark",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "SomMark is a structural markup language for writing structured documents and converting them into HTML or Markdown or MDX(only ready components).",
 	"main": "index.js",
 	"directories": {
@@ -23,19 +23,19 @@
 		"url": "git+https://github.com/Adam-Elmi/SomMark.git"
 	},
 	"keywords": [
-	  "language",
-    "markup",
-    "markup-lanuage",
-    "documentation",
-    "parser",
-    "transpiler",
-    "html",
-    "markdown",
-    "mdx",
-    "dsl",
-    "mapper",
-    "mapping"
-  ],
+		"language",
+		"markup",
+		"markup-lanuage",
+		"documentation",
+		"parser",
+		"transpiler",
+		"html",
+		"markdown",
+		"mdx",
+		"dsl",
+		"mapper",
+		"mapping"
+	],
 	"author": "Adam Elmi",
 	"license": "MIT",
 	"bugs": {
