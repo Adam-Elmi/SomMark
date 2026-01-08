@@ -1,7 +1,8 @@
 import TagBuilder from "../formatter/tag.js";
 import MarkdownBuilder from "../formatter/mark.js";
-import { highlightCode, cssTheme } from "../lib/highlight.js";
+import { highlightCode, cssTheme, selectedTheme, themes } from "../lib/highlight.js";
 import escapeHTML from "../helpers/escapeHTML.js";
+import loadStyle from "../helpers/loadStyle.js";
 class Mapper {
 	#predefinedHeaderData;
 	#customElements;
@@ -22,9 +23,15 @@ class Mapper {
 		this.#customElements = "";
 		this.highlightCode = highlightCode;
 		this.cssTheme = cssTheme;
+		this.selectedTheme = selectedTheme;
+		this.codeThemes = themes;
 		this.escapeHTML = escapeHTML;
+		this.enableLoadStyle = false;
+		this.enableLinkStyle = true;
+		this.loadStyle = loadStyle;
+		this.env = "node";
 	}
-	create(id, renderOutput) {
+	create(id, renderOutput, options = { escape: true }) {
 		if (!id || !renderOutput) {
 			throw new Error("Expected arguments are not defined");
 		}
@@ -48,7 +55,7 @@ class Mapper {
 			return renderOutput(data);
 		};
 
-		this.outputs.push({ id, render });
+		this.outputs.push({ id, render, options });
 	}
 	removeOutput(id) {
 		this.outputs = this.outputs.filter(output => {
@@ -188,5 +195,15 @@ class Mapper {
 
 		return renderItems(nodes);
 	};
+	includesId = id => {
+		if (Array.isArray(id)) {
+			return this.outputs.some(output => {
+				return id.some(singleId => singleId === output.id);
+			});
+		}
+		return this.outputs.some(output => {
+			return output.id === id;
+		});
+	}
 }
 export default Mapper;
