@@ -8,6 +8,7 @@ import mdx from "./mappers/default_mode/smark.mdx.js";
 import TagBuilder from "./formatter/tag.js";
 import MarkdownBuilder from "./formatter/mark.js";
 import { runtimeError } from "./core/validator.js";
+import { loadStyle } from "./helpers/loadStyle.js";
 
 class SomMark {
 	constructor({ src, format, mapperFile = null, mode = "default", includeDocument = true }) {
@@ -57,7 +58,7 @@ class SomMark {
 const lex = src => lexer(src);
 
 function parse(src) {
-	if(!src) {
+	if (!src) {
 		runtimeError([
 			`{line}<$red:Missing Source:$> <$yellow:The 'src' argument is required for parsing.$>{line}`
 		]);
@@ -100,5 +101,5 @@ function transpile(options = {}) {
 	return transpiler({ ast, format, mapperFile, includeDocument });
 }
 
-export { html, markdown, mdx, Mapper, TagBuilder, MarkdownBuilder, lex, parse, transpile };
+export { html, markdown, mdx, Mapper, TagBuilder, MarkdownBuilder, lex, parse, transpile, loadStyle };
 export default SomMark;
