@@ -78,7 +78,7 @@ let block_stack = [];
 let end_stack = [];
 let tokens_stack = [];
 let line = 1,
-	start = 1,	
+	start = 1,
 	end = 1,
 	value = "";
 
@@ -430,6 +430,13 @@ function parseNode(tokens, i) {
 }
 
 function parser(tokens) {
+	block_stack = [];
+	end_stack = [];
+	tokens_stack = [];
+	line = 1;
+	start = 1;
+	end = 1;
+	value = "";
 	let ast = [];
 	for (let i = 0; i < tokens.length; i++) {
 		let [nodes, nextIndex] = parseNode(tokens, i);
