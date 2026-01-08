@@ -1,3 +1,4 @@
+import escapeHTML from "../helpers/escapeHTML.js";
 class TagBuilder {
 	#children;
 	#attr;
@@ -11,7 +12,7 @@ class TagBuilder {
 	attributes(obj, ...arr) {
 		if (obj && obj instanceof Object) {
 			Object.entries(obj).forEach(([key, value]) => {
-				this.#attr.push(`${key}="${ value ?? ""}"`);
+				this.#attr.push(`${key}="${escapeHTML(value ?? "")}"`);
 			});
 		}
 		if (arr && Array.isArray(arr)) {
@@ -32,10 +33,10 @@ class TagBuilder {
 				if (prop && type) {
 					switch (type) {
 						case "string":
-							this.#attr.push(`${key2}="${value}"`);
+							this.#attr.push(`${key2}="${escapeHTML(value)}"`);
 							break;
 						case "other":
-							this.#attr.push(`${key2}={${value}}`);
+							this.#attr.push(`${key2}={${value}}`); // React/MDX props might need different handling, but usually raw JS expression?
 							break;
 					}
 				}
