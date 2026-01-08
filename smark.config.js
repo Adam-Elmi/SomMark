@@ -2,6 +2,7 @@ const config = {
 	outputDir: "",
 	outputFile: "output",
 	mode: "default",
-	mappingFile: null
+	mappingFile: null,
+	includeDocument: true
 };
 export default config;
