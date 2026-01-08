@@ -1,9 +1,10 @@
 import PREDEFINED_IDS from "./ids.js";
 import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT, NEWLINE } from "./names.js";
+import escapeHTML from "../helpers/escapeHTML.js";
 import { transpilerError } from "./validator.js";
 
-const formats = { html: "html", md: "md", mdx: "mdx" };
-const { html, md, mdx } = formats;
+const formats = { htmlFormat: "html", markdownFormat: "md", mdxFormat: "mdx" };
+const { htmlFormat, markdownFormat, mdxFormat } = formats;
 
 // Extracting target identifier
 function matchedValue(outputs, targetId) {
@@ -29,15 +30,15 @@ function matchedValue(outputs, targetId) {
 function generateOutput(ast, i, format, file) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
+	let context = "";
 	let target = matchedValue(file.outputs, node.id);
 	if (target) {
 		result +=
-			format === html || format === mdx
+			format === htmlFormat || format === mdxFormat
 				? (node.depth > 1 ? " ".repeat(node.depth) : "") +
-					target.render({ args: node.args, content: "\n<%smark>" + (node.depth > 1 ? " ".repeat(node.depth) : "") }) +
-					"\n"
+				target.render({ args: node.args, content: "\n<%smark>" + (node.depth > 1 ? " ".repeat(node.depth) : "") }) +
+				"\n"
 				: target.render({ args: node.args, content: "" });
-		let context = "";
 		for (const body_node of node.body) {
 			switch (body_node.type) {
 				case TEXT:
@@ -48,11 +49,7 @@ function generateOutput(ast, i, format, file) {
 							body_node.text = body_node.text.slice(1, body_node.text.length - 1);
 						}
 					}
-					if (format === html) {
-						context += " ".repeat(body_node.depth) + `<p>${body_node.text}</p>`;
-					} else {
-						context += body_node.text;
-					}
+					context += (format === htmlFormat || format === mdxFormat) ? escapeHTML(body_node.text) : body_node.text;
 					break;
 				case INLINE:
 					target = matchedValue(file.outputs, body_node.id);
@@ -64,15 +61,15 @@ function generateOutput(ast, i, format, file) {
 									metadata.push(body_node.data);
 								}
 								if (body_node.hasOwnProperty("title")) {
-									if (format === html) body_node.title = body_node.title.replaceAll('"', "");
+									if (format === htmlFormat) body_node.title = body_node.title.replaceAll('"', "");
 									metadata.push(body_node.title);
 								}
 								break;
 							}
 						}
 						context +=
-							(format === html || format === mdx ? "\n" : "") +
-							target.render({ args: metadata.length > 0 ? metadata : "", content: body_node.value });
+							(format === htmlFormat || format === mdxFormat ? "\n" : "") +
+							target.render({ args: metadata.length > 0 ? metadata : "", content: (format === htmlFormat || format === mdxFormat) ? escapeHTML(body_node.value) : body_node.value });
 					}
 					break;
 				case NEWLINE:
@@ -81,17 +78,24 @@ function generateOutput(ast, i, format, file) {
 				case ATBLOCK:
 					target = matchedValue(file.outputs, body_node.id);
 					if (target) {
+						const shouldEscape = target.options?.escape ?? true;
 						let content = "";
 						for (let v = 0; v < body_node.content.length; v++) {
 							let value = body_node.content[v];
+							if (shouldEscape) {
+								value = escapeHTML(value);
+							}
 							content += v === 0 ? value : "\n" + value;
 						}
 						context += target.render({ args: body_node.args, content });
 					}
 					break;
 				case COMMENT:
-					let commentFormat = `<!--${body_node.text.replace("#", "")}-->`;
-					context += " ".repeat(body_node.depth) + commentFormat;
+					if (format === htmlFormat || format === markdownFormat) {
+						context += " ".repeat(body_node.depth) + `<!--${body_node.text.replace("#", "")}-->`;
+					} else if (format === mdxFormat) {
+						context += " ".repeat(body_node.depth) + `{/*${body_node.text.replace("#", "")} */}`;
+					}
 					break;
 				case BLOCK:
 					target = matchedValue(file.outputs, body_node.id);
@@ -99,7 +103,7 @@ function generateOutput(ast, i, format, file) {
 					break;
 			}
 		}
-		if (format === html || format === mdx) {
+		if (format === htmlFormat || format === mdxFormat) {
 			result = result.replace("<%smark>", context);
 		} else {
 			result += context;
@@ -113,17 +117,28 @@ function generateOutput(ast, i, format, file) {
 	return result;
 }
 
-function transpiler({ast, format, mapperFile, includeDocument = true }) {
+function transpiler({ ast, format, mapperFile, includeDocument = true }) {
 	let output = "";
 	for (let i = 0; i < ast.length; i++) {
 		if (ast[i].type === BLOCK) {
 			output += generateOutput(ast, i, format, mapperFile);
 		} else if (ast[i].type === COMMENT) {
-			let commentFormat = `<!--${ast[i].text.replace("#", "")}-->`;
-			output += commentFormat + "\n";
+			if (format === htmlFormat || format === markdownFormat) {
+				output += `<!--${ast[i].text.replace("#", "")}-->\n`;
+			} else if (format === mdxFormat) {
+				output += `{/*${ast[i].text.replace("#", "")} */}\n`;
+			}
 		}
 	}
-	if (includeDocument && format === html) {
+	if (format === htmlFormat && (output.includes("<code>") || output.includes("<pre>"))) {
+		if (mapperFile.enableLoadStyle) {
+			mapperFile.setHeader([mapperFile.loadStyle(mapperFile.env, mapperFile.selectedTheme)]);
+		}
+		if (mapperFile.enableLinkStyle) {
+			mapperFile.setHeader([mapperFile.cssTheme(mapperFile.selectedTheme)]);
+		}
+	}
+	if (includeDocument && format === htmlFormat) {
 		const document = "<!DOCTYPE html>\n" + "<html>\n" + mapperFile.header + "<body>\n" + output + "</body>\n" + "</html>\n";
 		return document;
 	}
