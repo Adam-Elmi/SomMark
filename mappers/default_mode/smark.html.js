@@ -1,6 +1,9 @@
 import Mapper from "../mapper.js";
 const html = new Mapper();
-const { tag, setHeader, code, cssTheme, list } = html;
+const { tag, code, list } = html;
+
+html.selectedTheme = "paraiso-dark";
+html.env = "browser";
 
 // Block
 html.create("Block", ({ content }) => {
@@ -58,18 +61,18 @@ html.create("image", ({ args, content }) => {
 // Code
 html.create("code", ({ args, content }) => {
 	return code(args, content);
-});
+}, { escape: false });
 // List
 html.create(["list", "List"], ({ content }) => {
 	return list(content);
-});
+}, { escape: false });
 // Table
 html.create("table", ({ content, args }) => {
 	return html.htmlTable(content.split(/\n/), args);
-});
+}, { escape: false });
 // Horizontal Rule
 html.create("hr", () => {
 	return tag("hr").selfClose();
 });
-setHeader([cssTheme()]);
+
 export default html;
