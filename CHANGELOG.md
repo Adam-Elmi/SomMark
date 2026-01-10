@@ -29,3 +29,9 @@
     - **Transpiler**: `AtBlock` content is now **escaped by default** in the transpiler to prevent XSS.
     - **Mapper**: Added `options` to `Mapper.create` (e.g., `{ escape: false }`) to allow specific blocks (like `Code`, `List`, `Table`) to opt-out of automatic escaping when they handle raw content safely or require it for parsing.
     - **Parser**: Removed manual escaping from Parser to support the new transpiler-based architecture.
+
+## 1.1.1 (2026-01-10)
+
+### Bug Fixes
+
+- **CLI**: Fixed a bug where passing a Mapper object in `smark.config.js` (Custom Mode) caused a crash. The CLI now correctly handles both file path strings and imported Mapper objects.
