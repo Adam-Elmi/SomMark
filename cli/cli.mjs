@@ -113,10 +113,15 @@ async function loadConfig() {
 }
 
 async function transpile({ src, format, mappingFile = "" }) {
+	if (typeof mappingFile === "object" && mappingFile !== null) {
+		return transpiler({ ast: parser(lexer(src)), format, mapperFile: mappingFile });
+	}
 	if ((await loadConfig()).mode === "default") {
 		return transpiler({ ast: parser(lexer(src)), format, mapperFile: format === "html" ? html : format === "md" ? md : mdx });
-	} else if (mappingFile && isExist(mappingFile)) {
-		return transpiler({ ast: parser(lexer(src)), format, mappingFile });
+	} else if (typeof mappingFile === "string" && (await isExist(mappingFile))) {
+		const mappingFileURL = pathToFileURL(path.resolve(process.cwd(), mappingFile)).href;
+		const loadedMapper = await import(mappingFileURL);
+		return transpiler({ ast: parser(lexer(src)), format, mapperFile: loadedMapper.default });
 	} else {
 		cliError([`{line}<$red:File$> <$blue:'${mappingFile}'$> <$red: is not found$>{line}`]);
 	}
