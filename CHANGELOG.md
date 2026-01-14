@@ -35,3 +35,32 @@
 ### Bug Fixes
 
 - **CLI**: Fixed a bug where passing a Mapper object in `smark.config.js` (Custom Mode) caused a crash. The CLI now correctly handles both file path strings and imported Mapper objects.
+
+
+## 1.2.0 (2026-01-14)
+
+### Bug Fixes
+
+* Fixed an issue where consecutive standalone blocks were not fully rendered when not separated by a blank line.
+
+```ini
+[Block]
+This is a test.
+[end]
+[Block]
+This is another test.
+[end]
+```
+
+* Added support for inline block content while keeping the original multiline syntax fully compatible.
+
+```yaml
+[Block]Hello World[end]
+```
+
+---
+
+### Code Improvements
+
+* Removed unnecessary code
+* Improved internal implementation
