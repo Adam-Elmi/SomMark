@@ -111,9 +111,10 @@ function parseBlock(tokens, i) {
 	block_stack.push(1);
 	end_stack.pop();
 	const blockNode = makeBlockNode();
+	// consume '['
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		const id = current_token(tokens, i).value.trim();
 		validateId(id);
@@ -122,13 +123,15 @@ function parseBlock(tokens, i) {
 	} else {
 		parserError(errorMessage(tokens, i, block_id, "["));
 	}
+	// consume Block identifier
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.EQUAL) {
+		// consume '='
+		i++;
 		// Update Data
 		updateData(tokens, i);
-		i++;
 		if (current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
 			current_token(tokens, i)
 				.value.split(",")
@@ -138,9 +141,10 @@ function parseBlock(tokens, i) {
 		} else {
 			parserError(errorMessage(tokens, i, block_value, "="));
 		}
+		// consume Block value
+		i++;
 		// Update Data
 		updateData(tokens, i);
-		i++;
 	}
 	if (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_BRACKET) {
 		if (peek(tokens, i, -1) && peek(tokens, i, -1).type === TOKEN_TYPES.VALUE) {
@@ -149,20 +153,22 @@ function parseBlock(tokens, i) {
 			parserError(errorMessage(tokens, i, "]", block_id));
 		}
 	}
+	// consume ']'
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
-	if (!current_token(tokens, i) || current_token(tokens, i).value !== "\n") {
-		parserError(errorMessage(tokens, i, "\\n", "]"));
+	if (current_token(tokens, i) && current_token(tokens, i).type == TOKEN_TYPES.NEWLINE) {
+		// consume '\n'
+		i++;
+		// Update Data
+		updateData(tokens, i);
 	}
-	// Update Data
-	updateData(tokens, i);
-	i++;
 	tokens_stack.length = 0;
 	while (i < tokens.length) {
 		if (current_token(tokens, i).value === "[" && peek(tokens, i, 1).value !== "end") {
 			const [childNode, nextIndex] = parseBlock(tokens, i);
 			blockNode.body.push(childNode);
+			// consume child node
 			i = nextIndex;
 			// Update Data
 			updateData(tokens, i);
@@ -170,20 +176,17 @@ function parseBlock(tokens, i) {
 			current_token(tokens, i).type === TOKEN_TYPES.OPEN_BRACKET &&
 			peek(tokens, i, 1).type === TOKEN_TYPES.END_KEYWORD
 		) {
+			// consume end keyword
+			i++;
 			// Update Data
 			updateData(tokens, i);
-			i++;
 			if (current_token(tokens, i).type === TOKEN_TYPES.END_KEYWORD) {
-				// Update Data
-				updateData(tokens, i);
-				if (peek(tokens, i, 1) && peek(tokens, i, 1).type === TOKEN_TYPES.CLOSE_BRACKET) {
-					// Update Data
-					updateData(tokens, i + 1);
-				} else {
+				if (peek(tokens, i, 1) && peek(tokens, i, 1).type !== TOKEN_TYPES.CLOSE_BRACKET) {
 					parserError(errorMessage(tokens, i, "]", end_keyword));
 				}
 			}
 			block_stack.pop();
+			// consume end keyword and ']'
 			i += 2;
 			// Update Data
 			updateData(tokens, i);
@@ -195,49 +198,50 @@ function parseBlock(tokens, i) {
 				continue;
 			}
 			blockNode.body.push(childNode);
-			if (blockNode.body[0].value === "\n") {
-				blockNode.body.splice(0, 1);
-			}
 			i = nextIndex;
 		}
 	}
-	i++;
 	return [blockNode, i];
 }
 
 // Parse Inline Statements
 function parseInline(tokens, i) {
 	const inlineNode = makeInlineNode();
+	// consume '('
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
 		inlineNode.value = current_token(tokens, i).value;
 		inlineNode.depth = current_token(tokens, i).depth;
 	} else {
 		parserError(errorMessage(tokens, i, inline_value, "("));
 	}
+	// consume Inline Value
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
 		parserError(errorMessage(tokens, i, ")", inline_value));
 	}
+	// consume ')'
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.THIN_ARROW) {
 		parserError(errorMessage(tokens, i, "->", ")"));
 	}
+	// consume '->'
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_PAREN) {
 		parserError(errorMessage(tokens, i, "(", "->"));
 	}
+	// consume '('
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		for (const id of PREDEFINED_IDS) {
 			if (current_token(tokens, i).value.includes(`${id}:`)) {
@@ -260,16 +264,18 @@ function parseInline(tokens, i) {
 	} else {
 		parserError(errorMessage(tokens, i, inline_id, "("));
 	}
+	// consume Inline Identifier
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
 		parserError(errorMessage(tokens, i, ")", inline_id));
 	}
+	// consume ')'
+	i++;
 	// Update Data
 	updateData(tokens, i);
 	tokens_stack.length = 0;
-	i++;
 	return [inlineNode, i];
 }
 
@@ -280,18 +286,23 @@ function parseText(tokens, i) {
 		textNode.text = current_token(tokens, i).value;
 		textNode.depth = current_token(tokens, i).depth;
 	}
+	// consume TEXT
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	return [textNode, i];
 }
 
 // Parse At_Block
 function parseAtBlock(tokens, i) {
 	const atBlockNode = makeAtBlockNode();
+	// consume '@_'
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
+	if(current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.END_KEYWORD) {
+	parserError(errorMessage(tokens, i, at_id, "@_"));
+	}
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		const id = current_token(tokens, i).value.trim();
 		validateId(id);
@@ -300,28 +311,32 @@ function parseAtBlock(tokens, i) {
 	} else {
 		parserError(errorMessage(tokens, i, at_id, "@_"));
 	}
+	// consume Atblock Identifier
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT) {
 		parserError(errorMessage(tokens, i, "_@", at_id));
 	}
+	// consume '_@'
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COLON) {
+	// consume ':'
+		i++;
 		// Update Data
 		updateData(tokens, i);
-		i++;
 		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
 			current_token(tokens, i)
 				.value.split(",")
 				.forEach(value => {
 					atBlockNode.args.push(value.trim());
 				});
+			// consume Atblock Value
+			i++;
 			// Update Data
 			updateData(tokens, i);
-			i++;
 		} else {
 			parserError(errorMessage(tokens, i, at_value, ":"));
 		}
@@ -329,55 +344,65 @@ function parseAtBlock(tokens, i) {
 	if (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.NEWLINE) {
 		parserError(errorMessage(tokens, i, "\\n", "_@"));
 	}
+	// consume '\n'
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.TEXT) {
 		parserError(errorMessage(tokens, i, "Text", "\\n"));
 	}
 	while (i < tokens.length) {
 		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
 			atBlockNode.content.push(current_token(tokens, i).value);
+			// consume TEXT
+			i++;
 			// Update Data
 			updateData(tokens, i);
-			i++;
 		} else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.NEWLINE) {
+		// consume '\n'
+			i++;
 			// Update Data
 			updateData(tokens, i);
-			i++;
 			continue;
 		} else {
 			break;
 		}
 	}
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.NEWLINE) {
+	// consume '\n'
+		i++;
 		// Update Data
 		updateData(tokens, i);
-		i++;
 	}
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_AT) {
 		parserError(errorMessage(tokens, i, "@_", "\\n"));
 	}
+	// consume '@_'
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.END_KEYWORD) {
 		parserError(errorMessage(tokens, i, end_keyword, "@_"));
 	}
+	// console end keyword
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT) {
 		parserError(errorMessage(tokens, i, "_@", end_keyword));
 	}
+	// consume '_@'
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	if (!current_token(tokens, i) || current_token(tokens, i).value !== "\n") {
 		parserError(errorMessage(tokens, i, "\\n", "_@"));
 	}
-	tokens_stack.length = 0;
+	// consume '\n'
 	i++;
+	// Update Data
+	updateData(tokens, i);
+	tokens_stack.length = 0;
 	return [atBlockNode, i];
 }
 
@@ -388,9 +413,10 @@ function parseCommentNode(tokens, i) {
 		commentNode.text = current_token(tokens, i).value;
 		commentNode.depth = current_token(tokens, i).depth;
 	}
+	// consume Comment
+	i++;
 	// Update Data
 	updateData(tokens, i);
-	i++;
 	return [commentNode, i];
 }
 
@@ -415,7 +441,7 @@ function parseNode(tokens, i) {
 		return parseText(tokens, i);
 	}
 	// At_Block
-	else if (current_token(tokens, i).value === "@_" && peek(tokens, i, 1).type !== TOKEN_TYPES.END_KEYWORD) {
+	else if (current_token(tokens, i).value === "@_") {
 		return parseAtBlock(tokens, i);
 	}
 	// Newline
