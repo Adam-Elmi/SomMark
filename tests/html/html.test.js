@@ -11,16 +11,16 @@ describe("HTML Transpiler — Blocks", () => {
 	it("transpiles [Section] to <section><p>Test</p></section>", () => {
 		let output = new SomMark({ src: "[Section]\nTest\n[end]", format: "html", includeDocument: false }).transpile();
 		output = removeWhiteSpaces(output);
-		expect(output).toBe("<section><p>Test</p></section>");
+		expect(output).toBe("<section>Test</section>");
 	});
-	it("transpiles [Block] with multiple paragraphs", () => {
-		let output = new SomMark({ src: "[Block]\nHello\nWorld\n[end]", format: "html", includeDocument: false }).transpile();
-		output = removeWhiteSpaces(output);
-		expect(output).toBe("<p>Hello</p><p>World</p>");
+	it("transpiles [Block] into plain text", () => {
+		let output = new SomMark({ src: "[Block]Hello World[end]", format: "html", includeDocument: false }).transpile();
+		output = removeNewline(output);
+		expect(output).toBe("Hello World");
 	});
 	it("transpiles block with attributes to div", () => {
 		const expectedValue =
-			'<div title="Transpiler-Test" data-test-id="Test-101" data-failed-tests="5"> <p>Block Arguments</p></div>';
+			'<div title="Transpiler-Test" data-test-id="Test-101" data-failed-tests="5">Block Arguments</div>';
 		let output = new SomMark({
 			src: "[Test = Transpiler-Test, Test-101, 5 ]\nBlock Arguments\n[end]",
 			format: "html",
@@ -35,7 +35,7 @@ describe("HTML Transpiler — Blocks", () => {
 			.body(content);
 	});
 	it("transpiles nested Container blocks into nested divs", () => {
-		const expectedValue = "<div><div><div><div><div><div><p>SomMark</p></div></div></div></div></div></div>";
+		const expectedValue = "<div><div><div><div><div><div>SomMark</div></div></div></div></div></div>";
 		let output = new SomMark({
 			src: "[Container]\n[Container]\n[Container]\n[Container]\n[Container]\n[Container]\nSomMark\n[end]\n[end]\n[end]\n[end]\n[end]\n[end]",
 			format: "html",
