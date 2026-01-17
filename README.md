@@ -18,7 +18,7 @@
 
 <p align="center">
 <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
-<img src="https://img.shields.io/badge/version-v1.0.0-blue?style=flat-square" />
+<img src="https://img.shields.io/npm/v/sommark?style=flat-square" />
 <img src="https://img.shields.io/badge/type-markup%20language-purple?style=flat-square" />
 <img src="https://img.shields.io/badge/html-supported-orange?style=flat-square" />
 <img src="https://img.shields.io/badge/markdown-supported-lightyellow?style=flat-square" />
@@ -28,7 +28,7 @@
 
 ---
 
-# SomMark v1
+# SomMark v2-beta
 
 SomMark is a simple and extensible markup language designed for writing documentation and structured content. It is easy to read, easy to parse, and easy to convert into formats like HTML, Markdown, and MDX.
 
