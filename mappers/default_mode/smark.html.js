@@ -2,7 +2,6 @@ import Mapper from "../mapper.js";
 const html = new Mapper();
 const { tag, code, list } = html;
 
-html.selectedTheme = "paraiso-dark";
 html.env = "browser";
 
 // Block
