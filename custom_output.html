@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>SomMark Page</title>
+
+<link rel="stylesheet" href="node_modules/highlight.js/styles/atom-one-dark.min.css">
+<body>
+
+Title: Example Block — Python
+This is a block of text in a .smark file. &gt;
+
+<h2>Heading</h2>
+This block shows a simple Python example.
+<pre><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>):
+    <span class="hljs-keyword">return</span> <span class="hljs-string">f&quot;Hello, <span class="hljs-subst">{name}</span>!&quot;</span>
+<span class="hljs-built_in">print</span>(greet(<span class="hljs-string">&quot;World&quot;</span>))</code></pre>
+
+Title: Example Block — JavaScript
+This is another block of text in a .smark file.
+
+<h2>Heading</h2>
+This block shows a simple JavaScript example.
+<pre><code class="hljs language-javascript"><span class="hljs-keyword">function</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>) {
+    <span class="hljs-keyword">return</span> <span class="hljs-string">`Hello, <span class="hljs-subst">${name}</span>!`</span>;
+}
+<span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-title function_">greet</span>(<span class="hljs-string">&quot;World&quot;</span>));</code></pre>
+
+Title: Example Block — Ruby
+Nested block content and a Ruby example.
+
+<h2>Heading</h2>
+This block shows a simple Ruby example.
+<pre><code class="hljs language-ruby"><span class="hljs-keyword">def</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>)
+    <span class="hljs-string">&quot;Hello, <span class="hljs-subst">#{name}</span>!&quot;</span>
+<span class="hljs-keyword">end</span>
+puts greet(<span class="hljs-string">&quot;World&quot;</span>)</code></pre>
+
+Title: Parent Block with Nested Children
+This parent block contains nested child blocks to demonstrate nesting.
+
+<h1>Heading</h1>
+
+  
+Title: Child Block — Python Utility
+Child block 1: a small utility function.
+<pre><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">repeat</span>(<span class="hljs-params">msg, n=<span class="hljs-number">3</span></span>):
+    <span class="hljs-keyword">return</span> <span class="hljs-string">&quot; &quot;</span>.join([msg] * n)
+<span class="hljs-built_in">print</span>(repeat(<span class="hljs-string">&quot;Echo&quot;</span>))</code></pre>  
+
+
+  
+Title: Child Block — JavaScript Utility
+Child block 2: a small utility function.
+<pre><code class="hljs language-javascript"><span class="hljs-keyword">const</span> <span class="hljs-title function_">repeat</span> = (<span class="hljs-params">msg, n = <span class="hljs-number">3</span></span>) =&gt; <span class="hljs-title class_">Array</span>(n).<span class="hljs-title function_">fill</span>(msg).<span class="hljs-title function_">join</span>(<span class="hljs-string">&quot; &quot;</span>);
+<span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-title function_">repeat</span>(<span class="hljs-string">&quot;Echo&quot;</span>));</code></pre>  
+
+
+  
+Title: Child Block — Nested Grandchild Example
+This child contains a deeper nested block.
+<pre><code class="hljs language-markdown"><span class="hljs-bullet">-</span> parent: Child Block
+<span class="hljs-bullet">-</span> note: contains a grandchild block below</code></pre>  
+
+
+  
+Title: Grandchild Block — Inline Note
+Deeper nested block grandchild.
+This illustrates multi-level nesting.
+<pre><code class="hljs language-text">This is a grandchild block inside a child block.</code></pre>  
+
+
+
+
+Title: Final Organized Block
+Summary and notes about the examples above.
+
+<h3>Heading</h3>
+Use these blocks as templates for adding more nested content.
+
+</body>
+</html>
