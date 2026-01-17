@@ -1,6 +1,6 @@
 [Block]
 Title: Example Block — Python
-This is a block of text in a .smark file. `()->()`
+This is a block of text in a .smark file. \(\)\->\(\)
 (Heading)->(h2)
 This block shows a simple Python example.
 @_code_@: python
@@ -71,7 +71,7 @@ This child contains a deeper nested block.
 
 [Block]
 Title: Grandchild Block — Inline Note
-Deeper nested block (grandchild).
+Deeper nested block \(grandchild\).
 This illustrates multi-level nesting.
 @_code_@: text
 This is a grandchild block inside a child block.
@@ -85,5 +85,4 @@ Title: Final Organized Block
 Summary and notes about the examples above.
 (Heading)->(h3)
 Use these blocks as templates for adding more nested content.
-@_end_@
 [end]
