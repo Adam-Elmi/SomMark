@@ -36,7 +36,7 @@ class TagBuilder {
 							this.#attr.push(`${key2}="${escapeHTML(value)}"`);
 							break;
 						case "other":
-							this.#attr.push(`${key2}={${value}}`); // React/MDX props might need different handling, but usually raw JS expression?
+							this.#attr.push(`${key2}={${value}}`); // [NEEDS IMPROVEMENT]
 							break;
 					}
 				}
