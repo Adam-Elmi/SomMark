@@ -219,6 +219,25 @@ function parseInline(tokens, i) {
 	}
 	// consume Inline Value
 	i++;
+	// Edge case
+	let escape_characters = "";
+	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.ESCAPE) {
+		while (i < tokens.length) {
+			if (current_token(tokens, i).type === TOKEN_TYPES.ESCAPE || current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
+				switch (current_token(tokens, i).type) {
+					case TOKEN_TYPES.ESCAPE:
+						inlineNode.value += current_token(tokens, i).value.slice(1);
+						break;
+					case TOKEN_TYPES.TEXT:
+						inlineNode.value += current_token(tokens, i).value;
+						break;
+				}
+				i++;
+			} else {
+				break;
+			}
+		}
+	}
 	// Update Data
 	updateData(tokens, i);
 	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
@@ -300,8 +319,8 @@ function parseAtBlock(tokens, i) {
 	i++;
 	// Update Data
 	updateData(tokens, i);
-	if(current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.END_KEYWORD) {
-	parserError(errorMessage(tokens, i, at_id, "@_"));
+	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.END_KEYWORD) {
+		parserError(errorMessage(tokens, i, at_id, "@_"));
 	}
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		const id = current_token(tokens, i).value.trim();
@@ -323,7 +342,7 @@ function parseAtBlock(tokens, i) {
 	// Update Data
 	updateData(tokens, i);
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COLON) {
-	// consume ':'
+		// consume ':'
 		i++;
 		// Update Data
 		updateData(tokens, i);
@@ -359,7 +378,7 @@ function parseAtBlock(tokens, i) {
 			// Update Data
 			updateData(tokens, i);
 		} else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.NEWLINE) {
-		// consume '\n'
+			// consume '\n'
 			i++;
 			// Update Data
 			updateData(tokens, i);
@@ -369,7 +388,7 @@ function parseAtBlock(tokens, i) {
 		}
 	}
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.NEWLINE) {
-	// consume '\n'
+		// consume '\n'
 		i++;
 		// Update Data
 		updateData(tokens, i);
