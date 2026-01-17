@@ -1,8 +1,7 @@
-const config = {
-	outputDir: "",
-	outputFile: "output",
+import custom_html from "./custom.smark.js";
+export default {
+	outputFile: "custom_output",
+	outputDir: "./",
 	mode: "default",
-	mappingFile: null,
-	includeDocument: true
+	mappingFile: custom_html
 };
-export default config;
