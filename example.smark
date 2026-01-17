@@ -1,3 +1,10 @@
-[Section]
-This is a test.
+[Block]
+This is a test. 
+(alert\('msg'\))->(bold)
+This is a test. 
+(alert\('msg'\))->(bold)
+[end]
+
+[Block]
+(<script\>alert\('msg'\)</script\>)->(bold)
 [end]
