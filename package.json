@@ -16,7 +16,7 @@
 		"test:watch": "vitest watch"
 	},
 	"bin": {
-		"smark": "./cli/cli.mjs"
+		"smark": "cli/cli.mjs"
 	},
 	"repository": {
 		"type": "git",
