@@ -64,3 +64,48 @@ This is another test.
 
 * Removed unnecessary code
 * Improved internal implementation
+
+---
+
+## v2.0.0-beta.1 (2026-01-17)
+
+### Breaking Changes
+
+* Replaced backtick-based escape syntax (`escape content`) with a single-character escape using backslash (`\`).
+* Escape handling is now active inside **at-blocks**, inline values, and block bodies.
+* Documents using the previous escape syntax must be updated.
+
+---
+
+### Parser & Lexer Improvements
+
+* Refactored character concatenation logic by replacing the single `concat` function with specialized handlers:
+
+  * `concatText`
+  * `concatEscape`
+  * `concatChar`
+
+  This separation eliminated multiple hidden parsing bugs and significantly improved maintainability.
+
+* Fixed an issue where **at-block endings were incorrectly treated as text** when preceded by leading spaces, which could corrupt the entire document.
+
+* Fixed errors caused by starting a new block on the same line where a previous block ended (e.g. `[end][Block]`).
+
+* Improved correctness when handling consecutive blocks without implicit line separation.
+
+---
+
+### Internal Improvements
+
+* Simplified escape handling for safer and more predictable parsing
+* Improved compatibility between escapes, inline values, and at-block bodies
+* Reduced parser complexity and improved stability
+
+---
+
+### Notes
+
+This release introduces **intentional breaking changes** to core grammar behavior.
+It is published as a **beta** to allow validation before the stable **v2.0.0** release.
+
+---
