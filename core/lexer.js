@@ -3,11 +3,16 @@ import peek from "../helpers/peek.js";
 import { block_value, block_id, inline_id, inline_value, at_id, at_value, end_keyword } from "./names.js";
 import { lexerError } from "./validator.js";
 
-function concat(input, index, stop_at_char = [], scope_state, include_then_break = false, escapeChar = "") {
-	let str = "";
-	for (let char_index = index; char_index < input.length; char_index++) {
-		let char = input[char_index];
-		if (stop_at_char === null) {
+function concatText(input, index, scope_state) {
+	let text = "";
+	if (
+		(Array.isArray(input) || typeof input === "string") &&
+		input.length > 0 &&
+		typeof index === "number" &&
+		typeof scope_state === "boolean"
+	) {
+		for (let i = index; i < input.length; i++) {
+			const char = input[i];
 			if (char === "\n") {
 				break;
 			} else if (char === "[" && !scope_state) {
@@ -18,33 +23,75 @@ function concat(input, index, stop_at_char = [], scope_state, include_then_break
 				break;
 			} else if (char === "(" && !scope_state) {
 				break;
-			} else if (char === "-" && peek(input, char_index, 1) === ">" && !scope_state) {
+			} else if (char === "-" && peek(input, i, 1) === ">" && !scope_state) {
 				break;
-			} else if (char === "@" && peek(input, char_index, 1) === "_" && !scope_state) {
+			} else if (char === "@" && peek(input, i, 1) === "_") {
 				break;
-			} else if (char === "_" && peek(input, char_index, 1) === "@" && !scope_state) {
+			} else if (char === "_" && peek(input, i, 1) === "@") {
 				break;
 			} else if (char === "#" && !scope_state) {
 				break;
-			} else if (char === "`" && !scope_state) {
+			} else if (char === "\\") {
 				break;
 			}
-			str += char;
-		} else {
-			if (char === escapeChar && peek(input, char_index, 1) === "`") {
-				str += char + peek(input, char_index, 1);
-				break;
-			} else if (char === escapeChar && peek(input, char_index, 1) !== "`") {
-				break;
-			} else if (char !== escapeChar && Array.isArray(stop_at_char) && stop_at_char.includes(char)) {
-				include_then_break ? (str += char) : null;
-				break;
-			}
-			str += char;
+			text += char;
 		}
+		return text;
+	} else {
+		lexerError([
+			"{line}<$red:Invalid Arguments:$> <$yellow:Assign arguments to their correct types, ",
+			"'input' must be an array and have to be not empty, 'index' must be a number value, and 'scope_state' ",
+			"must be a boolean.$>{line}."
+		]);
 	}
+}
 
-	return str;
+function concatEscape(input, index) {
+	if ((Array.isArray(input) || typeof input === "string") && input.length > 0 && typeof index === "number") {
+		let str = "";
+		if (input[index] === "\\" && peek(input, index, 1)) {
+			str += "\\" + peek(input, index, 1);
+		} else {
+			lexerError(["{line}<$red:Next character is not found:$> <$yellow:There is no character after escape character!$>{line}"]);
+		}
+		return str;
+	} else {
+		lexerError([
+			"{line}<$red:Invalid Arguments:$> <$yellow:Assign arguments to their correct types, ",
+			"'input' must be an array and have to be not empty, and 'index' must be a number value.$>{line}"
+		]);
+	}
+}
+
+function concatChar(input, index, stop_at_char, scope_state) {
+	if (
+		(Array.isArray(input) || typeof input === "string") &&
+		input.length > 0 &&
+		typeof index === "number" &&
+		typeof scope_state === "boolean"
+	) {
+		let str = "";
+		if (Array.isArray(stop_at_char) && stop_at_char.length > 0) {
+			for (let i = index; i < input.length; i++) {
+				const char = input[i];
+				if (stop_at_char.includes(char)) {
+					break;
+				}
+				str += char;
+			}
+		} else {
+			lexerError([
+				"{line}<$red:Invalid Type:$> <$yellow:Argument 'stop_at_char' must be an array and have to be not empty array$>{line}"
+			]);
+		}
+		return str;
+	} else {
+		lexerError([
+			"{line}<$red:Invalid Arguments:$> <$yellow:Assign arguments to their correct types, ",
+			"'input' must be an array and have to be not empty, 'index' must be a number value, and 'scope_state' ",
+			"must be a boolean.$>{line}"
+		]);
+	}
 }
 
 function lexer(src) {
@@ -77,7 +124,7 @@ function lexer(src) {
 					end = start;
 				}
 				// Push to depth if next token is not end_keyword
-				temp_str = concat(src, i + 1, ["]"], scope_state);
+				temp_str = concatChar(src, i + 1, ["]"], scope_state);
 				if (temp_str && temp_str.length > 0) {
 					if (temp_str.trim() !== end_keyword) {
 						depth_stack.push("Block");
@@ -171,21 +218,19 @@ function lexer(src) {
 				addToken(TOKEN_TYPES.NEWLINE, current_char);
 			}
 			// Escape character
-			else if (current_char === "`" && !scope_state) {
-				temp_str = current_char + concat(src, i + 1, ["`"], scope_state, true);
-				if (temp_str && temp_str.length > 0) {
+			else if (current_char === "\\") {
+				temp_str = concatEscape(src, i, scope_state);
+				if (temp_str.trim() && temp_str.length > 0) {
 					i += temp_str.length - 1;
-					if (previous_value === "(") {
-						addToken(TOKEN_TYPES.VALUE, temp_str);
-					} else {
-						addToken(TOKEN_TYPES.TEXT, temp_str);
-					}
+					addToken(TOKEN_TYPES.ESCAPE, temp_str);
 				}
 			}
-			// Token: Block Identifier OR Token: Block Value OR Token: End Keyword
+			// Token: Block Identifier
+			// Token: Block Value
+			// Token: End Keyword
 			else {
 				if (previous_value === "[" || (previous_value === "=" && !scope_state)) {
-					temp_str = concat(src, i, ["=", "]", "\n"], scope_state);
+					temp_str = concatChar(src, i, ["=", "]", "\n"], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
 					start = end !== undefined ? end : 1;
@@ -211,9 +256,10 @@ function lexer(src) {
 						}
 					}
 				}
-				// Token: Inline Value OR Token: Inline Identifier
+				// Token: Inline Value
+				// Token: Inline Identifier
 				else if (previous_value === "(" || (previous_value === "->" && !scope_state)) {
-					temp_str = concat(src, i, [")", "["], scope_state, true, ")");
+					temp_str = concatChar(src, i, [")", "[", "\\"], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
 					start = end !== undefined ? end : 1;
@@ -230,9 +276,11 @@ function lexer(src) {
 						}
 					}
 				}
-				// Token: At Identifier OR Token: At Value OR Token: End Keyword
+				// Token: At Identifier
+				// Token: At Value
+				// Token: End Keyword
 				else if (previous_value === "@_" || previous_value === ":") {
-					temp_str = concat(src, i, ["_", "\n"], scope_state);
+					temp_str = concatChar(src, i, ["_", "\n"], scope_state);
 					i += temp_str.length - 1;
 					if (temp_str.trim()) {
 						// Update Column
@@ -260,7 +308,7 @@ function lexer(src) {
 				}
 				// Token: Comment
 				else if (current_char === "#") {
-					temp_str = concat(src, i, ["\n"], scope_state);
+					temp_str = concatChar(src, i, ["\n"], scope_state);
 					// Update Column
 					start = previous_value === "\n" ? end : end !== undefined ? end + 1 : 1;
 					end = start + temp_str.length;
@@ -271,7 +319,7 @@ function lexer(src) {
 				}
 				// Token: Text
 				else {
-					context = concat(src, i, null, scope_state);
+					context = concatText(src, i, scope_state);
 					i += context.length - 1;
 					// Update Column
 					start = previous_value === "\n" ? end : end !== undefined ? end + 1 : 1;
