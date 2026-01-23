@@ -49,6 +49,10 @@ Target Release: Feb 1
     end
     _@
     ```
+    
+- [ ] **Implement Escape Character Support in Arguments**
+    *Allow escaping special characters inside argument values using a backslash.*
+    *Example: `title:SomMark\:v2, the best tool`*
 
 - [ ] **Implement Text Output Rendering**
     *Add functionality to render pure text output.*
