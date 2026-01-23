@@ -55,7 +55,7 @@ html.create("link", ({ args, content }) => {
 });
 // Image
 html.create("image", ({ args, content }) => {
-	return tag("img").selfClose().attributes({ src: args[0], alt: content }).body("");
+	return tag("img").attributes({ src: args[0], alt: content }).selfClose();
 });
 // Code
 html.create("code", ({ args, content }) => {
