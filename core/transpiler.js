@@ -1,5 +1,5 @@
 import PREDEFINED_IDS from "./ids.js";
-import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT, NEWLINE } from "./names.js";
+import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT } from "./names.js";
 import escapeHTML from "../helpers/escapeHTML.js";
 import { transpilerError } from "./validator.js";
 
@@ -72,9 +72,6 @@ function generateOutput(ast, i, format, file) {
 							target.render({ args: metadata.length > 0 ? metadata : "", content: (format === htmlFormat || format === mdxFormat) ? escapeHTML(body_node.value) : body_node.value });
 					}
 					break;
-				case NEWLINE:
-					context += body_node.value;
-					break;
 				case ATBLOCK:
 					target = matchedValue(file.outputs, body_node.id);
 					if (target) {
@@ -111,7 +108,7 @@ function generateOutput(ast, i, format, file) {
 	} else {
 		transpilerError([
 			"{line}<$red:Invalid Identifier:$> ",
-			`<$yellow:Identifier$> <$blue:'${node.id}'$> <$yellow: is not found in mapping table$>{line}`
+			`<$yellow:Identifier$> <$blue:'${node.id}'$> <$yellow: is not found in mapping outputs$>{line}`
 		]);
 	}
 	return result;
