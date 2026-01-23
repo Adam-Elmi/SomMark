@@ -203,7 +203,11 @@ function parseInline(tokens, i) {
 	// Update Data
 	updateData(tokens, i);
 	if (current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
-		inlineNode.value = current_token(tokens, i).value;
+		inlineNode.value = current_token(tokens, i)
+			.value.split(" ")
+			.filter(value => value != "")
+			.map(value => value.trim())
+			.join(" ");
 		inlineNode.depth = current_token(tokens, i).depth;
 	} else {
 		parserError(errorMessage(tokens, i, inline_value, "("));
@@ -217,10 +221,10 @@ function parseInline(tokens, i) {
 			if (current_token(tokens, i).type === TOKEN_TYPES.ESCAPE || current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
 				switch (current_token(tokens, i).type) {
 					case TOKEN_TYPES.ESCAPE:
-						inlineNode.value += current_token(tokens, i).value.slice(1);
+						inlineNode.value += current_token(tokens, i).value.slice(1).trim();
 						break;
 					case TOKEN_TYPES.TEXT:
-						inlineNode.value += current_token(tokens, i).value;
+						inlineNode.value += current_token(tokens, i).value.trim();
 						break;
 				}
 				i++;
@@ -271,11 +275,12 @@ function parseInline(tokens, i) {
 						errorMessage(
 							tokens,
 							i,
-							`${targetId.trim()}: ${data
-								? title.length === 1 && title.endsWith('"')
-									? data.split(" ")[0] + ' "' + data.split(" ")[1]
-									: data + " "
-								: ""
+							`${targetId.trim()}: ${
+								data
+									? title.length === 1 && title.endsWith('"')
+										? data.split(" ")[0] + ' "' + data.split(" ")[1]
+										: data + " "
+									: ""
 							}${title}${title.length > 1 && !title.endsWith('"') ? '"' : ""}`,
 							""
 						)
@@ -481,7 +486,10 @@ function parseNode(tokens, i) {
 		return parseInline(tokens, i);
 	}
 	// Text
-	else if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.TEXT || current_token(tokens, i).type === TOKEN_TYPES.ESCAPE)) {
+	else if (
+		current_token(tokens, i) &&
+		(current_token(tokens, i).type === TOKEN_TYPES.TEXT || current_token(tokens, i).type === TOKEN_TYPES.ESCAPE)
+	) {
 		return parseText(tokens, i);
 	}
 	// At_Block
