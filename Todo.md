@@ -1,7 +1,7 @@
 # SomMark v2 To-Do List
 Target Release: Feb 1
 
-- [ ] **Implement flexible syntax for Inline Statements**
+- [x] **Implement flexible syntax for Inline Statements**
     *Allow ignoring newlines and whitespaces so the following syntax works:*
     ```ini
     (
@@ -13,7 +13,7 @@ Target Release: Feb 1
     )
     ```
 
-- [ ] **Implement flexible syntax for Block definitions**
+- [x] **Implement flexible syntax for Block definitions**
     *Allow multi-line headers for blocks so the following syntax works:*
     ```ini
     [
@@ -30,7 +30,7 @@ Target Release: Feb 1
     ]
     ```
 
-- [ ] **Implement Breaking Change for Atblocks (Semicolon Terminator)**
+- [x] **Implement Breaking Change for Atblocks (Semicolon Terminator)**
     *Update parser to require a semicolon `;` at the end of arguments to support multi-line headers:*
     ```ini
     @_
