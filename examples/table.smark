@@ -1,7 +1,7 @@
 [Block]
 Simple user table:
 
-@_table_@: user, role, status
+@_table_@: user, role, status;
 - Adam, Admin, active
 - Elmi, Developer, active
 - Eid, Tester, disabled
@@ -9,8 +9,8 @@ Simple user table:
 
 Financial data:
 
-@_table_@: month, revenue, expenses
-- January, 1200, 400
+@_table_@: month, revenue, expenses;
+January, 1200, 400
 February, 1400, 600
 March, 2000, 800
 @_end_@
