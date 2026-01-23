@@ -49,7 +49,10 @@ Target Release: Feb 1
     end
     _@
     ```
-    
+
+- [ ] **Implement Text Output Rendering**
+    *Add functionality to render pure text output.*
+
 - [ ] **Implement Key-Value (Named) Arguments for Blocks and Atblocks**
   *Enable targeting arguments by key to allow order-independent and optional arguments.*
     
