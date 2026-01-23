@@ -74,6 +74,12 @@ class RuntimeError extends CustomError {
 	}
 }
 
+class SommarkError extends CustomError {
+	constructor(message) {
+		super(message, "SomMark Error");
+	}
+}
+
 function getError(type) {
 	const validate_msg = msg => Array.isArray(msg) && msg.length > 0;
 	switch (type) {
@@ -107,6 +113,12 @@ function getError(type) {
 					throw new RuntimeError(errorMessage).message;
 				}
 			};
+		case "sommark":
+			return errorMessage => {
+				if (validate_msg(errorMessage)) {
+					throw new RuntimeError(errorMessage).message;
+				}
+			};
 	}
 }
 
@@ -115,6 +127,7 @@ const parserError = getError("parser");
 const transpilerError = getError("transpiler");
 const cliError = getError("cli");
 const runtimeError = getError("runtime");
+const sommarkError = getError("sommark");
 
 function validateId(id) {
 	if (!/^[a-zA-Z0-9]+$/.test(id)) {
@@ -124,4 +137,4 @@ function validateId(id) {
 	}
 }
 
-export { parserError, lexerError, transpilerError, validateId, cliError, runtimeError, formatMessage };
+export { parserError, lexerError, transpilerError, validateId, cliError, runtimeError, sommarkError, formatMessage };
