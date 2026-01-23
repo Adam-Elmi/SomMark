@@ -102,7 +102,7 @@ class MarkdownBuilder {
 	}
 	// Table
 	table(headers, rows) {
-		let result = "";
+		let result = "\n\n";
 		const isNotEmptyArray = arr => Array.isArray(arr) && arr.length > 0;
 		if (isNotEmptyArray(headers) && isNotEmptyArray(rows)) {
 			for (let i = 0; i < headers.length; i++) {
@@ -131,7 +131,7 @@ class MarkdownBuilder {
 				result += `${row} |\n`;
 			}
 		}
-		return result;
+		return result + "\n";
 	}
 }
 export default MarkdownBuilder;
