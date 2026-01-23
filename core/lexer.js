@@ -19,7 +19,7 @@ const updateColumn = (start, end, textLength) => {
 	return { start, end };
 };
 
-function concatText(input, index, scope_state) {
+function concatText(input, index, scope_state, stopChar = null, condition = null) {
 	let text = "";
 	if (
 		(Array.isArray(input) || typeof input === "string") &&
@@ -46,6 +46,8 @@ function concatText(input, index, scope_state) {
 			} else if (char === "#" && !scope_state) {
 				break;
 			} else if (char === "\\") {
+				break;
+			} else if (char === stopChar && condition) {
 				break;
 			}
 			text += char;
@@ -134,8 +136,8 @@ function lexer(src) {
 					end = start;
 				} else {
 					// Update Column
-					start = updateColumn(start, end, current_char.length).start;
-					end = updateColumn(start, end, current_char.length).end;
+					start = updateColumn(start ?? 1, end ?? 1, current_char.length).start;
+					end = updateColumn(start ?? 1, end ?? 1, current_char.length).end;
 				}
 				// Push to depth if next token is not end_keyword
 				// i + 1 -> skip current character
@@ -225,10 +227,14 @@ function lexer(src) {
 				start = end !== undefined ? end + 1 : 1;
 				end = start + temp_str.length;
 				addToken(TOKEN_TYPES.CLOSE_AT, temp_str);
-				previous_value = temp_str;
+				if (previous_value === at_id) {
+					previous_value = temp_str + "+";
+				} else {
+					previous_value = temp_str;
+				}
 			}
 			// Token: Colon
-			else if (current_char === ":" && previous_value === "_@") {
+			else if (current_char === ":" && previous_value === "_@+") {
 				// Update Column
 				start = end !== undefined ? end : 1;
 				end = start;
@@ -292,7 +298,7 @@ function lexer(src) {
 				}
 				// Token: Inline Identifier
 				else if (previous_value === "->" && !scope_state) {
-					temp_str = concatChar(src, i, [")"], scope_state);
+					temp_str = concatChar(src, i, ["(", ")"], scope_state);
 					i += temp_str.length - 1;
 					// Update Column
 					start = updateColumn(start, end, temp_str.trim().length).start;
@@ -375,7 +381,7 @@ function lexer(src) {
 				}
 				// Token: Text
 				else {
-					context = concatText(src, i, scope_state);
+					context = concatText(src, i, scope_state, ":", previous_value === "_@+");
 					i += context.length - 1;
 					if (context.trim()) {
 						// Update Column
