@@ -62,7 +62,7 @@ markdown.create(["escape", "s"], ({ content }) => {
 });
 // Table
 markdown.create("table", ({ args, content }) => {
-	return md.table(args, content.split("\n"));
+	return md.table(args, content.trim().split("\n").filter(line => line !== "").map(line => line.trim()));
 }, { escape: false });
 // List
 markdown.create(["list", "List"], ({ content }) => {
