@@ -1,6 +1,8 @@
 # SomMark v2 To-Do List
 Target Release: Feb 1
 
+## Core Architecture
+
 - [x] **Implement flexible syntax for Inline Statements**
     *Allow ignoring newlines and whitespaces so the following syntax works:*
     ```ini
@@ -49,6 +51,11 @@ Target Release: Feb 1
     end
     _@
     ```
+
+- [ ] **Refactor Lexer to Tokenize Commas**
+    *Treat the comma `,` as a distinct token type (e.g., `TOKEN_COMMA`)*
+    
+## Features
     
 - [ ] **Implement Escape Character Support in Arguments**
     *Allow escaping special characters inside argument values using a backslash.*
