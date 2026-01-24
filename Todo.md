@@ -52,9 +52,19 @@ Target Release: Feb 1
     _@
     ```
 
-- [ ] **Refactor Lexer to Tokenize Commas**
+- [x] **Refactor Lexer to Tokenize Commas**
     *Treat the comma `,` as a distinct token type (e.g., `TOKEN_COMMA`)*
-    
+
+- [ ] **Refactor Inline Statements (Multi-Value Support)**
+    *Update syntax to support identifiers with multiple comma-separated values:*
+    ```sommark
+    // Single identifier
+    (Text)->(bold)
+
+    // Identifier with multiple values
+    (Text)->(gradient: red, blue, green)
+    ```
+
 ## Features
     
 - [ ] **Implement Escape Character Support in Arguments**
