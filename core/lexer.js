@@ -20,7 +20,19 @@ import {
 	ATBLOCKCOLON,
 	INLINECOLON
 } from "./labels.js";
-import { lexerError, sommarkError, validateName } from "./validator.js";
+import { lexerError, sommarkError } from "./errors.js";
+
+function validateName(
+	id,
+	keyRegex = /^[a-zA-Z0-9]+$/,
+	name = "Identifier",
+	rule = "(A–Z, a–z, 0–9)",
+	ruleMessage = "must contain only letters and numbers"
+) {
+	if (!keyRegex.test(id)) {
+		lexerError([`{line}<$red:Invalid ${name}:$><$blue: '${id}'$>{N}<$yellow:${name} ${ruleMessage}$> <$cyan: ${rule}.$>{line}`]);
+	}
+}
 
 const updateNewLine = text => {
 	if (text && typeof text === "string") {
