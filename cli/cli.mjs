@@ -3,7 +3,7 @@ import projectJson from "../package.json" with { type: "json" };
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { cliError, formatMessage } from "../core/validator.js";
+import { cliError, formatMessage } from "../core/errors.js";
 import lexer from "../core/lexer.js";
 import parser from "../core/parser.js";
 import transpiler from "../core/transpiler.js";
