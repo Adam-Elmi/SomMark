@@ -116,7 +116,7 @@ function getError(type) {
 		case "sommark":
 			return errorMessage => {
 				if (validate_msg(errorMessage)) {
-					throw new RuntimeError(errorMessage).message;
+					throw new SommarkError(errorMessage).message;
 				}
 			};
 	}
@@ -129,12 +129,16 @@ const cliError = getError("cli");
 const runtimeError = getError("runtime");
 const sommarkError = getError("sommark");
 
-function validateId(id) {
-	if (!/^[a-zA-Z0-9]+$/.test(id)) {
-		parserError([
-			`{line}<$red:Invalid Identifier:$><$blue: '${id}'$>{N}<$yellow:Identifier must contain only letters and numbers$> <$cyan: (A–Z, a–z, 0–9).$>{line}`
-		]);
+function validateName(
+	id,
+	keyRegex = /^[a-zA-Z0-9]+$/,
+	name = "Identifier",
+	rule = "(A–Z, a–z, 0–9)",
+	ruleMessage = "must contain only letters and numbers"
+) {
+	if (!keyRegex.test(id)) {
+		lexerError([`{line}<$red:Invalid ${name}:$><$blue: '${id}'$>{N}<$yellow:${name} ${ruleMessage}$> <$cyan: ${rule}.$>{line}`]);
 	}
 }
 
-export { parserError, lexerError, transpilerError, validateId, cliError, runtimeError, sommarkError, formatMessage };
+export { parserError, lexerError, transpilerError, validateName, cliError, runtimeError, sommarkError, formatMessage };
