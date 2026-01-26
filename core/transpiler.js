@@ -1,6 +1,6 @@
 import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT } from "./labels.js";
 import escapeHTML from "../helpers/escapeHTML.js";
-import { transpilerError } from "./validator.js";
+import { transpilerError } from "./errors.js";
 
 const formats = { htmlFormat: "html", markdownFormat: "md", mdxFormat: "mdx" };
 const { htmlFormat, markdownFormat, mdxFormat } = formats;
