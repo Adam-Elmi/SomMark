@@ -1,5 +1,4 @@
-import PREDEFINED_IDS from "./ids.js";
-import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT } from "./names.js";
+import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT } from "./labels.js";
 import escapeHTML from "../helpers/escapeHTML.js";
 import { transpilerError } from "./validator.js";
 
@@ -54,22 +53,9 @@ function generateOutput(ast, i, format, file) {
 				case INLINE:
 					target = matchedValue(file.outputs, body_node.id);
 					if (target) {
-						let metadata = [];
-						for (const id of PREDEFINED_IDS) {
-							if (typeof target.id === "string" && target.id === id) {
-								if (body_node.hasOwnProperty("data")) {
-									metadata.push(body_node.data);
-								}
-								if (body_node.hasOwnProperty("title")) {
-									if (format === htmlFormat) body_node.title = body_node.title.replaceAll('"', "");
-									metadata.push(body_node.title);
-								}
-								break;
-							}
-						}
 						context +=
 							(format === htmlFormat || format === mdxFormat ? "\n" : "") +
-							target.render({ args: metadata.length > 0 ? metadata : "", content: (format === htmlFormat || format === mdxFormat) ? escapeHTML(body_node.value) : body_node.value });
+							target.render({ args:  body_node.args.length > 0 ?  body_node.args : "", content: (format === htmlFormat || format === mdxFormat) ? escapeHTML(body_node.value) : body_node.value });
 					}
 					break;
 				case ATBLOCK:
