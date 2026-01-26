@@ -1,7 +1,26 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
-import { block_value, block_id, inline_id, inline_value, at_id, at_value, end_keyword } from "./names.js";
-import { lexerError, sommarkError } from "./validator.js";
+import {
+	block_value,
+	block_id,
+	block_id_2,
+	block_end,
+	inline_id,
+	inline_value,
+	inline_id_2,
+	at_id,
+	at_value,
+	at_id_2,
+	at_end,
+	end_keyword,
+	BLOCKCOMMA,
+	ATBLOCKCOMMA,
+	INLINECOMMA,
+	BLOCKCOLON,
+	ATBLOCKCOLON,
+	INLINECOLON
+} from "./labels.js";
+import { lexerError, sommarkError, validateName } from "./validator.js";
 
 const updateNewLine = text => {
 	if (text && typeof text === "string") {
@@ -10,7 +29,7 @@ const updateNewLine = text => {
 	return;
 };
 
-const updateColumn = (start, end, textLength) => {
+const updateColumn = (start = 1, end = 1, textLength) => {
 	if (start && end && textLength) {
 		if (start === 1) start = end + 1;
 		start = end + 1;
@@ -19,7 +38,7 @@ const updateColumn = (start, end, textLength) => {
 	return { start, end };
 };
 
-function concatText(input, index, scope_state, stopChar = null, condition = null) {
+function concatText(input, index, scope_state, extraConditions = []) {
 	let text = "";
 	if (
 		(Array.isArray(input) || typeof input === "string") &&
@@ -29,28 +48,26 @@ function concatText(input, index, scope_state, stopChar = null, condition = null
 	) {
 		for (let i = index; i < input.length; i++) {
 			const char = input[i];
-			if (char === "[" && !scope_state) {
+			const defaultConditions = [
+				["[", !scope_state],
+				["=", !scope_state],
+				["]", !scope_state],
+				["(", !scope_state],
+				["-", peek(input, i, 1) === ">" && !scope_state],
+				["@", peek(input, i, 1) === "_"],
+				["_", peek(input, i, 1) === "@"],
+				["#", !scope_state],
+				["\\", true]
+			];
+			if (defaultConditions.some(([ch, condition]) => (!ch || ch === char) && condition)) {
 				break;
-			} else if (char === "=" && !scope_state) {
-				break;
-			} else if (char === "]" && !scope_state) {
-				break;
-			} else if (char === "(" && !scope_state) {
-				break;
-			} else if (char === "-" && peek(input, i, 1) === ">" && !scope_state) {
-				break;
-			} else if (char === "@" && peek(input, i, 1) === "_") {
-				break;
-			} else if (char === "_" && peek(input, i, 1) === "@") {
-				break;
-			} else if (char === "#" && !scope_state) {
-				break;
-			} else if (char === "\\") {
-				break;
-			} else if (char === stopChar && condition) {
+			} else if (extraConditions.some(([ch, condition]) => (!ch || ch === char) && condition)) {
 				break;
 			}
 			text += char;
+		}
+		if (!text) {
+			sommarkError([`{line}<$red:Concatenation failed:$> string value is  <$yellow:'${text}'$>{line}`]);
 		}
 		return text;
 	} else {
@@ -63,12 +80,51 @@ function concatText(input, index, scope_state, stopChar = null, condition = null
 }
 
 function concatEscape(input, index) {
+	const WHITESPACES = [
+		" ",
+		"\t",
+		"\n",
+		"\r",
+		"\v",
+		"\f",
+		//+++++++//
+		"\u00A0",
+		"\u1680",
+		"\u2000",
+		"\u2001",
+		"\u2002",
+		"\u2003",
+		"\u2004",
+		"\u2005",
+		"\u2006",
+		"\u2007",
+		"\u2008",
+		"\u2009",
+		"\u200A",
+		"\u202F",
+		"\u205F",
+		"\u3000"
+	];
+	let WHITESPACE_SET = new Set(WHITESPACES);
 	if ((Array.isArray(input) || typeof input === "string") && input.length > 0 && typeof index === "number") {
 		let str = "";
 		if (input[index] === "\\" && peek(input, index, 1)) {
 			str += "\\" + peek(input, index, 1);
 		} else {
 			sommarkError(["{line}<$red:Next character is not found:$> <$yellow:There is no character after escape character!$>{line}"]);
+		}
+		if (str === undefined) {
+			sommarkError([`{line}<$red:Concatenation failed:$> string value is  <$yellow:'${str}'$>{line}`]);
+		}
+		if (WHITESPACE_SET.has(str[1])) {
+			const matchedCharacter = Array.from(WHITESPACE_SET).find(ch => ch === str[1]);
+			lexerError([
+				`{line}<$red:Invalid escape sequence$>{N}
+<$yellow:Escape character '\\' must be followed immediately by a character.$>{N}
+<$yellow:Found$> <$blue:${JSON.stringify(matchedCharacter)}$> <$yellow:after escape character$>
+{line}
+`
+			]);
 		}
 		return str;
 	} else {
@@ -79,13 +135,8 @@ function concatEscape(input, index) {
 	}
 }
 
-function concatChar(input, index, stop_at_char, scope_state) {
-	if (
-		(Array.isArray(input) || typeof input === "string") &&
-		input.length > 0 &&
-		typeof index === "number" &&
-		typeof scope_state === "boolean"
-	) {
+function concatChar(input, index, stop_at_char) {
+	if ((Array.isArray(input) || typeof input === "string") && input.length > 0 && typeof index === "number") {
 		let str = "";
 		if (Array.isArray(stop_at_char) && stop_at_char.length > 0) {
 			for (let i = index; i < input.length; i++) {
@@ -100,12 +151,16 @@ function concatChar(input, index, stop_at_char, scope_state) {
 				"{line}<$red:Invalid Type:$> <$yellow:Argument 'stop_at_char' must be an array and have to be not empty array$>{line}"
 			]);
 		}
+		if (!str) {
+			console.log("Here");
+			sommarkError([`{line}<$red:Concatenation failed:$> string value is  <$yellow:'${str}'$>{line}`]);
+		}
+
 		return str;
 	} else {
 		sommarkError([
 			"{line}<$red:Invalid Arguments:$> <$yellow:Assign arguments to their correct types, ",
-			"'input' must be an array and have to be not empty, 'index' must be a number value, and 'scope_state' ",
-			"must be a boolean.$>{line}"
+			"'input' must be an array and have to be not empty, 'index' must be a number value$>{line}"
 		]);
 	}
 }
@@ -115,8 +170,8 @@ function lexer(src) {
 		const tokens = [];
 		let scope_state = false;
 		let line = 1;
-		let start;
-		let end;
+		let start = 1;
+		let end = 1;
 		let depth_stack = [];
 		let context = "",
 			temp_str = "",
@@ -126,22 +181,29 @@ function lexer(src) {
 			tokens.push({ type, value, line, start, end, depth: depth_stack.length });
 		}
 
+		const updateMetadata = (start, end, text) => {
+			start = updateColumn(start, end, text.length).start;
+			end = updateColumn(start, end, text.length).end;
+			updateNewLine(text) ? (line += updateNewLine(text)) : null;
+		};
+
 		for (let i = 0; i < src.length; i++) {
 			let current_char = src[i];
-			// Token: Open Bracket
+			// ========================================================================== //
+			//  Token: Open Bracket                                                       //
+			// ========================================================================== //
 			if (current_char === "[" && !scope_state) {
 				if (i === 0) {
-					// Update Column
+					// Update Metadata
 					start = 1;
 					end = start;
 				} else {
-					// Update Column
-					start = updateColumn(start ?? 1, end ?? 1, current_char.length).start;
-					end = updateColumn(start ?? 1, end ?? 1, current_char.length).end;
+					// Update Metadata
+					updateMetadata(start, end, current_char);
 				}
 				// Push to depth if next token is not end_keyword
 				// i + 1 -> skip current character
-				temp_str = concatChar(src, i + 1, ["]"], scope_state);
+				temp_str = concatChar(src, i + 1, ["]"]);
 				if (temp_str && temp_str.length > 0) {
 					if (temp_str.trim() !== end_keyword) {
 						depth_stack.push("Block");
@@ -150,246 +212,357 @@ function lexer(src) {
 				addToken(TOKEN_TYPES.OPEN_BRACKET, current_char);
 				// is next token end keyword?
 				if (temp_str.trim() === end_keyword) {
-					previous_value = current_char + "+";
+					previous_value = block_end;
 				} else {
 					previous_value = current_char;
 				}
 			}
-			// Token: Equal Sign
+			// ========================================================================== //
+			//  Token: Equal Sign                                                         //
+			// ========================================================================== //
 			else if (current_char === "=" && !scope_state) {
-				// Update Column
-				start = updateColumn(start, end, current_char.length).start;
-				end = updateColumn(start, end, current_char.length).end;
+				// Update Metadata
+				updateMetadata(start, end, current_char);
 				addToken(TOKEN_TYPES.EQUAL, current_char);
 				previous_value = current_char;
 			}
-			// Token: Close Bracket
+			// ========================================================================== //
+			//  Token: Close Bracket                                                      //
+			// ========================================================================== //
 			else if (current_char === "]" && !scope_state) {
-				// Update Column
-				start = end !== undefined ? end : 1;
-				end = start;
+				// Update Metadata
+				updateMetadata(start, end, current_char);
 				addToken(TOKEN_TYPES.CLOSE_BRACKET, current_char);
 				if (previous_value === end_keyword) {
 					depth_stack.pop();
 				}
 				previous_value = current_char;
 			}
-			// Token: Open Parenthesis
+			// ========================================================================== //
+			//  Token: Open Parenthesis '('                                               //
+			// ========================================================================== //
 			else if (current_char === "(" && !scope_state) {
-				// Update Column
-				start = end !== undefined ? end : 1;
-				end = start;
+				// Update Metadata
+				updateMetadata(start, end, current_char);
 				addToken(TOKEN_TYPES.OPEN_PAREN, current_char);
 				if (previous_value !== "->") {
 					previous_value = current_char;
 				}
 			}
-			// Token: Thin Arrow
+			// ========================================================================== //
+			//  Token: Thin Arrow '->'                                                    //
+			// ========================================================================== //
 			else if (current_char === "-" && peek(src, i, 1) === ">") {
 				temp_str = current_char + peek(src, i, 1);
 				i += temp_str.length - 1;
-				// Update Column
-				start = end !== undefined ? end : 1;
-				end = start + temp_str.length;
+				// Update Metadata
+				updateMetadata(start, end, current_char);
 				addToken(TOKEN_TYPES.THIN_ARROW, temp_str);
 				previous_value = temp_str;
 			}
-			// Token: Close Parenthesis
+			// ========================================================================== //
+			//  Token: Close Parenthesis ')'                                              //
+			// ========================================================================== //
 			else if (current_char === ")" && !scope_state) {
-				// Update Column
-				start = end !== undefined ? end : 1;
-				end = start;
+				// Update Metadata
+				updateMetadata(start, end, current_char);
 				addToken(TOKEN_TYPES.CLOSE_PAREN, current_char);
 				previous_value = current_char;
 			}
-			// Token: Open At (@_)
+			// ========================================================================== //
+			//  Token: Open At '@_'                                                       //
+			// ========================================================================== //
 			else if (current_char === "@" && peek(src, i, 1) === "_") {
 				temp_str = current_char + peek(src, i, 1);
 				i += temp_str.length - 1;
-				// Update Column
-				start = end !== undefined ? end : 1;
-				end = start + temp_str.length;
+				// Update Metadata
+				updateMetadata(start, end, temp_str);
 				scope_state = true;
 				addToken(TOKEN_TYPES.OPEN_AT, temp_str);
 				// is next token end keyword?
-				const endKey = concatChar(src, i + 1, ["_"], scope_state);
+				const endKey = concatChar(src, i + 1, ["_"]);
 				if (endKey.trim() === end_keyword) {
-					previous_value = temp_str + "+";
+					previous_value = at_end;
 				} else {
 					previous_value = temp_str;
 				}
 			}
-			// Token: Close At (_@)
+			// ========================================================================== //
+			//  Token: Close At '_@'                                                      //
+			// ========================================================================== //
 			else if (current_char === "_" && peek(src, i, 1) === "@") {
 				temp_str = current_char + peek(src, i, 1);
 				i += temp_str.length - 1;
-				// Update Column
-				start = end !== undefined ? end + 1 : 1;
-				end = start + temp_str.length;
+				// Update Metadata
+				updateMetadata(start, end, temp_str);
 				addToken(TOKEN_TYPES.CLOSE_AT, temp_str);
-				if (previous_value === at_id) {
-					previous_value = temp_str + "+";
-				} else {
-					previous_value = temp_str;
+				previous_value = temp_str;
+			}
+			// ========================================================================== //
+			//  Token: Colon ':'                                                          //
+			// ========================================================================== //
+			else if (
+				current_char === ":" &&
+				(previous_value === "_@" ||
+					previous_value === BLOCKCOMMA ||
+					previous_value === block_id_2 ||
+					previous_value === inline_id_2 ||
+					previous_value === at_id_2 ||
+					previous_value === at_value ||
+					previous_value === BLOCKCOLON ||
+					previous_value === ATBLOCKCOLON ||
+					previous_value === INLINECOLON)
+			) {
+				// Update Metadata
+				updateMetadata(start, end, current_char);
+				addToken(TOKEN_TYPES.COLON, current_char);
+				switch (previous_value) {
+					case block_id_2:
+						previous_value = BLOCKCOLON;
+						break;
+					case "_@":
+						previous_value = ATBLOCKCOLON;
+						break;
+					case at_id_2:
+						previous_value = ATBLOCKCOLON;
+						break;
+					case inline_id_2:
+						previous_value = INLINECOLON;
+						break;
 				}
 			}
-			// Token: Colon
-			else if (current_char === ":" && previous_value === "_@+") {
-				// Update Column
-				start = end !== undefined ? end : 1;
-				end = start;
-				addToken(TOKEN_TYPES.COLON, current_char);
-				previous_value = current_char;
+			// ========================================================================== //
+			//  Token: Comma ','                                                          //
+			// ========================================================================== //
+			else if (
+				current_char === "," &&
+				(previous_value === block_value ||
+					previous_value === at_value ||
+					previous_value === inline_value ||
+					previous_value === BLOCKCOMMA ||
+					previous_value === ATBLOCKCOMMA ||
+					previous_value === INLINECOMMA)
+			) {
+				// Update Metadata
+				updateMetadata(start, end, current_char);
+				addToken(TOKEN_TYPES.COMMA, current_char);
+				switch (previous_value) {
+					case "=":
+						previous_value = BLOCKCOMMA;
+						break;
+					case block_value:
+						previous_value = BLOCKCOMMA;
+						break;
+					case at_value:
+						previous_value = ATBLOCKCOMMA;
+						break;
+					case inline_value:
+						previous_value = INLINECOMMA;
+						break;
+				}
 			}
-			// Token: Semi-colon
-			else if (current_char === ";" && previous_value === at_value) {
-				// Update Column
-				start = end !== undefined ? end : 1;
-				end = start;
+			// ========================================================================== //
+			//  Token: Semi-colon ';'                                                     //
+			// ========================================================================== //
+			else if ((current_char === ";" && previous_value === at_value) || (current_char === ";" && previous_value === ";")) {
+				// Update Metadata
+				updateMetadata(start, end, current_char);
 				addToken(TOKEN_TYPES.SEMICOLON, current_char);
 				previous_value = current_char;
 			}
-			// Escape character
+			// ========================================================================== //
+			//  Token: Escape Character '\'                                               //
+			// ========================================================================== //
 			else if (current_char === "\\") {
-				temp_str = concatEscape(src, i, scope_state);
+				temp_str = concatEscape(src, i);
 				i += temp_str.length - 1;
+				updateMetadata(start, end, temp_str);
 				temp_str = temp_str.trim();
 				if (temp_str && temp_str.length > 0) {
 					// Add Token
 					addToken(TOKEN_TYPES.ESCAPE, temp_str);
 				}
 			}
-			// Newline
+			// ========================================================================== //
+			//  Count Newlines                                                            //
+			// ========================================================================== //
 			else if (current_char === "\n") {
 				line++;
 				start = 1;
 				end = 1;
 				continue;
-			} else {
-				// Token: Block Identifier
+			}
+			// ========================================================================== //
+			//  +++++++++++++++++                                                        //
+			// ========================================================================== //
+			else {
+				// ========================================================================== //
+				//  Token: Block Identifier                                                   //
+				// ========================================================================== //
 				if (previous_value === "[" && !scope_state) {
-					temp_str = concatChar(src, i, ["=", "]"], scope_state);
+					temp_str = concatChar(src, i, ["=", "]"]);
 					i += temp_str.length - 1;
-					// Update Column
-					start = updateColumn(start, end, temp_str.trim().length).start;
-					end = updateColumn(start, end, temp_str.trim().length).end;
 					if (temp_str.trim()) {
+						validateName(temp_str.trim());
 						// Add Token
 						addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim());
 						// Update Previous Value
 						previous_value = block_id;
 					}
-					updateNewLine(temp_str) ? (line += updateNewLine(temp_str)) : null;
+					// Update Metadata
+					updateMetadata(start, end, temp_str);
 				}
-				// Token: Block Value
-				else if (previous_value === "=" && !scope_state) {
-					temp_str = concatChar(src, i, ["]"], scope_state);
+				// ========================================================================== //
+				//  Token: Block Value                                                        //
+				// ========================================================================== //
+				else if ((previous_value === "=" || previous_value === BLOCKCOMMA || previous_value === BLOCKCOLON) && !scope_state) {
+					temp_str = concatChar(src, i, ["]", "\\", ",", ":"]);
 					i += temp_str.length - 1;
-					// Update Column
-					start = updateColumn(start, end, temp_str.trim().length).start;
-					end = updateColumn(start, end, temp_str.trim().length).end;
+					const nextToken = peek(src, i, 1);
 					if (temp_str.trim()) {
 						// Add token
-						addToken(TOKEN_TYPES.VALUE, temp_str.trim());
-						// Update Previous Value
-						previous_value = block_value;
+						switch (nextToken) {
+							case ":":
+								validateName(temp_str.trim());
+								addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim());
+								previous_value = block_id_2;
+								break;
+							default:
+								addToken(TOKEN_TYPES.VALUE, temp_str.trim());
+								previous_value = block_value;
+								break;
+						}
 					}
-					updateNewLine(temp_str) ? (line += updateNewLine(temp_str)) : null;
+					// Update Metadata
+					updateMetadata(start, end, temp_str);
 				}
-				// Token: Inline Identifier
+				// ========================================================================== //
+				//  Token: Inline Identifier                                                  //
+				// ========================================================================== //
 				else if (previous_value === "->" && !scope_state) {
-					temp_str = concatChar(src, i, ["(", ")"], scope_state);
+					temp_str = concatChar(src, i, ["(", ")", ":"]);
 					i += temp_str.length - 1;
-					// Update Column
-					start = updateColumn(start, end, temp_str.trim().length).start;
-					end = updateColumn(start, end, temp_str.trim().length).end;
+					const nextToken = peek(src, i, 1);
 					if (temp_str.trim()) {
+						validateName(temp_str.trim());
 						// Add Token
-						addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim());
-						// Update Previous Value
-						previous_value = inline_id;
+						switch (nextToken) {
+							case ":":
+								addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim());
+								previous_value = inline_id_2;
+								break;
+							default:
+								addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim());
+								previous_value = inline_id;
+								break;
+						}
 					}
-					updateNewLine(temp_str) ? (line += updateNewLine(temp_str)) : null;
+					// Update Metadata
+					updateMetadata(start, end, temp_str);
 				}
-				// Token: Inline Value
-				else if (previous_value === "(" && !scope_state) {
-					temp_str = concatChar(src, i, [")", "\\"], scope_state);
+				// ========================================================================== //
+				//  Token: Inline Value                                                       //
+				// ========================================================================== //
+				else if ((previous_value === "(" || previous_value === INLINECOLON || previous_value === INLINECOMMA) && !scope_state) {
+					temp_str = concatChar(src, i, [
+						")",
+						"\\",
+						previous_value === INLINECOLON ? "," : null,
+						previous_value === INLINECOLON ? ":" : null,
+						previous_value === INLINECOMMA ? "," : null
+					]);
 					i += temp_str.length - 1;
-					// Update Column
-					start = updateColumn(start, end, temp_str.trim().length).start;
-					end = updateColumn(start, end, temp_str.trim().length).end;
 					if (temp_str.trim()) {
 						// Add Token
 						addToken(TOKEN_TYPES.VALUE, temp_str.trim());
 						// Update Previous Value
 						previous_value = inline_value;
 					}
-					updateNewLine(temp_str) ? (line += updateNewLine(temp_str)) : null;
+					// Update Metadata
+					updateMetadata(start, end, temp_str);
 				}
-				// Token: At Identifier
+				// ========================================================================== //
+				//  Token: At Identifier                                                      //
+				// ========================================================================== //
 				else if (previous_value === "@_") {
-					temp_str = concatChar(src, i, ["_"], scope_state);
+					temp_str = concatChar(src, i, ["_"]);
 					i += temp_str.length - 1;
-					// Update Column
-					start = updateColumn(start, end, temp_str.trim().length).start;
-					end = updateColumn(start, end, temp_str.trim().length).end;
 					if (temp_str.trim()) {
+						validateName(temp_str.trim());
 						// Add Token
 						addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim());
 						previous_value = at_id;
 					}
-					updateNewLine(temp_str) ? (line += updateNewLine(temp_str)) : null;
+					// Update Metadata
+					updateMetadata(start, end, temp_str);
 				}
-				// Token: At Value
-				else if (previous_value === ":") {
-					temp_str = concatChar(src, i, [";"], scope_state);
+				// ========================================================================== //
+				//  Token: At Value                                                           //
+				// ========================================================================== //
+				else if (previous_value === ATBLOCKCOLON || previous_value === ATBLOCKCOMMA) {
+					temp_str = concatChar(src, i, [";", "\\", ",", ":"]);
 					i += temp_str.length - 1;
-					// Update Column
-					start = updateColumn(start, end, temp_str.trim().length).start;
-					end = updateColumn(start, end, temp_str.trim().length).end;
+					const nextToken = peek(src, i, 1);
 					if (temp_str.trim()) {
-						addToken(TOKEN_TYPES.VALUE, temp_str.trim());
-						previous_value = at_value;
+						switch (nextToken) {
+							case ":":
+								validateName(temp_str.trim());
+								addToken(TOKEN_TYPES.IDENTIFIER, temp_str);
+								previous_value = at_id_2;
+								break;
+							default:
+								addToken(TOKEN_TYPES.VALUE, temp_str);
+								previous_value = at_value;
+								break;
+						}
 					}
-					updateNewLine(temp_str) ? (line += updateNewLine(temp_str)) : null;
+					// Update Metadata
+					updateMetadata(start, end, temp_str);
 				}
-				// Token: End Keyword
-				else if ((previous_value === "[+" && !scope_state) || previous_value === "@_+") {
-					temp_str = concatChar(src, i, ["]", "_"], scope_state);
+				// ========================================================================== //
+				//  Token:End Keyword                                                         //
+				// ========================================================================== //
+				else if ((previous_value === block_end && !scope_state) || previous_value === at_end) {
+					temp_str = concatChar(src, i, ["]", "_"]);
 					i += temp_str.length - 1;
-					// Update Column
-					start = updateColumn(start, end, temp_str.trim().length).start;
-					end = updateColumn(start, end, temp_str.trim().length).end;
 					if (temp_str.trim()) {
+						// validateName(temp_str.trim(), /^[a-zA-Z]+$/, "Keyword", "(A–Z, a–z)", "must contain only letters");
 						addToken(TOKEN_TYPES.END_KEYWORD, temp_str.trim());
 						// Update Previous Value
-						previous_value = temp_str.trim();
+						previous_value = end_keyword;
 						scope_state = false;
 					}
-					updateNewLine(temp_str) ? (line += updateNewLine(temp_str)) : null;
+					// Update Metadata
+					updateMetadata(start, end, temp_str);
 				}
-				// Token: Comment
+				// ========================================================================== //
+				//  Token: Comment                                                            //
+				// ========================================================================== //
 				else if (current_char === "#") {
-					temp_str = concatChar(src, i, ["\n"], scope_state);
-					// Update Column
-					start = updateColumn(start, end, temp_str.trim().length).start;
-					end = updateColumn(start, end, temp_str.trim().length).end;
+					temp_str = concatChar(src, i, ["\n"]);
 					if (temp_str.trim()) {
 						i += temp_str.length - 1;
 						addToken(TOKEN_TYPES.COMMENT, temp_str);
 					}
+					// Update Metadata
+					updateMetadata(start, end, temp_str);
 				}
-				// Token: Text
+				// ========================================================================== //
+				//  Token: Text                                                               //
+				// ========================================================================== //
 				else {
-					context = concatText(src, i, scope_state, ":", previous_value === "_@+");
+					context = concatText(src, i, scope_state, [
+						[":", previous_value === inline_id_2],
+						[",", previous_value === block_value || previous_value === at_value || previous_value === inline_value],
+						[":", previous_value === "_@" || previous_value === at_value],
+						[";", previous_value === at_value]
+					]);
 					i += context.length - 1;
 					if (context.trim()) {
-						// Update Column
-						start = updateColumn(start, end, context.trim().length).start;
-						end = updateColumn(start, end, context.trim().length).end;
 						addToken(TOKEN_TYPES.TEXT, context);
 					}
-					updateNewLine(context) ? (line += updateNewLine(context)) : null;
+					// Update Metadata
+					updateMetadata(start, end, context);
 				}
 			}
 			context = "";
@@ -397,7 +570,9 @@ function lexer(src) {
 		}
 		return tokens;
 	} else {
-		lexerError(["{line}<$red:Invalid Source Code:$> <$yellow:Source code is not a string or is empty.$>{line}"]);
+		lexerError([
+			`{line}<$red:Invalid SomMark syntax:$> <$yellow:Expected source input to be a string, got$> <$blue: '${typeof src}'$>{line}`
+		]);
 	}
 }
 
