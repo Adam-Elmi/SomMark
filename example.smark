@@ -1,10 +1,7 @@
-[Block]
-This is a test. 
-(alert\('msg'\))->(bold)
-This is a test. 
-(alert\('msg'\))->(bold)
-[end]
+[Block = A:1, \a2\a, C:3\a]
+Hello From (SomMark)->(style: red, bold, italic)
+@_Adam_@: A: 1, B: 2, 3;
+Hello
+@_end_@
 
-[Block]
-(<script\>alert\('msg'\)</script\>)->(bold)
 [end]
