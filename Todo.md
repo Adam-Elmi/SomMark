@@ -55,7 +55,7 @@ Target Release: Feb 1
 - [x] **Refactor Lexer to Tokenize Commas**
     *Treat the comma `,` as a distinct token type (e.g., `TOKEN_COMMA`)*
 
-- [ ] **Refactor Inline Statements (Multi-Value Support)**
+- [x] **Refactor Inline Statements (Multi-Value Support)**
     *Update syntax to support identifiers with multiple comma-separated values:*
     ```sommark
     // Single identifier
@@ -67,14 +67,14 @@ Target Release: Feb 1
 
 ## Features
     
-- [ ] **Implement Escape Character Support in Arguments**
+- [x] **Implement Escape Character Support in Arguments**
     *Allow escaping special characters inside argument values using a backslash.*
     *Example: `title:SomMark\:v2, the best tool`*
 
 - [ ] **Implement Text Output Rendering**
     *Add functionality to render pure text output.*
 
-- [ ] **Implement Key-Value (Named) Arguments for Blocks and Atblocks**
+- [x] **Implement Key-Value (Named) Arguments for Blocks and Atblocks**
   *Enable targeting arguments by key to allow order-independent and optional arguments.*
     
   **Syntax Example:**
