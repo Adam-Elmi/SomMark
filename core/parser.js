@@ -1,6 +1,6 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
-import { parserError } from "./validator.js";
+import { parserError } from "./errors.js";
 import {
 	BLOCK,
 	TEXT,
