@@ -7,7 +7,7 @@ import markdown from "./mappers/default_mode/smark.md.js";
 import mdx from "./mappers/default_mode/smark.mdx.js";
 import TagBuilder from "./formatter/tag.js";
 import MarkdownBuilder from "./formatter/mark.js";
-import { runtimeError } from "./core/validator.js";
+import { runtimeError } from "./core/errors.js";
 import { loadStyle } from "./helpers/loadStyle.js";
 
 class SomMark {
