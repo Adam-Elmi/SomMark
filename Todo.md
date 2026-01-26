@@ -5,7 +5,7 @@ Target Release: Feb 1
 
 - [x] **Implement flexible syntax for Inline Statements**
     *Allow ignoring newlines and whitespaces so the following syntax works:*
-    ```ini
+    ```text
     (
     Hello
     )
@@ -17,7 +17,7 @@ Target Release: Feb 1
 
 - [x] **Implement flexible syntax for Block definitions**
     *Allow multi-line headers for blocks so the following syntax works:*
-    ```ini
+    ```text
     [
     Block
     =
@@ -34,7 +34,7 @@ Target Release: Feb 1
 
 - [x] **Implement Breaking Change for Atblocks (Semicolon Terminator)**
     *Update parser to require a semicolon `;` at the end of arguments to support multi-line headers:*
-    ```ini
+    ```text
     @_
     table
     _@
@@ -57,7 +57,7 @@ Target Release: Feb 1
 
 - [x] **Refactor Inline Statements (Multi-Value Support)**
     *Update syntax to support identifiers with multiple comma-separated values:*
-    ```sommark
+    ```text
     // Single identifier
     (Text)->(bold)
 
@@ -71,14 +71,12 @@ Target Release: Feb 1
     *Allow escaping special characters inside argument values using a backslash.*
     *Example: `title:SomMark\:v2, the best tool`*
 
-- [ ] **Implement Text Output Rendering**
-    *Add functionality to render pure text output.*
 
 - [x] **Implement Key-Value (Named) Arguments for Blocks and Atblocks**
   *Enable targeting arguments by key to allow order-independent and optional arguments.*
     
   **Syntax Example:**
-  ```ini
+  ```text
     @_Text_@: title:SomMark, description:SomMark is a markup language;
     Welcome to SomMark!
     @_end_@
@@ -90,3 +88,9 @@ Target Release: Feb 1
   // If user provides only 'description':
   args["description"] // Returns "SomMark is a markup language" (Safe)
   args[0]             // Returns "SomMark is a markup language" (Fallback)
+
+- [ ] **Implement Text Output Rendering**
+    *Add functionality to render pure text output.*
+
+- [ ] **Implement Mapper Self-Rules (Validation)**
+    *Allow mapper files to define validation rules for arguments and content. The transpiler must throw an error if rules are violated.*
