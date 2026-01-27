@@ -22,18 +22,6 @@ import {
 } from "./labels.js";
 import { lexerError, sommarkError } from "./errors.js";
 
-function validateName(
-	id,
-	keyRegex = /^[a-zA-Z0-9]+$/,
-	name = "Identifier",
-	rule = "(A–Z, a–z, 0–9)",
-	ruleMessage = "must contain only letters and numbers"
-) {
-	if (!keyRegex.test(id)) {
-		lexerError([`{line}<$red:Invalid ${name}:$><$blue: '${id}'$>{N}<$yellow:${name} ${ruleMessage}$> <$cyan: ${rule}.$>{line}`]);
-	}
-}
-
 const updateNewLine = text => {
 	if (text && typeof text === "string") {
 		return text.split("").filter(value => value === "\n").length;
@@ -52,6 +40,9 @@ const updateColumn = (start = 1, end = 1, textLength) => {
 
 function concatText(input, index, scope_state, extraConditions = []) {
 	let text = "";
+	if (index >= input.length) {
+		return text;
+	}
 	if (
 		(Array.isArray(input) || typeof input === "string") &&
 		input.length > 0 &&
@@ -92,6 +83,10 @@ function concatText(input, index, scope_state, extraConditions = []) {
 }
 
 function concatEscape(input, index) {
+	let str = "";
+	if (index >= input.length) {
+		return str;
+	}
 	const WHITESPACES = [
 		" ",
 		"\t",
@@ -119,13 +114,12 @@ function concatEscape(input, index) {
 	];
 	let WHITESPACE_SET = new Set(WHITESPACES);
 	if ((Array.isArray(input) || typeof input === "string") && input.length > 0 && typeof index === "number") {
-		let str = "";
 		if (input[index] === "\\" && peek(input, index, 1)) {
 			str += "\\" + peek(input, index, 1);
 		} else {
 			sommarkError(["{line}<$red:Next character is not found:$> <$yellow:There is no character after escape character!$>{line}"]);
 		}
-		if (str === undefined) {
+		if (!str) {
 			sommarkError([`{line}<$red:Concatenation failed:$> string value is  <$yellow:'${str}'$>{line}`]);
 		}
 		if (WHITESPACE_SET.has(str[1])) {
@@ -150,6 +144,9 @@ function concatEscape(input, index) {
 function concatChar(input, index, stop_at_char) {
 	if ((Array.isArray(input) || typeof input === "string") && input.length > 0 && typeof index === "number") {
 		let str = "";
+		if (index >= input.length) {
+			return str;
+		}
 		if (Array.isArray(stop_at_char) && stop_at_char.length > 0) {
 			for (let i = index; i < input.length; i++) {
 				const char = input[i];
@@ -164,10 +161,8 @@ function concatChar(input, index, stop_at_char) {
 			]);
 		}
 		if (!str) {
-			console.log("Here");
 			sommarkError([`{line}<$red:Concatenation failed:$> string value is  <$yellow:'${str}'$>{line}`]);
 		}
-
 		return str;
 	} else {
 		sommarkError([
@@ -415,7 +410,6 @@ function lexer(src) {
 					temp_str = concatChar(src, i, ["=", "]"]);
 					i += temp_str.length - 1;
 					if (temp_str.trim()) {
-						validateName(temp_str.trim());
 						// Add Token
 						addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim());
 						// Update Previous Value
@@ -435,12 +429,11 @@ function lexer(src) {
 						// Add token
 						switch (nextToken) {
 							case ":":
-								validateName(temp_str.trim());
 								addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim());
 								previous_value = block_id_2;
 								break;
 							default:
-								addToken(TOKEN_TYPES.VALUE, temp_str.trim());
+								addToken(TOKEN_TYPES.VALUE, temp_str);
 								previous_value = block_value;
 								break;
 						}
@@ -456,7 +449,6 @@ function lexer(src) {
 					i += temp_str.length - 1;
 					const nextToken = peek(src, i, 1);
 					if (temp_str.trim()) {
-						validateName(temp_str.trim());
 						// Add Token
 						switch (nextToken) {
 							case ":":
@@ -486,7 +478,7 @@ function lexer(src) {
 					i += temp_str.length - 1;
 					if (temp_str.trim()) {
 						// Add Token
-						addToken(TOKEN_TYPES.VALUE, temp_str.trim());
+						addToken(TOKEN_TYPES.VALUE, temp_str);
 						// Update Previous Value
 						previous_value = inline_value;
 					}
@@ -500,7 +492,6 @@ function lexer(src) {
 					temp_str = concatChar(src, i, ["_"]);
 					i += temp_str.length - 1;
 					if (temp_str.trim()) {
-						validateName(temp_str.trim());
 						// Add Token
 						addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim());
 						previous_value = at_id;
@@ -518,8 +509,7 @@ function lexer(src) {
 					if (temp_str.trim()) {
 						switch (nextToken) {
 							case ":":
-								validateName(temp_str.trim());
-								addToken(TOKEN_TYPES.IDENTIFIER, temp_str);
+								addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim());
 								previous_value = at_id_2;
 								break;
 							default:
@@ -538,7 +528,6 @@ function lexer(src) {
 					temp_str = concatChar(src, i, ["]", "_"]);
 					i += temp_str.length - 1;
 					if (temp_str.trim()) {
-						// validateName(temp_str.trim(), /^[a-zA-Z]+$/, "Keyword", "(A–Z, a–z)", "must contain only letters");
 						addToken(TOKEN_TYPES.END_KEYWORD, temp_str.trim());
 						// Update Previous Value
 						previous_value = end_keyword;
