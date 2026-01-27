@@ -35,42 +35,33 @@ function generateOutput(ast, i, format, file) {
 		result +=
 			format === htmlFormat || format === mdxFormat
 				? (node.depth > 1 ? " ".repeat(node.depth) : "") +
-				target.render({ args: node.args, content: "\n<%smark>" + (node.depth > 1 ? " ".repeat(node.depth) : "") }) +
-				"\n"
+					target.render({ args: node.args, content: "\n<%smark>" + (node.depth > 1 ? " ".repeat(node.depth) : "") }) +
+					"\n"
 				: target.render({ args: node.args, content: "" });
 		for (const body_node of node.body) {
 			switch (body_node.type) {
 				case TEXT:
-					if (body_node.text.length === 2 && body_node.text[0] === "`" && body_node.text[1] === "`") {
-						body_node.text = body_node.text.replace("`", "");
-					} else {
-						if (body_node.text.startsWith("`") && body_node.text.endsWith("`")) {
-							body_node.text = body_node.text.slice(1, body_node.text.length - 1);
-						}
-					}
-					context += (format === htmlFormat || format === mdxFormat) ? escapeHTML(body_node.text) : body_node.text;
+					context += format === htmlFormat || format === mdxFormat ? escapeHTML(body_node.text) : body_node.text;
 					break;
 				case INLINE:
 					target = matchedValue(file.outputs, body_node.id);
 					if (target) {
 						context +=
 							(format === htmlFormat || format === mdxFormat ? "\n" : "") +
-							target.render({ args:  body_node.args.length > 0 ?  body_node.args : "", content: (format === htmlFormat || format === mdxFormat) ? escapeHTML(body_node.value) : body_node.value });
+							target.render({
+								args: body_node.args.length > 0 ? body_node.args : "",
+								content: format === htmlFormat || format === mdxFormat ? escapeHTML(body_node.value) : body_node.value
+							});
 					}
 					break;
 				case ATBLOCK:
 					target = matchedValue(file.outputs, body_node.id);
 					if (target) {
 						const shouldEscape = target.options?.escape ?? true;
-						let content = "";
-						for (let v = 0; v < body_node.content.length; v++) {
-							let value = body_node.content[v];
-							if (shouldEscape) {
-								value = escapeHTML(value);
-							}
-							content += v === 0 ? value : "\n" + value;
+						if (shouldEscape) {
+							body_node.content = escapeHTML(body_node.content);
 						}
-						context += target.render({ args: body_node.args, content });
+						context += target.render({ args: body_node.args, content: body_node.content });
 					}
 					break;
 				case COMMENT:
