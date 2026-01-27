@@ -5,7 +5,9 @@ import { transpilerError } from "./errors.js";
 const formats = { htmlFormat: "html", markdownFormat: "md", mdxFormat: "mdx" };
 const { htmlFormat, markdownFormat, mdxFormat } = formats;
 
-// Extracting target identifier
+// ========================================================================== //
+//  Extracting target identifier                                              //
+// ========================================================================== //
 function matchedValue(outputs, targetId) {
 	let result;
 	for (const outputValue of outputs) {
@@ -25,7 +27,9 @@ function matchedValue(outputs, targetId) {
 	}
 	return result;
 }
-
+// ========================================================================== //
+//  +++++++++++++++++++++++++++++                                             //
+// ========================================================================== //
 function generateOutput(ast, i, format, file) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
@@ -102,14 +106,6 @@ function transpiler({ ast, format, mapperFile, includeDocument = true }) {
 			} else if (format === mdxFormat) {
 				output += `{/*${ast[i].text.replace("#", "")} */}\n`;
 			}
-		}
-	}
-	if (format === htmlFormat && (output.includes("<code>") || output.includes("<pre>"))) {
-		if (mapperFile.enableLoadStyle) {
-			mapperFile.setHeader([mapperFile.loadStyle(mapperFile.env, mapperFile.selectedTheme)]);
-		}
-		if (mapperFile.enableLinkStyle) {
-			mapperFile.setHeader([mapperFile.cssTheme(mapperFile.selectedTheme)]);
 		}
 	}
 	if (includeDocument && format === htmlFormat) {
