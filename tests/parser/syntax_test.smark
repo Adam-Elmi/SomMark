@@ -1,0 +1,38 @@
+[Root]
+[Identifier = arg1, arg2, three:arg3]
+This is the body, it accepts chldnode.
+[end]
+
+[Identifier]
+This is the body, it accepts chldnode.
+[end]
+
+(Value)->(Identifier: value1, value2, value3)
+
+(Value)->(Identifier)
+
+@_Identifier_@: arg1, arg2, three:arg3;
+Anything inside atblock is considered as plain text
+@_end_@
+
+@_Identifier_@
+content.....
+@_end_@
+
+\[
+
+[Block = x\:y]
+...content.....
+[end]
+
+[Block]Hello World[end]
+
+[
+Block
+]
+Hello World
+[
+end
+]
+[end]
+
