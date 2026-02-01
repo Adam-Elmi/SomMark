@@ -1,20 +1,8 @@
-
 <img width="2000" height="491" alt="SomMark Cover" src="https://raw.githubusercontent.com/Adam-Elmi/SomMark/master/assets/smark_bg.png" />
 
-
-
 <p align="center">
-  SomMark is a lightweight, custom documentation markup language designed to be simple, readable, and easy to process.
+  SomMark is a structural markup language designed for technical documentation. It focuses on explicit structure and flexibility.
 </p>
-
-<p align="center">
-  <span>Website (Coming Soon)</span>
-  ·
-  <span>Docs (Coming Soon)</span>
-  ·
-  <span>Community (Coming Soon)</span>
-</p>
-
 
 <p align="center">
 <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
@@ -23,133 +11,277 @@
 <img src="https://img.shields.io/badge/html-supported-orange?style=flat-square" />
 <img src="https://img.shields.io/badge/markdown-supported-lightyellow?style=flat-square" />
 <img src="https://img.shields.io/badge/mdx-supported-lightblue?style=flat-square" />
-
 </p>
 
----
+# Overview
 
-# SomMark v2-beta
+SomMark provides a way to write structured content that can be converted into other formats like HTML or Markdown. It is different from standard Markdown because it uses explicit syntax for blocks and elements, which makes it easier to process and customize.
 
-SomMark is a simple and extensible markup language designed for writing documentation and structured content. It is easy to read, easy to parse, and easy to convert into formats like HTML, Markdown, and MDX.
+# Features
 
-SomMark is built around **clear syntax**, **explicit structure**, and a **mapping-based output system**.
+*   **Explicit Syntax**: Every element has a clear start and end, which reduces parsing errors.
+*   **Customizable Mappers**: You can convert SomMark content into any format (HTML, Markdown, JSON, etc.) by using Mappers.
+*   **Validation**: You can define rules to check your content, such as limiting the number of arguments or requiring specific keys.
+*   **MDX Support**: SomMark can map to existing React components ("Only Ready Components").
+> [!NOTE]
+> SomMark does not parse raw JSX. It only maps to ready components.
 
----
+# Syntax
 
-## Core Syntax
-
-SomMark has **three main syntax types**.
-
----
+SomMark uses three main types of elements: Blocks, Inline Statements, and At-Blocks.
 
 ## 1. Block
 
-A **Block** is a container.
-It holds arguments and child content.
+A Block is a container that holds content. It can contain text or other nested blocks.
 
+**With Arguments**
+You can pass data to a block using arguments. Arguments can have keys.
 ```ini
-[Block = arg1, arg2, arg3]
-This is the body.
-These texts are considered as children.
+[Alert = urgent, title: Warning]
+System maintenance in 10 minutes.
+This block uses a flag (urgent) and a key-value pair (title).
 [end]
 ```
+> [!NOTE]
+> The colon `:` separates keys and values.
+> Keys are optional.
 
-* `Block` is the block name
-* Arguments are optional
-* Everything inside is treated as block content
-
----
+**Without Arguments**
+```ini
+[Note]
+This is a simple block.
+[end]
+```
 
 ## 2. Inline Statement
 
-An **Inline Statement** is used inside text to apply formatting or behavior such as color, links, or styles.
+Inline Statements are used to format specific parts of text.
 
+**With Arguments**
 ```ini
-[Block]
-This is the (text)->(color:red).
-These words are (important)->(bold).
-[end]
+This text is (bold)->(bold) and this is (red)->(color: red).
+```
+> [!NOTE]
+> Inline arguments are values only. Keys are not supported.
+
+**Without Arguments**
+```ini
+(Click here)->(Button)
 ```
 
-Inline statements modify specific parts of text without breaking the flow.
+## 3. At-Block
 
----
+At-Blocks are used for specific content like code snippets or tables. The content inside an At-Block is treated as plain text and cannot contain other SomMark elements.
 
-## 3. At Block
-
-Sometimes inline statements are not enough.
-**At Blocks** are used for complex structures like tables, lists, code blocks, and custom content.
-
+**With Arguments**
 ```ini
-[Block]
-@_table_@: month, revenue, expenses
-- January, 1200, 400
-- February, 1400, 600
-- March, 2000, 800
+@_Code_@: javascript;
+console.log("This is raw code.");
 @_end_@
-
-@_code_@: lua
-function add(a, b)
-  return a + b
-end
-@_end_@
-[end]
 ```
+> [!NOTE]
+> You must use a semi-colon `;` to end the argument list.
 
-At Blocks give you full control over how structured data is handled.
-
----
-
-## Modes
-
-SomMark has **two modes**:
-
-### Default Mode
-
-* Comes with predefined identifiers such as `table`, `code`, `list`, and more
-* Can be directly transpiled to HTML or Markdown
-* Ideal for documentation
-
-### Custom Mode
-
-* You define your own identifiers
-* Full control over behavior and output
-* Useful for custom formats or tools
-
----
-
-## Mapping Concept
-
-SomMark uses a **mapping system**.
-
-* You define how each block, inline statement, or at-block should be converted
-* Output is not fixed
-* The same SomMark file can generate different results (HTML, MD, MDX, etc.)
-
-This makes SomMark highly extensible and future-proof.
-
----
-
-## Escape Character
-
-To prevent SomMark from parsing syntax, use the escape character (`` ` ``):
-
+**Without Arguments**
 ```ini
-[Block]
-This is a text `[Hello]` not a block.
-Also this `(world)` is not inline syntax.
-[end]
+@_Raw_@
+Raw content here.
+@_end_@
 ```
 
-Escaped content is treated as plain text.
+## General Rules
 
----
+*   **Identifiers**: Names can only contain letters and numbers.
+*   **Escape Character**: Use the backslash `\` to escape special characters (like colons or commas) inside arguments.
+*   **Colons**: inside Block and At-Block arguments, the colon (`:`) separates names from values.
+*   **Semi-Colons**: The semi-colon (`;`) is only used in At-Blocks to assert the end of the argument list.
+*   **Whitespace**: SomMark ignores extra spaces and newlines, so you can format your code however you like.
 
-## Purpose
+# Installation
 
-SomMark is designed for:
+To install the Command Line Interface (CLI) globally:
 
-* Documentation
-* Structured writing
-* Tooling and transpilation
-* Extensible content systems
+```bash
+npm install -g sommark
+```
+
+# Usage
+
+## Using the CLI
+
+You can convert files using the terminal.
+
+```bash
+# Convert to HTML
+sommark --html input.smark -o output
+
+# Convert to Markdown
+sommark --markdown input.smark -o output.md
+```
+
+## Using in Code
+
+You can use SomMark in your JavaScript or Node.js projects.
+
+```javascript
+import SomMark from "sommark";
+
+const source = `
+[Block]
+Hello World
+[end]
+`;
+
+const smark = new SomMark({
+    src: source,
+    format: "html"
+});
+
+console.log(await smark.transpile());
+```
+
+# Documentation
+
+Detailed guides and API references are available in the `docs/` directory:
+
+*   **[Syntax Guide](docs/syntax.md)**: Master SomMark syntax (Blocks, Inline, At-Blocks).
+*   **[Core API](docs/core.md)**: Programmatic usage of the library (`transpile`, `lex`, `parse`).
+*   **[Mapper API](docs/mapper.md)**: Guide for creating custom mappers and rules.
+*   **[CLI Reference](docs/cli.md)**: Command line options and configurations.
+*   **[API Quick Reference](docs/api.md)**: Fast lookup for all classes and functions.
+
+
+
+# Configuration (Only for CLI)
+
+You can create a `smark.config.js` file to configure the CLI.
+
+```javascript
+/* smark.config.js */
+import myMapper from "./my-mapper.js";
+
+export default {
+    outputFile: "output",    // Default output filename
+    outputDir: "./dist",     // Where to save files
+    mappingFile: myMapper    // Use a custom mapper by default
+};
+```
+
+# Creating Custom Mappers
+
+Mappers tell SomMark how to convert your content. You can define rules, options, and how arguments are handled.
+
+## Basic Structure
+
+```javascript
+import { Mapper } from "sommark";
+const myMapper = new Mapper();
+const { tag } = myMapper;
+
+// Define a Block
+myMapper.register("Alert", ({ args, content }) => {
+    // Access arguments by index or name
+    const type = args[0] || args.type || "info"; 
+    
+    // Use TagBuilder to create HTML elements safely
+    return myMapper.tag("div")
+        .attributes({ class: `alert ${type}` })
+        .body(content);
+});
+
+export default myMapper;
+```
+> [!WARNING]
+> The `.body()` and `.selfClose()` methods return the final HTML string. You must treat them as the end of the builder chain. If you forget to call them, you will return a builder object instead of a string.
+
+You also skip tag builder and use raw HTML.
+
+```javascript
+import { Mapper } from "sommark";
+const myMapper = new Mapper();
+
+myMapper.register("Alert", ({ args, content }) => {
+    // Access arguments by index or name
+    const type = args[0] || args.type || "info"; 
+    
+    // Use raw HTML
+    return `<div class="alert ${type}">${content}</div>`;
+});
+```
+
+## Mapping Multiple Identifiers
+
+You can use an array of strings to map multiple names to the same output function.
+
+```javascript
+import { Mapper } from "sommark";
+const myMapper = new Mapper();
+const { tag } = myMapper;
+
+// Both [code] and [Code] will use this mapper
+myMapper.register(["code", "Code"], ({ content }) => {
+    return tag("pre").body(tag("code").body(content));
+});
+```
+
+## Reusing Existing Mappers
+
+You can borrow rules from default mappers to avoid rewriting them.
+
+```javascript
+import { Mapper, HTML } from "sommark";
+const myMapper = new Mapper();
+
+// Reuse the "Code" block from the default HTML mapper
+const codeOutput = HTML.get("Code");
+if (codeOutput) {
+    myMapper.register(codeOutput.id, codeOutput.render, codeOutput.options);
+}
+
+// Add your own custom blocks...
+myMapper.register("MyBlock", ({ content }) => {
+    return content;
+});
+
+export default myMapper;
+```
+
+## Using Rules (Validation)
+
+You can force strict rules on your content. If a rule is broken, SomMark will stop and show an error.
+
+```javascript
+import { Mapper } from "sommark";
+const myMapper = new Mapper();
+const { tag } = myMapper;
+
+myMapper.register("User", ({ args }) => {
+    return tag("div").body(`User: ${args[0]}`);
+}, {
+    rules: {
+        args: {
+            min: 1,           // Must have at least 1 argument
+            required: ["id"]  // The "id" key is required
+        }
+    }
+});
+```
+*Example input that passes:* `[User = Adam, id:123] ... [end]`
+
+## Using Options
+
+Options change how SomMark processes the content inside the block.
+
+```javascript
+import { Mapper } from "sommark";
+const myMapper = new Mapper();
+const { tag } = myMapper;
+
+myMapper.register("Code", ({ content }) => {
+    return tag("pre").body(content);
+});
+```
+
+# License
+
+MIT
