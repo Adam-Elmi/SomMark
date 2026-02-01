@@ -96,18 +96,18 @@ Target Release: Feb 1
   args[0]; // Returns "SomMark is a markup language" (Fallback)
   ```
 
-- [ ] **Implement Text Output Rendering**
+- [x] **Implement Text Output Rendering**
       _Add functionality to render pure text output._
 
-- [ ] **Implement Mapper Self-Rules (Validation)**
+- [x] **Implement Mapper Self-Rules (Validation)**
       _Allow mapper files to define validation rules for arguments and content. The transpiler must throw an error if rules are violated._
 
 ## Improvements
 
-- [ ] **Improve Mapper Logic.**
-- [ ] **Improve API References.**
+- [x] **Improve Mapper Logic.**
+- [x] **Improve API References.**
 
 ## Testing
 
-- [ ] **Update Tests for New Syntax.**
-- [ ] **Add Tests for New Features.**
+- [x] **Update Tests for New Syntax.**
+- [x] **Add Tests for New Features.**
