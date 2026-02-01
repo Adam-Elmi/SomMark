@@ -1,6 +1,8 @@
 class MarkdownBuilder {
 	constructor() { }
-	// Headings
+	// ========================================================================== //
+	//  Headings                                                                  //
+	// ========================================================================== //
 	heading(text, level) {
 		if (!text && !level) {
 			return "";
@@ -20,14 +22,18 @@ class MarkdownBuilder {
 		}
 		return text;
 	}
-	// Url
+	// ========================================================================== //
+	//  Url                                                                       //
+	// ========================================================================== //
 	url(type = "", text, url = "", title = "") {
 		if (!text && !url) {
 			return "";
 		}
 		return ` ${type === "image" ? "!" : ""}[${text}](${url + (title ? " " : "")}${title}) `;
 	}
-	// Bold
+	// ========================================================================== //
+	//  Bold                                                                      //
+	// ========================================================================== //
 	bold(text, is_underscore = false) {
 		if (!text) {
 			return "";
@@ -35,7 +41,9 @@ class MarkdownBuilder {
 		const format = is_underscore ? "__" : "**";
 		return `${format}${text}${format}`;
 	}
-	// Italic
+	// ========================================================================== //
+	//  Italic                                                                    //
+	// ========================================================================== //
 	italic(text, is_underscore = false) {
 		if (!text) {
 			return "";
@@ -43,7 +51,9 @@ class MarkdownBuilder {
 		const format = is_underscore ? "_" : "*";
 		return `${format}${text}${format}`;
 	}
-	// Emphasis
+	// ========================================================================== //
+	//  Emphasis                                                                  //
+	// ========================================================================== //
 	emphasis(text, is_underscore = false) {
 		if (!text) {
 			return "";
@@ -51,7 +61,9 @@ class MarkdownBuilder {
 		const format = is_underscore ? "___" : "***";
 		return `${format}${text}${format}`;
 	}
-	// Code Block
+	// ========================================================================== //
+	//  Code Block                                                                //
+	// ========================================================================== //
 	codeBlock(code, language) {
 		if (!code) {
 			return "";
@@ -75,14 +87,18 @@ class MarkdownBuilder {
 			return "";
 		}
 	}
-	// Horizontal rule
+	// ========================================================================== //
+	//  Horizontal rule                                                           //
+	// ========================================================================== //
 	horizontal(format = "*") {
 		if (!format) {
 			return "\n***\n";
 		}
 		return format === "*" ? "\n***\n" : format === "_" ? "___" : format === "*" ? "***" : "";
 	}
-	// Escape
+	// ========================================================================== //
+	//  Escape                                                                    //
+	// ========================================================================== //
 	escape(text) {
 		const special_char = ["\\", "*", "_", "{", "}", "[", "]", "(", ")", "#", "+", "-", ".", "!", ">", "|"];
 		if (!text) {
@@ -100,7 +116,9 @@ class MarkdownBuilder {
 			.join("");
 		return text;
 	}
-	// Table
+	// ========================================================================== //
+	//  Table                                                                     //
+	// ========================================================================== //
 	table(headers, rows) {
 		let result = "\n\n";
 		const isNotEmptyArray = arr => Array.isArray(arr) && arr.length > 0;
@@ -117,21 +135,33 @@ class MarkdownBuilder {
 						: `${"-".repeat(header.length + 2)}|${i === headers.length - 1 ? "\n" : ""}`;
 			}
 			rows = rows.map(row => {
-				let newRow = row;
-				if (newRow.charAt(0) !== "-") {
-					newRow = `- ${newRow}`;
+				let columns;
+				if (typeof row === 'string') {
+					columns = row.split(',').map(c => c.trim());
+				} else if (Array.isArray(row)) {
+					columns = row.map(c => String(c).trim());
+				} else {
+					return "";
 				}
-				newRow = newRow.replaceAll(/[,-]/g, " |");
-				if (newRow.trim().charAt(1) !== " ") {
-					newRow = newRow.trim().slice(0, 1) + " " + newRow.trim().slice(1);
+
+				if (columns.length > 0 && columns[0].startsWith('-')) {
+					columns[0] = `- ${columns[0].substring(1).trim()}`;
 				}
-				return newRow.trim();
+
+				return `| ${columns.join(" | ")}`;
 			});
 			for (const row of rows) {
 				result += `${row} |\n`;
 			}
 		}
 		return result + "\n";
+	}
+	// ========================================================================== //
+	//  Todo                                                                      //
+	// ========================================================================== //
+	todo(checked = false, text) {
+		if (!text) return "";
+		return checked ? `- [x] ${text}\n` : `- [ ] ${text}\n`;
 	}
 }
 export default MarkdownBuilder;
