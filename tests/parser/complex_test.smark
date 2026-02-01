@@ -1,0 +1,37 @@
+[Root]
+# Complex SomMark Syntax Test
+
+[Section = id:sec1, class:main-section]
+    This is a section block with arguments.
+    
+    [Container = type:flex, dir:row]
+        [Card = shadow:md, padding:4]
+            (Title)->(CardTitle: text-xl, bold)
+            (Content)->(CardBody)
+        [end]
+        
+        [Card = shadow:md, padding:4]
+            @_CodeBlock_@: lang:javascript;
+                console.log("Hello Complex World");
+                const obj = { key: "value" };
+            @_end_@
+        [end]
+    [end]
+
+    [List = type:ordered]
+        [Item]First Item[end]
+        [Item]Second Item with (Inline)->(Link: href:example.com)[end]
+        [Item]Third Item with nested block: [Badge = color:red]New![end][end]
+    [end]
+    
+    # Testing escapes and special chars in arguments
+    [Note = warning:Don't use \: without escape, content:\[bracket\]]
+        Careful with colons!
+    [end]
+[end]
+
+# Edge case: Empty blocks and loose text
+[Spacer]
+[end]
+Some loose text at the end of root.
+[end]
