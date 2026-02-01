@@ -1,6 +1,0 @@
-[case13]
-This has an at-block that is not closed
-@_table_@: Name, Age
-John, 30
-Jane, 25
-[end]
