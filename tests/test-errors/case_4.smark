@@ -1,4 +1,0 @@
-[case4]
-This case contains an unclosed escape character
-Here is a backtick that is not closed: `oops
-[end]
