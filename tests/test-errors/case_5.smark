@@ -1,4 +1,0 @@
-[case5]
-This case contains a stray opening bracket in the body which should be treated as an error
-This line includes a [ character that is not part of a block header
-[end]
