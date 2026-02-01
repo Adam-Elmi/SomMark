@@ -1,0 +1,44 @@
+[Root]
+# One-line syntax test
+[OneLineBlock=arg1:val1,arg2:val2](Inline)->(ID:val)[Block2]Nested[end]Text[end]
+
+# Messy syntax test
+          [
+          MessyBlock
+           =
+            Key
+            :
+            Value
+            ,
+            Key2
+            :
+            \=
+            Value2
+            ]
+           (
+           InlineValue
+           )
+           ->
+           (
+           InlineID
+           :
+           arg
+           )
+           
+           @_
+           AtMessy
+           _@
+           :
+           arg
+           ;
+           Some text inside
+           @_
+           end
+           _@
+          [
+          end
+          ]
+
+# Mixed messy line
+[Mixed]  (  Space  )  ->  (  ID  )  [  Block  ]  Inside  [  end  ]  [end]
+[end]
