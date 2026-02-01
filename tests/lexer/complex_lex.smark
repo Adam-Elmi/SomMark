@@ -1,0 +1,15 @@
+[Block=key:val\:ue, arg2]
+    # Comment inside block
+    (Inline Value)->(ID: arg1, arg2)
+    Mixed text with [Nested]block[end]
+    
+    @_Code_@: language:js;
+        // This is plain text content
+        const x = [1, 2];
+    @_end_@
+    
+    Escape test: \[ \] \\ \:
+[end]
+
+# Messy line
+[   Messy   =    k  :  v   ]   (   v   )   ->   (   i   )   [end]
