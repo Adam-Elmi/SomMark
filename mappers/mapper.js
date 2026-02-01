@@ -1,37 +1,111 @@
 import TagBuilder from "../formatter/tag.js";
 import MarkdownBuilder from "../formatter/mark.js";
-import { highlightCode, cssTheme, selectedTheme, themes } from "../lib/highlight.js";
+import { highlightCode, getHighlightTheme, highlightTheme, HighlightThemes } from "../lib/highlight.js";
 import escapeHTML from "../helpers/escapeHTML.js";
-import loadStyle from "../helpers/loadStyle.js";
+import loadHighlightStyle from "../helpers/loadHighlightStyle.js";
+import loadCss from "../helpers/loadCss.js";
+
 class Mapper {
-	#predefinedHeaderData;
-	#customElements;
+	#customHeaderContent;
+	// ========================================================================== //
+	//  Constructor                                                               //
+	// ========================================================================== //
 	constructor() {
 		this.outputs = [];
+		this.hasCode = false;
 		this.md = new MarkdownBuilder();
-		this.title = "SomMark Page";
-		this.#predefinedHeaderData =
-			"  " +
-			this.tag("meta").attributes({ charset: "UTF-8" }).selfClose() +
-			"\n" +
-			"  " +
-			this.tag("meta").attributes({ name: "viewport", content: "width=device-width, initial-scale=1.0" }).selfClose() +
-			"\n" +
-			"  " + this.tag("meta").attributes({ "http-equiv": "X-UA-Compatible", content: "IE=edge" }).selfClose() +
-			"\n" + "  " + this.tag("title").body(this.title) + "\n";
-		this.header = this.#predefinedHeaderData + "\n" + "";
-		this.#customElements = "";
+
+		this.pageProps = {
+			pageTitle: "SomMark Page",
+			tabIcon: {
+				type: "image/x-icon",
+				src: ""
+			},
+			charset: "UTF-8",
+			viewport: "width=device-width, initial-scale=1.0",
+			httpEquiv: { "X-UA-Compatible": "IE=edge" }
+		};
+
+		this.#customHeaderContent = "";
+
 		this.highlightCode = highlightCode;
-		this.cssTheme = cssTheme;
-		this.selectedTheme = selectedTheme;
-		this.codeThemes = themes;
+		this.getHighlightTheme = getHighlightTheme;
+		this.highlightTheme = highlightTheme;
 		this.escapeHTML = escapeHTML;
-		this.enableLoadStyle = false;
-		this.enableLinkStyle = true;
-		this.loadStyle = loadStyle;
+		this.enable_highlight_style_tag = true;
+		this.enable_highlight_link_Style = false;
+		this.enable_table_styles = true;
+		this.styles = [];
 		this.env = "node";
+		this.loadStyles = async () => {
+			let styles = "";
+			if (this.enable_highlight_style_tag) {
+				styles = await loadHighlightStyle(this.env, this.highlightTheme);
+			}
+			const allStyles = (styles ? styles + "\n" : "") + this.styles.join("\n");
+			return allStyles;
+		};
 	}
-	create(id, renderOutput, options = { escape: true }) {
+
+	// ========================================================================== //
+	//  Style Management                                                          //
+	// ========================================================================== //
+	get HighlightThemes() {
+		return this.enable_highlight_link_Style || this.enable_highlight_style_tag ? HighlightThemes : [];
+	}
+
+	async loadCss(path) {
+		const css = await loadCss(this.env, path);
+		if (css && css.trim()) {
+			this.addStyle(css);
+		}
+	}
+
+	addStyle(css) {
+		if (typeof css === "object" && css !== null) {
+			let styleString = "";
+			for (const [selector, rules] of Object.entries(css)) {
+				let rulesString = "";
+				for (const [prop, value] of Object.entries(rules)) {
+					rulesString += `${prop}:${value};`;
+				}
+				styleString += `${selector}{${rulesString}}`;
+			}
+			css = styleString;
+		}
+
+		if (typeof css === "string" && css.trim() && !this.styles.includes(css.trim())) {
+			this.styles.push(css.trim());
+		}
+	}
+
+	// ========================================================================== //
+	//  Header Generation                                                         //
+	// ========================================================================== //
+	get header() {
+		const { pageTitle, tabIcon, charset, viewport, httpEquiv } = this.pageProps;
+
+		let metas = "";
+		metas += `${this.tag("meta").attributes({ charset }).selfClose()}\n`;
+		metas += `${this.tag("meta").attributes({ name: "viewport", content: viewport }).selfClose()}\n`;
+
+		for (const [key, value] of Object.entries(httpEquiv)) {
+			metas += `${this.tag("meta").attributes({ "http-equiv": key, content: value }).selfClose()}\n`;
+		}
+
+		metas += `${this.tag("title").body(pageTitle)}\n`;
+
+		if (tabIcon && tabIcon.src) {
+			metas += `${this.tag("link").attributes({ rel: "icon", type: tabIcon.type, href: tabIcon.src }).selfClose()}\n`;
+		}
+
+		return metas + this.#customHeaderContent;
+	}
+
+	// ========================================================================== //
+	//  Mappings                                                                  //
+	// ========================================================================== //
+	register = (id, renderOutput, options = { escape: true }) => {
 		if (!id || !renderOutput) {
 			throw new Error("Expected arguments are not defined");
 		}
@@ -56,8 +130,8 @@ class Mapper {
 		};
 
 		this.outputs.push({ id, render, options });
-	}
-	removeOutput(id) {
+	};
+	removeOutput = id => {
 		this.outputs = this.outputs.filter(output => {
 			if (Array.isArray(output.id)) {
 				return !output.id.some(singleId => singleId === id);
@@ -65,47 +139,58 @@ class Mapper {
 				return output.id !== id;
 			}
 		});
-	}
+	};
 
+	get = id => {
+		for (const output of this.outputs) {
+			if (Array.isArray(output.id)) {
+				if (output.id.some(singleId => singleId === id)) return output;
+			} else if (output.id === id) {
+				return output;
+			}
+		}
+		return null;
+	};
+
+	// ========================================================================== //
+	//  Helpers                                                                   //
+	// ========================================================================== //
 	tag = tagName => {
 		return new TagBuilder(tagName);
 	};
-	setHeader = (rawData) => {
-		this.#customElements = "";
+	setHeader = rawData => {
 		if (Array.isArray(rawData)) {
 			for (const data of rawData) {
 				if (typeof data === "string") {
-					this.#customElements += data + "\n";
+					this.#customHeaderContent += data + "\n";
 				}
 			}
 		}
-		this.header += this.#customElements;
 	};
+	// ========================================================================== //
+	//  Formatters                                                                //
+	// ========================================================================== //
 	code = (args, content) => {
-		const value = highlightCode(content, args[0].trim());
+		this.hasCode = true;
+		const value = highlightCode(content, args && args[0] ? args[0].trim() : "text");
 		return this.tag("pre").body(
 			this.tag("code")
-				.attributes({ class: `hljs language-${args[0].trim()}` })
+				.attributes({ class: `hljs language-${args && args[0] ? args[0].trim() : "text"}` })
 				.body(value)
 		);
 	};
 	htmlTable = (data, headers, defaultStyle = true) => {
-		const isAddedStyle = this.header.includes(".sommark-table");
+		const isAddedStyle = this.styles.some(s => s.includes(".sommark-table"));
 		if (!data) return "";
 
-		const css = `<style>
+		const css = `
 .sommark-table{border-collapse:collapse;width:100%;border:1px solid #e1e1e1}
 .sommark-table th,.sommark-table td{border:1px solid #e1e1e1;padding:6px 8px;text-align:left}
 .sommark-table th{background:#f6f8fa;font-weight:600}
-.sommark-table tr:nth-child(even){background:#fbfbfb}
-</style>\n`;
+.sommark-table tr:nth-child(even){background:#fbfbfb}`;
 
-		if (defaultStyle && !isAddedStyle) {
-			try {
-				this.setHeader([css]);
-			} catch (e) {
-				console.error("Error setting table CSS in header:", e);
-			}
+		if (defaultStyle && this.enable_table_styles && !isAddedStyle) {
+			this.addStyle(css.trim());
 		}
 
 		if (typeof data === "string") {
@@ -121,10 +206,11 @@ class Mapper {
 		tableHTML += "</tr>\n</thead>\n<tbody>\n";
 
 		for (const row of data) {
+			if (!row.trim()) continue;
 			const rowData = row.split(",").map(cell => cell.trim());
 			tableHTML += "<tr>";
 			for (const cell of rowData) {
-				tableHTML += `<td>${this.escapeHTML(cell.replace("-", "").trim())}</td>`;
+				tableHTML += `<td>${this.escapeHTML(cell.trim())}</td>`;
 			}
 			tableHTML += "</tr>\n";
 		}
@@ -145,17 +231,9 @@ class Mapper {
 		};
 
 		for (const raw of data) {
+			if (!raw.trim()) continue;
 			const level = getLevel(raw);
-			const text = raw
-				.split(" ")
-				.map(value => {
-					if (value[0] === "-") {
-						value = value.slice(1);
-					}
-					return value;
-				})
-				.join(" ")
-				.trimStart();
+			const text = raw.trim();
 
 			const node = { text, children: [] };
 
@@ -195,15 +273,45 @@ class Mapper {
 
 		return renderItems(nodes);
 	};
-	includesId = id => {
-		if (Array.isArray(id)) {
-			return this.outputs.some(output => {
-				return id.some(singleId => singleId === output.id);
-			});
+	// ========================================================================== //
+	//  Utilities                                                                 //
+	// ========================================================================== //
+	includesId = ids => {
+		try {
+			if (!Array.isArray(ids) || ids.length === 0) {
+				return false;
+			}
+
+			if (!this.outputs || !Array.isArray(this.outputs)) {
+				return false;
+			}
+
+			const searchSet = new Set(ids);
+
+			for (const output of this.outputs) {
+				if (!output || !output.id) {
+					continue;
+				}
+
+				if (Array.isArray(output.id)) {
+					if (output.id.some(id => searchSet.has(id))) {
+						return true;
+					}
+				} else if (typeof output.id === "string" || typeof output.id === "number") {
+					if (searchSet.has(output.id)) {
+						return true;
+					}
+				}
+			}
+
+			return false;
+		} catch (error) {
+			console.error(error);
+			return false;
 		}
-		return this.outputs.some(output => {
-			return output.id === id;
-		});
+	};
+	todo(checked = false) {
+		return checked.trim() === "x" ? true : false;
 	}
 }
 export default Mapper;
