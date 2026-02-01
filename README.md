@@ -13,7 +13,10 @@
 <img src="https://img.shields.io/badge/mdx-supported-lightblue?style=flat-square" />
 </p>
 
-# Overview
+# SomMark v2.0.0
+
+> [!WARNING]
+> Old version is no longer supported.
 
 SomMark provides a way to write structured content that can be converted into other formats like HTML or Markdown. It is different from standard Markdown because it uses explicit syntax for blocks and elements, which makes it easier to process and customize.
 
