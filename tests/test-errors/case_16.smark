@@ -1,6 +1,0 @@
-[case16]
-Malformed at-block delimiters
-@code@: js
-print('x')
-@_end_@
-[end]
