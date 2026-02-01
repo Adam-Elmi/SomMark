@@ -1,0 +1,53 @@
+[Section]
+[h1] API Documentation: Lexer Module [end]
+
+[Block]
+The `Lexer` module is responsible for converting raw input strings into a sequence of meaningful tokens.
+[end]
+
+[h2] Methods [end]
+
+[h3] Method: lex-source [end]
+
+[Block]
+Main entry point for tokenization.
+[end]
+
+@_table_@: Parameter, Type, Description;
+source, string, The raw SmMark input string;
+options, object, Optional configuration for the lexer;
+@_end_@
+
+[Block] (Return Value)->(bold)
+Returns an array of `Token` objects.
+[end]
+
+[h3] Usage Example [end]
+
+@_code_@: javascript;
+import { Lexer } from "sommark";
+
+const tokens = Lexer.lex("[Block] Hello [end]");
+console.log(tokens);
+/* Output:
+  [
+    { type: "OPEN_BRACKET", value: "[" },
+    { type: "IDENTIFIER", value: "Block" },
+    ...
+  ]
+*/
+@_end_@
+
+[h2] Error Handling [end]
+
+[Block]
+The lexer will throw an error if an unescaped special character is found in an invalid context, or if an at-block is not closed properly.
+[end]
+
+[h2] Related Modules [end]
+[Block]
+- (Parser)->(link: #parser)
+- (Transpiler)->(link: #transpiler)
+[end]
+
+[end]
