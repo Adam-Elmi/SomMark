@@ -2,7 +2,11 @@
 
 ## v2.0.0 (2026-02-01)
 
+> [!WARNING]
+> Old version is no longer supported.
+
 ### Breaking Changes
+
 - **At-Blocks Terminator**: At-Blocks now require a semicolon (`;`) at the end of the argument list to support multi-line headers.
 
 ### Features
@@ -15,7 +19,7 @@
 - **Mapper Validation**: Mappers can now define validation rules (self-rules) that are enforced by the transpiler.
 
 ### Improvements
-- **Lexer Refactor**: The lexer now treats commas (`,`) as distinct tokens.
+- **Lexer Refactor**: The lexer now treats commas (`,`) as distinct tokens, also colons (`:`) are now treated as distinct tokens..
 - **Mapper Logic**: General improvements to mapper internal logic.
 - **API References**: Improved documentation and API references.
 - **Testing**: Updated tests for new syntax and added coverage for new features.
