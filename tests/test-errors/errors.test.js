@@ -1,38 +1,40 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import SomMark from "../../index.js";
-import html from "../../mappers/default_mode/smark.html.js";
+import html from "../../mappers/languages/html.js";
 
+// ========================================================================== //
+//  Error Handling Tests                                                      //
+// ========================================================================== //
+
+// ========================================================================== //
+//  Invalid File Cases                                                        //
+// ========================================================================== //
 describe("Transpiling -> [Errors]: invalid files should throw", () => {
     const cases = [
-        "tests/test-errors/case_1.smark",
-        "tests/test-errors/case_2.smark",
-        "tests/test-errors/case_3.smark",
-        "tests/test-errors/case_4.smark",
-        "tests/test-errors/case_5.smark",
-        "tests/test-errors/case_6.smark",
-        "tests/test-errors/case_7.smark",
-        "tests/test-errors/case_8.smark",
-        "tests/test-errors/case_9.smark",
-        "tests/test-errors/case_10.smark",
-        "tests/test-errors/case_11.smark",
-        "tests/test-errors/case_12.smark",
-        "tests/test-errors/case_13.smark",
-        "tests/test-errors/case_14.smark",
-        "tests/test-errors/case_15.smark",
-        "tests/test-errors/case_16.smark",
-        "tests/test-errors/case_17.smark",
+        "tests/test-errors/unclosed_block.smark",
+        "tests/test-errors/unclosed_inline.smark",
+        "tests/test-errors/invalid_identifier.smark",
+        "tests/test-errors/missing_arrow.smark",
+        "tests/test-errors/unclosed_atblock.smark",
+        "tests/test-errors/missing_atblock_semicolon.smark",
+        "tests/test-errors/arg_no_close_bracket.smark",
+        "tests/test-errors/inline_arg_no_close_paren.smark",
+        "tests/test-errors/escape_eof.smark",
+        "tests/test-errors/extra_end_tag.smark",
+        "tests/test-errors/id_start_num.smark",
+        "tests/test-errors/id_symbols.smark",
+        "tests/test-errors/empty_id.smark",
+        "tests/test-errors/inline_empty_mapper.smark",
+        "tests/test-errors/atblock_invalid_id.smark",
+        "tests/test-errors/atblock_malformed_end.smark"
     ];
-    const cases_names = Array.from({ length: 17 }, (_, i) => `case${i + 1}`);
-    for(const name of cases_names) {
-        html.create(name, ({content}) => html.tag("div").body(content));
-    }
 
     for (const path of cases) {
         const name = path.split("/").pop();
-        it(`throws for ${name}`, () => {
+        it(`throws for ${name}`, async () => {
             const src = fs.readFileSync(path, "utf8");
-            expect(() => new SomMark({ src, format: "html" }).transpile()).toThrow();
+            await expect(() => new SomMark({ src, format: "html" }).transpile()).rejects.toThrow();
         });
     }
 });
