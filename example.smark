@@ -1,7 +1,11 @@
-[Block = A:1, \a2\a, C:3\a]
-Hello From (SomMark)->(style: red, bold, italic)
-@_Adam_@: A: 1, B: 2, 3;
-Hello
+[Block]
+Sommark is a markup language.
+(Hello World)->(h2)
+
+@_code_@:js;
+console.log("Hello World");
 @_end_@
+
+(x)->(todo: Release v2.0.0)
 
 [end]
