@@ -1,111 +1,41 @@
 # Changelog
 
-## 1.0.0 (2026-01-04)
-- Initial release
-- Supports HTML, MD, MDX output
-- CLI ready
-- Lightweight 61 KB package
+## v2.0.0 (2026-02-01)
 
-## 1.1.0 (2026-01-08)
-
-### Features
-
-- **Highlight.js Integration**:
-    - Added support for highlight.js themes.
-    - Added `codeThemes` and `selectedTheme` to Mapper configuration.
-    - Default theme for HTML output is now `atom-one-dark`.
-    - Added `helpers/loadStyle.js` to dynamically load theme CSS (isomorphic: supports both Node.js via `fs` and browser via `fetch`).
-    - Automatically injects selected theme CSS into HTML output when code blocks are present.
-
-- **Mappers**:
-    - Added `includesId(id)` helper method to `Mapper` class for checking output mapping existence.
-
-### Bug Fixes
-
-- **Core/Parser**: Fixed a critical issue where global state variables (`block_stack`, `line`, etc.) were not reset between parse calls, causing errors on subsequent runs.
-- **Core/Transpiler**: Removed leftover debug `console.log` calls.
-- **Mappers/Markdown**: Fixed `Heading` block ignoring inner content (text/comments) in MD/MDX output. Now appends nested content after the heading.
-- **Security**: Refactored HTML escaping architecture.
-    - **Transpiler**: `AtBlock` content is now **escaped by default** in the transpiler to prevent XSS.
-    - **Mapper**: Added `options` to `Mapper.create` (e.g., `{ escape: false }`) to allow specific blocks (like `Code`, `List`, `Table`) to opt-out of automatic escaping when they handle raw content safely or require it for parsing.
-    - **Parser**: Removed manual escaping from Parser to support the new transpiler-based architecture.
-
-## 1.1.1 (2026-01-10)
-
-### Bug Fixes
-
-- **CLI**: Fixed a bug where passing a Mapper object in `smark.config.js` (Custom Mode) caused a crash. The CLI now correctly handles both file path strings and imported Mapper objects.
-
-
-## 1.2.0 (2026-01-14)
-
-### Bug Fixes
-
-* Fixed an issue where consecutive standalone blocks were not fully rendered when not separated by a blank line.
-
-```ini
-[Block]
-This is a test.
-[end]
-[Block]
-This is another test.
-[end]
-```
-
-* Added support for inline block content while keeping the original multiline syntax fully compatible.
-
-```yaml
-[Block]Hello World[end]
-```
-
----
-
-### Code Improvements
-
-* Removed unnecessary code
-* Improved internal implementation
-
----
-
-## v2.0.0-beta.1 (2026-01-17)
+SomMark v2 is a complete architectural overhaul of the language, introducing a programmatic developer API, a robust token-based lexer, and a powerful validation system. This release focuses on stability, flexibility, and a streamlined developer experience.
 
 ### Breaking Changes
+- **API Rename**: `Mapper.create` has been renamed to **`Mapper.register`**.
+- **Escape Syntax**: Replaced the backtick escape syntax with a standard **backslash** (`\`) escape character.
+- **At-Block Terminator**: At-Blocks headers now require a **semicolon** (`;`) to terminate the argument list, allowing headers to span multiple lines.
+- **Style Architecture**: `loadStyleTag` has been replaced by **`loadStyles`**. It now returns raw CSS strings instead of wrapped tags to allow for centralized style management.
+- **Parser State**: The parser now resets its internal global state between calls, ensuring reliability in high-frequency environments.
 
-* Replaced backtick-based escape syntax (`escape content`) with a single-character escape using backslash (`\`).
-* Escape handling is now active inside **at-blocks**, inline values, and block bodies.
-* Documents using the previous escape syntax must be updated.
+### Core Architecture & Lexer
+- **Token-based Lexer**: Moved from regex-based parsing to a robust token-based system with specialized concatenation handlers (`concatText`, `concatEscape`, `concatChar`).
+- **TagBuilder Refactor**: Improved `props()` to support method chaining and flexible input (object/array). Fixed `todo` mapper in HTML to correctly set the `checked` attribute.
+- **Lexer Upgrades**: Comma (`,`), Colon (`:`), and Semicolon (`;`) are now distinct tokens. Improved newline and whitespace metadata accuracy.
+- **Metadata Precision**: Improved line and column tracking for all token types, including those spanning multiple lines.
 
----
+### Syntax Features
+- **Named Arguments**: Blocks and At-Blocks now support **Key-Value pairs** (e.g., `[Block = Adam, id:101]`), allowing for order-independent and optional parameters.
+- **Multi-line Headers**: Both Blocks and At-Blocks now support headers that span multiple lines for better readability.
+- **Flexible Indentation**: Block definitions are no longer sensitive to leading whitespace, allowing for more natural document formatting.
+- **Multi-Value Inlines**: Inline identifiers now support multiple comma-separated values (e.g., `(text)->(gradient: red, blue)`).
 
-### Parser & Lexer Improvements
+### Mapper & Style Management
+- **Validation Rules**: Mappers can now define strict schemas (min/max args, required keys, max content length) that are enforced during transpilation.
+- **Centralized Style System**: All styles (Highlight.js, Tables, and Custom) are now aggregated and injected into a single block in the final HTML output.
+- **Object-based Styling**: `Mapper.addStyle()` now supports JavaScript objects for programmatic style definitions.
+- **Isomorphic CSS Loader**: Added `Mapper.loadCss(path)` for safely loading external CSS in both Node.js and Browser environments.
 
-* Refactored character concatenation logic by replacing the single `concat` function with specialized handlers:
+### Output Formats
+- **Text Format**: Added a new `text` output format for rendering pure, unformatted text.
+- **Safe-by-Default Escaping**: HTML escaping has been moved to the transpiler layer, providing a secure default while allowing specific mappers to opt-out via configuration.
 
-  * `concatText`
-  * `concatEscape`
-  * `concatChar`
+### Documentation
+- **API Reference**: Created 5 comprehensive guides in the `/docs` directory covering Syntax, Core usage, CLI, and custom Mapper development.
+- **Usage Examples**: Added a set of real-world examples (article, documentation, resume) demonstrating full v2 capabilities.
 
-  This separation eliminated multiple hidden parsing bugs and significantly improved maintainability.
-
-* Fixed an issue where **at-block endings were incorrectly treated as text** when preceded by leading spaces, which could corrupt the entire document.
-
-* Fixed errors caused by starting a new block on the same line where a previous block ended (e.g. `[end][Block]`).
-
-* Improved correctness when handling consecutive blocks without implicit line separation.
-
----
-
-### Internal Improvements
-
-* Simplified escape handling for safer and more predictable parsing
-* Improved compatibility between escapes, inline values, and at-block bodies
-* Reduced parser complexity and improved stability
-
----
-
-### Notes
-
-This release introduces **intentional breaking changes** to core grammar behavior.
-It is published as a **beta** to allow validation before the stable **v2.0.0** release.
-
----
+### CLI Improvements
+- **Configuration Handling**: The CLI now correctly processes both instantiated Mapper objects and file paths in `smark.config.js`.
