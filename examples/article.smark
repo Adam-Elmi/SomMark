@@ -1,0 +1,50 @@
+[Section]
+[h1] (The Future of Markup: SomMark v2 Explored)->(bold) [end]
+
+[Block] (By Adam Elmi — Jan 31, 2026)->(italic) [end]
+
+[Block]
+Markup languages have evolved significantly over the years. From the verbosity of XML to the simplicity of Markdown, the goal has always been to separate content from presentation.
+[end]
+
+[image = src: https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=800] Coding Workspace [end]
+
+[h2] Why SomMark? [end]
+
+[Block]
+SomMark was born out of a desire for a structural markup language that maintains the readability of text while providing the power of a DSL. Unlike Markdown, which is primarily focused on rendering HTML, (SomMark is built for transformation)->(bold).
+[end]
+
+[Block]
+Key benefits include:
+[end]
+
+[Block]
+- (Structural Integrity)->(bold): Documents are inherently structured into blocks.
+- (Named Props)->(bold): Easier management of complex components.
+- (Native MDX Support)->(bold): Direct mapping to React/UI components.
+[end]
+
+[h2] Coding with SomMark [end]
+
+[Block]
+Implementing a transpiler for SomMark is surprisingly simple. Here is a snippet of how a basic lexer might look:
+[end]
+
+@_code_@: javascript;
+function lex(input) {
+  const tokens = [];
+  let current = 0;
+  // ... tokenization logic ...
+  return tokens;
+}
+@_end_@
+
+[h2] Conclusion [end]
+
+[Block]
+As we move towards v2, the focus remains on developer experience and syntax flexibility. The ability to handle messy whitespaces and named arguments makes it a strong contender for modern documentation sets.
+[end]
+
+[Block] (Share this article:)->(italic) (Twitter)->(link: #), (GitHub)->(link: #) [end]
+[end]
