@@ -1,0 +1,163 @@
+[Section]
+[Block] (SomMark v2: Comprehensive Features Guide)->(h1) [end]
+
+[Block]
+This document serves as a "long" demonstration of all features currently supported by SomMark v2.
+It explores block syntax, inline statements, nesting, escaping, and at-blocks in depth.
+[end]
+
+# -------------------------------------------------------------------------- #
+#  1. Basic Blocks & Typography                                              #
+# -------------------------------------------------------------------------- #
+
+[Section]
+  [Block] (1. Structural Blocks)->(h2) [end]
+
+  [Block]
+  Blocks are the fundamental building blocks of SomMark. They can be nested and accept arguments.
+  \(Typography Example:\)
+  [end]
+
+  [h1] Primary Heading [end]
+  [h2] Secondary Heading [end]
+  [h3] Tertiary Heading [end]
+
+  [Block]
+  Standard paragraphs are just content inside a generic Block \(or any block that doesn't map to a specific tag\).
+  You can use (bold text)->(bold), (italicized text)->(italic), and (emphasized text)->(emphasis) 
+  anywhere within the body of a block.
+  [end]
+[end]
+
+# -------------------------------------------------------------------------- #
+#  2. Key-Value Arguments (Named Arguments)                                 #
+# -------------------------------------------------------------------------- #
+
+[Section]
+  [Block] (2. Named & Order-Independent Arguments)->(h2) [end]
+
+  [Block]
+  One of the most powerful features of v2 is (Named Arguments)->(bold).
+  Arguments can be passed as `key: value` pairs, making them order-independent.
+  [end]
+
+  # Order-Independent Arguments
+  [Block] (The following image uses named arguments:)->(italic) [end]
+  
+  [image = src: https\://raw.githubusercontent.com/Adam-Elmi/SomMark/main/assets/logo.png] SomMark Logo [end]
+
+  [Block]
+  Notice how we can use blocks with multiple arguments separated by commas.
+  [end]
+[end]
+
+# -------------------------------------------------------------------------- #
+#  3. Inline Statements & Multivalues                                       #
+# -------------------------------------------------------------------------- #
+
+[Section]
+  [Block] (3. Inline Statements & Multi-Values)->(h2) [end]
+
+  [Block]
+  Inline statements allow you to apply styles or logic to specific text snippets.
+  They use the `\(content\)\->\(identifier: args\)` syntax.
+  [end]
+
+  [Block]
+  - (Blue Text Demo)->(color: blue)
+  - (Clickable Link)->(link: https\://github.com/Adam-Elmi/SomMark, Source Code)
+  - (Bold and Italic)->(emphasis)
+  [end]
+
+  [Block]
+  Inline statements now support (Multi-line syntax)->(bold) as well:
+  [end]
+  
+  [Block]
+  (
+    This is a multi-line
+    inline value
+  )->(italic)
+  [end]
+[end]
+
+# -------------------------------------------------------------------------- #
+#  4. At-Blocks (Scope-Based Content)                                       #
+# -------------------------------------------------------------------------- #
+
+[Section]
+  [Block] (4. At-Blocks: Code & Tables)->(h2) [end]
+
+  [Block]
+  At-Blocks are used for content that shouldn't be parsed normally, like code blocks or tabular data.
+  They start with `@_ID_@` and end with `@_end_@`.
+  [end]
+
+  [h3] JavaScript Integration Example [end]
+  @_code_@: javascript;
+  const sommark = {
+    version: "2.0.0",
+    status: "beta",
+    isAwesome: true
+  };
+
+  function greet() {
+    console.log(`Using SomMark ${sommark.version}`);
+  }
+  @_end_@
+
+  [h3] Complex Tables [end]
+  @_table_@: ID, Product, Price, Category;
+  001, Parser Core, $0, Tool
+  002, Transpiler, $0, Tool
+  003, CLI Tooling, $0, Utility
+  004, VS Code Ext, $0, Extension
+  @_end_@
+[end]
+
+# -------------------------------------------------------------------------- #
+#  5. Escaping & Special Characters                                         #
+# -------------------------------------------------------------------------- #
+
+[Section]
+  [Block] (5. Mastering Escapes)->(h2) [end]
+
+  [Block]
+  Sometimes you need to write characters that SomMark uses for its syntax.
+  Use the backslash `\\` to escape them.
+  [end]
+
+  [Block]
+  - Literal Brackets: \[ This is not a block \]
+  - Literal Parens: \( This is not an inline \)
+  - Literal Arrow: \-\>
+  - Literal At-Block start: \@\_
+  - Literal Hash \(Comment\): \#
+  [end]
+[end]
+
+# -------------------------------------------------------------------------- #
+#  6. Deep Nesting Support                                                  #
+# -------------------------------------------------------------------------- #
+
+[Section]
+  [Block] (6. Deep Nesting Demonstration)->(h2) [end]
+
+  [Section]
+    [Block] Level 1 [end]
+    [Section]
+      [Block] Level 2 [end]
+      [Section]
+        [Block] Level 3 [end]
+        [Section]
+          [Block] Level 4: (Deep content)->(bold) [end]
+        [end]
+      [end]
+    [end]
+  [end]
+[end]
+
+[Block]
+(End of Comprehensive Guide)->(italic)
+[end]
+[end]
