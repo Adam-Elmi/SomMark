@@ -1,37 +1,80 @@
+(* SomMark EBNF Grammar Definition *)
+
+(* Basic Tokens *)
+WhiteSpace     = " " | "\t" | "\n" | "\r";
+Digit          = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+Letter         = "A" | ... | "Z" | "a" | ... | "z";
+SpecialChar    = "[" | "]" | "(" | ")" | ":" | "-" | ">" | "@" | "_" | "=" | "," | ";";
+Identifier     = (Letter | Digit), { Letter | Digit };
+EscapeChar     = "\";
+
+(* General Rules *)
+(* 1. Identifiers can be only letters and numbers. *)
+(* 2. Semi-colon is only recognized in Atblock arguments. *)
+(* 3. Colon is a separator in Block and Atblock arguments; must be escaped if part of value. *)
+(* 4. Bodies and Values cannot be empty. *)
+
+(* Comments *)
 Comment = "#", { ? any character except "\n" ? }, "\n";
 
-OpenAt      = "@", "_";
-CloseAt     = "_", "@";
-ThinArrow   = "-", ">";
+(* ========================================== *)
+(* Block Syntax                               *)
+(* Acts as container and allows nesting       *)
+(* ========================================== *)
 
-SpecialSymbols = "[" | "]" | "(" | ")" | ":" | "\n";
+Block          = BlockStart, BlockBody, BlockEnd;
+BlockStart     = "[", Identifier, [ "=", BlockArgs ], "]";
+BlockEnd       = "[", "end", "]";
+BlockBody      = { Block | InlineStatement | AtBlock | TextContent };
 
-Text = ? any character except SpecialSymbols ?;
+(* Block Arguments: Key-Value or Value only *)
+BlockArgs      = BlockArg, { ",", BlockArg };
+BlockArg       = [ Key, ":" ], Value;
+Key            = Identifier;
+(* Value accepts anything except restricted chars unless escaped *)
+Value          = { ? any char except ",", "]" ? | EscapedChar };
+EscapedChar    = EscapeChar, ? any character ?;
 
-Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+(* Example: [Identifier = arg1, arg2, three:arg3] *)
+(* Example: [Identifier] *)
 
-Letter = "A" | "B" | "C" | "D" | "E" | "F" | "G"
-       | "H" | "I" | "J" | "K" | "L" | "M" | "N"
-       | "O" | "P" | "Q" | "R" | "S" | "T" | "U"
-       | "V" | "W" | "X" | "Y" | "Z"
-       | "a" | "b" | "c" | "d" | "e" | "f" | "g"
-       | "h" | "i" | "j" | "k" | "l" | "m" | "n"
-       | "o" | "p" | "q" | "r" | "s" | "t" | "u"
-       | "v" | "w" | "x" | "y" | "z" ;
 
-Identifier = Letter, {Letter | Digit | "_"};
+(* ========================================== *)
+(* Inline Statement Syntax                    *)
+(* Does not allow nesting                     *)
+(* ========================================== *)
 
-Value = Text;
+InlineStatement = "(", InlineValue, ")", "->", "(", InlineIdentifier, [ ":", InlineArgs ], ")";
+InlineValue     = { ? any char except ")" ? | EscapedChar };
+InlineIdentifier= Identifier;
 
-EndKeyword = "end";
+(* Inline Arguments: Value only, NO Key-Value support *)
+InlineArgs      = InlineArg, { ",", InlineArg };
+InlineArg       = { ? any char except ",", ")" ? | EscapedChar };
 
-BlockStart = "[", Identifier, ["="], [Value], "]", "\n";
-BlockEnd   = "[", EndKeyword, "]", ["\n"];
+(* Example: (Value)->(Identifier: value1, value2) *)
+(* Example: (Value)->(Identifier) *)
 
-InlineStatement = "(", Value, ")", ThinArrow, "(", Identifier, ")";
 
-AtBlockStart = OpenAt, Identifier, CloseAt, "\n", [":"], [Value];
-AtBlockEnd   = OpenAt, EndKeyword, CloseAt, "\n";
+(* ========================================== *)
+(* Atblock Syntax                             *)
+(* Content is plain text, no nesting          *)
+(* ========================================== *)
 
-EscapeCharacter  = "`";
-EscapeStatement  = EscapeCharacter, (Text | SpecialSymbols), EscapeCharacter;
+AtBlock        = AtBlockStart, AtBlockContent, AtBlockEnd;
+AtBlockStart   = "@_", Identifier, "_@", [ ":", AtBlockArgs, ";" ];
+AtBlockEnd     = "@_", "end", "_@";
+
+(* Atblock Arguments: Key-Value or Value only, terminated by semicolon *)
+AtBlockArgs    = AtBlockArg, { ",", AtBlockArg };
+AtBlockArg     = [ Key, ":" ], AtBlockValue;
+AtBlockValue   = { ? any char except ",", ";" ? | EscapedChar };
+
+AtBlockContent = { ? any character ? };
+
+(* Example: @_Identifier_@: arg1, arg2; Content... @_end_@ *)
+(* Example: @_Identifier_@ Content... @_end_@ *)
+
+
+(* Text Content *)
+TextContent    = { ? any char except "[", "@_", "(", "#" ? | EscapedChar };
