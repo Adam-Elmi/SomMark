@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>loadCss Browser Test</title>
+</head>
+
+<body>
+    <h1>loadCss Browser Test</h1>
+    <div id="output">Running...</div>
+    <div id="result"></div>
+
+    <script type="module">
+        import loadCss from "../../helpers/loadCss.js";
+
+        async function runTest() {
+            try {
+                const output = document.getElementById("output");
+                const result = document.getElementById("result");
+
+                output.textContent = "Fetching test_style.css...";
+
+                const cssContent = await loadCss("browser", "./test_style.css");
+
+                console.log("Loaded CSS:", cssContent);
+
+                const styleTag = document.createElement("style");
+                styleTag.textContent = cssContent;
+                document.head.appendChild(styleTag);
+
+                if (cssContent.includes("color: green")) {
+                    output.textContent = "SUCCESS";
+                    result.textContent = "Content: " + cssContent;
+                } else {
+                    output.textContent = "FAILED";
+                    result.textContent = "Expected 'color: green' but got '" + cssContent + "'";
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById("output").textContent = "ERROR: " + error.message;
+            }
+        }
+
+        runTest();
+    </script>
+</body>
+
+</html>

@@ -45,7 +45,53 @@ myMapper.register("Alert", ({ content }) => {
 
 ---
 
-## 2. Adding Styles
+## 2. Using Rules (Validation)
+
+You can force strict rules on your content. If a rule is broken, SomMark will stop and show an error.
+
+```javascript
+import { Mapper } from "sommark";
+const myMapper = new Mapper();
+const { tag } = myMapper;
+
+myMapper.register("User", ({ args }) => {
+    return tag("div").body(`User: ${args[0]}`);
+}, {
+    rules: {
+        args: {
+            min: 1,           // Must have at least 1 argument
+            required: ["id"]  // The "id" key is required
+        }
+    }
+});
+```
+*Example input that passes:* `[User = Adam, id:123] ... [end]`
+
+## 3. Using Options
+
+Options change how SomMark processes the content inside the block.
+
+```javascript
+import { Mapper } from "sommark";
+const myMapper = new Mapper();
+const { tag } = myMapper;
+
+myMapper.register("Code", ({ content }) => {
+    return tag("pre").body(content);
+}, {
+    escape: false,
+    rules: {
+        args: {
+            min: 1,           
+            required: ["id"]
+        }
+    }
+    }); // options
+```
+
+---
+
+## 4. Adding Styles
 
 You can attach CSS styles directly to your mapper. SomMark will automatically bundle these styles into the final output.
 
@@ -63,7 +109,7 @@ myMapper.addStyle(`
 
 ---
 
-## 3. HTML Helpers
+## 5. HTML Helpers
 
 The Mapper class includes utilities to make generating HTML easier and safer.
 
@@ -74,8 +120,7 @@ Creates an HTML tag builder.
 mapper.register("Card", ({ content }) => {
   return mapper.tag("div")
     .attributes({ class: "card" })
-    .body(content)
-    .toString(); // <div class="card">...</div>
+    .body(content) // <div class="card">...</div>
 });
 ```
 
@@ -83,7 +128,7 @@ mapper.register("Card", ({ content }) => {
 
 ---
 
-## 4. API Index
+## 6. API Index
 
 Here is a complete list of all methods and properties available on the `Mapper` instance.
 
@@ -95,41 +140,38 @@ Here is a complete list of all methods and properties available on the `Mapper` 
 | [`removeOutput`](./api/8.removeOutput.md) | Remove a mapping. |
 | [`includesId`](./api/5.includesId.md) | Check if detailed IDs exist. |
 | [`outputs`](./api/1.outputs.md) | Array of all registered mappings. |
-| [`env`](./api/17.env.md) | Current environment (`node`/`browser`). |
+| [`env`](./api/16.env.md) | Current environment (`node`/`browser`). |
 
 ### Styles & Themes
 | Name | Description |
 | :--- | :--- |
-| [`addStyle`](./api/20.addStyle.md) | Register custom CSS. |
-| [`loadCss`](./api/27.loadCss.md) | Load CSS from a file. |
-| [`loadStyles`](./api/16.loadStyles.md) | Load all compiled styles. |
-| [`styles`](./api/19.styles.md) | Array of registered CSS. |
+| [`addStyle`](./api/19.addStyle.md) | Register custom CSS. |
+| [`getStyle`](./api/15.getStyle.md) | Get all compiled CSS. |
+| [`styles`](./api/18.styles.md) | Array of registered CSS. |
 | [`highlightCode`](./api/11.highlightCode.md) | Highlight a string of code. |
-| [`highlightTheme`](./api/12.highlightTheme.md) | Current Highlight.js theme. |
-| [`HighlightThemes`](./api/28.HighlightThemes.md) | List of available themes. |
-| [`getHighlightTheme`](./api/13.getHighlightTheme.md) | Get theme link tag. |
+| [`registerHighlightTheme`](./api/13.registerHighlightTheme.md) | Register a custom theme. |
+| [`selectHighlightTheme`](./api/14.selectHighlightTheme.md) | Select the active theme. |
+| [`enable_highlightTheme`](./api/12.enable_highlightTheme.md) | Toggle auto-injection of theme. |
 
 ### Formatters (HTML Helpers)
 | Name | Description |
 | :--- | :--- |
 | [`tag`](./api/3.tag.md) | Create HTML tags safely. |
 | [`md`](./api/2.md.md) | Markdown builder instance. |
-| [`code`](./api/22.code.md) | Format code blocks. |
-| [`htmlTable`](./api/23.htmlTable.md) | Generate HTML tables. |
-| [`list`](./api/25.list.md) | Generate HTML lists. |
-| [`todo`](./api/26.todo.md) | Parse todo state. |
+| [`code`](./api/21.code.md) | Format code blocks. |
+| [`htmlTable`](./api/22.htmlTable.md) | Generate HTML tables. |
+| [`list`](./api/24.list.md) | Generate HTML lists. |
+| [`todo`](./api/25.todo.md) | Parse todo state. |
 | [`escapeHTML`](./api/6.escapeHtml.md) | Escape special chars. |
 
 ### Page & Headers
 | Name | Description |
 | :--- | :--- |
 | [`pageProps`](./api/10.pageProps.md) | Page metadata storage. |
-| [`header`](./api/21.header.md) | Full document header string. |
+| [`header`](./api/20.header.md) | Full document header string. |
 | [`setHeader`](./api/9.setHeader.md) | Add custom header content. |
 
 ### Configuration Flags
 | Name | Description |
 | :--- | :--- |
-| [`enable_table_styles`](./api/18.enable_table_styles.md) | Toggle default table styles. |
-| [`enable_highlight_style_tag`](./api/14.enable_highlight_style_tag.md) | Inject styles via `<style>`. |
-| [`enable_highlight_link_Style`](./api/15.enable_highlight_link_Style.md) | Inject themes via `<link>`. |
+| [`enable_table_styles`](./api/17.enable_table_styles.md) | Toggle default table styles. |

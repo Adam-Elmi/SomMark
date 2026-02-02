@@ -199,7 +199,6 @@ async function generateOutput(ast, i, format, mapper_file) {
 
 async function transpiler({ ast, format, mapperFile, includeDocument = true }) {
 	let output = "";
-	mapperFile ? (mapperFile.hasCode = false) : null;
 	for (let i = 0; i < ast.length; i++) {
 		if (ast[i].type === BLOCK) {
 			output += await generateOutput(ast, i, format, mapperFile);
@@ -214,25 +213,17 @@ async function transpiler({ ast, format, mapperFile, includeDocument = true }) {
 	if (includeDocument && format === htmlFormat) {
 		let finalHeader = mapperFile.header;
 
-		if (mapperFile.hasCode && mapperFile.enable_highlight_link_Style && mapperFile.getHighlightTheme) {
-			const linkTag = `<link rel="stylesheet" href="node_modules/highlight.js/styles/${mapperFile.getHighlightTheme(mapperFile.highlightTheme)}.css">`;
-			if (linkTag && !finalHeader.includes(linkTag)) {
-				finalHeader += linkTag + "\n";
-			}
-		}
-
-		if (
-			(mapperFile.hasCode || (mapperFile.styles && mapperFile.styles.length > 0)) &&
-			mapperFile.loadStyles
-		) {
-			const styles = await mapperFile.loadStyles();
-			if (styles && styles.trim()) {
-				const styleTag = `<style>\n${styles}\n</style>`;
+		// Inject Style Tag if code blocks exist
+		if (mapperFile.enable_highlightTheme && (output.includes("<pre") || output.includes("<code")) && mapperFile.getStyle) {
+			const styleContent = mapperFile.getStyle();
+			if (styleContent) {
+				const styleTag = `<style>\n${styleContent}\n</style>`;
 				if (!finalHeader.includes(styleTag)) {
 					finalHeader += styleTag + "\n";
 				}
 			}
 		}
+
 		const document = `<!DOCTYPE html>\n<html>\n${finalHeader}\n<body>\n${output}\n</body>\n</html>\n`;
 		return document;
 	}

@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.0.1 (2026-02-02)
+
+### Refactoring
+- **Highlight System**: Removed dependency on filesystem loading for themes. Bundled `atom-one-dark` theme by default.
+- **Theme Registry**: Introduced `registerHighlightTheme` and `selectHighlightTheme` for easier theme management.
+- **Auto-Detection**: Removed `hasCode` property. The transpiler now auto-detects code blocks for style injection if `enable_highlightTheme` is true.
+
+### Documentation
+- **API Reference**: Complete overhaul of `docs/api` with renumbered files and new methods.
+- **Syntax Guide**: Added comprehensive documentation for Block, Inline, and AtBlock syntax with examples.
+- **Mappers**: Added `default_mappers.md` listing all built-in HTML, Markdown, and MDX mappings.
+- **Escape Characters**: Added `escape_character.md` guide.
+
+### Fixes
+- **Browser Compatibility**: Fixed `loadCss` to work correctly in browser environments using `fetch`.
+- **Path Resolution**: Fixed path resolution issues for theme loading.
+
 ## v2.0.0 (2026-02-01)
 
 > [!WARNING]
