@@ -3,7 +3,7 @@
 [Block] (Full-Stack Software Engineer)->(italic) [end]
 
 [Block]
-(Email:)->(bold) adam@example.com | (GitHub:)->(bold) (Adam-Elmi)->(link: https://github.com/Adam-Elmi)
+(Email:)->(bold) adam@example.com | (GitHub:)->(bold) (Adam-Elmi)->(link: https\://github.com/Adam-Elmi)
 [end]
 
 [h2] Experience [end]
