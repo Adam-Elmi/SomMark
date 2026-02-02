@@ -1,9 +1,8 @@
 import TagBuilder from "../formatter/tag.js";
 import MarkdownBuilder from "../formatter/mark.js";
-import { highlightCode, getHighlightTheme, highlightTheme, HighlightThemes } from "../lib/highlight.js";
+import { highlightCode } from "../lib/highlight.js";
 import escapeHTML from "../helpers/escapeHTML.js";
-import loadHighlightStyle from "../helpers/loadHighlightStyle.js";
-import loadCss from "../helpers/loadCss.js";
+import atomOneDark from "../helpers/defaultTheme.js";
 
 class Mapper {
 	#customHeaderContent;
@@ -12,7 +11,7 @@ class Mapper {
 	// ========================================================================== //
 	constructor() {
 		this.outputs = [];
-		this.hasCode = false;
+		this.enable_highlightTheme = true;
 		this.md = new MarkdownBuilder();
 
 		this.pageProps = {
@@ -29,37 +28,39 @@ class Mapper {
 		this.#customHeaderContent = "";
 
 		this.highlightCode = highlightCode;
-		this.getHighlightTheme = getHighlightTheme;
-		this.highlightTheme = highlightTheme;
 		this.escapeHTML = escapeHTML;
-		this.enable_highlight_style_tag = true;
-		this.enable_highlight_link_Style = false;
-		this.enable_table_styles = true;
 		this.styles = [];
 		this.env = "node";
-		this.loadStyles = async () => {
-			let styles = "";
-			if (this.enable_highlight_style_tag) {
-				styles = await loadHighlightStyle(this.env, this.highlightTheme);
-			}
-			const allStyles = (styles ? styles + "\n" : "") + this.styles.join("\n");
-			return allStyles;
+
+		// Theme Registry
+		this.themes = {
+			"atom-one-dark": atomOneDark
 		};
+		this.currentTheme = "atom-one-dark";
+	}
+
+	registerHighlightTheme(themes) {
+		this.themes = { ...this.themes, ...themes };
+	}
+
+	selectHighlightTheme(themeName) {
+		if (this.themes[themeName]) {
+			this.currentTheme = themeName;
+		} else {
+			console.warn(`Theme '${themeName}' not found in registry.`);
+		}
+	}
+
+	getStyle() {
+		const themeCss = this.themes[this.currentTheme] || "";
+		const customCss = this.styles.join("\n");
+		return (themeCss + "\n" + customCss).trim();
 	}
 
 	// ========================================================================== //
 	//  Style Management                                                          //
 	// ========================================================================== //
-	get HighlightThemes() {
-		return this.enable_highlight_link_Style || this.enable_highlight_style_tag ? HighlightThemes : [];
-	}
 
-	async loadCss(path) {
-		const css = await loadCss(this.env, path);
-		if (css && css.trim()) {
-			this.addStyle(css);
-		}
-	}
 
 	addStyle(css) {
 		if (typeof css === "object" && css !== null) {
@@ -171,7 +172,6 @@ class Mapper {
 	//  Formatters                                                                //
 	// ========================================================================== //
 	code = (args, content) => {
-		this.hasCode = true;
 		const value = highlightCode(content, args && args[0] ? args[0].trim() : "text");
 		return this.tag("pre").body(
 			this.tag("code")

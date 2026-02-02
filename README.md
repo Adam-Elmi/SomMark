@@ -282,7 +282,15 @@ const { tag } = myMapper;
 
 myMapper.register("Code", ({ content }) => {
     return tag("pre").body(content);
-});
+}, {
+    escape: false,
+    rules: {
+        args: {
+            min: 1,           
+            required: ["id"]
+        }
+    }
+    }); // options
 ```
 
 # License
