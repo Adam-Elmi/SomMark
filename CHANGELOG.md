@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.0.2 (2026-02-03)
+
+### Features
+- **Exports**: Exposed `TOKEN_TYPES` and `labels` from core for advanced usage.
+
+### Refactoring
+- **Config**: Removed unused `custom_html` import from `smark.config.js`.
+
+### Fixes
+- **CLI**: Fixed typo in help message.
+- **Cleanup**: Cleaned up `.npmignore`.
+
 ## v2.0.1 (2026-02-02)
 
 ### Refactoring
