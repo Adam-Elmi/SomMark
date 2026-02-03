@@ -1,10 +1,17 @@
-assets
+# Git
+.git
+.gitignore
+.DS_Store
+
+# Test & CI
 tests
-docs
-examples
-node_modules
+coverage
 .vscode
+.github
 .prettierrc
+
+# Dev Files
+smark.config.js
 custom.smark.js
 example.smark
 hello.html
@@ -13,6 +20,11 @@ output.html
 output.md
 output.mdx
 sample.js
-smark.config.js
-Todo.md
-V2-TODO.md
+
+# Files & Folders
+node_modules
+assets
+examples
+
+# Documentation
+docs
