@@ -13,7 +13,7 @@
 <img src="https://img.shields.io/badge/mdx-supported-lightblue?style=flat-square" />
 </p>
 
-# SomMark v2.0.0
+# SomMark v2
 
 > [!WARNING]
 > Old version is no longer supported.
