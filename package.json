@@ -1,6 +1,6 @@
 {
 	"name": "sommark",
-	"version": "2.0.1",
+	"version": "2.0.2",
 	"description": "SomMark is a structural markup language for writing structured documents and converting them into HTML or Markdown or MDX(only ready components).",
 	"main": "index.js",
 	"directories": {
