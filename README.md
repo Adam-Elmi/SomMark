@@ -151,7 +151,8 @@ Detailed guides and API references are available in the `docs/` directory:
 *   **[Core API](docs/core.md)**: Programmatic usage of the library (`transpile`, `lex`, `parse`).
 *   **[Mapper API](docs/mapper.md)**: Guide for creating custom mappers and rules.
 *   **[CLI Reference](docs/cli.md)**: Command line options and configurations.
-*   **[API Quick Reference](docs/api.md)**: Fast lookup for all classes and functions.
+*   **[API Quick Reference](docs/api)**: Fast lookup for all classes and functions.
+*   **[Configuration Reference](docs/config.md)**: Guide for creating custom configurations.
 
 
 
