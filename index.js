@@ -8,8 +8,9 @@ import MDX from "./mappers/languages/mdx.js";
 import TagBuilder from "./formatter/tag.js";
 import MarkdownBuilder from "./formatter/mark.js";
 import { runtimeError } from "./core/errors.js";
-import { textFormat, htmlFormat, markdownFormat, mdxFormat } from "./core/formats.js";
-
+import FORMATS, { textFormat, htmlFormat, markdownFormat, mdxFormat } from "./core/formats.js";
+import TOKEN_TYPES from "./core/tokenTypes.js";
+import * as labels from "./core/labels.js";
 class SomMark {
 	constructor({ src, format, mapperFile = null, includeDocument = true }) {
 		this.src = src;
@@ -91,5 +92,18 @@ async function transpile(options = {}) {
 	return await transpiler({ ast, format, mapperFile, includeDocument });
 }
 
-export { HTML, MARKDOWN, MDX, Mapper, TagBuilder, MarkdownBuilder, lex, parse, transpile };
+export {
+	HTML,
+	MARKDOWN,
+	MDX,
+	Mapper,
+	TagBuilder,
+	MarkdownBuilder,
+	FORMATS,
+	lex,
+	parse,
+	transpile,
+	TOKEN_TYPES,
+	labels
+};
 export default SomMark;

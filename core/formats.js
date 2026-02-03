@@ -6,3 +6,4 @@ const formats = {
 };
 
 export const {textFormat, htmlFormat, markdownFormat, mdxFormat} = formats;
+export default formats;
