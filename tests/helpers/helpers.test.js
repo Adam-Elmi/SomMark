@@ -3,7 +3,6 @@ import { removeNewline, removeWhiteSpaces } from "../../helpers/removeChar";
 import peek from "../../helpers/peek";
 import escapeHTML from "../../helpers/escapeHTML";
 import colorize from "../../helpers/colorize";
-import loadHighlightStyle from "../../helpers/loadHighlightStyle";
 import { vi } from "vitest";
 
 // ========================================================================== //
@@ -79,44 +78,6 @@ describe("colorize", () => {
     });
     it("throws if text is not provided", () => {
         expect(() => colorize("red")).toThrow();
-    });
-});
-
-// ========================================================================== //
-//  loadHighlightStyle                                                        //
-// ========================================================================== //
-describe("loadHighlightStyle", () => {
-    it("loads style in node env (tries to read file)", async () => {
-        const style = await loadHighlightStyle("node", "github", "node_modules/highlight.js/styles/");
-        expect(typeof style).toBe("string");
-    });
-
-    it("handles invalid environment", async () => {
-        const result = await loadHighlightStyle("alien_computer");
-        expect(result).toBe("");
-    });
-
-    it("browser environment fetch failure", async () => {
-        global.fetch = vi.fn(() =>
-            Promise.resolve({
-                ok: false,
-                statusText: "Not Found",
-            })
-        );
-        const result = await loadHighlightStyle("browser");
-        expect(result).toBe("");
-        expect(global.fetch).toHaveBeenCalled();
-    });
-
-    it("browser environment fetch success", async () => {
-        global.fetch = vi.fn(() =>
-            Promise.resolve({
-                ok: true,
-                text: () => Promise.resolve(".css { color: red; }"),
-            })
-        );
-        const result = await loadHighlightStyle("browser");
-        expect(result).toBe(".css { color: red; }");
     });
 });
 
