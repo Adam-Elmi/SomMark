@@ -44,7 +44,8 @@ It explores block syntax, inline statements, nesting, escaping, and at-blocks in
   # Order-Independent Arguments
   [Block] (The following image uses named arguments:)->(italic) [end]
   
-  [image = src: https\://raw.githubusercontent.com/Adam-Elmi/SomMark/main/assets/logo.png] SomMark Logo [end]
+  [image = src: https\://i.pinimg.com/736x/b9/37/3d/b9373dbb90d96f0c6cfdc1b78c5c3e70.jpg, alt: Battle Chess Image][end]
+  [hr][end]
 
   [Block]
   Notice how we can use blocks with multiple arguments separated by commas.
