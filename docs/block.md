@@ -1,6 +1,10 @@
 # Block Syntax
 
-Blocks are the fundamental container structures in SomMark. They are used to group content and apply specific transformations to a section of your document.
+Blocks are the fundamental container structures in SomMark. They group content and define the scope for transformations applied to sections of a document.
+
+Inline statements, at-blocks, and text must be defined inside a Block. Defining any of these at the top level will result in a parsing error.
+
+At the top level, only Blocks and comments are permitted.
 
 ## Syntax
 
