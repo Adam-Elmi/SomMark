@@ -1,7 +1,7 @@
 [Block]
-(-)->(todo: Expose loadCss function)
-(-)->(todo: Fix css style tag is not included in the header where it is only included when there is code identifier)
-(-)->(todo: Add new rule to handle selfclosing tags)
-(-)->(todo: Improve Documentation)
+(done)->(todo: Expose loadCss function)
+(done)->(todo: Fix css style tag is not included in the header where it is only included when there is code identifier)
+(done)->(todo: Add new rule to handle self-closing tags)
+(done)->(todo: Improve Documentation)
 (-)->(todo: Add Json support)
 [end]
