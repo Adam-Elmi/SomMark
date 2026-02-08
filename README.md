@@ -16,7 +16,7 @@
 # SomMark v2
 
 > [!WARNING]
-> Old version is no longer supported.
+> Old version(v1) is no longer supported.
 
 SomMark provides a way to write structured content that can be converted into other formats like HTML or Markdown. It is different from standard Markdown because it uses explicit syntax for blocks and elements, which makes it easier to process and customize.
 
