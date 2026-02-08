@@ -1,4 +1,4 @@
-export async function loadCss(env, filePath) {
+async function loadCss(env, filePath) {
     if (!env) {
         env = typeof window !== "undefined" && typeof window.document !== "undefined" ? "browser" : "node";
     }
