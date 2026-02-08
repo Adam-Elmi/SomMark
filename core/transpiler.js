@@ -34,7 +34,7 @@ function validateRules(target, args, content) {
 	const { id } = target;
 
 	// Validate Args
-	if (rules.args) {
+	if (args && rules.args) {
 		const { min, max, required, includes } = rules.args;
 		const argKeys = Object.keys(args).filter(key => isNaN(parseInt(key))); // Get named keys
 		const argValues = Object.values(args);
@@ -78,7 +78,7 @@ function validateRules(target, args, content) {
 	}
 
 	// Validate Content
-	if (rules.content) {
+	if (content && rules.content) {
 		const { maxLength } = rules.content;
 		if (maxLength && content.length > maxLength) {
 			transpilerError([
@@ -88,7 +88,7 @@ function validateRules(target, args, content) {
 		}
 	}
 	// Validate is_Self_closing
-	if (rules.is_Self_closing) {
+	if (id && rules.is_Self_closing) {
 		if (content) {
 			transpilerError([
 				"{line}<$red:Validation Error:$> ",
