@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.1.0 (2026-02-08)
+
+### Fixes
+-  Fixed styles property to include css styles
+
+### Removed
+- Removed `getStyle` method
+
+### Features
+- Added new rule that handles self-closing tags
+
+### Improvements
+- Improved documentation
+- Added missing property `enable_table_styles` from `/mappers/mapper.js`
+
+
 ## v2.0.2 (2026-02-03)
 
 ### Features
