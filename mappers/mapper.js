@@ -3,6 +3,7 @@ import MarkdownBuilder from "../formatter/mark.js";
 import { highlightCode } from "../lib/highlight.js";
 import escapeHTML from "../helpers/escapeHTML.js";
 import atomOneDark from "../helpers/defaultTheme.js";
+import loadCss from "../helpers/loadCss.js";
 
 class Mapper {
 	#customHeaderContent;
@@ -31,12 +32,12 @@ class Mapper {
 		this.escapeHTML = escapeHTML;
 		this.styles = [];
 		this.env = "node";
-
 		// Theme Registry
 		this.themes = {
 			"atom-one-dark": atomOneDark
 		};
 		this.currentTheme = "atom-one-dark";
+		this.enable_table_styles = true;
 	}
 
 	registerHighlightTheme(themes) {
@@ -51,16 +52,9 @@ class Mapper {
 		}
 	}
 
-	getStyle() {
-		const themeCss = this.themes[this.currentTheme] || "";
-		const customCss = this.styles.join("\n");
-		return (themeCss + "\n" + customCss).trim();
-	}
-
 	// ========================================================================== //
 	//  Style Management                                                          //
 	// ========================================================================== //
-
 
 	addStyle(css) {
 		if (typeof css === "object" && css !== null) {
@@ -79,6 +73,11 @@ class Mapper {
 			this.styles.push(css.trim());
 		}
 	}
+
+	loadCss = async (env = this.env, filePath) => {
+		const css = await loadCss(env, filePath);
+		this.addStyle(css);
+	};
 
 	// ========================================================================== //
 	//  Header Generation                                                         //
@@ -311,7 +310,7 @@ class Mapper {
 		}
 	};
 	todo(checked = false) {
-		return checked.trim() === "x" ? true : false;
+		return checked.trim() === "x" || checked.trim().toLowerCase() === "done" ? true : false;
 	}
 }
 export default Mapper;
