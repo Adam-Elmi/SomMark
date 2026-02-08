@@ -36,13 +36,29 @@ HTML.register("color", ({ args, content }) => {
 });
 // Link
 HTML.register("link", ({ args, content }) => {
-	console.log(args);
-	return tag("a").attributes({ href: args[0].trim(), title: args[1] ? args[1].trim() : "" }).body(content);
+	return tag("a")
+		.attributes({ href: args[0].trim(), title: args[1] ? args[1].trim() : "" })
+		.body(content);
 });
 // Image
-HTML.register("image", ({ args, content }) => {
-	return tag("img").attributes({ src: args[0].trim(), alt: content }).selfClose();
-});
+HTML.register(
+	["image", "Image"],
+	({ args }) => {
+		const src = args && args["src"] ? args["src"] : "";
+		const alt = args && args["alt"] ? args["alt"] : "";
+		const width = args && args["width"] ? args["width"] : "",
+			height = args && args["height"] ? args["height"] : "";
+		return tag("img").attributes({ src, alt, width, height }).selfClose();
+	},
+	{
+		rules: {
+			is_Self_closing: true,
+			args: {
+			required: ["src"]
+			}
+		}
+	}
+);
 // Code
 HTML.register(
 	["code", "Code"],
@@ -68,13 +84,23 @@ HTML.register(
 	{ escape: false }
 );
 // Horizontal Rule
-HTML.register("hr", () => {
-	return tag("hr").selfClose();
-});
+HTML.register(
+	"hr",
+	() => {
+		return tag("hr").selfClose();
+	},
+	{
+		rules: {
+			is_Self_closing: true
+		}
+	}
+);
 // Todo
 HTML.register("todo", ({ args, content }) => {
 	const checked = HTML.todo(content);
-	return tag("div").body(tag("input").attributes({ type: "checkbox", disabled: true, checked }).selfClose() + (args[0] ? args[0] : ""));
+	return tag("div").body(
+		tag("input").attributes({ type: "checkbox", disabled: true, checked }).selfClose() + (args[0] ? args[0] : "")
+	);
 });
 
 export default HTML;
