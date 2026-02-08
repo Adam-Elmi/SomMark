@@ -1,11 +1,3 @@
-[Block]
-Sommark is a markup language.
-(Hello World)->(h2)
-
-@_code_@:js;
-console.log("Hello World");
-@_end_@
-
-(x)->(todo: Release v2.0.0)
+[Image = width:100px]
 
 [end]
