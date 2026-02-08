@@ -14,7 +14,7 @@ Main entry point for tokenization.
 [end]
 
 @_table_@: Parameter, Type, Description;
-source, string, The raw SmMark input string;
+source, string, The raw SomMark input string;
 options, object, Optional configuration for the lexer;
 @_end_@
 
