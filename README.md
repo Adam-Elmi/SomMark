@@ -93,6 +93,36 @@ Raw content here.
 ```
 
 ## General Rules
+* SomMark Top-Level Rules:
+  - Only Blocks and comments are allowed at the top level.
+  - Inline Statements, Atblocks, and text cannot appear at the top level. They must be inside a Block, or it is invalid.
+  **Invalid Top-Level:**
+  ```ini
+  Hello world             ❌  (Text cannot be at top level)
+  
+  Welcome to (SomMark)->(Bold)         ❌  (Inline statement cannot be at top level)
+  
+  @_Code_@: js;
+  function add(a, b) {
+    return a + b;
+  }
+  @_end_@                 ❌  (Atblock cannot be at top level)
+  ```
+  
+  **Valid Top-Level:**
+  ```ini
+  [Block]
+    Hello world 
+    Welcome to (SomMark)->(Bold)          # Inline statement inside block is valid
+  
+    @_Code_@: js;
+    function add(a, b) {
+      return a + b;                        # Treated as plain text
+    }       
+    @_end_@
+  
+  [end]
+```
 
 *   **Identifiers**: Names can only contain letters and numbers.
 *   **Escape Character**: Use the backslash `\` to escape special characters (like colons or commas) inside arguments.
@@ -254,23 +284,65 @@ export default myMapper;
 
 You can force strict rules on your content. If a rule is broken, SomMark will stop and show an error.
 
-```javascript
-import { Mapper } from "sommark";
-const myMapper = new Mapper();
-const { tag } = myMapper;
+### Argument Validation (`args`)
 
+Validates the arguments passed to the tag.
+
+```javascript
 myMapper.register("User", ({ args }) => {
     return tag("div").body(`User: ${args[0]}`);
 }, {
     rules: {
         args: {
             min: 1,           // Must have at least 1 argument
-            required: ["id"]  // The "id" key is required
+            max: 3,           // Cannot have more than 3 arguments
+            required: ["id"], // The "id" named key is required
+            includes: ["id", "role", "age"] // Only these keys are allowed
         }
     }
 });
 ```
-*Example input that passes:* `[User = Adam, id:123] ... [end]`
+
+- **`min`**: Minimum number of arguments required.
+- **`max`**: Maximum number of arguments allowed.
+- **`required`**: Array of keys that MUST be present in the arguments.
+- **`includes`**: Whitelist of allowed argument keys. Any key not in this list will trigger an error.
+
+### Content Validation (`content`)
+
+Validates the inner content (body) of the block.
+
+```javascript
+myMapper.register("Summary", ({ content }) => {
+    return tag("p").body(content);
+}, {
+    rules: {
+        content: {
+            maxLength: 100 // Content must be 100 characters or less
+        }
+    }
+});
+```
+
+- **`maxLength`**: Maximum length of the content string.
+
+### Self-Closing Tags
+
+Ensures a tag is used without content or children.
+
+```javascript
+myMapper.register("Separator", () => {
+    return tag("hr").selfClose();
+}, {
+    rules: {
+        is_Self_closing: true
+    }
+});
+```
+
+- **`is_Self_closing`**: If `true`, SomMark will throw an error if the tag contains any content.
+
+*Example input that passes:* `[Image = src: image.png, alt: Image][end]`
 
 ## Using Options
 
@@ -293,6 +365,7 @@ myMapper.register("Code", ({ content }) => {
     }
     }); // options
 ```
+--- 
 
 # License
 
