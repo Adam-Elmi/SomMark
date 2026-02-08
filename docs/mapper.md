@@ -49,23 +49,65 @@ myMapper.register("Alert", ({ content }) => {
 
 You can force strict rules on your content. If a rule is broken, SomMark will stop and show an error.
 
-```javascript
-import { Mapper } from "sommark";
-const myMapper = new Mapper();
-const { tag } = myMapper;
+### Argument Validation (`args`)
 
+Validates the arguments passed to the tag.
+
+```javascript
 myMapper.register("User", ({ args }) => {
     return tag("div").body(`User: ${args[0]}`);
 }, {
     rules: {
         args: {
             min: 1,           // Must have at least 1 argument
-            required: ["id"]  // The "id" key is required
+            max: 3,           // Cannot have more than 3 arguments
+            required: ["id"], // The "id" named key is required
+            includes: ["id", "role", "age"] // Only these keys are allowed
         }
     }
 });
 ```
-*Example input that passes:* `[User = Adam, id:123] ... [end]`
+
+- **`min`**: Minimum number of arguments required.
+- **`max`**: Maximum number of arguments allowed.
+- **`required`**: Array of keys that MUST be present in the arguments.
+- **`includes`**: Whitelist of allowed argument keys. Any key not in this list will trigger an error.
+
+### Content Validation (`content`)
+
+Validates the inner content (body) of the block.
+
+```javascript
+myMapper.register("Summary", ({ content }) => {
+    return tag("p").body(content);
+}, {
+    rules: {
+        content: {
+            maxLength: 100 // Content must be 100 characters or less
+        }
+    }
+});
+```
+
+- **`maxLength`**: Maximum length of the content string.
+
+### Self-Closing Tags
+
+Ensures a tag is used without content or children.
+
+```javascript
+myMapper.register("Separator", () => {
+    return tag("hr").selfClose();
+}, {
+    rules: {
+        is_Self_closing: true
+    }
+});
+```
+
+- **`is_Self_closing`**: If `true`, SomMark will throw an error if the tag contains any content.
+
+*Example input that passes:* `[Image = src: image.png, alt: Image][end]`
 
 ## 3. Using Options
 
@@ -135,19 +177,18 @@ Here is a complete list of all methods and properties available on the `Mapper` 
 ### Core & Registry
 | Name | Description |
 | :--- | :--- |
-| [`register`](./api/7.register.md) | Register a custom tag. |
-| [`get`](./api/4.get.md) | Get a registered mapping. |
-| [`removeOutput`](./api/8.removeOutput.md) | Remove a mapping. |
-| [`includesId`](./api/5.includesId.md) | Check if detailed IDs exist. |
-| [`outputs`](./api/1.outputs.md) | Array of all registered mappings. |
-| [`env`](./api/16.env.md) | Current environment (`node`/`browser`). |
+| [`register`](./api/07.register.md) | Register a custom tag. |
+| [`get`](./api/04.get.md) | Get a registered mapping. |
+| [`removeOutput`](./api/08.removeOutput.md) | Remove a mapping. |
+| [`includesId`](./api/05.includesId.md) | Check if detailed IDs exist. |
+| [`outputs`](./api/01.outputs.md) | Array of all registered mappings. |
+| [`env`](./api/15.env.md) | Current environment (`node`/`browser`). |
 
 ### Styles & Themes
 | Name | Description |
 | :--- | :--- |
-| [`addStyle`](./api/19.addStyle.md) | Register custom CSS. |
-| [`getStyle`](./api/15.getStyle.md) | Get all compiled CSS. |
-| [`styles`](./api/18.styles.md) | Array of registered CSS. |
+| [`addStyle`](./api/18.addStyle.md) | Register custom CSS. |
+| [`styles`](./api/17.styles.md) | Array of registered CSS. |
 | [`highlightCode`](./api/11.highlightCode.md) | Highlight a string of code. |
 | [`registerHighlightTheme`](./api/13.registerHighlightTheme.md) | Register a custom theme. |
 | [`selectHighlightTheme`](./api/14.selectHighlightTheme.md) | Select the active theme. |
@@ -156,22 +197,22 @@ Here is a complete list of all methods and properties available on the `Mapper` 
 ### Formatters (HTML Helpers)
 | Name | Description |
 | :--- | :--- |
-| [`tag`](./api/3.tag.md) | Create HTML tags safely. |
-| [`md`](./api/2.md.md) | Markdown builder instance. |
-| [`code`](./api/21.code.md) | Format code blocks. |
-| [`htmlTable`](./api/22.htmlTable.md) | Generate HTML tables. |
-| [`list`](./api/24.list.md) | Generate HTML lists. |
-| [`todo`](./api/25.todo.md) | Parse todo state. |
-| [`escapeHTML`](./api/6.escapeHtml.md) | Escape special chars. |
+| [`tag`](./api/03.tag.md) | Create HTML tags safely. |
+| [`md`](./api/02.md.md) | Markdown builder instance. |
+| [`code`](./api/20.code.md) | Format code blocks. |
+| [`htmlTable`](./api/21.htmlTable.md) | Generate HTML tables. |
+| [`list`](./api/23.list.md) | Generate HTML lists. |
+| [`todo`](./api/24.todo.md) | Parse todo state. |
+| [`escapeHTML`](./api/06.escapeHtml.md) | Escape special chars. |
 
 ### Page & Headers
 | Name | Description |
 | :--- | :--- |
 | [`pageProps`](./api/10.pageProps.md) | Page metadata storage. |
-| [`header`](./api/20.header.md) | Full document header string. |
-| [`setHeader`](./api/9.setHeader.md) | Add custom header content. |
+| [`header`](./api/19.header.md) | Full document header string. |
+| [`setHeader`](./api/09.setHeader.md) | Add custom header content. |
 
 ### Configuration Flags
 | Name | Description |
 | :--- | :--- |
-| [`enable_table_styles`](./api/17.enable_table_styles.md) | Toggle default table styles. |
+| [`enable_table_styles`](./api/16.enable_table_styles.md) | Toggle default table styles. |
