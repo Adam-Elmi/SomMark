@@ -44,14 +44,14 @@ function validateRules(target, args, content) {
 		if (min && argCount < min) {
 			transpilerError([
 				"{line}<$red:Validation Error:$> ",
-				`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:requires at least$> <$green:${min}$> <$yellow:argument(s). Found$> <$red:${argCount}$>{line}`
+				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:requires at least$> <$green:${min}$> <$yellow:argument(s). Found$> <$red:${argCount}$>{line}`
 			]);
 		}
 		// Max Check
 		if (max && argCount > max) {
 			transpilerError([
 				"{line}<$red:Validation Error:$> ",
-				`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:accepts at most$> <$green:${max}$> <$yellow:argument(s). Found$> <$red:${argCount}$>{line}`
+				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:accepts at most$> <$green:${max}$> <$yellow:argument(s). Found$> <$red:${argCount}$>{line}`
 			]);
 		}
 		// Required Keys Check
@@ -60,7 +60,7 @@ function validateRules(target, args, content) {
 			if (missingKeys.length > 0) {
 				transpilerError([
 					"{line}<$red:Validation Error:$> ",
-					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is missing required argument(s):$> <$red:${missingKeys.join(", ")}$>{line}`
+					`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:is missing required argument(s):$> <$red:${missingKeys.join(", ")}$>{line}`
 				]);
 			}
 		}
@@ -70,7 +70,7 @@ function validateRules(target, args, content) {
 			if (invalidKeys.length > 0) {
 				transpilerError([
 					"{line}<$red:Validation Error:$> ",
-					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:contains invalid argument key(s):$> <$red:${invalidKeys.join(", ")}$>`,
+					`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:contains invalid argument key(s):$> <$red:${invalidKeys.join(", ")}$>`,
 					`{N}<$yellow:Allowed keys are:$> <$green:${includes.join(", ")}$>{line}`
 				]);
 			}
@@ -83,7 +83,16 @@ function validateRules(target, args, content) {
 		if (maxLength && content.length > maxLength) {
 			transpilerError([
 				"{line}<$red:Validation Error:$> ",
-				`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:content exceeds maximum length of$> <$green:${maxLength}$> <$yellow:characters. Found$> <$red:${content.length}$>{line}`
+				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:content exceeds maximum length of$> <$green:${maxLength}$> <$yellow:characters. Found$> <$red:${content.length}$>{line}`
+			]);
+		}
+	}
+	// Validate is_Self_closing
+	if (rules.is_Self_closing) {
+		if (content) {
+			transpilerError([
+				"{line}<$red:Validation Error:$> ",
+				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:is self-closing tag and is not allowed to have a content | children$>{line}`
 			]);
 		}
 	}
@@ -108,6 +117,7 @@ async function generateOutput(ast, i, format, mapper_file) {
 				//  Text                                                                      //
 				// ========================================================================== //
 				case TEXT:
+					validateRules(target, body_node.args, body_node.text);
 					const shouldEscape = target && target.options && target.options.escape === false ? false : true;
 					context +=
 						(format === htmlFormat || format === mdxFormat) && shouldEscape ? escapeHTML(body_node.text) : body_node.text;
@@ -212,16 +222,24 @@ async function transpiler({ ast, format, mapperFile, includeDocument = true }) {
 	}
 	if (includeDocument && format === htmlFormat) {
 		let finalHeader = mapperFile.header;
-
-		// Inject Style Tag if code blocks exist
-		if (mapperFile.enable_highlightTheme && (output.includes("<pre") || output.includes("<code")) && mapperFile.getStyle) {
-			const styleContent = mapperFile.getStyle();
-			if (styleContent) {
-				const styleTag = `<style>\n${styleContent}\n</style>`;
+		let styleContent = "";
+		const updateStyleTag = style => {
+			if (style) {
+				const styleTag = `<style>\n${style}\n</style>`;
 				if (!finalHeader.includes(styleTag)) {
 					finalHeader += styleTag + "\n";
 				}
 			}
+		};
+
+		// Inject Style Tag if code blocks exist
+		if (mapperFile.enable_highlightTheme && (output.includes("<pre") || output.includes("<code"))) {
+			mapperFile.addStyle(mapperFile.themes[mapperFile.currentTheme]);
+			styleContent = mapperFile.styles.join("\n");
+			updateStyleTag(styleContent);
+		} else {
+			styleContent = mapperFile.styles.join("\n");
+			updateStyleTag(styleContent);
 		}
 
 		const document = `<!DOCTYPE html>\n<html>\n${finalHeader}\n<body>\n${output}\n</body>\n</html>\n`;
