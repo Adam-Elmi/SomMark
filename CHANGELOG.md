@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.1.2 (2026-02-09)
+### Fixes
+-  Fixed cli print functionality
+
 ## v2.1.1 (2026-02-09)
 ### Fixes
 -  Fixed undefined or null arguments
