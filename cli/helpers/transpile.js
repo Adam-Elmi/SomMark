@@ -9,6 +9,9 @@ import MARKDOWN from "../../mappers/languages/markdown.js";
 import MDX from "../../mappers/languages/mdx.js";
 import { isExist } from "./file.js";
 import { loadConfig } from "./config.js";
+import { htmlFormat, markdownFormat, mdxFormat } from "../../core/formats.js";
+
+const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX };
 
 // ========================================================================== //
 //  Transpile Function                                                        //
@@ -21,16 +24,10 @@ export async function transpile({ src, format, mappingFile = "" }) {
     const config = await loadConfig();
 
     // Use config mapping file if not provided as argument
-    if (!mappingFile && config.mappingFile) {
+    if (config.mappingFile) {
         mappingFile = config.mappingFile;
-    }
-
-    if (config.mode === "default") {
-        return await transpiler({
-            ast: parser(lexer(src)),
-            format,
-            mapperFile: format === "html" ? HTML : format === "markdown" ? MARKDOWN : MDX
-        });
+    } else {
+      mappingFile = default_mapperFiles[format];
     }
 
     // Check if mappingFile is an object (loaded from config)
@@ -50,6 +47,7 @@ export async function transpile({ src, format, mappingFile = "" }) {
     //  Error: Mapper not found                                                   //
     // ========================================================================== //
     else {
+      console.log("here", JSON.stringify(mappingFile), format)
         cliError([`{line}<$red:File$> <$blue:'${mappingFile}'$> <$red: is not found$>{line}`]);
     }
 }
