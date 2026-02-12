@@ -467,11 +467,12 @@ function parseInline(tokens, i) {
 			parserError(errorMessage(tokens, i, inline_value, ":"));
 		}
 		let v = "";
-
 		const pushArg = () => {
 			if (v !== "") {
 				inlineNode.args.push(v);
-				inlineNode.args[v] = v;
+				if(!Number.isInteger(Number(v))) {
+				  inlineNode.args[v] = v;
+				}
 				v = "";
 			}
 		};
