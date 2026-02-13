@@ -1,3 +1,8 @@
-[Block]
-Test
+[Json = object]
+  [Object = UI]
+  (numbers)->(array: 1, 2, null, true)
+    [Object = UI]
+    (none)->(array: 1, 2, null, true)
+    [end]
+  [end]
 [end]
