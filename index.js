@@ -5,10 +5,11 @@ import Mapper from "./mappers/mapper.js";
 import HTML from "./mappers/languages/html.js";
 import MARKDOWN from "./mappers/languages/markdown.js";
 import MDX from "./mappers/languages/mdx.js";
+import Json from "./mappers/languages/json.js";
 import TagBuilder from "./formatter/tag.js";
 import MarkdownBuilder from "./formatter/mark.js";
 import { runtimeError } from "./core/errors.js";
-import FORMATS, { textFormat, htmlFormat, markdownFormat, mdxFormat } from "./core/formats.js";
+import FORMATS, { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat } from "./core/formats.js";
 import TOKEN_TYPES from "./core/tokenTypes.js";
 import * as labels from "./core/labels.js";
 class SomMark {
@@ -19,7 +20,7 @@ class SomMark {
 
 		this.Mapper = Mapper;
 		this.includeDocument = includeDocument;
-		const accepted_formats = [textFormat, htmlFormat, markdownFormat, mdxFormat];
+		const accepted_formats = [textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat];
 		if (!this.format) {
 			runtimeError(["{line}<$red:Undefined Format$>: <$yellow:Format argument is not defined.$>{line}"]);
 		}
@@ -29,7 +30,7 @@ class SomMark {
 				`{N}<$yellow:Accepted formats are:$> [<$cyan: ${accepted_formats.join(", ")}$>]{line}`
 			]);
 		}
-		const mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX };
+		const mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json};
 		if (!this.mapperFile && this.format) {
 			this.mapperFile = mapperFiles[this.format];
 		}
