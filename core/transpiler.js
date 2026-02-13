@@ -1,7 +1,7 @@
 import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT } from "./labels.js";
 import escapeHTML from "../helpers/escapeHTML.js";
 import { transpilerError } from "./errors.js";
-import { textFormat, htmlFormat, markdownFormat, mdxFormat } from "./formats.js";
+import { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat } from "./formats.js";
 
 // ========================================================================== //
 //  Extracting target identifier                                              //
@@ -108,10 +108,12 @@ async function generateOutput(ast, i, format, mapper_file) {
 	if (target) {
 		validateRules(target, node.args, "");
 		result +=
-			format === htmlFormat || format === mdxFormat
-				? `${node.depth > 1 ? " ".repeat(node.depth) : ""}${target.render({ args: node.args, content: "\n<%smark>" })}${node.depth > 1 ? " ".repeat(node.depth) : ""}`
+			format === htmlFormat || format === mdxFormat || format === jsonFormat
+				? `${node.depth > 1 ? " ".repeat(node.depth) : ""}${target.render({ args: node.args, content: "<%smark>" })}${node.depth > 1 ? " ".repeat(node.depth) : ""}`
 				: target.render({ args: node.args, content: "" });
-		for (const body_node of node.body) {
+
+		for (let j = 0; j < node.body.length; j++) {
+			const body_node = node.body[j];
 			switch (body_node.type) {
 				// ========================================================================== //
 				//  Text                                                                      //
@@ -135,6 +137,9 @@ async function generateOutput(ast, i, format, mapper_file) {
 								args: body_node.args.length > 0 ? body_node.args : "",
 								content: format === htmlFormat || format === mdxFormat ? escapeHTML(body_node.value) : body_node.value
 							});
+						if (format === jsonFormat) {
+							j >= node.body.length - 1 ? null : (context += ",");
+						}
 					}
 					break;
 				// ========================================================================== //
@@ -168,10 +173,14 @@ async function generateOutput(ast, i, format, mapper_file) {
 				case BLOCK:
 					target = matchedValue(mapper_file.outputs, body_node.id);
 					context += await generateOutput(body_node, i, format, mapper_file);
+					if (format === jsonFormat) {
+						j >= node.body.length - 1 ? null : (context += ",");
+					}
 					break;
 			}
 		}
-		if (format === htmlFormat || format === mdxFormat) {
+
+		if (format === htmlFormat || format === mdxFormat || format === jsonFormat) {
 			result = result.replace("<%smark>", context);
 		} else {
 			result += context;
@@ -244,6 +253,9 @@ async function transpiler({ ast, format, mapperFile, includeDocument = true }) {
 
 		const document = `<!DOCTYPE html>\n<html>\n${finalHeader}\n<body>\n${output}\n</body>\n</html>\n`;
 		return document;
+	}
+	if (format === jsonFormat) {
+		output = JSON.parse(JSON.stringify(output));
 	}
 	return output;
 }
