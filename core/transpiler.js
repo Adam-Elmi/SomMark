@@ -3,6 +3,8 @@ import escapeHTML from "../helpers/escapeHTML.js";
 import { transpilerError } from "./errors.js";
 import { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat } from "./formats.js";
 
+const expose_for_fmts = [jsonFormat];
+
 // ========================================================================== //
 //  Extracting target identifier                                              //
 // ========================================================================== //
@@ -105,13 +107,12 @@ async function generateOutput(ast, i, format, mapper_file) {
 	let result = "";
 	let context = "";
 	let target = mapper_file ? matchedValue(mapper_file.outputs, node.id) : "";
-	if (target) {
+  if (target) {
 		validateRules(target, node.args, "");
 		result +=
 			format === htmlFormat || format === mdxFormat || format === jsonFormat
-				? `${node.depth > 1 ? " ".repeat(node.depth) : ""}${target.render({ args: node.args, content: "<%smark>" })}${node.depth > 1 ? " ".repeat(node.depth) : ""}`
-				: target.render({ args: node.args, content: "" });
-
+				? `${node.depth > 1 ? " ".repeat(node.depth) : ""}${target.render({ args: node.args, content: "<%smark>", ast: expose_for_fmts.includes(format) ? ast[i] : null })}${node.depth > 1 ? " ".repeat(node.depth) : ""}`
+				: target.render({ args: node.args, content: ""});
 		for (let j = 0; j < node.body.length; j++) {
 			const body_node = node.body[j];
 			switch (body_node.type) {
@@ -127,19 +128,16 @@ async function generateOutput(ast, i, format, mapper_file) {
 				// ========================================================================== //
 				//  Inline                                                                    //
 				// ========================================================================== //
-				case INLINE:
+        case INLINE:
 					target = matchedValue(mapper_file.outputs, body_node.id);
 					if (target) {
 						validateRules(target, body_node.args, body_node.value);
 						context +=
 							(format === htmlFormat || format === mdxFormat ? "\n" : "") +
-							target.render({
+            target.render({
 								args: body_node.args.length > 0 ? body_node.args : "",
 								content: format === htmlFormat || format === mdxFormat ? escapeHTML(body_node.value) : body_node.value
 							});
-						if (format === jsonFormat) {
-							j >= node.body.length - 1 ? null : (context += ",");
-						}
 					}
 					break;
 				// ========================================================================== //
@@ -170,12 +168,9 @@ async function generateOutput(ast, i, format, mapper_file) {
 				// ========================================================================== //
 				//  Block                                                                     //
 				// ========================================================================== //
-				case BLOCK:
+        case BLOCK:
 					target = matchedValue(mapper_file.outputs, body_node.id);
 					context += await generateOutput(body_node, i, format, mapper_file);
-					if (format === jsonFormat) {
-						j >= node.body.length - 1 ? null : (context += ",");
-					}
 					break;
 			}
 		}
@@ -184,8 +179,8 @@ async function generateOutput(ast, i, format, mapper_file) {
 			result = result.replace("<%smark>", context);
 		} else {
 			result += context;
-		}
-	}
+    }
+  }
 	// ========================================================================== //
 	// Text                                                                       //
 	// ========================================================================== //
