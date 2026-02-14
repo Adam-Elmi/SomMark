@@ -402,7 +402,8 @@ function parseInline(tokens, i) {
 	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.VALUE)) {
 		parserError(errorMessage(tokens, i, inline_value, "("));
 	}
-	inlineNode.value = current_token(tokens, i).value;
+  inlineNode.value = current_token(tokens, i).value;
+  inlineNode.depth = current_token(tokens, i).depth;
 	// ========================================================================== //
 	//  consume Inline Value                                                      //
 	// ========================================================================== //
