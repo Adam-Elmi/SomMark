@@ -1,0 +1,31 @@
+[Json=object]
+  [Object=compilerOptions]
+    (target)->(string: es2022)
+    (module)->(string: esnext)
+    (moduleResolution)->(string: bundler)
+    (allowJs)->(bool: true)
+    (checkJs)->(bool: true)
+    
+    (strict)->(bool: true)
+    (noImplicitAny)->(bool: true)
+    (strictNullChecks)->(bool: true)
+    
+    (esModuleInterop)->(bool: true)
+    (skipLibCheck)->(bool: true)
+    (forceConsistentCasingInFileNames)->(bool: true)
+    
+    (outDir)->(string: ./dist)
+    (rootDir)->(string: ./src)
+    
+    (lib)->(array: esnext, dom, dom.iterable)
+    
+    [Array=paths]
+       [Object] 
+         (@/*)->(array: ./src/*)
+       [end]
+    [end]
+  [end]
+  
+  (include)->(array: src/**/*)
+  (exclude)->(array: node_modules, dist, **/*.spec.ts)
+[end]
