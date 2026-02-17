@@ -12,7 +12,6 @@ EscapeChar     = "\";
 (* 1. Identifiers can be only letters and numbers. *)
 (* 2. Semi-colon is only recognized in Atblock arguments. *)
 (* 3. Colon is a separator in Block and Atblock arguments; must be escaped if part of value. *)
-(* 4. Bodies and Values cannot be empty. *)
 
 (* Comments *)
 Comment = "#", { ? any character except "\n" ? }, "\n";
