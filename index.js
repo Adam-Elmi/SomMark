@@ -96,7 +96,8 @@ async function transpile(options = {}) {
 export {
 	HTML,
 	MARKDOWN,
-	MDX,
+  MDX,
+  Json,
 	Mapper,
 	TagBuilder,
 	MarkdownBuilder,
