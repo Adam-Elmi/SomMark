@@ -11,6 +11,7 @@
 <img src="https://img.shields.io/badge/html-supported-orange?style=flat-square" />
 <img src="https://img.shields.io/badge/markdown-supported-lightyellow?style=flat-square" />
 <img src="https://img.shields.io/badge/mdx-supported-lightblue?style=flat-square" />
+<img src="https://img.shields.io/badge/json-supported-yellow?style=flat-square" />
 </p>
 
 # SomMark v2
@@ -117,7 +118,7 @@ Raw content here.
   
     @_Code_@: js;
     function add(a, b) {
-      return a + b;                        # Treated as plain text
+      return a + b;                       # Atblock inside block is valid
     }       
     @_end_@
   
@@ -261,7 +262,7 @@ myMapper.register(["code", "Code"], ({ content }) => {
 
 ## Reusing Existing Mappers
 
-You can borrow rules from default mappers to avoid rewriting them.
+You can reuse ready outputs from default mappers to avoid rewriting them.
 
 ```javascript
 import { Mapper, HTML } from "sommark";
@@ -351,6 +352,7 @@ Options change how SomMark processes the content inside the block.
 
 ```javascript
 import { Mapper } from "sommark";
+
 const myMapper = new Mapper();
 const { tag } = myMapper;
 
