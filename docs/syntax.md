@@ -48,8 +48,10 @@ You can pass multiple values to an inline statement using commas.
 Syntax: `(Content)->(Identifier: value1, value2)`
 
 ```ini
-Click (here)->(link: https\://google.com, Go to Google).
+Click (here)->(link: https://google.com, Go to Google).
 ```
+> [!NOTE]
+> Unlike block arguments, if value includes colon `:`, you do not need to escape it because inline arguments do not use key-value pairs.
 
 > [!IMPORTANT]
 > `:` is used to separate key and value so it is special token in block so escape it when it is part of the value using escape character `\`
@@ -114,12 +116,17 @@ This is a literal at-block marker: \@_ and _\@
 ### Escaping Argument Separators
 When passing arguments that contain commas, colons, or equals signs.
 
-#### Escaping colon `:` and comma `,` in an argument
+#### Escaping and colon `:` in an argument
 ```sommark
-(Click Here)->(link: https\://example.com/date\,time)
+[Ratios = scaling:4\:3 eq: 2\:1][end]
 ```
-> [!Info]
-> 
+
+#### Escaping comma `,` in an argument
+```sommark
+(Click Here)->(link: https://example.com/date\,time)
+```
+> [!NOTE]
+> Unlike block arguments, if value includes colon `:`, you do not need to escape it because inline arguments do not use key-value pairs.
 
 #### Escaping equals sign in a key-value pair
 - Escape equal sign `=` if argument has a key and its value starts with equal sign `=`
@@ -127,7 +134,7 @@ When passing arguments that contain commas, colons, or equals signs.
 [Example = sign : =1+1]
 ```
 
-### Escaping the Escape Character
+#### Escaping the Escape Character
 To interpret a backslash as a literal backslash, escape it with another backslash.
 
 ```js
