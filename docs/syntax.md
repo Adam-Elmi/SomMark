@@ -52,7 +52,7 @@ Click (here)->(link: https\://google.com, Go to Google).
 ```
 
 > [!IMPORTANT]
-> `:` is used to separate key and value so it is special token in block so escape it using escape character `\`
+> `:` is used to separate key and value so it is special token in block so escape it when it is part of the value using escape character `\`
 
 ---
 
