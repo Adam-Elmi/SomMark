@@ -19,7 +19,7 @@
 > [!WARNING]
 > Old version(v1) is no longer supported.
 
-SomMark provides a way to write structured content that can be converted into other formats like HTML or Markdown. It is different from standard Markdown because it uses explicit syntax for blocks and elements, which makes it easier to process and customize.
+SomMark provides a way to write structured content that can be converted into other formats like HTML or Markdown or Json or other markup languages. It is different from standard Markdown because it uses explicit syntax for blocks and elements, which makes it easier to process and customize.
 
 
 
@@ -44,6 +44,26 @@ sommark --html input.smark -o output
 # Convert to Markdown
 sommark --markdown input.smark -o output.md
 ```
+
+## Using in Code
+
+You can use SomMark in your JavaScript or Node.js projects.
+
+```javascript
+import SomMark from "sommark";
+
+const source = `
+[Block]
+Hello World
+[end]
+`;
+
+const smark = new SomMark({
+    src: source,
+    format: "html"
+});
+
+console.log(await smark.transpile());
 
 # Documentation
 
