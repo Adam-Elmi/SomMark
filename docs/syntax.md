@@ -48,8 +48,11 @@ You can pass multiple values to an inline statement using commas.
 Syntax: `(Content)->(Identifier: value1, value2)`
 
 ```ini
-Click (here)->(link: https://google.com, Go to Google).
+Click (here)->(link: https\://google.com, Go to Google).
 ```
+
+> [!IMPORTANT]
+> `:` is used to separate key and value so it is special token in block so escape it using escape character `\`
 
 ---
 
