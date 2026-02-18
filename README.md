@@ -1,7 +1,7 @@
 <img width="2000" height="491" alt="SomMark Cover" src="https://raw.githubusercontent.com/Adam-Elmi/SomMark/master/assets/smark_bg.png" />
 
 <p align="center">
-  SomMark is a structural markup language designed for technical documentation. It focuses on explicit structure and flexibility.
+SomMark is a declarative, extensible markup language markup language for structured content that can be converted to HTML, Markdown, MDX, JSON, and more. 
 </p>
 
 <p align="center">
