@@ -8,7 +8,7 @@ At the top level, only Blocks and comments are permitted.
 
 ## Syntax
 
-```sommark
+```ini
 [Identifier]
 Valid SomMark content...
 [end]
@@ -23,54 +23,13 @@ Valid SomMark content...
 Blocks can accept arguments to customize their behavior. Arguments are separated by commas.
 
 ### Positional Arguments
-```sommark
+```ini
 [Identifier=arg1, arg2]
 ```
 
 ### Key-Value Arguments
 You can also use named arguments with `key:value` syntax.
-
-[Identifier=key:value, width:100%]
+```ini
+[Identifier=key:value, width:100%][end]
 ```
 
-### Escape Characters
-If your argument value contains special characters (like `,`, `]`, `:`, `[`, `]`, `\`, or `=`), use the backslash `\` to escape them.
-
-```sommark
-[Div=title:Hello\, World, data:value\=10]
-
-## Examples
-
-### Basic Block
-A simple block grouping content.
-
-```sommark
-[Block]
-This is some content inside a block.
-It can span multiple lines.
-[end]
-```
-
-### Nested Blocks
-Blocks can be nested inside one another.
-
-```sommark
-[Section]
-    (Title)->(h1)
-
-    [Div]
-        This is a nested div.
-    [end]
-[end]
-```
-
-### Block with Arguments
-Passing arguments to a block (e.g., CSS classes, attributes, or configuration).
-
-```sommark
-// Positional
-[Div=className, idName]
-
-// Key-Value
-[Section=bg:blue, color:white]
-```
