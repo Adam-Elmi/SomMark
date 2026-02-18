@@ -117,13 +117,17 @@ This is a literal at-block marker: \@_ and _\@
 When passing arguments that contain commas, colons, or equals signs.
 
 #### Escaping and colon `:` in an argument
-```sommark
+```ini
 [Ratios = scaling:4\:3 eq: 2\:1][end]
+```
+
+```sommark
+@_Ratios_@:
 ```
 
 #### Escaping comma `,` in an argument
 ```sommark
-(Click Here)->(link: https://example.com/date\,time)
+(Click Here)->(link: https://example.com/?date\,time)
 ```
 > [!NOTE]
 > Unlike block arguments, if value includes colon `:`, you do not need to escape it because inline arguments do not use key-value pairs.
