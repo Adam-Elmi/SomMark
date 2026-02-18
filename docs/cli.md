@@ -7,7 +7,7 @@ The **SomMark CLI** lets you convert `.smark` files into **HTML**, **Markdown**,
 You can run SomMark commands using `npx` without installing anything, or you can install it globally on your computer.
 
 ```bash
-# Option 1: Run instantly with npx (Recommended)
+# Option 1: Run instantly with npx
 npx sommark [command]
 
 # Option 2: Install globally
@@ -30,6 +30,9 @@ sommark --markdown index.smark
 # Convert to MDX
 sommark --mdx index.smark
 
+# Convert to json
+sommark --json index.smark
+
 # Convert to Plain Text
 sommark --text index.smark
 ```
@@ -38,11 +41,11 @@ sommark --text index.smark
 
 ## 2. Changing the Output
 
-By default, SomMark saves the new file in the same folder as the original file. You can change this using the `-o` (output) flag.
+By default, SomMark saves the new file in the same folder as the original file. You can change this by specifying folder path after `-o` (output) flag.
 
 ```bash
 # Save the HTML file inside the 'dist' folder
-sommark --html src/page.smark -o dist/page.html
+sommark --html src/page.smark -o page.html ./dist
 ```
 
 ### Printing to Console
