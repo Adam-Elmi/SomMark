@@ -19,8 +19,7 @@
 > [!WARNING]
 > Old version(v1) is no longer supported.
 
-SomMark provides a way to write structured content that can be converted into other formats like HTML or Markdown or Json or other markup languages. It is different from standard Markdown because it uses explicit syntax for blocks and elements, which makes it easier to process and customize.
-
+**SomMark** lets you write structured content that can be converted to HTML, Markdown, JSON, or other formats. Unlike standard Markdown, it uses explicit syntax for blocks and elements, making content easier to process, customize, and transform.
 
 
 # Installation
