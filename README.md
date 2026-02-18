@@ -64,6 +64,7 @@ const smark = new SomMark({
 });
 
 console.log(await smark.transpile());
+```
 
 # Documentation
 
