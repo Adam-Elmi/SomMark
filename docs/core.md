@@ -47,7 +47,7 @@ Converts source code into a list of **Tokens**.
 
 ```javascript
 import { lex } from "sommark";
-const tokens = lex("(Hello)->(bold)");
+const tokens = lex("[Block](Hello)->(bold)[end]");
 ```
 
 ### `parse(source)`
