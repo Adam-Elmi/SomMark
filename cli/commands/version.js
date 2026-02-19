@@ -14,7 +14,7 @@ export function printHeader() {
     console.log(
         [
             `SomMark-${projectJson.version}`,
-            "SomMark is a structural markup language for writing structured documents.",
+            "SomMark is a structural markup language for writing structured content.",
             "Copyright (C) Adam Elmi",
             "Github: https://github.com/Adam-Elmi/SomMark"
         ]
