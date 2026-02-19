@@ -28,7 +28,7 @@ function matchedValue(outputs, targetId) {
 	return result;
 }
 
-function validateRules(target, args, content) {
+function validateRules(target, args, content, type = null) {
 	if (!target || !target.options || !target.options.rules) {
 		return;
 	}
@@ -98,6 +98,16 @@ function validateRules(target, args, content) {
 			]);
 		}
 	}
+	// Validate element type
+	if (id && rules.type && type) {
+		if (rules.type !== type) {
+			console.log(rules.type);
+			transpilerError([
+				"{line}<$red:Validation Error:$> ",
+				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:is expected to be type$> <$green:'${rules.type}'$>{N}<$cyan:Received type: $> <$magenta:'${rules.type}'$>{line}`
+			]);
+		}
+	}
 }
 // ========================================================================== //
 //  +++++++++++++++++++++++++++++                                             //
@@ -108,7 +118,8 @@ async function generateOutput(ast, i, format, mapper_file) {
 	let context = "";
 	let target = mapper_file ? matchedValue(mapper_file.outputs, node.id) : null;
 	if (target) {
-		validateRules(target, node.args, "");
+		console.log(node.type);
+		validateRules(target, node.args, "", node.type);
 		result +=
 			format === htmlFormat || format === mdxFormat || format === jsonFormat
 				? `${node.depth > 1 ? " ".repeat(node.depth) : ""}${target.render({ args: node.args, content: "<%smark>", ast: expose_for_fmts.includes(format) ? ast[i] : null })}${node.depth > 1 ? " ".repeat(node.depth) : ""}`
@@ -131,7 +142,7 @@ async function generateOutput(ast, i, format, mapper_file) {
 				case INLINE:
 					target = matchedValue(mapper_file.outputs, body_node.id);
 					if (target) {
-						validateRules(target, body_node.args, body_node.value);
+						validateRules(target, body_node.args, body_node.value, body_node.type);
 						context +=
 							(format === htmlFormat || format === mdxFormat ? "\n" : "") +
 							target.render({
@@ -146,7 +157,7 @@ async function generateOutput(ast, i, format, mapper_file) {
 				case ATBLOCK:
 					target = matchedValue(mapper_file.outputs, body_node.id);
 					if (target) {
-						validateRules(target, body_node.args, body_node.content);
+						validateRules(target, body_node.args, body_node.content, body_node.type);
 						// Escape logic: fallback to options.escape, default true
 						const shouldEscape = target.options?.escape ?? true;
 						if (shouldEscape) {
