@@ -75,9 +75,3 @@ Detailed guides and API references are available in the `docs/` directory:
 *   **[CLI Reference](docs/cli.md)**: Command line options and configurations.
 *   **[API Quick Reference](docs/api)**: Fast lookup for all classes and functions.
 *   **[Configuration Reference](docs/config.md)**: Guide for creating custom configurations.
-
---- 
-
-# License
-
-MIT
