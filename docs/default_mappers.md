@@ -4,7 +4,7 @@ SomMark comes with built-in mappers for generating HTML, Markdown, and MDX. Here
 
 ## 1. HTML Mapper (`mappers/languages/html.js`)
 
-This mapper generates standard HTML5 markup. It also includes the customized `Dracula` highlight theme by default.
+This mapper generates standard HTML5 markup. It also includes the customized `atom-one-dark` highlight theme by default.
 
 ### Block Elements
 
@@ -38,6 +38,19 @@ The Markdown mapper generates standard Markdown output. The MDX mapper currently
 
 ### Block Elements
 
+These are predefined elements:
+1. Block
+  - Usage:
+  ```ini
+  [Block]
+  This is a sample text.
+  [end]
+  ```
+  - Returns:
+  ```txt
+  This is a sample text.
+  ```
+
 | Name | Description | Usage |
 | :--- | :--- | :--- |
 | `[Block]`, `[Section]` | Renders content as-is. | `[Block]...[end]` |
@@ -62,12 +75,7 @@ The Markdown mapper generates standard Markdown output. The MDX mapper currently
 
 ### How to Use
 
-To use a specific mapper, you typically import it and use the transpiler or the CLI with the `--format` flag.
-
-```javascript
-import { HTML, MARKDOWN } from "sommark/mappers";
-
-// The CLI uses these internally when you run:
-// smark input.smark -o output.html (uses HTML)
-// smark input.smark -o output.md (uses MARKDOWN)
-```
+To use a specific mapper, you typically import it and use the transpiler or the CLI.
+Read:
+- [core.md](./core.md)
+- [cli.md](./cli.md)
