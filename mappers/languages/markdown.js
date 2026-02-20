@@ -50,8 +50,9 @@ MARKDOWN.register("image", ({ args, content }) => {
 	return md.url("image", content, args[0].trim(), title);
 });
 // Horizontal Rule
-MARKDOWN.register(["horizontal", "h"], ({ content }) => {
-	return md.horizontal(content);
+MARKDOWN.register(["horizontal", "hr", "h"], ({ args }) => {
+	const fmt = args && args[0] ? args[0].trim() : "*";
+	return md.horizontal(fmt);
 });
 // Escape Characters
 MARKDOWN.register(["escape", "s"], ({ content }) => {
