@@ -1,9 +1,9 @@
 import TagBuilder from "../formatter/tag.js";
 import MarkdownBuilder from "../formatter/mark.js";
-import { highlightCode } from "../lib/highlight.js";
 import escapeHTML from "../helpers/escapeHTML.js";
 import atomOneDark from "../helpers/defaultTheme.js";
 import loadCss from "../helpers/loadCss.js";
+import { sommarkError } from "../core/errors.js";
 
 class Mapper {
 	#customHeaderContent;
@@ -28,7 +28,7 @@ class Mapper {
 
 		this.#customHeaderContent = "";
 
-		this.highlightCode = highlightCode;
+		this.highlightCode = null;
 		this.escapeHTML = escapeHTML;
 		this.styles = [];
 		this.env = "node";
@@ -171,12 +171,15 @@ class Mapper {
 	//  Formatters                                                                //
 	// ========================================================================== //
 	code = (args, content) => {
-		const value = highlightCode(content, args && args[0] ? args[0].trim() : "text");
-		return this.tag("pre").body(
-			this.tag("code")
-				.attributes({ class: `hljs language-${args && args[0] ? args[0].trim() : "text"}` })
-				.body(value)
-		);
+		const lang = this.safeArg(args, 0, "lang", null, null, "text");
+		const code = content || "";
+		let value = content;
+		const code_element = this.tag("code");
+		if (this.highlightCode && typeof this.highlightCode === "function") {
+			code_element.attributes({ class: `hljs language-${lang}` });
+			value = this.highlightCode(code, lang);
+		}
+		return this.tag("pre").body(code_element.body(value));
 	};
 	htmlTable = (data, headers, defaultStyle = true) => {
 		const isAddedStyle = this.styles.some(s => s.includes(".sommark-table"));
@@ -312,5 +315,47 @@ class Mapper {
 	todo(checked = false) {
 		return checked.trim() === "x" || checked.trim().toLowerCase() === "done" ? true : false;
 	}
+	safeArg = (args, index, key, type = null, setType = null, fallBack = null) => {
+		if (!Array.isArray(args)) {
+			sommarkError([`{line}<$red:TypeError:$> <$yellow:args must be an array$>{line}`]);
+		}
+
+		if (index === undefined && key === undefined) {
+			sommarkError([`{line}<$red:ReferenceError:> <$yellow:At least one of 'index' or 'key' must be provided$>{line}`]);
+		}
+
+		if (index !== undefined && typeof index !== "number") {
+			sommarkError([`{line}<$red:TypeError:$> <$yellow:index must be a number$>{line}`]);
+		}
+
+		if (key !== undefined && typeof key !== "string") {
+			sommarkError([`{line}<$red:TypeError:$> <$yellow:key must be a string$>{line}`]);
+		}
+
+		if (type !== null && typeof type !== "string") {
+			sommarkError([`{line}<$red:TypeError:$> <$yellow:type must be a string$>{line}`]);
+		}
+
+		if (setType !== null && typeof setType !== "function") {
+			throw new Error("setType must be a function");
+		}
+
+		const validate = value => {
+			if (value === undefined) return false;
+			if (!type) return true;
+			const evaluated = setType ? setType(value) : value;
+			return typeof evaluated === type;
+		};
+
+		if (index !== undefined && validate(args[index])) {
+			return args[index];
+		}
+
+		if (key !== undefined && validate(args[key])) {
+			return args[key];
+		}
+
+		return fallBack;
+	};
 }
 export default Mapper;
