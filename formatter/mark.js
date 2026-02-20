@@ -91,10 +91,7 @@ class MarkdownBuilder {
 	//  Horizontal rule                                                           //
 	// ========================================================================== //
 	horizontal(format = "*") {
-		if (!format) {
-			return "\n***\n";
-		}
-		return format === "*" ? "\n***\n" : format === "_" ? "___" : format === "*" ? "***" : "";
+		return `\n${format.repeat(3)}\n`;
 	}
 	// ========================================================================== //
 	//  Escape                                                                    //
