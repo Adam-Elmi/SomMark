@@ -1,3 +1,5 @@
+import { json } from "node:stream/consumers";
+
 class MarkdownBuilder {
 	constructor() { }
 	// ========================================================================== //
@@ -29,7 +31,7 @@ class MarkdownBuilder {
 		if (!text && !url) {
 			return "";
 		}
-		return ` ${type === "image" ? "!" : ""}[${text}](${url + (title ? " " : "")}${title}) `;
+		return ` ${type === "image" ? "!" : ""}[${text}](${url + (title ? " " : "")}${title ? JSON.stringify(title) : ""}) `;
 	}
 	// ========================================================================== //
 	//  Bold                                                                      //
