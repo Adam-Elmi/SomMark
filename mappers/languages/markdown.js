@@ -1,22 +1,21 @@
 import Mapper from "../mapper.js";
 const MARKDOWN = new Mapper();
-const { md } = MARKDOWN;
+const { md, safeArg } = MARKDOWN;
 // Block
-MARKDOWN.register("Block", ({ content }) => {
-	return content;
-});
-// Section
-MARKDOWN.register("Section", ({ content }) => {
+MARKDOWN.register(["Block", "block", "Section", "section"], ({ content }) => {
 	return content;
 });
 // Headings
-MARKDOWN.register("Heading", ({ args, content }) => {
-	return md.heading(args[1], args[0]) + content;
+MARKDOWN.register(["Heading", "heading"], ({ args, content }) => {
+	const level = safeArg(args, 0, "level", "number", Number, 1);
+	const title = safeArg(args, 1, "title", null, null, "");
+	return md.heading(title, level) + content;
 });
 // Inline Headings
 ["h1", "h2", "h3", "h4", "h5", "h6"].forEach(heading => {
 	MARKDOWN.register(heading, ({ content }) => {
-		return md.heading(content, heading.replace("h", ""));
+		const lvl = heading[1] && typeof Number(heading[1]) === "number" ? heading[1] : 1;
+		return md.heading(content, lvl);
 	});
 });
 // Bold
@@ -35,27 +34,46 @@ MARKDOWN.register(["emphasis", "e"], ({ content }) => {
 MARKDOWN.register(
 	["code", "Code", "codeBlock", "CodeBlock"],
 	({ args, content }) => {
-		return md.codeBlock(content, args[0]);
+		const lang = safeArg(args, 0, "lang", null, null, "text");
+		return md.codeBlock(content, lang);
 	},
 	{ escape: false }
 );
 // Link
-MARKDOWN.register("link", ({ args, content }) => {
-	const title = args[1] ? `"${args[1].trim()}"` : "";
-	return md.url("link", content, args[0].trim(), title);
-});
+MARKDOWN.register(
+	["link", "Link"],
+	({ args, content }) => {
+		const url = safeArg(args, 0, "url", null, null, "");
+		const title = safeArg(args, 1, "title", null, null, "");
+		return md.url("link", content, url, title);
+	},
+	{
+		rules: {
+			type: "Inline"
+		}
+	}
+);
 // Image
-MARKDOWN.register("image", ({ args, content }) => {
-	const title = args[1] ? `"${args[1].trim()}"` : "";
-	return md.url("image", content, args[0].trim(), title);
-});
+MARKDOWN.register(
+	["image", "Image"],
+	({ args, content }) => {
+		const url = safeArg(args, 0, "url", null, null, "");
+		const title = safeArg(args, 1, "title", null, null, "");
+		return md.url("image", content, url, title);
+	},
+	{
+		rules: {
+			type: "Inline"
+		}
+	}
+);
 // Horizontal Rule
 MARKDOWN.register(["horizontal", "hr", "h"], ({ args }) => {
-	const fmt = args && args[0] ? args[0].trim() : "*";
+	const fmt = safeArg(args, 0, undefined, null, null, "*");
 	return md.horizontal(fmt);
 });
 // Escape Characters
-MARKDOWN.register(["escape", "s"], ({ content }) => {
+MARKDOWN.register(["escape", "Escape", "s"], ({ content }) => {
 	return md.escape(content);
 });
 // Table
@@ -84,6 +102,7 @@ MARKDOWN.register(
 // Todo
 MARKDOWN.register("todo", ({ args, content }) => {
 	const checked = content === "x" ? true : false;
-	return md.todo(checked, args && args[0] ? args[0].trim() : "");
+	const task = safeArg(args, 0, "task", null, null, "");
+	return md.todo(checked, task);
 });
 export default MARKDOWN;
