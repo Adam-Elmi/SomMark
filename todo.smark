@@ -5,7 +5,7 @@
 (done)->(todo: Improve Documentation)
 (done)->(todo: Add Json support)
 (done)->(todo: Add type rule to the rules)
-(-)->(todo: Improve documentation)
+(done)->(todo: Improve documentation)
 (-)->(todo: Improve mapper files)
 (-)->(todo: Remove highlight.js library)
 (-)->(todo: Add new cli feature: auto config file creation)
