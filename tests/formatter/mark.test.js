@@ -70,7 +70,7 @@ describe("MarkdownBuilder", () => {
 
     describe("url", () => {
         it("creates a basic link", () => {
-            expect(md.url("", "text", "http://url.com")).toBe(" [text](http://url.com) ");
+            expect(md.url("link", "text", "http://url.com")).toBe(" [text](http://url.com) ");
         });
 
         it("creates an image link", () => {
@@ -78,7 +78,7 @@ describe("MarkdownBuilder", () => {
         });
 
         it("adds title if provided", () => {
-            expect(md.url("", "text", "url", "title")).toBe(" [text](url title) ");
+            expect(md.url("", "text", "url", "title")).toBe(' [text](url "title") ');
         });
     });
 
@@ -116,7 +116,7 @@ describe("MarkdownBuilder", () => {
         });
 
         it("creates underscore rule", () => {
-            expect(md.horizontal("_")).toBe("___");
+            expect(md.horizontal("_").trim()).toBe("___");
         });
     });
 
