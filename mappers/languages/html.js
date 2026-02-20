@@ -2,12 +2,32 @@ import Mapper from "../mapper.js";
 const HTML = new Mapper();
 const { tag, code, list } = HTML;
 
-// Block
-HTML.register("Block", ({ content }) => {
-	return content;
+HTML.register(["Html", "html"], ({ args }) => {
+	if (args) {
+		HTML.pageProps.pageTitle = args.title ?? args.title ? args.title : HTML.pageProps.pageTitle;
+		HTML.pageProps.charset = args.charset ? args.charset : HTML.pageProps.charset;
+		HTML.pageProps.tabIcon.src = args.iconSrc ? args.iconSrc : HTML.pageProps.tabIcon.src;
+		HTML.pageProps.tabIcon.type = args.iconType ? args.iconType : HTML.pageProps.tabIcon.type;
+		HTML.pageProps.httpEquiv["X-UA-Compatible"] = args.httpEquiv ? args.httpEquiv : HTML.pageProps.httpEquiv["X-UA-Compatible"];
+		HTML.pageProps.viewport = args.viewport ? args.viewport : HTML.pageProps.viewport;
+	}
+	return "";
 });
+
+// Block
+HTML.register(
+	["Block", "block"],
+	({ content }) => {
+		return content;
+	},
+	{
+		rules: {
+			type: "Block"
+		}
+	}
+);
 // Section
-HTML.register("Section", ({ content }) => {
+HTML.register(["Section", "section"], ({ content }) => {
 	return tag("section").body(content);
 });
 // Headings
@@ -54,7 +74,7 @@ HTML.register(
 		rules: {
 			is_Self_closing: true,
 			args: {
-			required: ["src"]
+				required: ["src"]
 			}
 		}
 	}
