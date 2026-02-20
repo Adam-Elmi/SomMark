@@ -102,7 +102,6 @@ const updateData = (tokens, i) => {
 	}
 };
 
-
 const errorMessage = (tokens, i, expectedValue, behindValue, frontText) => {
 	const tokensUntilError = tokens.slice(0, i);
 	const contextText = tokensUntilError.map(t => t.value).join("");
@@ -123,7 +122,6 @@ const errorMessage = (tokens, i, expectedValue, behindValue, frontText) => {
 // ========================================================================== //
 function parseKey(tokens, i) {
 	let key = current_token(tokens, i).value.trim();
-	validateName(key);
 	// ========================================================================== //
 	//  consume Key                                                               //
 	// ========================================================================== //
@@ -261,7 +259,12 @@ function parseBlock(tokens, i) {
 				let [key, keyIndex] = parseKey(tokens, i);
 				k = key;
 				i = keyIndex;
+				const prev = current_token(tokens, i);
 				i = parseColon(tokens, i, block_id);
+				if (current_token(tokens, i).type !== TOKEN_TYPES.VALUE && current_token(tokens, i).type !== TOKEN_TYPES.ESCAPE) {
+					parserError(errorMessage(tokens, i, block_value, ":"));
+				}
+				validateName(k);
 				continue;
 			} else if (
 				current_token(tokens, i) &&
@@ -402,8 +405,8 @@ function parseInline(tokens, i) {
 	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.VALUE)) {
 		parserError(errorMessage(tokens, i, inline_value, "("));
 	}
-  inlineNode.value = current_token(tokens, i).value;
-  inlineNode.depth = current_token(tokens, i).depth;
+	inlineNode.value = current_token(tokens, i).value;
+	inlineNode.depth = current_token(tokens, i).depth;
 	// ========================================================================== //
 	//  consume Inline Value                                                      //
 	// ========================================================================== //
@@ -471,8 +474,8 @@ function parseInline(tokens, i) {
 		const pushArg = () => {
 			if (v !== "") {
 				inlineNode.args.push(v);
-				if(!Number.isInteger(Number(v))) {
-				  inlineNode.args[v] = v;
+				if (!Number.isInteger(Number(v))) {
+					inlineNode.args[v] = v;
 				}
 				v = "";
 			}
@@ -521,11 +524,11 @@ function parseInline(tokens, i) {
 					if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COMMA) {
 						parserError(errorMessage(tokens, i, ",", "", "Found extra"));
 					}
-					if (!current_token(tokens, i) || (
-						current_token(tokens, i) &&
-						current_token(tokens, i).type !== TOKEN_TYPES.VALUE &&
-						current_token(tokens, i).type !== TOKEN_TYPES.ESCAPE
-					)
+					if (
+						!current_token(tokens, i) ||
+						(current_token(tokens, i) &&
+							current_token(tokens, i).type !== TOKEN_TYPES.VALUE &&
+							current_token(tokens, i).type !== TOKEN_TYPES.ESCAPE)
 					) {
 						parserError(errorMessage(tokens, i, inline_value, ","));
 					}
@@ -651,6 +654,10 @@ function parseAtBlock(tokens, i) {
 				k = key;
 				i = keyIndex;
 				i = parseColon(tokens, i, at_id);
+				if (current_token(tokens, i).type !== TOKEN_TYPES.VALUE && current_token(tokens, i).type !== TOKEN_TYPES.ESCAPE) {
+					parserError(errorMessage(tokens, i, at_value, ":"));
+				}
+				validateName(k);
 				continue;
 			} else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.ESCAPE) {
 				let [escape_character, escapeIndex] = parseEscape(tokens, i);
