@@ -67,7 +67,9 @@ function concatText(input, index, scope_state, extraConditions = []) {
 			text += char;
 		}
 		if (!text) {
-			sommarkError([`{line}<$red:Concatenation failed:$> string value is  <$yellow:'${text}'$>{line}`]);
+			sommarkError([
+				`{line}From: <$magenta:concatText function:$>{N}<$red:Concatenation failed:$> string value is  <$yellow:'${text}'$>{line}`
+			]);
 		}
 		return text;
 	} else {
@@ -117,7 +119,9 @@ function concatEscape(input, index) {
 			sommarkError(["{line}<$red:Next character is not found:$> <$yellow:There is no character after escape character!$>{line}"]);
 		}
 		if (!str) {
-			sommarkError([`{line}<$red:Concatenation failed:$> string value is  <$yellow:'${str}'$>{line}`]);
+			sommarkError([
+				`{line}From: <$magenta:concatEscape function:$>{N}<$red:Concatenation failed:$> string value is  <$yellow:'${str}'$>{line}`
+			]);
 		}
 		if (WHITESPACE_SET.has(str[1])) {
 			const matchedCharacter = Array.from(WHITESPACE_SET).find(ch => ch === str[1]);
@@ -158,7 +162,9 @@ function concatChar(input, index, stop_at_char) {
 			]);
 		}
 		if (!str) {
-			sommarkError([`{line}<$red:Concatenation failed:$> string value is  <$yellow:'${str}'$>{line}`]);
+			sommarkError([
+				`{line}From: <$magenta:concatChar function:$>{N}<$red:Concatenation failed:$> string value is  <$yellow:'${str}'$>{line}`
+			]);
 		}
 		return str;
 	} else {
@@ -185,10 +191,10 @@ function lexer(src) {
 			tokens.push({ type, value, line, start, end, depth: depth_stack.length });
 		}
 
-		const updateMetadata = (text) => {
+		const updateMetadata = text => {
 			const newlines = updateNewLine(text) || 0;
 			if (newlines > 0) {
-				const lines = text.split('\n');
+				const lines = text.split("\n");
 				const lastLineLength = lines[lines.length - 1].length;
 				start = end + 1;
 				end = lastLineLength;
@@ -431,7 +437,13 @@ function lexer(src) {
 				// ========================================================================== //
 				//  Token: Block Value                                                        //
 				// ========================================================================== //
-				else if ((previous_value === "=" || previous_value === BLOCKCOMMA || previous_value === BLOCKCOLON || previous_value === block_value) && !scope_state) {
+				else if (
+					(previous_value === "=" ||
+						previous_value === BLOCKCOMMA ||
+						previous_value === BLOCKCOLON ||
+						previous_value === block_value) &&
+					!scope_state
+				) {
 					temp_str = concatChar(src, i, ["]", "\\", ",", ":"]);
 					i += temp_str.length - 1;
 					const nextToken = peek(src, i, 1);
@@ -484,12 +496,7 @@ function lexer(src) {
 						previous_value === inline_value) &&
 					!scope_state
 				) {
-					temp_str = concatChar(src, i, [
-						")",
-						"\\",
-						",",
-						previous_value === INLINECOLON ? ":" : null
-					]);
+					temp_str = concatChar(src, i, [")", "\\", ",", previous_value === INLINECOLON ? ":" : null]);
 					i += temp_str.length - 1;
 					// Update Metadata
 					updateMetadata(temp_str);
@@ -588,7 +595,7 @@ function lexer(src) {
 		return tokens;
 	} else {
 		lexerError([
-			`{line}<$red:Invalid SomMark syntax:$> <$yellow:Expected source input to be a string, got$> <$blue: '${typeof src}'$>{line}`
+			`{line}<$red:Invalid SomMark syntax:$> ${src === "" ? "<$yellow: Got empty string '' $>" : `<$yellow:Expected source input to be a string, got$> <$blue: '${typeof src}'$>`}{line}`
 		]);
 	}
 }
