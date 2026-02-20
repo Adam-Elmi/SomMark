@@ -101,7 +101,6 @@ function validateRules(target, args, content, type = null) {
 	// Validate element type
 	if (id && rules.type && type) {
 		if (rules.type !== type) {
-			console.log(rules.type);
 			transpilerError([
 				"{line}<$red:Validation Error:$> ",
 				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:is expected to be type$> <$green:'${rules.type}'$>{N}<$cyan:Received type: $> <$magenta:'${rules.type}'$>{line}`
@@ -117,13 +116,13 @@ async function generateOutput(ast, i, format, mapper_file) {
 	let result = "";
 	let context = "";
 	let target = mapper_file ? matchedValue(mapper_file.outputs, node.id) : null;
+	const block_formats = [htmlFormat, mdxFormat, jsonFormat];
 	if (target) {
-		console.log(node.type);
 		validateRules(target, node.args, "", node.type);
-		result +=
-			format === htmlFormat || format === mdxFormat || format === jsonFormat
-				? `${node.depth > 1 ? " ".repeat(node.depth) : ""}${target.render({ args: node.args, content: "<%smark>", ast: expose_for_fmts.includes(format) ? ast[i] : null })}${node.depth > 1 ? " ".repeat(node.depth) : ""}`
-				: target.render({ args: node.args, content: "" });
+		result += block_formats.includes(format)
+			? `${target.render({ args: node.args, content: "<%smark>", ast: expose_for_fmts.includes(format) ? ast[i] : null })}`
+      : target.render({ args: node.args, content: "" });
+    // Body nodes
 		for (let j = 0; j < node.body.length; j++) {
 			const body_node = node.body[j];
 			switch (body_node.type) {
@@ -133,8 +132,7 @@ async function generateOutput(ast, i, format, mapper_file) {
 				case TEXT:
 					validateRules(target, body_node.args, body_node.text);
 					const shouldEscape = target && target.options && target.options.escape === false ? false : true;
-					context +=
-						(format === htmlFormat || format === mdxFormat) && shouldEscape ? escapeHTML(body_node.text) : body_node.text;
+					context += [htmlFormat, mdxFormat].includes(format) && shouldEscape ? escapeHTML(body_node.text) : body_node.text;
 					break;
 				// ========================================================================== //
 				//  Inline                                                                    //
@@ -143,12 +141,10 @@ async function generateOutput(ast, i, format, mapper_file) {
 					target = matchedValue(mapper_file.outputs, body_node.id);
 					if (target) {
 						validateRules(target, body_node.args, body_node.value, body_node.type);
-						context +=
-							(format === htmlFormat || format === mdxFormat ? "\n" : "") +
-							target.render({
-								args: body_node.args.length > 0 ? body_node.args : "",
-								content: format === htmlFormat || format === mdxFormat ? escapeHTML(body_node.value) : body_node.value
-							});
+						context += target.render({
+							args: body_node.args.length > 0 ? body_node.args : [],
+							content: format === htmlFormat || format === mdxFormat ? escapeHTML(body_node.value) : body_node.value
+						});
 					}
 					break;
 				// ========================================================================== //
