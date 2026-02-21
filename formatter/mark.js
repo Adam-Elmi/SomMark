@@ -1,5 +1,3 @@
-import { json } from "node:stream/consumers";
-
 class MarkdownBuilder {
 	constructor() { }
 	// ========================================================================== //
@@ -20,7 +18,7 @@ class MarkdownBuilder {
 			} else if (level < min) {
 				level = min;
 			}
-			return `${"#".repeat(level)} ${text}\n`;
+			return `\n${"#".repeat(level)} ${text}\n`;
 		}
 		return text;
 	}
