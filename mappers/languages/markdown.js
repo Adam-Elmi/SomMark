@@ -6,18 +6,33 @@ MARKDOWN.register(["Block", "block", "Section", "section"], ({ content }) => {
 	return content;
 });
 // Headings
-MARKDOWN.register(["Heading", "heading"], ({ args, content }) => {
-	const level = safeArg(args, 0, "level", "number", Number, 1);
-	const title = safeArg(args, 1, "title", null, null, "");
-	return md.heading(title, level) + content;
-});
+MARKDOWN.register(
+	["Heading", "heading"],
+	({ args, content }) => {
+		const level = safeArg(args, 0, "level", "number", Number, 1);
+		const title = safeArg(args, 1, "title", null, null, "");
+		return md.heading(title, level) + content;
+	},
+	{
+		rules: {
+			type: "Block"
+		}
+	}
+);
 // Inline Headings
-["h1", "h2", "h3", "h4", "h5", "h6"].forEach(heading => {
-	MARKDOWN.register(heading, ({ content }) => {
-		const lvl = heading[1] && typeof Number(heading[1]) === "number" ? heading[1] : 1;
-		return md.heading(content, lvl);
-	});
-});
+["h1", "h2", "h3", "h4", "h5", "h6"].forEach(
+	heading => {
+		MARKDOWN.register(heading, ({ content }) => {
+			const lvl = heading[1] && typeof Number(heading[1]) === "number" ? heading[1] : 1;
+			return md.heading(content, lvl);
+		});
+	},
+	{
+		rules: {
+			type: "Inline"
+		}
+	}
+);
 // Bold
 MARKDOWN.register(["bold", "b"], ({ content }) => {
 	return md.bold(content);
@@ -37,7 +52,12 @@ MARKDOWN.register(
 		const lang = safeArg(args, 0, "lang", null, null, "text");
 		return md.codeBlock(content, lang);
 	},
-	{ escape: false }
+	{
+		escape: false,
+		rules: {
+			type: "AtBlock"
+		}
+	}
 );
 // Link
 MARKDOWN.register(
@@ -68,10 +88,18 @@ MARKDOWN.register(
 	}
 );
 // Horizontal Rule
-MARKDOWN.register(["horizontal", "hr", "h"], ({ args }) => {
-	const fmt = safeArg(args, 0, undefined, null, null, "*");
-	return md.horizontal(fmt);
-});
+MARKDOWN.register(
+	["horizontal", "hr", "h"],
+	({ args }) => {
+		const fmt = safeArg(args, 0, undefined, null, null, "*");
+		return md.horizontal(fmt);
+	},
+	{
+		rules: {
+			type: "Block"
+		}
+	}
+);
 // Escape Characters
 MARKDOWN.register(["escape", "Escape", "s"], ({ content }) => {
 	return md.escape(content);
@@ -89,7 +117,7 @@ MARKDOWN.register(
 				.map(line => line.trim())
 		);
 	},
-	{ escape: false }
+	{ escape: false, rules: { type: "AtBlock" } }
 );
 // List
 MARKDOWN.register(
@@ -97,7 +125,7 @@ MARKDOWN.register(
 	({ content }) => {
 		return content;
 	},
-	{ escape: false }
+	{ escape: false, rules: { type: "AtBlock" } }
 );
 // Todo
 MARKDOWN.register("todo", ({ args, content }) => {
