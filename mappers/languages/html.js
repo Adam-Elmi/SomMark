@@ -2,22 +2,30 @@ import Mapper from "../mapper.js";
 const HTML = new Mapper();
 const { tag, code, list, safeArg } = HTML;
 
-HTML.register(["Html", "html"], ({ args }) => {
-	HTML.pageProps.pageTitle = safeArg(args, undefined, "title", null, null, HTML.pageProps.pageTitle);
-	HTML.pageProps.charset = safeArg(args, undefined, "charset", null, null, HTML.pageProps.charset);
-	HTML.pageProps.tabIcon.src = safeArg(args, undefined, "iconSrc", null, null, HTML.pageProps.tabIcon.src);
-	HTML.pageProps.tabIcon.type = safeArg(args, undefined, "iconType", null, null, HTML.pageProps.tabIcon.type);
-	HTML.pageProps.httpEquiv["X-UA-Compatible"] = safeArg(
-		args,
-		undefined,
-		"httpEquiv",
-		null,
-		null,
-		HTML.pageProps.httpEquiv["X-UA-Compatible"]
-	);
-	HTML.pageProps.viewport = safeArg(args, undefined, "viewport", null, null, HTML.pageProps.viewport);
-	return "";
-});
+HTML.register(
+	["Html", "html"],
+	({ args }) => {
+		HTML.pageProps.pageTitle = safeArg(args, undefined, "title", null, null, HTML.pageProps.pageTitle);
+		HTML.pageProps.charset = safeArg(args, undefined, "charset", null, null, HTML.pageProps.charset);
+		HTML.pageProps.tabIcon.src = safeArg(args, undefined, "iconSrc", null, null, HTML.pageProps.tabIcon.src);
+		HTML.pageProps.tabIcon.type = safeArg(args, undefined, "iconType", null, null, HTML.pageProps.tabIcon.type);
+		HTML.pageProps.httpEquiv["X-UA-Compatible"] = safeArg(
+			args,
+			undefined,
+			"httpEquiv",
+			null,
+			null,
+			HTML.pageProps.httpEquiv["X-UA-Compatible"]
+		);
+		HTML.pageProps.viewport = safeArg(args, undefined, "viewport", null, null, HTML.pageProps.viewport);
+		return "";
+	},
+	{
+		rules: {
+			type: "Block"
+		}
+	}
+);
 
 // Block
 HTML.register(
@@ -32,9 +40,17 @@ HTML.register(
 	}
 );
 // Section
-HTML.register(["Section", "section"], ({ content }) => {
-	return tag("section").body(content);
-});
+HTML.register(
+	["Section", "section"],
+	({ content }) => {
+		return tag("section").body(content);
+	},
+	{
+		rules: {
+			type: "Block"
+		}
+	}
+);
 // Headings
 ["h1", "h2", "h3", "h4", "h5", "h6"].forEach(heading => {
 	HTML.register(heading, ({ content }) => {
@@ -42,7 +58,7 @@ HTML.register(["Section", "section"], ({ content }) => {
 	});
 });
 // Bold
-HTML.register(["bold", "b"], ({ content }) => {
+HTML.register(["bold", "Bold", "b"], ({ content }) => {
 	return tag("strong").body(content);
 });
 // Italic
@@ -54,17 +70,17 @@ HTML.register(["emphasis", "e"], ({ content }) => {
 	return tag("span").attributes({ style: "font-weight:bold; font-style: italic;" }).body(content);
 });
 // Colored Text
-HTML.register("color", ({ args, content }) => {
+HTML.register(["color", "Color"], ({ args, content }) => {
 	const color = safeArg(args, 0, undefined, null, null, "none");
 	return tag("span")
 		.attributes({ style: `color:${color}` })
 		.body(content);
 });
 // Link
-HTML.register("link", ({ args, content }) => {
+HTML.register(["link", "Link"], ({ args, content }) => {
 	const url = safeArg(args, 0, "url", null, null, "");
 	const title = safeArg(args, 1, "title", null, null, "");
-	return tag("a").attributes({ href: url.trim(), title: title.trim() }).body(content);
+	return tag("a").attributes({ href: url.trim(), title: title.trim(), target: "_blank" }).body(content);
 });
 // Image
 HTML.register(
@@ -90,7 +106,7 @@ HTML.register(
 	({ args, content }) => {
 		return code(args, content);
 	},
-	{ escape: false }
+	{ escape: false, rules: { type: "AtBlock" } }
 );
 // List
 HTML.register(
@@ -106,7 +122,12 @@ HTML.register(
 	({ content, args }) => {
 		return HTML.htmlTable(content.split(/\n/), args);
 	},
-	{ escape: false }
+	{
+		escape: false,
+		rules: {
+			type: "AtBlock"
+		}
+	}
 );
 // Horizontal Rule
 HTML.register(
