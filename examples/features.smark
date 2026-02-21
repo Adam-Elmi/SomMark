@@ -18,9 +18,9 @@ It explores block syntax, inline statements, nesting, escaping, and at-blocks in
   \(Typography Example:\)
   [end]
 
-  [h1] Primary Heading [end]
-  [h2] Secondary Heading [end]
-  [h3] Tertiary Heading [end]
+  [Block] (Primary Heading)->(h1) [end]
+  [Block] (Secondary Heading)->(h2) [end]
+  [Block] (Tertiary Heading)->(h3) [end]
 
   [Block]
   Standard paragraphs are just content inside a generic Block \(or any block that doesn't map to a specific tag\).
@@ -66,7 +66,7 @@ It explores block syntax, inline statements, nesting, escaping, and at-blocks in
 
   [Block]
   - (Blue Text Demo)->(color: blue)
-  - (Clickable Link)->(link: https\://github.com/Adam-Elmi/SomMark, Source Code)
+  - (Clickable Link)->(link: https://github.com/Adam-Elmi/SomMark, Source Code)
   - (Bold and Italic)->(emphasis)
   [end]
 
@@ -94,7 +94,7 @@ It explores block syntax, inline statements, nesting, escaping, and at-blocks in
   They start with `@_ID_@` and end with `@_end_@`.
   [end]
 
-  [h3] JavaScript Integration Example [end]
+  [Block] (JavaScript Integration Example)->(h3) [end]
   @_code_@: javascript;
   const sommark = {
     version: "2.0.0",
@@ -107,7 +107,7 @@ It explores block syntax, inline statements, nesting, escaping, and at-blocks in
   }
   @_end_@
 
-  [h3] Complex Tables [end]
+  [Block] (Complex Tables)->(h3) [end]
   @_table_@: ID, Product, Price, Category;
   001, Parser Core, $0, Tool
   002, Transpiler, $0, Tool
