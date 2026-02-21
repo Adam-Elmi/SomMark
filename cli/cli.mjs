@@ -3,6 +3,8 @@ import { getHelp } from "./commands/help.js";
 import { printVersion, printHeader } from "./commands/version.js";
 import { runBuild } from "./commands/build.js";
 import { printOutput } from "./commands/print.js";
+import { runInit } from "./commands/init.js";
+import { runShow } from "./commands/show.js";
 import { extensions } from "./constants.js";
 
 // ========================================================================== //
@@ -33,7 +35,19 @@ async function main() {
 		return;
 	}
 
-	// 4. Print to Console ( -p or --print )
+	// 4. Init
+	if (command === "init") {
+		await runInit();
+		return;
+	}
+
+	// 5. Show
+	if (command === "show") {
+		await runShow(args[1]);
+		return;
+	}
+
+	// 6. Print to Console ( -p or --print )
 
 	const format = command ? command.replace(/^--/, "") : "";
 
