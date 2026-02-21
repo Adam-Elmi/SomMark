@@ -34,9 +34,10 @@ class Mapper {
 		this.env = "node";
 		// Theme Registry
 		this.themes = {
+			"sommark-default": "pre{padding: 5px; background-color: #f6f8fa; font-family: monospace}",
 			"atom-one-dark": atomOneDark
 		};
-		this.currentTheme = "atom-one-dark";
+		this.currentTheme = this.highlightCode && typeof this.highlightCode === "function" ? "atom-one-dark" : "sommark-default";
 		this.enable_table_styles = true;
 	}
 
@@ -337,7 +338,7 @@ class Mapper {
 		}
 
 		if (setType !== null && typeof setType !== "function") {
-			throw new Error("setType must be a function");
+			sommarkError([`{line}<$red:TypeError:$> <$yellow:setType must be a function$>{line}`]);
 		}
 
 		const validate = value => {
