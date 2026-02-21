@@ -103,7 +103,7 @@ function validateRules(target, args, content, type = null) {
 		if (rules.type !== type) {
 			transpilerError([
 				"{line}<$red:Validation Error:$> ",
-				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:is expected to be type$> <$green:'${rules.type}'$>{N}<$cyan:Received type: $> <$magenta:'${rules.type}'$>{line}`
+				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:is expected to be type$> <$green:'${rules.type}'$>{N}<$cyan:Received type: $> <$magenta:'${type}'$>{line}`
 			]);
 		}
 	}
