@@ -1,14 +1,14 @@
 [Section]
-[h1] Adam Elmi [end]
+[Block] (Adam Elmi)->(h1) [end]
 [Block] (Full-Stack Software Engineer)->(italic) [end]
 
 [Block]
-(Email:)->(bold) adam@example.com | (GitHub:)->(bold) (Adam-Elmi)->(link: https\://github.com/Adam-Elmi)
+(Email:)->(bold) adam@example.com | (GitHub:)->(bold) (Adam-Elmi)->(link: https\://github.com/Adam-Elmi, Adam-Elmi)
 [end]
 
-[h2] Experience [end]
+[Block] (Experience)->(h2) [end]
 
-[h3] Senior Software Engineer @ Tech Solutions [end]
+[Block] (Senior Software Engineer @ Tech Solutions)->(h3) [end]
 [Block] (Jan 2024 — Present)->(italic) [end]
 [Block]
 - Led the development of the SomMark v2 parser and transpiler core.
@@ -16,19 +16,19 @@
 - Mentored junior developers on compiler design and DSL implementation.
 [end]
 
-[h3] Software Developer @ Web Systems [end]
+[Block] (Software Developer @ Web Systems)->(h3) [end]
 [Block] (Mar 2022 — Dec 2023)->(italic) [end]
 [Block]
 - Built responsive user interfaces using HTML, CSS, and SomMark-to-HTML transpilers.
 - Integrated third-party APIs for real-time data synchronization.
 [end]
 
-[h2] Education [end]
+[Block] (Education)->(h2) [end]
 
-[h3] B.Sc. in Computer Science [end]
+[Block] (B.Sc. in Computer Science)->(h3) [end]
 [Block] (University of Technology 2021)->(italic) [end]
 
-[h2] Skills [end]
+[Block] (Skills)->(h2) [end]
 
 @_table_@: Category, Skills;
 Languages, JavaScript, TypeScript, SomMark, Python, Rust
@@ -36,7 +36,7 @@ Frameworks, React, Next.js, Astro, Vitest
 Tools, Git, Docker, CLI Development, Compiler Design
 @_end_@
 
-[h2] Projects [end]
+[Block] (Projects)->(h2) [end]
 
 [Block]
 - \(SomMark\): Structural markup language for documents.
