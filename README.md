@@ -9,20 +9,23 @@ SomMark is a declarative, extensible markup language for structured content that
 <a href="https://www.npmjs.com/package/sommark" target="_blank">
 <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
 </a>
+
 <!--Npm Version-->
 <a href="https://www.npmjs.com/package/sommark" target="_blank">
 <img src="https://img.shields.io/npm/v/sommark?style=flat-square" />
 </a>
+
 <!--Language Type-->
 <img src="https://img.shields.io/badge/type-markup%20language-white?style=flat-square" />
+
 <!--SomMark Playground-->
 <a href="https://adam-elmi.github.io/SomMark-Playground" target="_blank">
-  <img 
-    src="https://img.shields.io/badge/Try-SomMark_Playground-rose?style=flat-square" 
-    alt="SomMark Playground Badge"
-  />
+<img 
+src="https://img.shields.io/badge/SomMark-Playground-blue?style=flat-square" 
+alt="SomMark Playground Badge" />
 </a>
 </p>
+
 
 ----
 
