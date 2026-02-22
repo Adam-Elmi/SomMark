@@ -4,7 +4,7 @@
 (done)->(todo: Add new rule to handle self-closing tags)
 (done)->(todo: Improve Documentation)
 (done)->(todo: Add Json support)
-(done)->(todo: Add type rule to the rules)
+(done)->(todo: Add type rule to validate element type)
 (done)->(todo: Improve documentation)
 (done)->(todo: Improve mapper files)
 (done)->(todo: Remove highlight.js library)
