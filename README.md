@@ -24,6 +24,7 @@ SomMark is a declarative, extensible markup language for structured content that
 </a>
 
 </p>
+
 ----
 
 ## Try SomMark Playground
