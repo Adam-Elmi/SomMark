@@ -8,7 +8,6 @@
 (done)->(todo: Improve documentation)
 (done)->(todo: Improve mapper files)
 (done)->(todo: Remove highlight.js library)
-(-)->(todo: Add new cli feature: auto config file creation)
-(-)->(todo: Use bun to build sommark binaries)
-(-)->(todo: Release new version with sommark binaries)
+(done)->(todo: Add new cli feature: auto config file creation)
+(-)->(todo: Release new version: 2.2.0)
 [end]
