@@ -25,8 +25,7 @@ describe("HTML Transpiler — Blocks", () => {
 		expect(output).toBe("Hello World");
 	});
 	it("transpiles block with attributes to div", async () => {
-		const expectedValue =
-			'<div title="Transpiler-Test" data-test-id="Test-101" data-failed-tests="5">Block Arguments</div>';
+		const expectedValue = '<div title="Transpiler-Test" data-test-id="Test-101" data-failed-tests="5">Block Arguments</div>';
 		let output = await new SomMark({
 			src: "[Test = Transpiler-Test, Test-101, 5 ]Block Arguments[end]",
 			format: "html",
@@ -36,9 +35,7 @@ describe("HTML Transpiler — Blocks", () => {
 		expect(output).toBe(expectedValue);
 	});
 	html.register("Container", ({ content }) => {
-		return html
-			.tag("div")
-			.body(content);
+		return html.tag("div").body(content);
 	});
 	it("transpiles nested Container blocks into nested divs", async () => {
 		const expectedValue = "<div><div><div><div><div><div>SomMark</div></div></div></div></div></div>";
@@ -52,9 +49,7 @@ describe("HTML Transpiler — Blocks", () => {
 	});
 	it("transpiles block into image tag", async () => {
 		html.register("Image", ({ args, content }) => {
-			return html
-				.tag("img")
-				.attributes({ src: args[0], alt: args[1] }).selfClose();
+			return html.tag("img").attributes({ src: args[0], alt: args[1] }).selfClose();
 		});
 		let output = await new SomMark({
 			src: "[Image = www.example.com/image.png, Example Image][end]",
@@ -111,12 +106,12 @@ describe("HTML Transpiler — Inline statements", () => {
 	});
 	it("transpiles inline link to <a href=... title=...>", async () => {
 		let inlineStatement_3 = await new SomMark({
-			src: '[Block](My Site)->(link:www.example.com, Title)[end]',
+			src: "[Block](My Site)->(link:www.example.com, Title)[end]",
 			format: "html",
 			includeDocument: false
 		}).transpile();
 		inlineStatement_3 = removeNewline(inlineStatement_3);
-		expect(inlineStatement_3).toBe('<a href="www.example.com" title="Title">My Site</a>');
+		expect(inlineStatement_3).toBe('<a href="www.example.com" title="Title" target="_blank">My Site</a>');
 	});
 });
 
@@ -156,7 +151,7 @@ describe("HTML Transpiler — @-blocks", () => {
 		}).transpile();
 		output = removeNewline(output);
 		expect(output).toBe(
-			"<table class=\"sommark-table\"><thead><tr><th>user</th><th>role</th><th>status</th></tr></thead><tbody><tr><td>Adam</td><td>Admin</td><td>active</td></tr><tr><td>Elmi</td><td>Developer</td><td>active</td></tr><tr><td>Eid</td><td>Tester</td><td>disabled</td></tr></tbody></table>"
+			'<table class="sommark-table"><thead><tr><th>user</th><th>role</th><th>status</th></tr></thead><tbody><tr><td>Adam</td><td>Admin</td><td>active</td></tr><tr><td>Elmi</td><td>Developer</td><td>active</td></tr><tr><td>Eid</td><td>Tester</td><td>disabled</td></tr></tbody></table>'
 		);
 	});
 });
