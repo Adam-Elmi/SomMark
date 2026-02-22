@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.2.0 (2026-02-23)
+## Features
+- Added JSON support
+- Added type rules to validate element type
+- Improved documentation
+- Improved mapper files
+- Removed **highlight.js** dependency
+- Added new CLI feature: automatic configuration file creation
+
+
 ## v2.1.2 (2026-02-09)
 ### Fixes
 -  Fixed cli print functionality
