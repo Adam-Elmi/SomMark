@@ -7,22 +7,22 @@ describe("MarkdownBuilder", () => {
 
     describe("heading", () => {
         it("creates headings with correct levels", () => {
-            expect(md.heading("Title", 1)).toBe("# Title\n");
-            expect(md.heading("Subtitle", 2)).toBe("## Subtitle\n");
-            expect(md.heading("Deep", 6)).toBe("###### Deep\n");
+            expect(md.heading("Title", 1)).toBe("\n# Title\n");
+            expect(md.heading("Subtitle", 2)).toBe("\n## Subtitle\n");
+            expect(md.heading("Deep", 6)).toBe("\n###### Deep\n");
         });
 
         it("clamps levels between 1 and 6", () => {
-            expect(md.heading("Low", 0)).toBe("# Low\n");
-            expect(md.heading("High", 7)).toBe("###### High\n");
+            expect(md.heading("Low", 0)).toBe("\n# Low\n");
+            expect(md.heading("High", 7)).toBe("\n###### High\n");
         });
 
         it("handles string levels", () => {
-            expect(md.heading("Title", "1")).toBe("# Title\n");
+            expect(md.heading("Title", "1")).toBe("\n# Title\n");
         });
 
         it("returns empty string if no text", () => {
-            expect(md.heading("", 1)).toBe("# \n");
+            expect(md.heading("", 1)).toBe("\n# \n");
         });
     });
 
