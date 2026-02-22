@@ -86,6 +86,14 @@ const smark = new SomMark({
 console.log(await smark.transpile());
 ```
 
+## Supported Languages
+
+* HTML
+* Markdown
+* MDX (Only ready components)
+* JSON
+
+
 # Documentation
 
 Detailed guides and API references are available in the `docs/` directory:
