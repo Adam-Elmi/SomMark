@@ -22,7 +22,6 @@ SomMark is a declarative, extensible markup language for structured content that
     alt="SomMark Playground Badge"
   />
 </a>
-
 </p>
 
 ----
