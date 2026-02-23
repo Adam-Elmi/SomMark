@@ -1,5 +1,5 @@
 class MarkdownBuilder {
-	constructor() { }
+	constructor() {}
 	// ========================================================================== //
 	//  Headings                                                                  //
 	// ========================================================================== //
@@ -64,29 +64,23 @@ class MarkdownBuilder {
 	// ========================================================================== //
 	//  Code Block                                                                //
 	// ========================================================================== //
-	codeBlock(code, language) {
-		if (!code) {
+	codeBlock(code, language = "") {
+		if (!code) return "";
+
+		const normalizeContent = c => {
+			if (Array.isArray(c)) return c.join("\n");
+			if (typeof c === "string") return c;
 			return "";
-		}
-		const blocks = [];
-		if (Array.isArray(code)) {
-			for (const code_block of code) {
-				blocks.push(code_block);
-			}
-			if (!language) {
-				return "\n```" + "\n" + blocks.join("\n") + "\n```\n";
-			}
-			return "\n```" + language + "\n" + blocks.join("\n") + "\n```\n";
-		} else if (typeof code === "string") {
-			if (!language) {
-				return "\n```" + "\n" + code + "\n```\n";
-			}
-			return "\n```" + language + "\n" + code + "\n```\n";
-		}
-		if (!code && !language) {
-			return "";
-		}
+		};
+
+		const content = normalizeContent(code);
+
+		if (!content) return "";
+
+		const lang = language ? language : "";
+		return `\n\`\`\`${lang}\n${content}\`\`\`\n`;
 	}
+
 	// ========================================================================== //
 	//  Horizontal rule                                                           //
 	// ========================================================================== //
@@ -97,22 +91,13 @@ class MarkdownBuilder {
 	//  Escape                                                                    //
 	// ========================================================================== //
 	escape(text) {
-		const special_char = ["\\", "*", "_", "{", "}", "[", "]", "(", ")", "#", "+", "-", ".", "!", ">", "|"];
-		if (!text) {
-			return "";
-		}
+		if (!text) return "";
 
-		text = text
-			.split("")
-			.map(char => {
-				if (special_char.includes(char)) {
-					return `\\${char}`;
-				}
-				return char;
-			})
-			.join("");
-		return text;
+		const special = /[\\*_{}\[\]()#+\-.!>|]/g;
+
+		return text.replace(special, "\\$&");
 	}
+
 	// ========================================================================== //
 	//  Table                                                                     //
 	// ========================================================================== //
@@ -133,15 +118,15 @@ class MarkdownBuilder {
 			}
 			rows = rows.map(row => {
 				let columns;
-				if (typeof row === 'string') {
-					columns = row.split(',').map(c => c.trim());
+				if (typeof row === "string") {
+					columns = row.split(",").map(c => c.trim());
 				} else if (Array.isArray(row)) {
 					columns = row.map(c => String(c).trim());
 				} else {
 					return "";
 				}
 
-				if (columns.length > 0 && columns[0].startsWith('-')) {
+				if (columns.length > 0 && columns[0].startsWith("-")) {
 					columns[0] = `- ${columns[0].substring(1).trim()}`;
 				}
 
