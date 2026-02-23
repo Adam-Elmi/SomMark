@@ -119,10 +119,11 @@ async function generateOutput(ast, i, format, mapper_file) {
 	const block_formats = [htmlFormat, mdxFormat, jsonFormat];
 	if (target) {
 		validateRules(target, node.args, "", node.type);
+		const placeholder = format === mdxFormat && node.body.length > 1 ? "\n<%smark>\n" : "<%smark>";
 		result += block_formats.includes(format)
-			? `${target.render({ args: node.args, content: "<%smark>", ast: expose_for_fmts.includes(format) ? ast[i] : null })}`
-      : target.render({ args: node.args, content: "" });
-    // Body nodes
+			? `${format === mdxFormat ? "\n" : ""}${target.render({ args: node.args, content: placeholder, ast: expose_for_fmts.includes(format) ? ast[i] : null }) + (format === mdxFormat ? "\n" : "")}`
+			: target.render({ args: node.args, content: "" }) + (format === mdxFormat ? "\n" : "");
+		// Body nodes
 		for (let j = 0; j < node.body.length; j++) {
 			const body_node = node.body[j];
 			switch (body_node.type) {
@@ -141,10 +142,11 @@ async function generateOutput(ast, i, format, mapper_file) {
 					target = matchedValue(mapper_file.outputs, body_node.id);
 					if (target) {
 						validateRules(target, body_node.args, body_node.value, body_node.type);
-						context += target.render({
-							args: body_node.args.length > 0 ? body_node.args : [],
-							content: format === htmlFormat || format === mdxFormat ? escapeHTML(body_node.value) : body_node.value
-						});
+						context +=
+							target.render({
+								args: body_node.args.length > 0 ? body_node.args : [],
+								content: format === htmlFormat || format === mdxFormat ? escapeHTML(body_node.value) : body_node.value
+							}) + (format === mdxFormat ? "\n" : "");
 					}
 					break;
 				// ========================================================================== //
@@ -159,7 +161,7 @@ async function generateOutput(ast, i, format, mapper_file) {
 						if (shouldEscape) {
 							body_node.content = escapeHTML(body_node.content);
 						}
-						context += target.render({ args: body_node.args, content: body_node.content });
+						context += target.render({ args: body_node.args, content: body_node.content }) + (format === mdxFormat ? "\n" : "");
 					}
 					break;
 				// ========================================================================== //
