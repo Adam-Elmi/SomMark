@@ -1,5 +1,25 @@
 # Changelog
 
+
+## v2.3.0 (2026-02-23)
+
+### Added
+
+* Added missing JSON support in the CLI.
+* Added two new methods: makeFrontmatter and raw_js_imports.
+* Added new documentation.
+
+### Fixed
+
+* Fixed MDX format output error caused by extra whitespaces.
+* Fixed colon issue in atblock body.
+
+### Improved
+
+* Improved several internal methods.
+* Updated and enhanced tests.
+
+
 ## v2.2.0 (2026-02-23)
 ## Features
 - Added JSON support
