@@ -56,15 +56,15 @@ describe("MarkdownBuilder", () => {
 
     describe("codeBlock", () => {
         it("creates a code block with language", () => {
-            expect(md.codeBlock("code", "js")).toBe("\n```js\ncode\n```\n");
+            expect(md.codeBlock("code", "js")).toBe("\n```js\ncode```\n");
         });
 
         it("creates a code block without language", () => {
-            expect(md.codeBlock("code")).toBe("\n```\ncode\n```\n");
+            expect(md.codeBlock("code")).toBe("\n```\ncode```\n");
         });
 
         it("handles array of code lines", () => {
-            expect(md.codeBlock(["line1", "line2"], "js")).toBe("\n```js\nline1\nline2\n```\n");
+            expect(md.codeBlock(["line1", "line2"], "js")).toBe("\n```js\nline1\nline2```\n");
         });
     });
 
