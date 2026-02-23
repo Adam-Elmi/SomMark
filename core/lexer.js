@@ -289,7 +289,6 @@ function lexer(src) {
 				i += temp_str.length - 1;
 				// Update Metadata
 				updateMetadata(temp_str);
-				scope_state = true;
 				addToken(TOKEN_TYPES.OPEN_AT, temp_str);
 				// is next token end keyword?
 				const endKey = concatChar(src, i + 1, ["_"]);
@@ -330,7 +329,8 @@ function lexer(src) {
 					previous_value === at_value ||
 					previous_value === BLOCKCOLON ||
 					previous_value === ATBLOCKCOLON ||
-					previous_value === INLINECOLON)
+					previous_value === INLINECOLON) &&
+				!scope_state
 			) {
 				// Update Metadata
 				updateMetadata(current_char);
@@ -391,6 +391,7 @@ function lexer(src) {
 				// Update Metadata
 				updateMetadata(current_char);
 				addToken(TOKEN_TYPES.SEMICOLON, current_char);
+				scope_state = true;
 				previous_value = current_char;
 			}
 			// ========================================================================== //
@@ -574,10 +575,11 @@ function lexer(src) {
 				//  Token: Text                                                               //
 				// ========================================================================== //
 				else {
+					if (previous_value === "_@+") scope_state = true;
 					context = concatText(src, i, scope_state, [
 						[":", previous_value === inline_id_2],
 						[",", previous_value === block_value || previous_value === at_value || previous_value === inline_value],
-						[":", previous_value === "_@+" || previous_value === at_value],
+						[":", (previous_value === "_@+" && !scope_state) || previous_value === at_value],
 						[";", previous_value === at_value],
 						[")", previous_value === inline_value]
 					]);
