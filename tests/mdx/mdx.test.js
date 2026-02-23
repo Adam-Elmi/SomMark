@@ -58,8 +58,8 @@ describe("SomMark MDX element/component tests (skip markdown)", () => {
     it("props supports string and other types", async () => {
         mdx.register("PropComp1", () =>
             mdx.tag("PropComp1").props([
-                { type: "string", title: "Hello" },
-                { type: "other", count: "items.length" }
+                { __type__: "string", title: "Hello" },
+                { __type__: "other", count: "items.length" }
             ]).body("Content")
         );
         const output = await new SomMark({ src: "[PropComp1][end]", format: "mdx" }).transpile();
@@ -71,7 +71,7 @@ describe("SomMark MDX element/component tests (skip markdown)", () => {
 
     it("combines attributes() and props()", async () => {
         mdx.register("PropComp2", () =>
-            mdx.tag("PropComp2").attributes({ id: "x" }).props([{ type: "string", role: "admin" }]).selfClose()
+            mdx.tag("PropComp2").attributes({ id: "x" }).props([{ __type__: "string", role: "admin" }]).selfClose()
         );
         const output = await new SomMark({ src: "[PropComp2][end]", format: "mdx" }).transpile();
         expect(removeNewline(output)).toBe('<PropComp2 id="x" role="admin" />');
@@ -82,12 +82,12 @@ describe("SomMark MDX element/component tests (skip markdown)", () => {
             mdx.tag("PropComp3").props(["bad"]).selfClose()
         );
         await expect(() => new SomMark({ src: "[PropComp3][end]", format: "mdx" }).transpile())
-            .rejects.toThrow("prop expects an object with property { type }");
+            .rejects.toThrow("prop expects an object with property { __type__ }");
     });
 
     it("handles string props with empty value", async () => {
         mdx.register("PropComp4", () =>
-            mdx.tag("PropComp4").props([{ type: "string", empty: "" }]).selfClose()
+            mdx.tag("PropComp4").props([{ __type__: "string", empty: "" }]).selfClose()
         );
         const output = await new SomMark({ src: "[PropComp4][end]", format: "mdx" }).transpile();
         expect(removeNewline(output)).toBe('<PropComp4 empty="" />');
@@ -95,7 +95,7 @@ describe("SomMark MDX element/component tests (skip markdown)", () => {
 
     it("handles props with array values", async () => {
         mdx.register("PropComp5", () =>
-            mdx.tag("PropComp5").props([{ type: "other", items: "[1, 2, 3]" }]).selfClose()
+            mdx.tag("PropComp5").props([{ __type__: "other", items: "[1, 2, 3]" }]).selfClose()
         );
         const output = await new SomMark({ src: "[PropComp5][end]", format: "mdx" }).transpile();
         expect(removeNewline(output)).toBe('<PropComp5 items={[1, 2, 3]} />');
@@ -105,7 +105,7 @@ describe("SomMark MDX element/component tests (skip markdown)", () => {
         mdx.register("PropComp6", () =>
             mdx.tag("PropComp6")
                 .attributes({ class: "my-class", dataId: "123" })
-                .props([{ type: "string", title: "Test" }, { type: "other", isActive: "true" }])
+                .props([{ __type__: "string", title: "Test" }, { __type__: "other", isActive: "true" }])
                 .body("Content here")
         );
         const output = await new SomMark({ src: "[PropComp6][end]", format: "mdx" }).transpile();
@@ -119,7 +119,7 @@ describe("SomMark MDX element/component tests (skip markdown)", () => {
 
     it("handles props with complex other values", async () => {
         mdx.register("PropComp7", () =>
-            mdx.tag("PropComp7").props([{ type: "other", config: "{ key: 'value', flag: true }" }]).selfClose()
+            mdx.tag("PropComp7").props([{ __type__: "other", config: "{ key: 'value', flag: true }" }]).selfClose()
         );
         const output = await new SomMark({ src: "[PropComp7][end]", format: "mdx" }).transpile();
         expect(removeNewline(output)).toBe('<PropComp7 config={{ key: \'value\', flag: true }} />');
@@ -127,7 +127,7 @@ describe("SomMark MDX element/component tests (skip markdown)", () => {
 
     it("handles props with function values", async () => {
         mdx.register("PropComp8", () =>
-            mdx.tag("PropComp8").props([{ type: "other", onClick: "() => alert('Clicked!')" }]).selfClose()
+            mdx.tag("PropComp8").props([{ __type__: "other", onClick: "() => alert('Clicked!')" }]).selfClose()
         );
         const output = await new SomMark({ src: "[PropComp8][end]", format: "mdx" }).transpile();
         expect(removeNewline(output)).toBe("<PropComp8 onClick={() => alert('Clicked!')} />");
@@ -135,7 +135,7 @@ describe("SomMark MDX element/component tests (skip markdown)", () => {
 
     it("handles props with method values", async () => {
         mdx.register("PropComp9", () =>
-            mdx.tag("PropComp9").props([{ type: "other", compute: "this.calculateValue()" }]).selfClose()
+            mdx.tag("PropComp9").props([{ __type__: "other", compute: "this.calculateValue()" }]).selfClose()
         );
         const output = await new SomMark({ src: "[PropComp9][end]", format: "mdx" }).transpile();
         expect(removeNewline(output)).toBe("<PropComp9 compute={this.calculateValue()} />");
@@ -143,7 +143,7 @@ describe("SomMark MDX element/component tests (skip markdown)", () => {
 
     it("handles props with long method chains", async () => {
         mdx.register("PropComp10", () =>
-            mdx.tag("PropComp10").props([{ type: "other", data: "this.getData().filter(x => x.active).map(x => x.value)" }]).selfClose()
+            mdx.tag("PropComp10").props([{ __type__: "other", data: "this.getData().filter(x => x.active).map(x => x.value)" }]).selfClose()
         );
         const output = await new SomMark({ src: "[PropComp10][end]", format: "mdx" }).transpile();
         expect(removeNewline(output)).toBe("<PropComp10 data={this.getData().filter(x => x.active).map(x => x.value)} />");
@@ -151,7 +151,7 @@ describe("SomMark MDX element/component tests (skip markdown)", () => {
 
     it("handles props with nested object values", async () => {
         mdx.register("PropComp11", () =>
-            mdx.tag("PropComp11").props([{ type: "other", settings: "{ theme: 'dark', layout: { header: true, footer: false } }" }]).selfClose()
+            mdx.tag("PropComp11").props([{ __type__: "other", settings: "{ theme: 'dark', layout: { header: true, footer: false } }" }]).selfClose()
         );
         const output = await new SomMark({ src: "[PropComp11][end]", format: "mdx" }).transpile();
         expect(removeNewline(output)).toBe("<PropComp11 settings={{ theme: 'dark', layout: { header: true, footer: false } }} />");
@@ -161,7 +161,7 @@ describe("SomMark MDX element/component tests (skip markdown)", () => {
         mdx.register("PropComp12", () =>
             mdx.tag("PropComp12")
                 .attributes({ "data-empty": "", "data-number": 0 })
-                .props([{ type: "string", description: "" }, { type: "other", isValid: "false" }])
+                .props([{ __type__: "string", description: "" }, { __type__: "other", isValid: "false" }])
                 .body("Edge case content")
         );
         const output = await new SomMark({ src: "[PropComp12][end]", format: "mdx" }).transpile();
