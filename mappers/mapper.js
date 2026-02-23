@@ -27,7 +27,7 @@ class Mapper {
 		};
 
 		this.#customHeaderContent = "";
-
+		
 		this.highlightCode = null;
 		this.escapeHTML = escapeHTML;
 		this.styles = [];
@@ -357,6 +357,54 @@ class Mapper {
 		}
 
 		return fallBack;
+	};
+	makeFrontmatter = entries => {
+		if (!entries || typeof entries !== "object") {
+			console.warn(`From function: ${this.makeFrontmatter.name}: invalid entries, returning empty string.`);
+			return "";
+		}
+		const keys = Object.keys(entries);
+		if (keys.length === 0) {
+			console.warn(`From function: ${this.makeFrontmatter.name}: invalid entries, returning empty string.`);
+			return "";
+		}
+		const body = keys
+			.map(key => {
+				const value = entries[key];
+				if (Array.isArray(value)) {
+					const list = value.map(item => `  - ${JSON.stringify(item)}`).join("\n");
+					return `${key}:\n${list}`;
+				}
+				return `${key}: ${JSON.stringify(value)}`;
+			})
+			.join("\n");
+		return `---\n${body}\n---\n`;
+	};
+
+	raw_js_imports = imports => {
+		if (!Array.isArray(imports)) {
+			console.warn("raw_js_imports: imports must be an array");
+			return "";
+		}
+
+		if (imports.length === 0) {
+			console.warn("raw_js_imports: imports array is empty");
+			return "";
+		}
+
+		return imports
+			.map((imp, index) => {
+				if (!imp?.name || !imp?.path) {
+					console.warn(`raw_js_imports: invalid import entry at index ${index}`);
+					return "";
+				}
+
+				const path = JSON.stringify(imp.path);
+				const newline = index === imports.length - 1 ? "\n\n" : "\n";
+
+				return `import ${imp.name} from ${path};${newline}`;
+			})
+			.join("");
 	};
 }
 export default Mapper;
