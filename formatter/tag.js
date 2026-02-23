@@ -38,16 +38,16 @@ class TagBuilder {
 	props(propsList) {
 		const list = Array.isArray(propsList) ? propsList : [propsList];
 		if (list.length > 0) {
-			for (const propEntry of list) {
+      for (const propEntry of list) {
 				if (typeof propEntry !== "object" || propEntry === null) {
-					throw new TypeError("prop expects an object with property { type }");
+					throw new TypeError("prop expects an object with property { __type__ }");
 				}
 
-				if (!Object.prototype.hasOwnProperty.call(propEntry, "type")) {
-					throw new TypeError("prop expects an object with property { type }");
+				if (!Object.prototype.hasOwnProperty.call(propEntry, "__type__")) {
+					throw new TypeError("prop expects an object with property { __type__ }");
 				}
 
-				const { type, ...rest } = propEntry;
+				const { __type__, ...rest } = propEntry;
 				const entries = Object.entries(rest);
 
 				if (entries.length === 0) {
@@ -56,7 +56,7 @@ class TagBuilder {
 
 				const [key, value] = entries[0];
 
-				switch (type) {
+				switch (__type__) {
 					case "string":
 						this.#attr.push(`${key}="${escapeHTML(String(value))}"`);
 						break;
