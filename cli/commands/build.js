@@ -4,6 +4,7 @@ import { cliError, formatMessage } from "../../core/errors.js";
 import HTML from "../../mappers/languages/html.js";
 import MARKDOWN from "../../mappers/languages/markdown.js";
 import MDX from "../../mappers/languages/mdx.js";
+import Json from "../../mappers/languages/json.js";
 import { extensions } from "../constants.js";
 import { isExist, readContent, createFile } from "../helpers/file.js";
 import { loadConfig } from "../helpers/config.js";
@@ -56,7 +57,7 @@ export async function runBuild(format_option, sourcePath, outputFlag, outputFile
                 let mappingFile = config.mappingFile;
 
                 if (!mappingFile) {
-                    mappingFile = format === "html" ? HTML : format === "markdown" ? MARKDOWN : format === "mdx" ? MDX : null;
+                    mappingFile = format === "html" ? HTML : format === "markdown" ? MARKDOWN : format === "mdx" ? MDX : format === "json" ? Json : null;
                 }
 
                 // CLI Overrides
