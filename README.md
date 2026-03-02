@@ -98,9 +98,9 @@ console.log(await smark.transpile());
 
 Detailed guides and API references are available in the `docs/` directory:
 
-- **[Syntax Guide](docs/syntax.md)**: Master SomMark syntax (Blocks, Inline, At-Blocks).
-- **[Core API](docs/core.md)**: Programmatic usage of the library (`transpile`, `lex`, `parse`).
-- **[Mapper API](docs/mapper.md)**: Guide for creating custom mappers and rules.
-- **[CLI Reference](docs/cli.md)**: Command line options and configurations.
+- **[Syntax Guide](docs/03.syntax.md)**: Master SomMark syntax (Blocks, Inline, At-Blocks).
+- **[Core API](docs/09.core.md)**: Programmatic usage of the library (`transpile`, `lex`, `parse`).
+- **[Mapper API](docs/13.mapper.md)**: Guide for creating custom mappers and rules.
+- **[CLI Reference](docs/11.cli.md)**: Command line options and configurations.
 - **[API Quick Reference](docs/api)**: Fast lookup for all classes and functions.
-- **[Configuration Reference](docs/config.md)**: Guide for creating custom configurations.
+- **[Configuration Reference](docs/12.config.md)**: Guide for creating custom configurations.
