@@ -119,7 +119,7 @@ async function generateOutput(ast, i, format, mapper_file) {
 	const block_formats = [htmlFormat, mdxFormat, jsonFormat];
 	if (target) {
 		validateRules(target, node.args, "", node.type);
-		const placeholder = format === mdxFormat && node.body.length > 1 ? "\n<%smark>\n" : "<%smark>";
+		const placeholder = format === mdxFormat && node.body.length > 0 ? "\n<%smark>\n" : "<%smark>";
 		result += block_formats.includes(format)
 			? `${format === mdxFormat ? "\n" : ""}${target.render({ args: node.args, content: placeholder, ast: expose_for_fmts.includes(format) ? ast[i] : null }) + (format === mdxFormat ? "\n" : "")}`
 			: target.render({ args: node.args, content: "" }) + (format === mdxFormat ? "\n" : "");
