@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.3.1 (2026-03-02)
+
+### Fixed
+* Fixed MDX format issue
+
 
 ## v2.3.0 (2026-02-23)
 
