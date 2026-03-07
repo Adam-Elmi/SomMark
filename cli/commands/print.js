@@ -9,9 +9,14 @@ import path from "node:path";
 export async function printOutput(format, filePath) {
     if (await isExist(filePath)) {
         const fileName = path.basename(filePath);
-        console.log(formatMessage(`{line}[<$yellow: STATUS$> : <$green: SUCCESS$>]{line}<$blue: Printing output for$> <$yellow:'${fileName}'$>{line}`));
+        console.log(formatMessage(`{line}<$blue: Printing output for$> <$yellow:'${fileName}'$>{line}`));
         let source_code = await readContent(filePath);
+      if (format ==="json") {
+        const output = await transpile({ src: source_code.toString(), format });
+        console.log(JSON.stringify(JSON.parse(output, null, 2), null, 2));
+      } else {
         console.log(await transpile({ src: source_code.toString(), format }));
+        }
     } else {
         cliError([`{line}<$red:File$> <$blue:'${filePath}'$> <$red: is not found$>{line}`]);
     }
