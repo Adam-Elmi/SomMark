@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.3.2 (2026-03-07)
+
+### Fixed
+- Fixed: [Cli] CLI Fails to Print JSON Output with --json Flag (Issue #8)
+- Fixed: [Parser] Inline Value Tokenization Fails When Starting or Containing Escape Character (Issue #9)
+
 ## v2.3.1 (2026-03-02)
 
 ### Fixed
