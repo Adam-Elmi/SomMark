@@ -402,28 +402,33 @@ function parseInline(tokens, i) {
 	// ========================================================================== //
 	i++;
 	updateData(tokens, i);
-	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.VALUE)) {
+	if (
+		!current_token(tokens, i) ||
+		(current_token(tokens, i) &&
+			current_token(tokens, i).type !== TOKEN_TYPES.VALUE &&
+			current_token(tokens, i).type !== TOKEN_TYPES.ESCAPE)
+	) {
 		parserError(errorMessage(tokens, i, inline_value, "("));
 	}
-	inlineNode.value = current_token(tokens, i).value;
 	inlineNode.depth = current_token(tokens, i).depth;
-	// ========================================================================== //
-	//  consume Inline Value                                                      //
-	// ========================================================================== //
-	i++;
 	updateData(tokens, i);
-	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.ESCAPE) {
-		while (i < tokens.length) {
-			if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.ESCAPE) {
-				inlineNode.value += current_token(tokens, i).value.slice(1);
-				// ========================================================================== //
-				//  consume Escape Character '\'                                              //
-				// ========================================================================== //
-				i++;
-				continue;
-			} else {
-				break;
-			}
+	while (i < tokens.length) {
+		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
+			inlineNode.value += current_token(tokens, i).value;
+			// ========================================================================== //
+			//  consume Inline Value                                                      //
+			// ========================================================================== //
+			i++;
+			continue;
+		} else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.ESCAPE) {
+			inlineNode.value += current_token(tokens, i).value.slice(1);
+			// ========================================================================== //
+			//  consume Escape Character '\'                                              //
+			// ========================================================================== //
+			i++;
+			continue;
+		} else {
+			break;
 		}
 	}
 	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN)) {
