@@ -7,11 +7,12 @@ import transpiler from "../../core/transpiler.js";
 import HTML from "../../mappers/languages/html.js";
 import MARKDOWN from "../../mappers/languages/markdown.js";
 import MDX from "../../mappers/languages/mdx.js";
+import Json from "../../mappers/languages/json.js";
 import { isExist } from "./file.js";
 import { loadConfig } from "./config.js";
-import { htmlFormat, markdownFormat, mdxFormat } from "../../core/formats.js";
+import { htmlFormat, markdownFormat, mdxFormat, jsonFormat } from "../../core/formats.js";
 
-const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX };
+const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX,  [jsonFormat]: Json};
 
 // ========================================================================== //
 //  Transpile Function                                                        //
@@ -47,7 +48,6 @@ export async function transpile({ src, format, mappingFile = "" }) {
     //  Error: Mapper not found                                                   //
     // ========================================================================== //
     else {
-      console.log("here", JSON.stringify(mappingFile), format)
         cliError([`{line}<$red:File$> <$blue:'${mappingFile}'$> <$red: is not found$>{line}`]);
     }
 }
