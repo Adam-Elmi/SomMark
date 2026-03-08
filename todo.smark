@@ -13,5 +13,6 @@
 (done)->(todo: Fix MDX format issue)
 (-)->(todo: Add HTML5 Outputs) # Pending
 (-)->(todo: Improve output consistence)
+(-)->(todo: Release Version v3)
 (-)->(todo: Start Golang version of SomMark)
 [end]
