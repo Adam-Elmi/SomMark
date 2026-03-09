@@ -161,7 +161,8 @@ async function generateOutput(ast, i, format, mapper_file) {
 						if (shouldEscape) {
 							body_node.content = escapeHTML(body_node.content);
 						}
-						context += target.render({ args: body_node.args, content: body_node.content }) + (format === mdxFormat ? "\n" : "");
+						const rendered = target.render({ args: body_node.args, content: body_node.content }).trimEnd() + "\n";
+						context = context.trim() ? context.trimEnd() + "\n" + rendered : context + rendered;
 					}
 					break;
 				// ========================================================================== //
@@ -179,7 +180,8 @@ async function generateOutput(ast, i, format, mapper_file) {
 				// ========================================================================== //
 				case BLOCK:
 					target = matchedValue(mapper_file.outputs, body_node.id);
-					context += await generateOutput(body_node, i, format, mapper_file);
+					const blockOutput = await generateOutput(body_node, i, format, mapper_file);
+					context = context.trim() ? context.trimEnd() + "\n" + blockOutput : context + blockOutput;
 					break;
 			}
 		}
@@ -203,10 +205,11 @@ async function generateOutput(ast, i, format, mapper_file) {
 					context += body_node.value + " ";
 					break;
 				case ATBLOCK:
-					context += body_node.content;
+					context += body_node.content.trimEnd() + "\n";
 					break;
 				case BLOCK:
-					context += await generateOutput(body_node, i, format, mapper_file);
+					const textBlockOutput = await generateOutput(body_node, i, format, mapper_file);
+					context = context.trim() ? context.trimEnd() + "\n" + textBlockOutput : context + textBlockOutput;
 					break;
 			}
 		}
@@ -217,7 +220,7 @@ async function generateOutput(ast, i, format, mapper_file) {
 			`<$yellow:Identifier$> <$blue:'${node.id}'$> <$yellow: is not found in mapping outputs$>{line}`
 		]);
 	}
-	return result;
+	return result.trimEnd() + "\n";
 }
 
 async function transpiler({ ast, format, mapperFile, includeDocument = true }) {
