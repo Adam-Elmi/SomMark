@@ -22,10 +22,10 @@ function current_token(tokens, i) {
 
 function validateName(
 	id,
-	keyRegex = /^[a-zA-Z0-9]+$/,
+	keyRegex = /^[a-zA-Z0-9\-_$]+$/,
 	name = "Identifier",
-	rule = "(A–Z, a–z, 0–9)",
-	ruleMessage = "must contain only letters and numbers"
+	rule = "(A–Z, a–z, 0–9, -, _, $)",
+	ruleMessage = "must contain only letters, numbers, hyphens, underscores, or dollar signs"
 ) {
 	if (!keyRegex.test(id)) {
 		parserError([`{line}<$red:Invalid ${name}:$><$blue: '${id}'$>{N}<$yellow:${name} ${ruleMessage}$> <$cyan: ${rule}.$>{line}`]);
