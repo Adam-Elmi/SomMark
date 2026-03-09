@@ -20,11 +20,13 @@ output.html
 output.md
 output.mdx
 sample.js
+scripts
 
 # Files & Folders
 node_modules
 assets
 examples
+CHANGELOG.md
 
 # Documentation
 docs
