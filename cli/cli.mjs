@@ -2,7 +2,7 @@
 import { getHelp } from "./commands/help.js";
 import { printVersion, printHeader } from "./commands/version.js";
 import { runBuild } from "./commands/build.js";
-import { printOutput } from "./commands/print.js";
+import { printOutput, printLex, printParse } from "./commands/print.js";
 import { runInit } from "./commands/init.js";
 import { runShow } from "./commands/show.js";
 import { extensions } from "./constants.js";
@@ -47,7 +47,19 @@ async function main() {
 		return;
 	}
 
-	// 6. Print to Console ( -p or --print )
+	// 6. Lex
+	if (command === "--lex") {
+		await printLex(args[1]);
+		return;
+	}
+
+	// 7. Parse
+	if (command === "--parse") {
+		await printParse(args[1]);
+		return;
+	}
+
+	// 8. Print to Console ( -p or --print )
 
 	const format = command ? command.replace(/^--/, "") : "";
 
