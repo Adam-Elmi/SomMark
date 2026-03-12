@@ -24,7 +24,7 @@ Returns an array of `Token` objects.
 
 [Block] (Usage Example)->(h3) [end]
 
-@_code_@: javascript;
+@_Code_@: javascript;
 import { Lexer } from "sommark";
 
 const tokens = Lexer.lex("[Block] Hello [end]");
@@ -45,9 +45,7 @@ The lexer will throw an error if an unescaped special character is found in an i
 [end]
 
 [Block] (Related Modules)->(h2) [end]
-[Block]
-(Parser)->(link: #parser, Parser)
-(Transpiler)->(link: #transpiler, Transpiler)
-[end]
+[Block](Parser)->(url: #parser, Parser)[end]
+[Block](Transpiler)->(url: #transpiler, Transpiler)[end]
 
 [end]
