@@ -21,7 +21,11 @@ class TagBuilder {
 				if (value === true) {
 					this.#attr.push(`${key}`);
 				} else if (value !== false) {
-					this.#attr.push(`${key}="${escapeHTML(value ?? "")}"`);
+					let val = value ?? "";
+					if (key === "style" && typeof val === "string") {
+						val = val.replace(/(^|[^\w\-_$])(--[\w\-_$]+)(?![\w\-_$]|:)/g, "$1var($2)");
+					}
+					this.#attr.push(`${key}="${escapeHTML(val)}"`);
 				}
 			});
 		}
@@ -38,7 +42,7 @@ class TagBuilder {
 	props(propsList) {
 		const list = Array.isArray(propsList) ? propsList : [propsList];
 		if (list.length > 0) {
-      for (const propEntry of list) {
+			for (const propEntry of list) {
 				if (typeof propEntry !== "object" || propEntry === null) {
 					throw new TypeError("prop expects an object with property { __type__ }");
 				}
