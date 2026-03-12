@@ -14,8 +14,8 @@ describe("HTML Transpiler — Blocks", () => {
 	html.register("Test", ({ args, content }) => {
 		return html.tag("div").attributes({ title: args[0], "data-test-id": args[1], "data-failed-tests": args[2] }).body(content);
 	});
-	it("transpiles [Section] to <section><p>Test</p></section>", async () => {
-		let output = await new SomMark({ src: "[Section]Test[end]", format: "html", includeDocument: false }).transpile();
+	it("transpiles [section] to <section><p>Test</p></section>", async () => {
+		let output = await new SomMark({ src: "[section]Test[end]", format: "html", includeDocument: false }).transpile();
 		output = removeWhiteSpaces(output);
 		expect(output).toBe("<section>Test</section>");
 	});
@@ -48,11 +48,11 @@ describe("HTML Transpiler — Blocks", () => {
 		expect(output).toBe(expectedValue);
 	});
 	it("transpiles block into image tag", async () => {
-		html.register("Image", ({ args, content }) => {
+		html.register("image", ({ args, content }) => {
 			return html.tag("img").attributes({ src: args[0], alt: args[1] }).selfClose();
 		});
 		let output = await new SomMark({
-			src: "[Image = www.example.com/image.png, Example Image][end]",
+			src: "[image = src:www.example.com/image.png, Example Image][end]",
 			format: "html",
 			includeDocument: false
 		}).transpile();
@@ -106,7 +106,7 @@ describe("HTML Transpiler — Inline statements", () => {
 	});
 	it("transpiles inline link to <a href=... title=...>", async () => {
 		let inlineStatement_3 = await new SomMark({
-			src: "[Block](My Site)->(link:www.example.com, Title)[end]",
+			src: "[Block](My Site)->(url:www.example.com, Title)[end]",
 			format: "html",
 			includeDocument: false
 		}).transpile();
@@ -119,9 +119,9 @@ describe("HTML Transpiler — Inline statements", () => {
 //  At-Blocks                                                                 //
 // ========================================================================== //
 describe("HTML Transpiler — @-blocks", () => {
-	it("transpiles @_List_@ to nested <ul> list", async () => {
+	it("transpiles @_list_@ to nested <ul> list", async () => {
 		let output = await new SomMark({
-			src: "[Block]@_List_@\nItem 1\n   Sub-Item 1\n  Sub-Item 2\nItem 2\nItem 3\n@_end_@[end]",
+			src: "[Block]@_list_@\nItem 1\n   Sub-Item 1\n  Sub-Item 2\nItem 2\nItem 3\n@_end_@[end]",
 			format: "html",
 			includeDocument: false
 		}).transpile();
@@ -143,9 +143,9 @@ describe("HTML Transpiler — @-blocks", () => {
 		output = removeNewline(output);
 		expect(output).toBe('<p style="font-size:26px" title="text">This is a test</p>');
 	});
-	it("transpiles @_table_@ to <table>", async () => {
+	it("transpiles @_Table_@ to <table>", async () => {
 		let output = await new SomMark({
-			src: "[Block]@_table_@: user, role, status;\nAdam, Admin, active\nElmi, Developer, active\nEid, Tester, disabled\n@_end_@[end]",
+			src: "[Block]@_Table_@: user, role, status;\nAdam, Admin, active\nElmi, Developer, active\nEid, Tester, disabled\n@_end_@[end]",
 			format: "html",
 			includeDocument: false
 		}).transpile();
