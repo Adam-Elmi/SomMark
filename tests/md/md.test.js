@@ -57,14 +57,14 @@ describe("Transpiling -> [MD]: Blocks & Inline", () => {
     });
 
     it("returns code block with language", async () => {
-        let output = await new SomMark({ src: "[Block]@_code_@: js;\nsommark\n@_end_@[end]", format: "markdown" }).transpile();
+        let output = await new SomMark({ src: "[Block]@_Code_@: js;\nsommark\n@_end_@[end]", format: "markdown" }).transpile();
         output = removeWhiteSpaces(output);
         expect(output).toBe("```jssommark```");
     });
 
-    it("returns link markdown with title", async () => {
+    it("returns url markdown with title", async () => {
         let output = await new SomMark({
-            src: '[Block](My Site)->(link:www.example.com, Title)[end]',
+            src: '[Block](My Site)->(url:www.example.com, Title)[end]',
             format: "markdown",
             includeDocument: false
         }).transpile();
@@ -83,7 +83,7 @@ describe("Transpiling -> [MD]: Blocks & Inline", () => {
     });
     it("transpiles todo inline to [ ] Text", async () => {
         let output = await new SomMark({
-            src: "[Block]([])->(todo: Release Version 2)[end]",
+            src: "[Block](-)->(todo: Release Version 2)[end]",
             format: "markdown",
             includeDocument: false
         }).transpile();
@@ -119,7 +119,7 @@ describe("Transpiling -> [MD]: Blocks & Inline", () => {
 describe("Transpiling -> [MD]: Lists and Tables", () => {
     it("returns nested list markdown", async () => {
         let output = await new SomMark({
-            src: "[Block]@_List_@\nItem 1\n   Sub-Item 1\n  Sub-Item 2\nItem 2\n@_end_@[end]",
+            src: "[Block]@_list_@\nItem 1\n   Sub-Item 1\n  Sub-Item 2\nItem 2\n@_end_@[end]",
             format: "markdown",
             includeDocument: false
         }).transpile();
@@ -127,9 +127,9 @@ describe("Transpiling -> [MD]: Lists and Tables", () => {
         expect(removeWhiteSpaces(output)).toBe(removeWhiteSpaces(expected));
     });
 
-    it("returns table markdown", async () => {
+    it("returns Table markdown", async () => {
         let output = await new SomMark({
-            src: "[Block]@_table_@:Name, Age;\nJohn, 30\nJane, 25\n@_end_@[end]",
+            src: "[Block]@_Table_@:Name, Age;\nJohn, 30\nJane, 25\n@_end_@[end]",
             format: "markdown",
             includeDocument: false
         }).transpile();
