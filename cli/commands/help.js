@@ -23,6 +23,8 @@ export function getHelp(unknown_option = true) {
 		"{N}  <$green:--mdx$>          <$cyan: Transpile to MDX$>",
 		"{N}  <$green:--json$>         <$cyan: Transpile to json$>",
 		"{N}  <$green:--text$>         <$cyan: Transpile to plain text$>",
+		"{N}  <$green:--lex$>          <$cyan: Print lexer tokens to console$>",
+		"{N}  <$green:--parse$>        <$cyan: Print parser AST to console$>",
 
 		"{N}{N}<$yellow:Output Options:$>",
 		"{N}  <$green:-p, --print$>    <$cyan: Print output to console (stdout)$>",
