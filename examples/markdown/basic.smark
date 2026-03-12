@@ -1,0 +1,43 @@
+[Block] (SomMark: Markdown Showcase)->(h1) [end]
+
+[Block]
+This example demonstrates SomMark's support for standard Markdown features when using the `--markdown` format.
+[end]
+
+[Block] (Formatting)->(h2) [end]
+
+[Block]
+You can use (bold text)->(bold), (italic text)->(italic), and (emphasis)->(emphasis) easily.
+[end]
+
+[Block] (Lists)->(h2) [end]
+
+[Block]
+@_list_@
+- Item 1
+- Item 2
+    - Sub-item A
+    - Sub-item B
+- Item 3
+@_end_@
+[end]
+
+[Block] (Code blocks)->(h2) [end]
+
+[Block]
+@_Code_@: javascript;
+function hello() {
+  console.log("Hello from SomMark!");
+}
+@_end_@
+[end]
+
+[Block] (Tables)->(h2) [end]
+
+[Block]
+@_table_@: Feature, Status, Priority;
+Markdown Support, Done, High
+HTML Support, Done, High
+JSON Support, Done, Medium
+@_end_@
+[end]
