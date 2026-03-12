@@ -1,0 +1,17 @@
+[Block] (Daily Project Tasks)->(h1) [end]
+
+[Block] (Project: SomMark v3.0)->(h2) [end]
+
+[Block]
+(done)->(todo: Implement dynamic HTML tag registration)
+(done)->(todo: Add full Markdown support)
+(x)->(todo: Refactor identifier validation)
+(-)->(todo: Implement block newline enforcement)
+(-)->(todo: Release Beta version)
+[end]
+
+[Block] (Notes)->(h2) [end]
+
+[Block]
+Remember to (verify all tests)->(italic) before pushing any changes to the main branch.
+[end]
