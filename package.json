@@ -13,7 +13,9 @@
 	"scripts": {
 		"test": "vitest",
 		"test:run": "vitest run",
-		"test:watch": "vitest watch"
+		"test:watch": "vitest watch",
+		"release": "bash scripts/release.sh",
+		"publish": "bash scripts/publish.sh"
 	},
 	"bin": {
 		"sommark": "cli/cli.mjs"
