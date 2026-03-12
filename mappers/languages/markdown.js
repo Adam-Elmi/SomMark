@@ -1,13 +1,21 @@
 import Mapper from "../mapper.js";
+
 const MARKDOWN = new Mapper();
 const { md, safeArg } = MARKDOWN;
 // Block
-MARKDOWN.register(["Block", "block", "Section", "section"], ({ content }) => {
+MARKDOWN.register("Block", ({ content }) => {
 	return content;
+});
+// Quote
+MARKDOWN.register(["quote", "blockquote"], ({ content }) => {
+	return "\n" + content.trimEnd()
+		.split("\n")
+		.map(line => `> ${line}`)
+		.join("\n");
 });
 // Headings
 MARKDOWN.register(
-	["Heading", "heading"],
+	"Heading",
 	({ args, content }) => {
 		const level = safeArg(args, 0, "level", "number", Number, 1);
 		const title = safeArg(args, 1, "title", null, null, "");
@@ -34,20 +42,20 @@ MARKDOWN.register(
 	}
 );
 // Bold
-MARKDOWN.register(["bold", "b"], ({ content }) => {
+MARKDOWN.register("bold", ({ content }) => {
 	return md.bold(content);
 });
 // Italic
-MARKDOWN.register(["italic", "i"], ({ content }) => {
+MARKDOWN.register("italic", ({ content }) => {
 	return md.italic(content);
 });
 // Bold and Italic (emphasis)
-MARKDOWN.register(["emphasis", "e"], ({ content }) => {
+MARKDOWN.register("emphasis", ({ content }) => {
 	return md.emphasis(content);
 });
 // Code Blocks
 MARKDOWN.register(
-	["code", "Code", "codeBlock", "CodeBlock"],
+	"Code",
 	({ args, content }) => {
 		const lang = safeArg(args, 0, "lang", null, null, "text");
 		return md.codeBlock(content, lang);
@@ -61,7 +69,7 @@ MARKDOWN.register(
 );
 // Link
 MARKDOWN.register(
-	["link", "Link"],
+	"url",
 	({ args, content }) => {
 		const url = safeArg(args, 0, "url", null, null, "");
 		const title = safeArg(args, 1, "title", null, null, "");
@@ -75,7 +83,7 @@ MARKDOWN.register(
 );
 // Image
 MARKDOWN.register(
-	["image", "Image"],
+	"image",
 	({ args, content }) => {
 		const url = safeArg(args, 0, "url", null, null, "");
 		const title = safeArg(args, 1, "title", null, null, "");
@@ -89,7 +97,7 @@ MARKDOWN.register(
 );
 // Horizontal Rule
 MARKDOWN.register(
-	["horizontal", "hr", "h"],
+	"hr",
 	({ args }) => {
 		const fmt = safeArg(args, 0, undefined, null, null, "*");
 		return md.horizontal(fmt);
@@ -101,12 +109,12 @@ MARKDOWN.register(
 	}
 );
 // Escape Characters
-MARKDOWN.register(["escape", "Escape", "s"], ({ content }) => {
+MARKDOWN.register("escape", ({ content }) => {
 	return md.escape(content);
 });
 // Table
 MARKDOWN.register(
-	"table",
+	"Table",
 	({ args, content }) => {
 		return md.table(
 			args,
@@ -121,7 +129,7 @@ MARKDOWN.register(
 );
 // List
 MARKDOWN.register(
-	["list", "List"],
+	"list",
 	({ content }) => {
 		return content;
 	},
@@ -129,8 +137,10 @@ MARKDOWN.register(
 );
 // Todo
 MARKDOWN.register("todo", ({ args, content }) => {
-	const checked = content === "x" ? true : false;
-	const task = safeArg(args, 0, "task", null, null, "");
+	const isInline = ["done", "x", "X", "-", ""].includes(content.trim().toLowerCase()) && args.length > 0;
+	const status = isInline ? content : (args[0] || "");
+	const task = isInline ? (args[0] || "") : content;
+	const checked = MARKDOWN.todo(status);
 	return md.todo(checked, task);
 });
 export default MARKDOWN;
