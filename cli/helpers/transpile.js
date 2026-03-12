@@ -6,13 +6,14 @@ import parser from "../../core/parser.js";
 import transpiler from "../../core/transpiler.js";
 import HTML from "../../mappers/languages/html.js";
 import MARKDOWN from "../../mappers/languages/markdown.js";
+import GFM from "../../mappers/languages/gfm.js";
 import MDX from "../../mappers/languages/mdx.js";
 import Json from "../../mappers/languages/json.js";
 import { isExist } from "./file.js";
 import { loadConfig } from "./config.js";
-import { htmlFormat, markdownFormat, mdxFormat, jsonFormat } from "../../core/formats.js";
+import { htmlFormat, markdownFormat, mdxFormat, jsonFormat, textFormat, gfmFormat } from "../../core/formats.js";
 
-const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX,  [jsonFormat]: Json};
+const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [gfmFormat]: GFM, [mdxFormat]: MDX, [jsonFormat]: Json, [textFormat]: null };
 
 // ========================================================================== //
 //  Transpile Function                                                        //
@@ -28,11 +29,11 @@ export async function transpile({ src, format, mappingFile = "" }) {
     if (config.mappingFile) {
         mappingFile = config.mappingFile;
     } else {
-      mappingFile = default_mapperFiles[format];
+        mappingFile = default_mapperFiles[format];
     }
 
-    // Check if mappingFile is an object (loaded from config)
-    if (typeof mappingFile === "object" && mappingFile !== null) {
+    // Check if mappingFile is an object (loaded from config) or null (for text format)
+    if ((typeof mappingFile === "object" && mappingFile !== null) || (format === textFormat && mappingFile === null)) {
         return await transpiler({ ast: parser(lexer(src)), format, mapperFile: mappingFile });
     }
 
