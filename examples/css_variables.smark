@@ -1,0 +1,45 @@
+[Block = title:SomMark v3 - CSS Variables Showcase]
+(CSS Variables in SomMark v3)->(h1)
+
+SomMark v3 introduces simplified CSS variable support. You can define variables in the \[Html\] block and use them anywhere without the `\(var\(\)\)` wrapper.
+
+[Html = 
+  --primary-bg: #f0f4f8,
+  --primary-text: #1a365d,
+  --accent: #3182ce,
+  --radius: 12px
+][end]
+
+[div = 
+  background-color: --primary-bg, 
+  color: --primary-text, 
+  padding: 20px, 
+  border-radius: --radius,
+  border: 2px solid --accent
+]
+(Global Variables)->(h2)
+This block uses global variables defined in the `\[Html\]` header.
+Notice how we write `color: --primary-text` instead of `color: \(var\(--primary-text\)\)`.
+[end]
+
+(Scoped Variables)->(h2)
+You can also define and use variables within the same element for better component isolation.
+
+[div = 
+  --local-bg: #fff5f5,
+  --local-border: #feb2b2,
+  background-color: --local-bg,
+  border-left: 5px solid --local-border,
+  padding: 15px,
+  margin-top: 20px
+]
+This container uses locally scoped CSS variables.
+[end]
+
+(Inline Support)->(h2)
+Variables even work in (inline text formatting)->(color: --accent, font-weight: bold).
+
+[footer = text-align: center, margin-top: 40px, color: #718096]
+Built with SomMark v3
+[end]
+[end]
