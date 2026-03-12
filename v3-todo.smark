@@ -1,0 +1,27 @@
+[Block = v3-todo-list]
+(SomMark v3 Goals)->(h1)
+
+# Completed Features & Fixes
+(done)->(todo: Fully support HTML5 components)
+(done)->(todo: Fully support Markdown and MDX formats)
+(done)->(todo: Improve component mappers to allow custom overrides safely)
+(done)->(todo: Fix lexer bugs that caused infinite loops and crashes)
+(done)->(todo: Fix block spacing so paragraphs have correct newlines)
+(done)->(todo: Allow -, _, and $ characters in identifiers)
+(done)->(todo: Ensure generic HTML tags don't overwrite custom components)
+(done)->(todo: Add 'lex' and 'parse' options to the CLI)
+(done)->(todo: Fix --text format error in CLI)
+(done)->(todo: Fix parser mismatch with commas in inline components)
+(done)->(todo: Fix void element nesting issues in showcase examples)
+(done)->(todo: Implement simplified CSS variable support like color: --primary)
+(done)->(todo: Create more showcase examples for documentation)
+(done)->(todo: Implement GFM support: strike, quote, alerts, inline code, sub/sup)
+(done)->(todo: Extended GFM support: Footnotes, Emojis, Mentions, and Issue references)
+(done)->(todo: Auto-generate anchor IDs for headings in HTML mapper)
+(done)->(todo: Separate GFM and Core Markdown into distinct mappers for better compliance)
+(done)->(todo: Add --gfm flag to the CLI and register gfm format)
+(done)->(todo: Fix lexer '=' bug to allow literal equal signs in text)
+(done)->(todo: Fix lexer newline tokenization for multi-line block content)
+(done)->(todo: Fix transpiler to support multi-line prefixing in Markdown format)
+(done)->(todo: Officially release SomMark Version 3)
+[end]
