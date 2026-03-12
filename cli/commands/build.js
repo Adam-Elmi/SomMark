@@ -3,6 +3,7 @@ import path from "node:path";
 import { cliError, formatMessage } from "../../core/errors.js";
 import HTML from "../../mappers/languages/html.js";
 import MARKDOWN from "../../mappers/languages/markdown.js";
+import GFM from "../../mappers/languages/gfm.js";
 import MDX from "../../mappers/languages/mdx.js";
 import Json from "../../mappers/languages/json.js";
 import { extensions } from "../constants.js";
@@ -57,7 +58,7 @@ export async function runBuild(format_option, sourcePath, outputFlag, outputFile
                 let mappingFile = config.mappingFile;
 
                 if (!mappingFile) {
-                    mappingFile = format === "html" ? HTML : format === "markdown" ? MARKDOWN : format === "mdx" ? MDX : format === "json" ? Json : null;
+                    mappingFile = format === "html" ? HTML : format === "markdown" ? MARKDOWN : format === "gfm" ? GFM : format === "mdx" ? MDX : format === "json" ? Json : null;
                 }
 
                 // CLI Overrides
