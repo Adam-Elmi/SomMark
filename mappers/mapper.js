@@ -27,7 +27,7 @@ class Mapper {
 		};
 
 		this.#customHeaderContent = "";
-		
+
 		this.highlightCode = null;
 		this.escapeHTML = escapeHTML;
 		this.styles = [];
@@ -130,8 +130,29 @@ class Mapper {
 			return renderOutput(data);
 		};
 
+		// Prevent duplicate IDs by removing any existing overlap before registering
+		const ids = Array.isArray(id) ? id : [id];
+		for (const singleId of ids) {
+			this.removeOutput(singleId);
+		}
+
 		this.outputs.push({ id, render, options });
 	};
+
+	inherit = (...mappers) => {
+		for (const mapper of mappers) {
+			if (mapper && Array.isArray(mapper.outputs)) {
+				for (const output of mapper.outputs) {
+					const ids = Array.isArray(output.id) ? output.id : [output.id];
+					for (const singleId of ids) {
+						this.removeOutput(singleId);
+					}
+					this.outputs.push(output);
+				}
+			}
+		}
+	};
+
 	removeOutput = id => {
 		this.outputs = this.outputs.filter(output => {
 			if (Array.isArray(output.id)) {
