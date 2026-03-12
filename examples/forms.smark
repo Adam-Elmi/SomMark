@@ -1,0 +1,42 @@
+[Block]
+[Html = title:SomMark - Form Elements, charset:UTF-8][end]
+
+[h1]HTML Forms in SomMark[end]
+This example demonstrates how SomMark handles standard HTML form elements with ease.
+
+[form = action:#, method:POST, background:#f0f8ff, padding:25px, borderRadius:12px, border:1px solid #add8e6]
+    [div = marginBottom:15px]
+        [label = for:name, display:block, fontWeight:bold]Full Name[end]
+        [input = type:text, id:name, name:name, placeholder:Enter your name, width:100%, padding:8px, boxSizing:border-box][end]
+    [end]
+
+    [div = marginBottom:15px]
+        [label = for:email, display:block, fontWeight:bold]Email Address[end]
+        [input = type:email, id:email, name:email, placeholder:example@sommark.org, width:100%, padding:8px, boxSizing:border-box][end]
+    [end]
+
+    [div = marginBottom:15px]
+        [label = for:subject, display:block, fontWeight:bold]Subject[end]
+        [select = id:subject, name:subject, width:100%, padding:8px]
+            [option = value:support]Technical Support[end]
+            [option = value:sales]Sales Inquiry[end]
+            [option = value:other]Other[end]
+        [end]
+    [end]
+
+    [div = marginBottom:15px]
+        [label = for:message, display:block, fontWeight:bold]Message[end]
+        [textarea = id:message, name:message, rows:5, width:100%, padding:8px, boxSizing:border-box, borderRadius:4px]Hello, I would like to learn more about SomMark![end]
+    [end]
+
+    [div = textAlign:right]
+        [button = type:submit, background:#4682b4, color:white, padding:10px 20px, border:none, borderRadius:5px, cursor:pointer, fontWeight:bold]
+            Send Message
+        [end]
+    [end]
+[end]
+
+[footer = textAlign:center, color:#888, padding:20px]
+    Forms powered by [url = url:https\://github.com/Adam-Elmi/SomMark]SomMark[end]
+[end]
+[end]
