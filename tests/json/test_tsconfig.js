@@ -1,7 +1,7 @@
-import Transpiler from "../core/transpiler.js";
-import Lexer from "../core/lexer.js";
-import Parser from "../core/parser.js";
-import JsonMapper from "../mappers/languages/json.js";
+import Transpiler from "../../core/transpiler.js";
+import Lexer from "../../core/lexer.js";
+import Parser from "../../core/parser.js";
+import JsonMapper from "../../mappers/languages/json.js";
 import { readFileSync, writeFile } from "fs";
 
 const inputFile = "examples/tsconfig.smark";

@@ -2,7 +2,6 @@ import Mapper from "../mapper.js";
 import { TEXT } from "../../core/labels.js";
 import { transpilerError } from "../../core/errors.js";
 
-const Json = new Mapper();
 
 // ========================================================================== //
 //  Helpers                                                                   //
@@ -156,17 +155,37 @@ function renderInline(node, parentType) {
 	}
 }
 
+class JsonMapper extends Mapper {
+	constructor() {
+		super();
+	}
+
+	formatOutput(output) {
+		try {
+			return JSON.parse(JSON.stringify(output));
+		} catch (e) {
+			transpilerError([
+				"{line}<$red:JSON Format Error:$> ",
+				`<$yellow:Failed to parse generated JSON output.$>{N}<$cyan:Reason: $> <$magenta:'${e.message}'$>{line}`
+			]);
+			return output;
+		}
+	}
+}
+
+const Json = new JsonMapper();
+
 // ========================================================================== //
 //  Main Registration                                                         //
 // ========================================================================== //
 
 const noop = () => "";
-Json.register(["Object", "Array"], noop);
-Json.register(["string", "number", "bool", "null", "array", "none"], noop);
+Json.register(["Object", "Array"], noop, { type: "Block" });
+Json.register(["string", "number", "bool", "null", "array", "none"], noop, { type: "Inline" });
 
 Json.register("Json", ({ args, content, ast }) => {
 	if (!ast) return "";
 	return processNode(ast, null);
-});
+}, { type: "Block" });
 
 export default Json;

@@ -4,25 +4,59 @@ import { HTML_PROPS } from "../../constants/html_props.js";
 import { VOID_ELEMENTS } from "../../constants/void_elements.js";
 import kebabize from "../../helpers/kebabize.js";
 
-const HTML = new Mapper();
-const { tag, code, list, safeArg } = HTML;
+class HtmlMapper extends Mapper {
+	constructor() {
+		super();
+	}
+	comment(text) {
+		return `<!--${text.replace("#", "")}-->\n`;
+	}
+
+	formatOutput(output, includeDocument) {
+		if (includeDocument) {
+			let finalHeader = this.header;
+			let styleContent = "";
+			const updateStyleTag = style => {
+				if (style) {
+					const styleTag = `<style>\n${style}\n</style>`;
+					if (!finalHeader.includes(styleTag)) {
+						finalHeader += styleTag + "\n";
+					}
+				}
+			};
+
+			// Inject Style Tag if code blocks exist
+			if (this.enable_highlightTheme && (output.includes("<pre") || output.includes("<code"))) {
+				this.addStyle(this.themes[this.currentTheme]);
+			}
+			
+			styleContent = this.styles.join("\n");
+			updateStyleTag(styleContent);
+
+			return `<!DOCTYPE html>\n<html>\n${finalHeader}\n<body>\n${output}\n</body>\n</html>\n`;
+		}
+		return output;
+	}
+}
+
+const HTML = new HtmlMapper();
 
 HTML.register(
 	"Html",
-	({ args }) => {
-		HTML.pageProps.pageTitle = safeArg(args, undefined, "title", null, null, HTML.pageProps.pageTitle);
-		HTML.pageProps.charset = safeArg(args, undefined, "charset", null, null, HTML.pageProps.charset);
-		HTML.pageProps.tabIcon.src = safeArg(args, undefined, "iconSrc", null, null, HTML.pageProps.tabIcon.src);
-		HTML.pageProps.tabIcon.type = safeArg(args, undefined, "iconType", null, null, HTML.pageProps.tabIcon.type);
-		HTML.pageProps.httpEquiv["X-UA-Compatible"] = safeArg(
+	function ({ args }) {
+		this.pageProps.pageTitle = this.safeArg(args, undefined, "title", null, null, this.pageProps.pageTitle);
+		this.pageProps.charset = this.safeArg(args, undefined, "charset", null, null, this.pageProps.charset);
+		this.pageProps.tabIcon.src = this.safeArg(args, undefined, "iconSrc", null, null, this.pageProps.tabIcon.src);
+		this.pageProps.tabIcon.type = this.safeArg(args, undefined, "iconType", null, null, this.pageProps.tabIcon.type);
+		this.pageProps.httpEquiv["X-UA-Compatible"] = this.safeArg(
 			args,
 			undefined,
 			"httpEquiv",
 			null,
 			null,
-			HTML.pageProps.httpEquiv["X-UA-Compatible"]
+			this.pageProps.httpEquiv["X-UA-Compatible"]
 		);
-		HTML.pageProps.viewport = safeArg(args, undefined, "viewport", null, null, HTML.pageProps.viewport);
+		this.pageProps.viewport = this.safeArg(args, undefined, "viewport", null, null, this.pageProps.viewport);
 
 		// Global CSS Variables
 		let cssVars = "";
@@ -33,109 +67,102 @@ HTML.register(
 		});
 
 		if (cssVars) {
-			HTML.addStyle(`:root { ${cssVars} }`);
+			this.addStyle(`:root { ${cssVars} }`);
 		}
 
 		return "";
 	},
 	{
-		rules: {
-			type: "Block"
-		}
+		type: "Block"
 	}
 );
 
 // Block
 HTML.register(
 	"Block",
-	({ content }) => {
+	function ({ content }) {
 		return content;
 	},
 	{
-		rules: {
-			type: "Block"
-		}
+		type: "Block"
 	}
 );
 // Quote
-HTML.register(["quote", "blockquote"], ({ content }) => {
-	return tag("blockquote").body(content);
-});
+HTML.register(["quote", "blockquote"], function ({ content }) {
+	return this.tag("blockquote").body(content);
+}, { type: "Block" });
 // Bold
-HTML.register("bold", ({ content }) => {
-	return tag("strong").body(content);
-});
+HTML.register("bold", function ({ content }) {
+	return this.tag("strong").body(content);
+}, { type: "any" });
 // Strike
-HTML.register("strike", ({ content }) => {
-	return tag("s").body(content);
-});
+HTML.register("strike", function ({ content }) {
+	return this.tag("s").body(content);
+}, { type: "any" });
 // Italic
-HTML.register("italic", ({ content }) => {
-	return tag("i").body(content);
-});
+HTML.register("italic", function ({ content }) {
+	return this.tag("i").body(content);
+}, { type: "any" });
 // Emphasis
-HTML.register("emphasis", ({ content }) => {
-	return tag("span").attributes({ style: "font-weight:bold; font-style: italic;" }).body(content);
-});
+HTML.register("emphasis", function ({ content }) {
+	return this.tag("span").attributes({ style: "font-weight:bold; font-style: italic;" }).body(content);
+}, { type: "any" });
 // Colored Text
-HTML.register("color", ({ args, content }) => {
-	const color = safeArg(args, 0, undefined, null, null, "none");
-	return tag("span")
+HTML.register("color", function ({ args, content }) {
+	const color = this.safeArg(args, 0, undefined, null, null, "none");
+	return this.tag("span")
 		.attributes({ style: `color:${color}` })
 		.body(content);
-});
+}, { type: "any" });
 // Link
-HTML.register("url", ({ args, content }) => {
-	const url = safeArg(args, 0, "url", null, null, "");
-	const title = safeArg(args, 1, "title", null, null, "");
-	return tag("a").attributes({ href: url.trim(), title: title.trim(), target: "_blank" }).body(content);
-});
+HTML.register("url", function ({ args, content }) {
+	const url = this.safeArg(args, 0, "url", null, null, "");
+	const title = this.safeArg(args, 1, "title", null, null, "");
+	return this.tag("a").attributes({ href: url.trim(), title: title.trim(), target: "_blank" }).body(content);
+}, { type: "any" });
 // Code
 HTML.register(
 	"Code",
-	({ args, content }) => {
-		return code(args, content);
+	function ({ args, content }) {
+		return this.code(args, content);
 	},
-	{ escape: false, rules: { type: "AtBlock" } }
+	{ escape: false, type: "AtBlock" }
 );
 // List
 HTML.register(
 	"list",
-	({ content }) => {
-		return list(content);
+	function ({ content }) {
+		return this.list(content);
 	},
-	{ escape: false }
+	{ escape: false, type: "any" }
 );
-// Table
 HTML.register(
 	"Table",
-	({ content, args }) => {
-		return HTML.htmlTable(content.split(/\n/), args, true, false);
+	function ({ content, args }) {
+		return this.htmlTable(content.split(/\n/), args, true, false);
 	},
 	{
 		escape: false,
-		rules: {
-			type: "AtBlock"
-		}
+		type: "AtBlock"
 	}
 );
 // Style
 HTML.register(
 	"Style",
-	({ content }) => {
-		return tag("style").body(content);
+	function ({ content }) {
+		return this.tag("style").body(content);
 	},
-	{ escape: false, rules: { type: "AtBlock" } }
+	{ escape: false, type: "AtBlock" }
 );
 
 // Todo
-HTML.register("todo", ({ args, content }) => {
+HTML.register("todo", function ({ args, content }) {
 	const isInline = ["done", "x", "X", "-", ""].includes(content.trim().toLowerCase()) && args.length > 0;
 	const status = isInline ? content : (args[0] || "");
 	const label = isInline ? (args[0] || "") : content;
-	const checked = HTML.todo(status);
-	return tag("div").body(tag("input").attributes({ type: "checkbox", disabled: true, checked }).selfClose() + " " + (label || ""));
-});
+	const checked = this.todo(status);
+	return this.tag("div").body(this.tag("input").attributes({ type: "checkbox", disabled: true, checked }).selfClose() + " " + (label || ""));
+}, { type: "any" });
 
 HTML_TAGS.forEach(tagName => {
 	const capitalized = tagName.charAt(0).toUpperCase() + tagName.slice(1);
@@ -145,9 +172,9 @@ HTML_TAGS.forEach(tagName => {
 
 	HTML.register(
 		idsToRegister,
-		({ args, content }) => {
-			const element = tag(tagName);
-			let inline_style = "";
+		function ({ args, content }) {
+			const element = this.tag(tagName);
+			let inline_style = args.style ? (args.style.endsWith(";") ? args.style : args.style + ";") : "";
 
 			// Auto-ID for Headings
 			if (/^h[1-6]$/i.test(tagName) && !args.id && content) {
@@ -161,13 +188,15 @@ HTML_TAGS.forEach(tagName => {
 
 			const keys = Object.keys(args).filter(arg => isNaN(arg));
 			keys.forEach(key => {
+				if (key === "style") return; // Already handled
+
 				const isDimensionAttributeSupported = ["img", "video", "svg", "canvas", "iframe", "object", "embed"].includes(tagName);
 				const isWidthOrHeight = key === "width" || key === "height";
 				const isEvent = key.toLowerCase().startsWith("on");
 
-				const k = isEvent ? key.toLowerCase() : HTML_PROPS.has(key) ? key : kebabize(key);
+				const k = isEvent ? key.toLowerCase() : (HTML_PROPS.has(key) || this.extraProps.has(key)) ? key : kebabize(key);
 
-				if (isEvent || (HTML_PROPS.has(key) && (!isWidthOrHeight || isDimensionAttributeSupported)) || k.startsWith("data-") || k.startsWith("aria-")) {
+				if (isEvent || ((HTML_PROPS.has(key) || this.extraProps.has(key)) && (!isWidthOrHeight || isDimensionAttributeSupported)) || k.startsWith("data-") || k.startsWith("aria-")) {
 					element.attributes({ [k]: args[key] });
 				} else {
 					inline_style += `${k}:${args[key]};`;
@@ -184,11 +213,13 @@ HTML_TAGS.forEach(tagName => {
 			return element.body(content);
 		},
 		{
+			type: VOID_ELEMENTS.has(tagName) ? "Block" : ["Block", "Inline"],
 			rules: {
-				is_Self_closing: VOID_ELEMENTS.has(tagName)
+				is_self_closing: VOID_ELEMENTS.has(tagName)
 			}
 		}
 	);
 });
+
 
 export default HTML;

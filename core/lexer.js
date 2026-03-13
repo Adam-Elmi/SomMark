@@ -54,8 +54,8 @@ function concatText(input, index, scope_state, extraConditions = []) {
 				["]", !scope_state],
 				["(", !scope_state],
 				["-", peek(input, i, 1) === ">" && !scope_state],
-				["@", peek(input, i, 1) === "_"],
-				["_", peek(input, i, 1) === "@"],
+				["@", peek(input, i, 1) === "_" && (!scope_state || (peek(input, i, 2) === "e" && peek(input, i, 3) === "n" && peek(input, i, 4) === "d" && peek(input, i, 5) === "_"))],
+				["_", peek(input, i, 1) === "@" && !scope_state],
 				["#", !scope_state],
 				["\\", true]
 			];
@@ -65,11 +65,6 @@ function concatText(input, index, scope_state, extraConditions = []) {
 				break;
 			}
 			text += char;
-		}
-		if (!text) {
-			sommarkError([
-				`{line}From: <$magenta:concatText function:$>{N}<$red:Concatenation failed:$> string value is  <$yellow:'${text}'$>{line}`
-			]);
 		}
 		return text;
 	} else {
@@ -113,24 +108,24 @@ function concatEscape(input, index) {
 	];
 	let WHITESPACE_SET = new Set(WHITESPACES);
 	if ((Array.isArray(input) || typeof input === "string") && input.length > 0 && typeof index === "number") {
-		if (input[index] === "\\" && peek(input, index, 1)) {
-			str += "\\" + peek(input, index, 1);
+		const nextChar = peek(input, index, 1);
+		if (input[index] === "\\" && nextChar !== null) {
+			str += "\\" + nextChar;
 		} else {
-			sommarkError(["{line}<$red:Next character is not found:$> <$yellow:There is no character after escape character!$>{line}"]);
-		}
-		if (!str) {
-			sommarkError([
-				`{line}From: <$magenta:concatEscape function:$>{N}<$red:Concatenation failed:$> string value is  <$yellow:'${str}'$>{line}`
+			lexerError([
+				"{line}<$red:Invalid escape sequence$>{N}",
+				"<$yellow:Escape character '\\' must be followed immediately by a character.$>{N}",
+				nextChar === null ? "<$yellow:Found end of file after escape character$>" : "<$yellow:Missing character after escape character$>",
+				"{line}"
 			]);
 		}
 		if (WHITESPACE_SET.has(str[1])) {
 			const matchedCharacter = Array.from(WHITESPACE_SET).find(ch => ch === str[1]);
 			lexerError([
-				`{line}<$red:Invalid escape sequence$>{N}
-<$yellow:Escape character '\\' must be followed immediately by a character.$>{N}
-<$yellow:Found$> <$blue:${JSON.stringify(matchedCharacter)}$> <$yellow:after escape character$>
-{line}
-`
+				"{line}<$red:Invalid escape sequence$>{N}",
+				"<$yellow:Escape character '\\' must be followed immediately by a character.$>{N}",
+				`<$yellow:Found$> <$blue:${JSON.stringify(matchedCharacter)}$> <$yellow:after escape character$>{N}`,
+				"{line}"
 			]);
 		}
 		return str;
@@ -161,11 +156,6 @@ function concatChar(input, index, stop_at_char) {
 				"{line}<$red:Invalid Type:$> <$yellow:Argument 'stop_at_char' must be an array and have to be not empty array$>{line}"
 			]);
 		}
-		if (!str) {
-			sommarkError([
-				`{line}From: <$magenta:concatChar function:$>{N}<$red:Concatenation failed:$> string value is  <$yellow:'${str}'$>{line}`
-			]);
-		}
 		return str;
 	} else {
 		sommarkError([
@@ -186,6 +176,16 @@ function lexer(src) {
 		let context = "",
 			temp_str = "",
 			previous_value = "";
+
+		function validateIdentifier(id, type = "Identifier") {
+			if (!/^[a-zA-Z0-9\-_$]+$/.test(id.trim())) {
+				lexerError([
+					`{line}<$red:Invalid ${type}:$>{N}`,
+					`<$yellow:Identifiers can only contain letters, numbers, underscores (_), dollar signs ($), and hyphens (-). Got$> <$blue:'${id.trim()}'$>{N}`,
+					"{line}"
+				]);
+			}
+		}
 
 		function addToken(type, value) {
 			tokens.push({ type, value, line, start, end, depth: depth_stack.length });
@@ -284,7 +284,11 @@ function lexer(src) {
 			// ========================================================================== //
 			//  Token: Open At '@_'                                                       //
 			// ========================================================================== //
-			else if (current_char === "@" && peek(src, i, 1) === "_") {
+			else if (
+				current_char === "@" &&
+				peek(src, i, 1) === "_" &&
+				(!scope_state || (peek(src, i, 2) === "e" && peek(src, i, 3) === "n" && peek(src, i, 4) === "d" && peek(src, i, 5) === "_"))
+			) {
 				temp_str = current_char + peek(src, i, 1);
 				i += temp_str.length - 1;
 				// Update Metadata
@@ -411,10 +415,12 @@ function lexer(src) {
 			//  Count Newlines                                                            //
 			// ========================================================================== //
 			else if (current_char === "\n") {
-				line++;
-				start = 1;
-				end = 0;
-				continue;
+				if (!scope_state) {
+					line++;
+					start = 1;
+					end = 0;
+					continue;
+				}
 			}
 			// ========================================================================== //
 			//  +++++++++++++++++                                                        //
@@ -429,8 +435,12 @@ function lexer(src) {
 					// Update Metadata
 					updateMetadata(temp_str);
 					if (temp_str.trim()) {
+						const trimmedStr = temp_str.trim();
+						if (trimmedStr !== end_keyword) {
+							validateIdentifier(trimmedStr, "Block Identifier");
+						}
 						// Add Token
-						addToken(TOKEN_TYPES.IDENTIFIER, temp_str);
+						addToken(TOKEN_TYPES.IDENTIFIER, trimmedStr);
 						// Update Previous Value
 						previous_value = block_id;
 					}
@@ -454,7 +464,9 @@ function lexer(src) {
 						// Add token
 						switch (nextToken) {
 							case ":":
-								addToken(TOKEN_TYPES.IDENTIFIER, temp_str);
+								const trimmedKey = temp_str.trim();
+								validateIdentifier(trimmedKey, "Argument Key");
+								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey);
 								previous_value = block_id_2;
 								break;
 							default:
@@ -477,11 +489,15 @@ function lexer(src) {
 						// Add Token
 						switch (nextToken) {
 							case ":":
-								addToken(TOKEN_TYPES.IDENTIFIER, temp_str);
+								const trimmedKey = temp_str.trim();
+								validateIdentifier(trimmedKey, "Argument Key");
+								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey);
 								previous_value = inline_id_2;
 								break;
 							default:
-								addToken(TOKEN_TYPES.IDENTIFIER, temp_str);
+								const trimmedId = temp_str.trim();
+								validateIdentifier(trimmedId, "Inline Identifier");
+								addToken(TOKEN_TYPES.IDENTIFIER, trimmedId);
 								previous_value = inline_id;
 								break;
 						}
@@ -512,13 +528,17 @@ function lexer(src) {
 				//  Token: At Identifier                                                      //
 				// ========================================================================== //
 				else if (previous_value === "@_") {
-					temp_str = concatChar(src, i, ["_"]);
+					temp_str = concatChar(src, i, ["_", ":"]);
 					i += temp_str.length - 1;
 					// Update Metadata
 					updateMetadata(temp_str);
 					if (temp_str.trim()) {
+						const trimmedStr = temp_str.trim();
+						if (trimmedStr !== end_keyword) {
+							validateIdentifier(trimmedStr, "At-Block Identifier");
+						}
 						// Add Token
-						addToken(TOKEN_TYPES.IDENTIFIER, temp_str);
+						addToken(TOKEN_TYPES.IDENTIFIER, trimmedStr);
 						previous_value = at_id;
 					}
 				}
@@ -534,7 +554,9 @@ function lexer(src) {
 					if (temp_str.trim()) {
 						switch (nextToken) {
 							case ":":
-								addToken(TOKEN_TYPES.IDENTIFIER, temp_str);
+								const trimmedKey = temp_str.trim();
+								validateIdentifier(trimmedKey, "Argument Key");
+								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey);
 								previous_value = at_id_2;
 								break;
 							default:

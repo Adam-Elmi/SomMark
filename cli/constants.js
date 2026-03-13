@@ -2,13 +2,12 @@
 //  CLI Constants                                                             //
 // ========================================================================== //
 
-export const options = ["-v", "--version", "-h", "--help", "--html", "--markdown", "--gfm", "--mdx", "--json", "--text", "--print", "-p", "--lex", "--parse"];
+export const options = ["-v", "--version", "-h", "--help", "--html", "--markdown", "--mdx", "--json", "--text", "--print", "-p", "--lex", "--parse"];
 
 export const extensions = {
 	text: "txt",
 	html: "html",
 	markdown: "md",
 	mdx: "mdx",
-	json: "json",
-	gfm: "md"
+	json: "json"
 };

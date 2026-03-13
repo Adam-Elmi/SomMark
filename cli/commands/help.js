@@ -15,6 +15,7 @@ export function getHelp(unknown_option = true) {
 		"{N}  <$green:-v, --version$>  <$cyan: Show version information$>",
 		"{N}  <$green:init$>           <$cyan: Initialize global SomMark configuration directory$>",
 		"{N}  <$green:show config$>    <$cyan: Display the absolute paths to the active SomMark configuration files$>",
+		"{N}  <$green:color on|off$>   <$cyan: Enable or disable colored output$>",
 
 		"{N}{N}<$yellow:Transpilation Options:$>",
 		"{N}<$yellow:Usage:$> <$blue:sommark [option] [targetFile] [option] [outputFile] [outputDir]$>",

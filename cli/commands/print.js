@@ -1,8 +1,8 @@
 import { cliError, formatMessage } from "../../core/errors.js";
 import { isExist, readContent } from "../helpers/file.js";
 import { transpile } from "../helpers/transpile.js";
-import lexer from "../../core/lexer.js";
-import parser from "../../core/parser.js";
+import SomMark from "../../index.js";
+import { loadConfig } from "../helpers/config.js";
 import path from "node:path";
 
 // ========================================================================== //
@@ -32,7 +32,16 @@ export async function printLex(filePath) {
     const fileName = path.basename(filePath);
     console.log(formatMessage(`{line}<$blue: Printing tokens for$> <$yellow:'${fileName}'$>{line}`));
     const source_code = await readContent(filePath);
-    const tokens = lexer(source_code.toString());
+    const config = await loadConfig();
+
+    const smark = new SomMark({
+      src: source_code.toString(),
+      format: "text",
+      plugins: config.plugins,
+      priority: config.priority
+    });
+
+    const tokens = await smark.lex();
     console.log(JSON.stringify(tokens, null, 2));
   } else {
     cliError([`{line}<$red:File$> <$blue:'${filePath}'$> <$red: is not found$>{line}`]);
@@ -47,7 +56,16 @@ export async function printParse(filePath) {
     const fileName = path.basename(filePath);
     console.log(formatMessage(`{line}<$blue: Printing AST for$> <$yellow:'${fileName}'$>{line}`));
     const source_code = await readContent(filePath);
-    const ast = parser(lexer(source_code.toString()));
+    const config = await loadConfig();
+
+    const smark = new SomMark({
+      src: source_code.toString(),
+      format: "text",
+      plugins: config.plugins,
+      priority: config.priority
+    });
+
+    const ast = await smark.parse();
     console.log(JSON.stringify(ast, null, 2));
   } else {
     cliError([`{line}<$red:File$> <$blue:'${filePath}'$> <$red: is not found$>{line}`]);

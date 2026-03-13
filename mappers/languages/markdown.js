@@ -1,18 +1,27 @@
 import Mapper from "../mapper.js";
 
-const MARKDOWN = new Mapper();
+class MarkdownMapper extends Mapper {
+	constructor() {
+		super();
+	}
+	comment(text) {
+		return `<!--${text.replace("#", "")}-->\n`;
+	}
+}
+
+const MARKDOWN = new MarkdownMapper();
 const { md, safeArg } = MARKDOWN;
 // Block
 MARKDOWN.register("Block", ({ content }) => {
 	return content;
-});
+}, { type: "Block" });
 // Quote
 MARKDOWN.register(["quote", "blockquote"], ({ content }) => {
 	return "\n" + content.trimEnd()
 		.split("\n")
 		.map(line => `> ${line}`)
 		.join("\n");
-});
+}, { type: "Block" });
 // Headings
 MARKDOWN.register(
 	"Heading",
@@ -22,9 +31,7 @@ MARKDOWN.register(
 		return md.heading(title, level) + content;
 	},
 	{
-		rules: {
-			type: "Block"
-		}
+		type: "Block"
 	}
 );
 // Inline Headings
@@ -36,23 +43,21 @@ MARKDOWN.register(
 		});
 	},
 	{
-		rules: {
-			type: "Inline"
-		}
+		type: "Inline"
 	}
 );
 // Bold
 MARKDOWN.register("bold", ({ content }) => {
 	return md.bold(content);
-});
+}, { type: "any" });
 // Italic
 MARKDOWN.register("italic", ({ content }) => {
 	return md.italic(content);
-});
+}, { type: "any" });
 // Bold and Italic (emphasis)
 MARKDOWN.register("emphasis", ({ content }) => {
 	return md.emphasis(content);
-});
+}, { type: "any" });
 // Code Blocks
 MARKDOWN.register(
 	"Code",
@@ -62,9 +67,7 @@ MARKDOWN.register(
 	},
 	{
 		escape: false,
-		rules: {
-			type: "AtBlock"
-		}
+		type: "AtBlock"
 	}
 );
 // Link
@@ -76,9 +79,7 @@ MARKDOWN.register(
 		return md.url("link", content, url, title);
 	},
 	{
-		rules: {
-			type: "Inline"
-		}
+		type: "Inline"
 	}
 );
 // Image
@@ -90,9 +91,7 @@ MARKDOWN.register(
 		return md.url("image", content, url, title);
 	},
 	{
-		rules: {
-			type: "Inline"
-		}
+		type: "Inline"
 	}
 );
 // Horizontal Rule
@@ -103,15 +102,13 @@ MARKDOWN.register(
 		return md.horizontal(fmt);
 	},
 	{
-		rules: {
-			type: "Block"
-		}
+		type: "Block"
 	}
 );
 // Escape Characters
 MARKDOWN.register("escape", ({ content }) => {
 	return md.escape(content);
-});
+}, { type: "any" });
 // Table
 MARKDOWN.register(
 	"Table",
@@ -125,7 +122,7 @@ MARKDOWN.register(
 				.map(line => line.trim())
 		);
 	},
-	{ escape: false, rules: { type: "AtBlock" } }
+	{ escape: false, type: "AtBlock" }
 );
 // List
 MARKDOWN.register(
@@ -133,7 +130,7 @@ MARKDOWN.register(
 	({ content }) => {
 		return content;
 	},
-	{ escape: false, rules: { type: "AtBlock" } }
+	{ escape: false, type: "AtBlock" }
 );
 // Todo
 MARKDOWN.register("todo", ({ args, content }) => {
@@ -142,5 +139,5 @@ MARKDOWN.register("todo", ({ args, content }) => {
 	const task = isInline ? (args[0] || "") : content;
 	const checked = MARKDOWN.todo(status);
 	return md.todo(checked, task);
-});
+}, { type: "any" });
 export default MARKDOWN;

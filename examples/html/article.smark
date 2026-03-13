@@ -1,0 +1,271 @@
+[Block]
+[Html =
+  title: SomMark — The Future of Web Semantics,
+  --primary: #1a56db,
+  --accent: #f59e0b,
+  --bg: #f1f5f9,
+  --text: #0f172a,
+  --muted: #64748b,
+  --card: #ffffff
+][end]
+
+@_Style_@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.75; font-size: 1rem; }
+a { color: var(--primary); }
+
+/* Layout */
+.site-header { background: var(--primary); color: #fff; padding: 14px 40px; display: flex; justify-content: space-between; align-items: center; }
+.site-header hgroup p { font-size: .85rem; opacity: .8; }
+.site-header a { color: rgba(255,255,255,.85); text-decoration: none; margin-left: 22px; font-weight: 500; transition: color .2s; }
+.site-header a:hover { color: #fff; }
+.layout { max-width: 1160px; margin: 48px auto; padding: 0 24px; display: grid; grid-template-columns: 1fr 320px; gap: 48px; }
+@media (max-width: 768px) { .layout { grid-template-columns: 1fr; } }
+
+/* Article */
+article { background: var(--card); padding: 48px; border-radius: 16px; box-shadow: 0 1px 8px rgba(0,0,0,.06); }
+.post-meta { font-size: .875rem; color: var(--muted); margin: 14px 0 32px; display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+.post-meta address { font-style: normal; }
+section { margin-top: 40px; }
+section > h2 { font-size: 1.4rem; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--bg); }
+p { margin-bottom: 14px; }
+
+/* Media */
+figure { margin: 28px 0; }
+figure img { width: 100%; border-radius: 12px; display: block; }
+figcaption { font-size: .8rem; color: var(--muted); text-align: center; margin-top: 8px; font-style: italic; }
+
+/* Quote */
+blockquote { margin: 24px 0; padding: 16px 22px; border-left: 4px solid var(--primary); background: #eff6ff; border-radius: 0 10px 10px 0; color: #1e40af; }
+blockquote cite { display: block; margin-top: 8px; font-size: .85rem; color: var(--muted); font-style: normal; }
+
+/* Inline semantics */
+mark { background: #fef9c3; padding: 0 3px; border-radius: 2px; }
+del { color: #dc2626; }
+ins { color: #16a34a; text-decoration-color: #16a34a; }
+abbr { text-decoration: underline dotted; cursor: help; }
+kbd { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 4px; padding: 1px 6px; font-family: monospace; font-size: .85em; }
+code { background: #f1f5f9; border-radius: 4px; padding: 2px 6px; font-family: monospace; font-size: .9em; color: #0f172a; }
+samp { font-family: monospace; color: #0369a1; }
+
+/* Details */
+details { margin: 24px 0; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+summary { padding: 14px 18px; background: #f8fafc; cursor: pointer; font-weight: 600; list-style: none; }
+summary::before { content: "▶ "; font-size: .75em; }
+details[open] summary { background: #eff6ff; color: var(--primary); }
+details[open] summary::before { content: "▼ "; }
+.details-body { padding: 16px 20px; }
+
+/* Sidebar */
+aside { align-self: start; position: sticky; top: 24px; display: flex; flex-direction: column; gap: 24px; }
+.widget { background: var(--card); padding: 22px; border-radius: 14px; box-shadow: 0 1px 8px rgba(0,0,0,.06); }
+.widget > h3 { font-size: .95rem; font-weight: 700; color: var(--primary); margin-bottom: 12px; }
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { background: #eff6ff; color: var(--primary); padding: 3px 10px; border-radius: 20px; font-size: .78rem; font-weight: 600; }
+nav.toc a { display: block; font-size: .875rem; padding: 5px 0; border-bottom: 1px solid #f1f5f9; text-decoration: none; }
+nav.toc a:hover { color: var(--accent); }
+
+/* Footer */
+.site-footer { text-align: center; padding: 28px; color: var(--muted); font-size: .875rem; border-top: 1px solid #e2e8f0; margin-top: 24px; }
+@_end_@
+
+[header = class: site-header]
+  [hgroup]
+    (SomMark)->(h1)
+    (Declarative HTML5 Markup Language)->(p)
+  [end]
+  [nav]
+    (Home)->(url: #)
+    (Docs)->(url: #docs)
+    (Examples)->(url: #examples)
+    (GitHub)->(url: https://github.com/Adam-Elmi/SomMark, SomMark on GitHub)
+  [end]
+[end]
+
+[main = class: layout]
+  [article]
+    [hgroup]
+      (The Future of Web Semantics)->(h1)
+      (Why structured, declarative content wins in the long run)->(p)
+    [end]
+
+    [div = class: post-meta]
+      [span]
+        By
+        [address = display: inline]
+          (Adam Elmi)->(url: https://github.com/Adam-Elmi, View author profile)
+        [end]
+      [end]
+      [span]Published [time = datetime: 2026-03-13]March 13, 2026[end][end]
+      [span]Updated [ins][time = datetime: 2026-03-13]March 13, 2026[end][end][end]
+      [span]Reading time: [time = datetime: PT5M]~5 min[end][end]
+    [end]
+
+    [figure]
+      [img =
+        src: https\://images.unsplash.com/photo-1498050108023-c5249f4df085?w=900,
+        alt: Developer writing structured markup on a laptop,
+        loading: lazy,
+        decoding: async
+      ][end]
+      [figcaption]
+        Structured content enables better tooling, accessibility, and long-term maintainability.
+      [end]
+    [end]
+
+    [section]
+      (Introduction)->(h2)
+      [p]
+        The web was built on [abbr = title: HyperText Markup Language]HTML[end], a format
+        designed for [dfn]hyperlinked documents[end]. Over decades, HTML evolved from a simple
+        document format into the backbone of rich interactive applications.
+      [end]
+      [p]
+        SomMark takes this further — giving you a (declarative)->(mark),
+        (structured)->(bold) way to author content that compiles to clean, semantic HTML5.
+        No build tools required. No configuration needed to get started.
+      [end]
+    [end]
+
+    [section]
+      (Why Semantics Matter)->(h2)
+      [blockquote]
+        Semantic HTML is not merely about correctness — it communicates (intent)->(em)
+        to browsers, assistive technologies, and search engines alike.
+        [cite]W3C Web Accessibility Initiative[end]
+      [end]
+      [p]
+        Consider the difference between a [code]div[end] soup page and one structured with
+        [code]article[end], [code]section[end], [code]nav[end], and [code]aside[end].
+        Screen readers, crawlers, and developer tools all benefit from proper semantics.
+      [end]
+      [p]
+        Performance gains are [del]negligible[end] — they are [ins]measurable and
+        significant[ins]. A well-structured page indexes (3×)->(sup) better according to
+        [cite]Google Search Central documentation[end].
+      [end]
+    [end]
+
+    [section]
+      (Scientific Notation: Sub & Sup Elements)->(h2)
+      [p]
+        Water molecule: H(2)->(sub)O. Carbon dioxide: CO(2)->(sub).
+        Einstein's equation: E = mc(2)->(sup). Footnote reference(1)->(sup).
+        Sulfate ion: SO(4)->(sub)(2−)->(sup). Caffeine: C(8)->(sub)H(10)->(sub)N(4)->(sub)O(2)->(sub).
+      [end]
+    [end]
+
+    [section]
+      (Keyboard & Code Conventions)->(h2)
+      [p]
+        Save your file: [kbd]Ctrl[end] + [kbd]S[end].
+        Command palette: [kbd]Ctrl[end] + [kbd]Shift[end] + [kbd]P[end].
+        Run tests: [kbd]npm[end] [kbd]run[end] [kbd]test[end].
+      [end]
+      [p]
+        Expected terminal output: [samp]✓ 246 tests passed (246)[end].
+        The variable [var]n[end] represents item count.
+        Inline code: [code]const smark = new SomMark({ src, format: "html" })[end].
+      [end]
+    [end]
+
+    [section]
+      (Edits, Annotations & Text Direction)->(h2)
+      [p]
+        Original price: [del]$149.99[end], now [ins]$99.00[end].
+        This paragraph has [mark]highlighted content for review[end].
+        Inline quote: [q]SomMark makes HTML authoring a pleasure.[end]
+      [end]
+      [p]
+        Arabic isolated: [bdi]مرحبا[end] in a Latin sentence.
+        Forced RTL: [bdo = dir: rtl]SomMark is amazing[end].
+        Japanese with ruby: [ruby]漢字[rt]Kanji[end][end].
+        Abbreviated: [abbr = title: Cascading Style Sheets]CSS[end] and
+        [abbr = title: Document Object Model]DOM[end] work together.
+      [end]
+    [end]
+
+    [section]
+      (Miscellaneous Inline Elements)->(h2)
+      [p]
+        (Small print:)->(small) terms and conditions apply.
+        [u]Stylistically offset text[end] such as a misspelled word.
+        [s]This offer has expired.[end]
+        [b]Bold without semantic importance[end] vs (semantically strong)->(bold).
+        [i]Idiomatic text or technical term[end] vs (emphasised)->(italic).
+        Long compound: auto[wbr][end]generated[wbr][end]identifier.
+      [end]
+    [end]
+
+    [details]
+      [summary]Expand: Advanced SomMark Concepts[end]
+      [div = class: details-body]
+        [p]
+          The [code]details[end] and [code]summary[end] elements create native
+          disclosure widgets with (zero JavaScript)->(bold). Fully accessible and
+          keyboard-navigable — just press (Space)->(kbd) or (Enter)->(kbd).
+        [end]
+        [p]
+          SomMark supports every HTML5 structural element. You can nest
+          [code]section[end], [code]article[end], and [code]aside[end] to any depth,
+          and the transpiler produces well-formed, standards-compliant output.
+        [end]
+      [end]
+    [end]
+  [end]
+
+  [aside]
+    [div = class: widget]
+      (About the Author)->(h3)
+      [address]
+        (Adam Elmi)->(bold)
+        [br][end]
+        Creator of SomMark.
+        [br][end]
+        (github.com/Adam-Elmi)->(url: https://github.com/Adam-Elmi)
+      [end]
+    [end]
+
+    [div = class: widget]
+      (Topics)->(h3)
+      [div = class: tag-cloud]
+        [span = class: tag]HTML5[end]
+        [span = class: tag]Semantics[end]
+        [span = class: tag]SomMark[end]
+        [span = class: tag]Accessibility[end]
+        [span = class: tag]Web Standards[end]
+        [span = class: tag]Markup[end]
+      [end]
+    [end]
+
+    [div = class: widget]
+      (Table of Contents)->(h3)
+      [nav = class: toc]
+        (Introduction)->(url: #introduction)
+        (Why Semantics Matter)->(url: #why-semantics-matter)
+        (Sub & Sup Notation)->(url: #scientific-notation-sub--sup-elements)
+        (Keyboard Conventions)->(url: #keyboard--code-conventions)
+        (Edits & Annotations)->(url: #edits-annotations--text-direction)
+        (Misc Inline Elements)->(url: #miscellaneous-inline-elements)
+      [end]
+    [end]
+
+    [div = class: widget]
+      (Article Stats)->(h3)
+      [label = for: art-progress, display: block, margin-bottom: 6px, font-size: .85rem, color: var(--muted)]
+        Average read completion
+      [end]
+      [progress = id: art-progress, value: 72, max: 100, width: 100%][end]
+      [p = font-size: .8rem, color: var(--muted), margin-top: 6px]72% of readers finish this article.[end]
+    [end]
+  [end]
+[end]
+
+[footer = class: site-footer]
+  (SomMark v3 — Declarative HTML5. Built with ♥ by Adam Elmi.)->(small)
+  [br][end]
+  [small]
+    [span = id: ref-1](1)->(sup)[end] Benchmark figures are illustrative.
+  [end]
+[end]
+[end]

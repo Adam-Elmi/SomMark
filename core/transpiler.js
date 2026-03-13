@@ -3,210 +3,104 @@ import escapeHTML from "../helpers/escapeHTML.js";
 import { transpilerError } from "./errors.js";
 import { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat } from "./formats.js";
 
-const expose_for_fmts = [jsonFormat];
+const BODY_PLACEHOLDER = `__SOMMARK_BODY_PLACEHOLDER_${Math.random().toString(36).slice(2)}__`;
 
 // ========================================================================== //
 //  Extracting target identifier                                              //
 // ========================================================================== //
 function matchedValue(outputs, targetId) {
-	let result;
-	for (const outputValue of outputs) {
-		if (typeof outputValue.id === "string") {
-			if (outputValue.id === targetId) {
-				result = outputValue;
-				break;
-			}
-		} else if (Array.isArray(outputValue.id)) {
-			for (const id of outputValue.id) {
-				if (id === targetId) {
-					result = outputValue;
-					break;
-				}
-			}
+	if (!outputs || !targetId) return undefined;
+	const targetLower = targetId.toLowerCase();
+	return outputs.find(output => {
+		if (Array.isArray(output.id)) {
+			return output.id.some(id => id.toLowerCase() === targetLower);
 		}
-	}
-	return result;
+		return typeof output.id === "string" && output.id.toLowerCase() === targetLower;
+	});
 }
 
-function validateRules(target, args, content, type = null) {
-	if (!target || !target.options || !target.options.rules) {
-		return;
-	}
-	const { rules } = target.options;
-	const { id } = target;
-
-	// Validate Args
-	if (args && rules.args) {
-		const { min, max, required, includes } = rules.args;
-		const argKeys = Object.keys(args).filter(key => isNaN(parseInt(key))); // Get named keys
-		const argValues = Object.values(args);
-		const argCount = args.length;
-
-		// Min Check
-		if (min && argCount < min) {
-			transpilerError([
-				"{line}<$red:Validation Error:$> ",
-				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:requires at least$> <$green:${min}$> <$yellow:argument(s). Found$> <$red:${argCount}$>{line}`
-			]);
-		}
-		// Max Check
-		if (max && argCount > max) {
-			transpilerError([
-				"{line}<$red:Validation Error:$> ",
-				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:accepts at most$> <$green:${max}$> <$yellow:argument(s). Found$> <$red:${argCount}$>{line}`
-			]);
-		}
-		// Required Keys Check
-		if (required && Array.isArray(required)) {
-			const missingKeys = required.filter(key => !Object.prototype.hasOwnProperty.call(args, key));
-			if (missingKeys.length > 0) {
-				transpilerError([
-					"{line}<$red:Validation Error:$> ",
-					`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:is missing required argument(s):$> <$red:${missingKeys.join(", ")}$>{line}`
-				]);
-			}
-		}
-		// Includes Keys Check
-		if (includes && Array.isArray(includes)) {
-			const invalidKeys = argKeys.filter(key => !includes.includes(key));
-			if (invalidKeys.length > 0) {
-				transpilerError([
-					"{line}<$red:Validation Error:$> ",
-					`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:contains invalid argument key(s):$> <$red:${invalidKeys.join(", ")}$>`,
-					`{N}<$yellow:Allowed keys are:$> <$green:${includes.join(", ")}$>{line}`
-				]);
-			}
-		}
-	}
-
-	// Validate Content
-	if (content && rules.content) {
-		const { maxLength } = rules.content;
-		if (maxLength && content.length > maxLength) {
-			transpilerError([
-				"{line}<$red:Validation Error:$> ",
-				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:content exceeds maximum length of$> <$green:${maxLength}$> <$yellow:characters. Found$> <$red:${content.length}$>{line}`
-			]);
-		}
-	}
-	// Validate is_Self_closing
-	if (id && rules.is_Self_closing) {
-		if (content) {
-			transpilerError([
-				"{line}<$red:Validation Error:$> ",
-				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:is self-closing tag and is not allowed to have a content | children$>{line}`
-			]);
-		}
-	}
-	// Validate element type
-	if (id && rules.type && type) {
-		if (rules.type !== type) {
-			transpilerError([
-				"{line}<$red:Validation Error:$> ",
-				`<$yellow:Identifier$> <$blue:'${Array.isArray(id) ? id.join(" | ") : id}'$> <$yellow:is expected to be type$> <$green:'${rules.type}'$>{N}<$cyan:Received type: $> <$magenta:'${type}'$>{line}`
-			]);
-		}
-	}
-}
-// ========================================================================== //
-//  +++++++++++++++++++++++++++++                                             //
-// ========================================================================== //
 async function generateOutput(ast, i, format, mapper_file) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
 	let context = "";
 	let target = mapper_file ? matchedValue(mapper_file.outputs, node.id) : null;
-	const block_formats = [htmlFormat, mdxFormat, jsonFormat];
+	
+	if (!target) {
+		target = mapper_file.getUnknownTag(node);
+	}
+
 	if (target) {
-		validateRules(target, node.args, "", node.type);
-		const placeholder = format === mdxFormat && node.body.length > 0 ? "\n<%smark>\n" : "<%smark>";
-		result += block_formats.includes(format)
-			? `${format === mdxFormat ? "\n" : ""}${target.render({ args: node.args, content: placeholder, ast: expose_for_fmts.includes(format) ? ast[i] : null }) + (format === mdxFormat ? "\n" : "")}`
-			: target.render({ args: node.args, content: "" }) + (format === mdxFormat ? "\n" : "");
-		// Body nodes
+		// ========================================================================== //
+		//  Always use placeholders for blocks to support wrapping                      //
+		// ========================================================================== //
+		const placeholder = format === mdxFormat && node.body.length > 0 ? `\n${BODY_PLACEHOLDER}\n` : BODY_PLACEHOLDER;
+		
+		result += target.render.call(mapper_file, { args: node.args, content: placeholder, ast: node });
+		if (format === mdxFormat) result = "\n" + result + "\n";
+
+		// ========================================================================== //
+		//  Body nodes                                                                //
+		// ========================================================================== //
 		for (let j = 0; j < node.body.length; j++) {
 			const body_node = node.body[j];
 			switch (body_node.type) {
-				// ========================================================================== //
-				//  Text                                                                      //
-				// ========================================================================== //
 				case TEXT:
-					validateRules(target, body_node.args, body_node.text);
-					const shouldEscape = target && target.options && target.options.escape === false ? false : true;
-					context += [htmlFormat, mdxFormat].includes(format) && shouldEscape ? escapeHTML(body_node.text) : body_node.text;
+					const shouldEscapeText = target.options?.escape !== false;
+					context += (format === htmlFormat || format === mdxFormat) && shouldEscapeText ? escapeHTML(body_node.text) : body_node.text;
 					break;
-				// ========================================================================== //
-				//  Inline                                                                    //
-				// ========================================================================== //
+
 				case INLINE:
-					target = matchedValue(mapper_file.outputs, body_node.id);
-					if (target) {
-						validateRules(target, body_node.args, body_node.value, body_node.type);
+					let inlineTarget = matchedValue(mapper_file.outputs, body_node.id);
+					if (!inlineTarget) {
+						inlineTarget = mapper_file.getUnknownTag(body_node);
+					}
+
+					if (inlineTarget) {
+						const shouldEscapeInline = inlineTarget.options?.escape !== false;
 						context +=
-							target.render({
+							inlineTarget.render.call(mapper_file, {
 								args: body_node.args.length > 0 ? body_node.args : [],
-								content: format === htmlFormat || format === mdxFormat ? escapeHTML(body_node.value) : body_node.value
+								content: (format === htmlFormat || format === mdxFormat) && shouldEscapeInline ? escapeHTML(body_node.value) : body_node.value,
+								ast: body_node
 							}) + (format === mdxFormat ? "\n" : "");
 					}
 					break;
-				// ========================================================================== //
-				//  Atblock                                                                   //
-				// ========================================================================== //
+
 				case ATBLOCK:
-					target = matchedValue(mapper_file.outputs, body_node.id);
-					if (target) {
-						validateRules(target, body_node.args, body_node.content, body_node.type);
-						// Escape logic: fallback to options.escape, default true
-						const shouldEscape = target.options?.escape ?? true;
-						if (shouldEscape) {
-							body_node.content = escapeHTML(body_node.content);
+					let atTarget = matchedValue(mapper_file.outputs, body_node.id);
+					if (!atTarget) {
+						atTarget = mapper_file.getUnknownTag(body_node);
+					}
+					if (atTarget) {
+						const shouldEscapeAt = atTarget.options?.escape !== false;
+						let content = body_node.content;
+						if (shouldEscapeAt && (format === htmlFormat || format === mdxFormat)) {
+							content = escapeHTML(content);
 						}
-						const rendered = target.render({ args: body_node.args, content: body_node.content }).trimEnd() + "\n";
+						const rendered = atTarget.render.call(mapper_file, { args: body_node.args, content, ast: body_node }).trimEnd() + "\n";
 						context = context.trim() ? context.trimEnd() + "\n" + rendered : context + rendered;
 					}
 					break;
-				// ========================================================================== //
-				//  Comment                                                                   //
-				// ========================================================================== //
+
 				case COMMENT:
-					if (format === htmlFormat || format === markdownFormat) {
-						context += " ".repeat(body_node.depth) + `\n<!--${body_node.text.replace("#", "")}-->\n`;
-					} else if (format === mdxFormat) {
-						context += " ".repeat(body_node.depth) + `\n{/*${body_node.text.replace("#", "")} */}\n`;
-					}
+					context += " ".repeat(body_node.depth) + `\n${mapper_file.comment(body_node.text)}\n`;
 					break;
-				// ========================================================================== //
-				//  Block                                                                     //
-				// ========================================================================== //
+
 				case BLOCK:
-					target = matchedValue(mapper_file.outputs, body_node.id);
 					const blockOutput = await generateOutput(body_node, i, format, mapper_file);
 					context = context.trim() ? context.trimEnd() + "\n" + blockOutput : context + blockOutput;
 					break;
 			}
 		}
 
-		if (format === htmlFormat || format === mdxFormat || format === jsonFormat) {
-			result = result.replace("<%smark>", context);
-		} else {
-			result += context;
-		}
+		result = result.replaceAll(BODY_PLACEHOLDER, context);
 	}
-	// ========================================================================== //
-	// Text                                                                       //
-	// ========================================================================== //
 	else if (format === textFormat) {
 		for (const body_node of node.body) {
 			switch (body_node.type) {
-				case TEXT:
-					context += body_node.text;
-					break;
-				case INLINE:
-					context += body_node.value + " ";
-					break;
-				case ATBLOCK:
-					context += body_node.content.trimEnd() + "\n";
-					break;
+				case TEXT: context += body_node.text; break;
+				case INLINE: context += body_node.value + " "; break;
+				case ATBLOCK: context += body_node.content.trimEnd() + "\n"; break;
 				case BLOCK:
 					const textBlockOutput = await generateOutput(body_node, i, format, mapper_file);
 					context = context.trim() ? context.trimEnd() + "\n" + textBlockOutput : context + textBlockOutput;
@@ -229,42 +123,13 @@ async function transpiler({ ast, format, mapperFile, includeDocument = true }) {
 		if (ast[i].type === BLOCK) {
 			output += await generateOutput(ast, i, format, mapperFile);
 		} else if (ast[i].type === COMMENT) {
-			if (format === htmlFormat || format === markdownFormat) {
-				output += `<!--${ast[i].text.replace("#", "")}-->\n`;
-			} else if (format === mdxFormat) {
-				output += `{/*${ast[i].text.replace("#", "")} */}\n`;
-			}
+			output += mapperFile.comment(ast[i].text);
 		}
 	}
-	if (includeDocument && format === htmlFormat) {
-		let finalHeader = mapperFile.header;
-		let styleContent = "";
-		const updateStyleTag = style => {
-			if (style) {
-				const styleTag = `<style>\n${style}\n</style>`;
-				if (!finalHeader.includes(styleTag)) {
-					finalHeader += styleTag + "\n";
-				}
-			}
-		};
-
-		// Inject Style Tag if code blocks exist
-		if (mapperFile.enable_highlightTheme && (output.includes("<pre") || output.includes("<code"))) {
-			mapperFile.addStyle(mapperFile.themes[mapperFile.currentTheme]);
-			styleContent = mapperFile.styles.join("\n");
-			updateStyleTag(styleContent);
-		} else {
-			styleContent = mapperFile.styles.join("\n");
-			updateStyleTag(styleContent);
-		}
-
-		const document = `<!DOCTYPE html>\n<html>\n${finalHeader}\n<body>\n${output}\n</body>\n</html>\n`;
-		return document;
-	}
-	if (format === jsonFormat) {
-		output = JSON.parse(JSON.stringify(output));
-	}
-	return output;
+	// ========================================================================== //
+	//  Final Post-Processing (Dynamic Formats)                                   //
+	// ========================================================================== //
+	return mapperFile.formatOutput(output, includeDocument);
 }
 
 export default transpiler;

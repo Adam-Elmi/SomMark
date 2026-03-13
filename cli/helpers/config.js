@@ -17,7 +17,9 @@ const localConfigPath = path.join(currentDir, CONFIG_FILE_NAME);
 let config = {
     outputFile: "output",
     outputDir: "",
-    mappingFile: ""
+    mappingFile: "",
+    plugins: [],
+    priority: []
 };
 
 // ========================================================================== //
@@ -27,10 +29,10 @@ export async function loadConfig() {
     const userConfigPath = path.join(getConfigDir(), CONFIG_FILE_NAME);
     let targetConfigPath = null;
 
-    if (await isExist(userConfigPath)) {
-        targetConfigPath = userConfigPath;
-    } else if (await isExist(localConfigPath)) {
+    if (await isExist(localConfigPath)) {
         targetConfigPath = localConfigPath;
+    } else if (await isExist(userConfigPath)) {
+        targetConfigPath = userConfigPath;
     }
 
     if (targetConfigPath) {

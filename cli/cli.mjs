@@ -1,11 +1,22 @@
 #!/usr/bin/env node
+import { enableColor } from "../helpers/colorize.js";
 import { getHelp } from "./commands/help.js";
 import { printVersion, printHeader } from "./commands/version.js";
 import { runBuild } from "./commands/build.js";
 import { printOutput, printLex, printParse } from "./commands/print.js";
 import { runInit } from "./commands/init.js";
 import { runShow } from "./commands/show.js";
+import { runColor } from "./commands/color.js";
 import { extensions } from "./constants.js";
+
+// ========================================================================== //
+//  Color Support                                                             //
+// ========================================================================== //
+import { isColorEnabled } from "./commands/color.js";
+
+if (process.env.SOMMARK_COLOR === "true" || await isColorEnabled()) {
+	enableColor(true);
+}
 
 // ========================================================================== //
 //  Argument Parsing                                                          //
@@ -47,6 +58,12 @@ async function main() {
 		return;
 	}
 
+	// 5.5. Color
+	if (command === "color") {
+		runColor(args[1]);
+		return;
+	}
+
 	// 6. Lex
 	if (command === "--lex") {
 		await printLex(args[1]);
@@ -59,7 +76,7 @@ async function main() {
 		return;
 	}
 
-	// 8. Print to Console ( -p or --print )
+	// 9. Print to Console ( -p or --print )
 
 	const format = command ? command.replace(/^--/, "") : "";
 

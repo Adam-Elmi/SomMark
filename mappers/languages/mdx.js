@@ -5,86 +5,107 @@ import { HTML_PROPS } from "../../constants/html_props.js";
 import { VOID_ELEMENTS } from "../../constants/void_elements.js";
 import kebabize from "../../helpers/kebabize.js";
 
-const MDX = new Mapper();
+class MdxMapper extends Mapper {
+	constructor() {
+		super();
+	}
+	comment(text) {
+		return `{/*${text.replace("#", "")} */}\n`;
+	}
+	getUnknownTag(node) {
+		const tagName = node.id;
+		return {
+			render: ({ args, content }) => {
+				const element = this.tag(tagName);
+				element.props(this.jsxProps(args, tagName));
+				return element.body(content);
+			}
+		};
+	}
+
+	jsxProps(args, tagName = "div") {
+		const jsxProps = [];
+		const styleObj = {};
+		const isHtmlTag = HTML_TAGS.has(tagName.toLowerCase());
+
+		const keys = Object.keys(args).filter(arg => isNaN(arg));
+		keys.forEach(key => {
+			let val = args[key];
+			const isEvent = key.toLowerCase().startsWith("on");
+
+			let k = key;
+			if (k === "class") k = "className";
+
+			// Quote stripping
+			if (typeof val === "string" && ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'")))) {
+				val = val.slice(1, -1);
+			}
+
+			if (k === "style") {
+				if (typeof val === "string") {
+					const pairs = val.includes(";") ? val.split(";") : val.split(",");
+					pairs.forEach(pair => {
+						let [prop, value] = pair.split(":").map(s => s.trim());
+						if (prop && value) {
+							const camelProp = prop.replace(/-([a-z])/g, g => g[1].toUpperCase());
+							styleObj[camelProp] = value;
+						}
+					});
+				} else if (typeof val === "object") {
+					Object.assign(styleObj, val);
+				}
+			} else {
+				// Detection for expressions
+				const isBoolean = val === "true" || val === "false" || typeof val === "boolean";
+				const isNumeric = val !== "" && !isNaN(val) && typeof val !== "boolean";
+				const looksLikeExpression = typeof val === "string" && 
+					(/[0-9]/.test(val) && /[+\-*/%()]/.test(val)); // Math expression detection
+
+				const shouldBeJSXExpression = isEvent || isBoolean || isNumeric || looksLikeExpression;
+
+				let finalVal = val;
+				if (val === "true") finalVal = true;
+				if (val === "false") finalVal = false;
+				if (isNumeric && typeof val === "string") finalVal = Number(val);
+
+				jsxProps.push({ 
+					__type__: shouldBeJSXExpression ? "other" : "string", 
+					[k]: finalVal 
+				});
+			}
+		});
+
+		if (Object.keys(styleObj).length > 0) {
+			const styleStr = JSON.stringify(styleObj).replace(/"/g, "'").replace(/'([^']+)':/g, '$1:');
+			jsxProps.push({ __type__: "other", style: styleStr });
+		}
+
+		return jsxProps;
+	}
+}
+
+const MDX = new MdxMapper();
 const { tag } = MDX;
 
 MDX.inherit(MARKDOWN);
 
-MDX.jsxProps = (args, tagName = "div") => {
-	const jsxProps = [];
-	const styleObj = {};
-	const isHtmlTag = HTML_TAGS.has(tagName.toLowerCase());
+// Block for raw MDX content (ESM, etc.)
+MDX.register("mdx", ({ content }) => content, { escape: false, type: "Block" });
 
-	const keys = Object.keys(args).filter(arg => isNaN(arg));
-	keys.forEach(key => {
-		let val = args[key];
-		const isDimensionAttributeSupported = ["img", "video", "svg", "canvas", "iframe", "object", "embed"].includes(tagName.toLowerCase());
-		const isWidthOrHeight = key === "width" || key === "height";
-		const isEvent = key.toLowerCase().startsWith("on");
-
-		// In MDX (JSX), we generally prefer camelCase for props.
-		let k = key;
-
-		// JSX Mapping for standard HTML
-		if (k === "class") k = "className";
-
-		// Quote stripping
-		if (typeof val === "string" && ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'")))) {
-			val = val.slice(1, -1);
-		}
-
-		// Boolean conversion
-		if (val === "true") val = true;
-		if (val === "false") val = false;
-
-		if (k === "style") {
-			if (typeof val === "string") {
-				val.split(";").forEach(pair => {
-					const [prop, value] = pair.split(":").map(s => s.trim());
-					if (prop && value) {
-						styleObj[prop] = value;
-					}
-				});
-			} else if (typeof val === "object") {
-				Object.assign(styleObj, val);
-			}
-		} else if (
-			isEvent ||
-			!isHtmlTag ||
-			HTML_PROPS.has(key) ||
-			k.startsWith("data-") ||
-			k.startsWith("aria-") ||
-			k === "className"
-		) {
-			// Events and non-string values should be wrapped in {}
-			const isOther = isEvent || typeof val !== "string";
-			jsxProps.push({ __type__: isOther ? "other" : "string", [k]: val });
-		} else {
-			// Fallback to style for unknown props on standard HTML tags
-			styleObj[k] = val;
-		}
-	});
-
-	if (Object.keys(styleObj).length > 0) {
-		jsxProps.push({ __type__: "other", style: JSON.stringify(styleObj) });
-	}
-
-	return jsxProps;
-};
-
+// Re-register HTML tags to use jsxProps
 HTML_TAGS.forEach(tagName => {
 	const capitalized = tagName.charAt(0).toUpperCase() + tagName.slice(1);
 
-	const idsToRegister = [tagName, capitalized].filter(id => !MDX.get(id));
-	if (idsToRegister.length === 0) return;
+	// Register even if it exists in MARKDOWN to override it with JSX version
+	const idsToRegister = [tagName, capitalized];
 
 	MDX.register(
 		idsToRegister,
 		({ args, content }) => {
 			const element = tag(tagName);
 
-			// Auto-ID for Headings (same as HTML)
-			if (/^h[1-6]$/i.test(tagName) && !args.id && content) {
+			// Auto-ID for Headings
+			if (/^h[1-6]$/i.test(tagName) && !args.id && content && /^[A-Za-z0-9]/.test(content)) {
 				const id = content
 					.toString()
 					.toLowerCase()
@@ -95,15 +116,15 @@ HTML_TAGS.forEach(tagName => {
 
 			element.props(MDX.jsxProps(args, tagName));
 
-			// Self-Closing Element
 			if (VOID_ELEMENTS.has(tagName)) {
 				return element.selfClose();
 			}
 			return element.body(content);
 		},
 		{
+			type: VOID_ELEMENTS.has(tagName) ? "Block" : ["Block", "Inline"],
 			rules: {
-				is_Self_closing: VOID_ELEMENTS.has(tagName)
+				is_self_closing: VOID_ELEMENTS.has(tagName)
 			}
 		}
 	);

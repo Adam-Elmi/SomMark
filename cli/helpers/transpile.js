@@ -1,54 +1,48 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { cliError } from "../../core/errors.js";
-import lexer from "../../core/lexer.js";
-import parser from "../../core/parser.js";
-import transpiler from "../../core/transpiler.js";
+import SomMark from "../../index.js";
 import HTML from "../../mappers/languages/html.js";
 import MARKDOWN from "../../mappers/languages/markdown.js";
-import GFM from "../../mappers/languages/gfm.js";
 import MDX from "../../mappers/languages/mdx.js";
 import Json from "../../mappers/languages/json.js";
 import { isExist } from "./file.js";
 import { loadConfig } from "./config.js";
-import { htmlFormat, markdownFormat, mdxFormat, jsonFormat, textFormat, gfmFormat } from "../../core/formats.js";
+import { htmlFormat, markdownFormat, mdxFormat, jsonFormat, textFormat } from "../../core/formats.js";
 
-const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [gfmFormat]: GFM, [mdxFormat]: MDX, [jsonFormat]: Json, [textFormat]: null };
+const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json, [textFormat]: null };
 
 // ========================================================================== //
 //  Transpile Function                                                        //
 // ========================================================================== //
 export async function transpile({ src, format, mappingFile = "" }) {
-    if (typeof mappingFile === "object" && mappingFile !== null) {
-        return await transpiler({ ast: parser(lexer(src)), format, mapperFile: mappingFile });
-    }
-
     const config = await loadConfig();
+    let finalMapper = mappingFile;
 
-    // Use config mapping file if not provided as argument
-    if (config.mappingFile) {
-        mappingFile = config.mappingFile;
-    } else {
-        mappingFile = default_mapperFiles[format];
+    // 1. Resolve Mapping File
+    if (typeof mappingFile !== "object" || mappingFile === null) {
+        if (config.mappingFile) {
+            finalMapper = config.mappingFile;
+        } else {
+            finalMapper = default_mapperFiles[format];
+        }
+
+        // Custom Mapper (String Path)
+        if (typeof finalMapper === "string" && finalMapper !== "" && (await isExist(finalMapper))) {
+            const mappingFileURL = pathToFileURL(path.resolve(process.cwd(), finalMapper)).href;
+            const loadedMapper = await import(mappingFileURL);
+            finalMapper = loadedMapper.default;
+        }
     }
 
-    // Check if mappingFile is an object (loaded from config) or null (for text format)
-    if ((typeof mappingFile === "object" && mappingFile !== null) || (format === textFormat && mappingFile === null)) {
-        return await transpiler({ ast: parser(lexer(src)), format, mapperFile: mappingFile });
-    }
+    // 2. Use SomMark Unified API
+    const smark = new SomMark({
+        src,
+        format,
+        mapperFile: finalMapper,
+        plugins: config.plugins,
+        priority: config.priority
+    });
 
-    // ========================================================================== //
-    //  Custom Mapper (String Path)                                               //
-    // ========================================================================== //
-    else if (typeof mappingFile === "string" && (await isExist(mappingFile))) {
-        const mappingFileURL = pathToFileURL(path.resolve(process.cwd(), mappingFile)).href;
-        const loadedMapper = await import(mappingFileURL);
-        return await transpiler({ ast: parser(lexer(src)), format, mapperFile: loadedMapper.default });
-    }
-    // ========================================================================== //
-    //  Error: Mapper not found                                                   //
-    // ========================================================================== //
-    else {
-        cliError([`{line}<$red:File$> <$blue:'${mappingFile}'$> <$red: is not found$>{line}`]);
-    }
+    return await smark.transpile();
 }

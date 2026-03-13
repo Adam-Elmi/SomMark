@@ -1,0 +1,357 @@
+[Block]
+[Html =
+  title: SomMark — HTML5 Forms Complete Showcase,
+  --primary: #4f46e5,
+  --danger: #dc2626,
+  --success: #16a34a,
+  --bg: #f8fafc,
+  --card: #ffffff,
+  --border: #e2e8f0,
+  --text: #1e293b,
+  --muted: #64748b
+][end]
+
+@_Style_@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 40px 20px; }
+h1 { font-size: 2rem; margin-bottom: 6px; }
+.subtitle { color: var(--muted); margin-bottom: 40px; }
+
+/* Page grid */
+.page { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px; }
+
+/* Section cards */
+.card { background: var(--card); border-radius: 16px; padding: 32px; box-shadow: 0 1px 6px rgba(0,0,0,.07); }
+.card h2 { font-size: 1.2rem; color: var(--primary); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--bg); }
+
+/* Field layout */
+.field { margin-bottom: 18px; }
+.field label { display: block; font-weight: 600; font-size: .875rem; margin-bottom: 6px; color: var(--text); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+/* Inputs */
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=submit]):not([type=reset]):not([type=button]),
+select,
+textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: .9rem;
+  background: #fff;
+  transition: border-color .2s, box-shadow .2s;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+input[disabled], select[disabled], textarea[disabled] { background: var(--bg); color: var(--muted); cursor: not-allowed; }
+input[readonly] { background: #f8fafc; }
+
+/* Range */
+input[type=range] { width: 100%; accent-color: var(--primary); }
+input[type=color] { height: 40px; padding: 2px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); }
+
+/* Checkboxes & Radios */
+.check-group, .radio-group { display: flex; flex-direction: column; gap: 10px; }
+.check-item, .radio-item { display: flex; align-items: center; gap: 10px; font-size: .9rem; cursor: pointer; }
+.check-item input, .radio-item input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+
+/* Buttons */
+.btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.btn { padding: 10px 24px; border-radius: 8px; font-size: .9rem; font-weight: 600; cursor: pointer; border: none; transition: opacity .2s; }
+.btn:hover { opacity: .88; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-success { background: var(--success); color: #fff; }
+
+/* Progress & Meter */
+progress, meter { width: 100%; height: 10px; border-radius: 6px; }
+progress { accent-color: var(--primary); }
+.meter-label { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); margin-top: 4px; }
+
+/* Output */
+output { display: inline-block; background: #eff6ff; color: var(--primary); font-weight: 700; border-radius: 6px; padding: 4px 12px; min-width: 48px; text-align: center; }
+
+/* Fieldset */
+fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; }
+legend { font-weight: 700; padding: 0 8px; color: var(--primary); }
+@_end_@
+
+[main = class: page]
+  [hgroup]
+    (HTML5 Forms — Complete Showcase)->(h1)
+    (Every form element and input type, authored in SomMark)->(p)
+  [end]
+
+  [section = class: card]
+    (Text Inputs)->(h2)
+    [div = class: row]
+      [div = class: field]
+        [label = for: inp-text]Full Name[end]
+        [input = type: text, id: inp-text, name: name, placeholder: Jane Doe, autocomplete: name][end]
+      [end]
+      [div = class: field]
+        [label = for: inp-email]Email Address[end]
+        [input = type: email, id: inp-email, name: email, placeholder: jane@example.com, autocomplete: email, required][end]
+      [end]
+    [end]
+    [div = class: row]
+      [div = class: field]
+        [label = for: inp-password]Password[end]
+        [input = type: password, id: inp-password, name: password, minlength: 8, placeholder: Min. 8 characters][end]
+      [end]
+      [div = class: field]
+        [label = for: inp-tel]Phone Number[end]
+        [input = type: tel, id: inp-tel, name: phone, placeholder: +1 555 000 0000, pattern: \+?[0-9\s\-]{7\,20}][end]
+      [end]
+    [end]
+    [div = class: row]
+      [div = class: field]
+        [label = for: inp-url]Website URL[end]
+        [input = type: url, id: inp-url, name: website, placeholder: https\://example.com][end]
+      [end]
+      [div = class: field]
+        [label = for: inp-search]Search[end]
+        [input = type: search, id: inp-search, name: q, placeholder: Search docs...][end]
+      [end]
+    [end]
+    [div = class: field]
+      [label = for: inp-readonly]Read-only Field[end]
+      [input = type: text, id: inp-readonly, value: SomMark v3.0.0, readonly][end]
+    [end]
+    [div = class: field]
+      [label = for: inp-disabled]Disabled Field[end]
+      [input = type: text, id: inp-disabled, value: Not editable, disabled][end]
+    [end]
+  [end]
+
+  [section = class: card]
+    (Numeric & Range Inputs)->(h2)
+    [div = class: row-3]
+      [div = class: field]
+        [label = for: inp-number]Quantity[end]
+        [input = type: number, id: inp-number, name: quantity, min: 1, max: 100, step: 1, value: 1][end]
+      [end]
+      [div = class: field]
+        [label = for: inp-min]Min Value (0)[end]
+        [input = type: number, id: inp-min, min: 0, max: 10, value: 0][end]
+      [end]
+      [div = class: field]
+        [label = for: inp-step]Step by 0.5[end]
+        [input = type: number, id: inp-step, min: 0, max: 5, step: 0.5, value: 2.5][end]
+      [end]
+    [end]
+    [div = class: field]
+      [label = for: inp-range]Volume: [output = id: vol-output, for: inp-range]50[end][end]
+      [input =
+        type: range,
+        id: inp-range,
+        name: volume,
+        min: 0,
+        max: 100,
+        value: 50,
+        oninput: document.getElementById('vol-output').value = this.value
+      ][end]
+    [end]
+  [end]
+
+  [section = class: card]
+    (Date & Time Inputs)->(h2)
+    [div = class: row]
+      [div = class: field]
+        [label = for: inp-date]Date[end]
+        [input = type: date, id: inp-date, name: date, value: 2026-03-13][end]
+      [end]
+      [div = class: field]
+        [label = for: inp-time]Time[end]
+        [input = type: time, id: inp-time, name: time, value: 09\:00][end]
+      [end]
+    [end]
+    [div = class: row]
+      [div = class: field]
+        [label = for: inp-dt]Date & Time[end]
+        [input = type: datetime-local, id: inp-dt, name: datetime, value: 2026-03-13T09\:00][end]
+      [end]
+      [div = class: field]
+        [label = for: inp-month]Month[end]
+        [input = type: month, id: inp-month, name: month, value: 2026-03][end]
+      [end]
+    [end]
+    [div = class: field]
+      [label = for: inp-week]Week[end]
+      [input = type: week, id: inp-week, name: week, value: 2026-W11][end]
+    [end]
+  [end]
+
+  [section = class: card]
+    (Colour, File & Hidden)->(h2)
+    [div = class: row]
+      [div = class: field]
+        [label = for: inp-color]Brand Colour[end]
+        [input = type: color, id: inp-color, name: brandColor, value: #4f46e5][end]
+      [end]
+      [div = class: field]
+        [label = for: inp-file]Upload Avatar[end]
+        [input = type: file, id: inp-file, name: avatar, accept: image/*][end]
+      [end]
+    [end]
+    [div = class: field]
+      [label]Multiple File Upload[end]
+      [input = type: file, name: docs, accept: .pdf\,.doc\,.docx, multiple][end]
+    [end]
+    [input = type: hidden, name: csrf_token, value: abc123xyz][end]
+  [end]
+
+  [section = class: card]
+    (Checkboxes & Radio Buttons)->(h2)
+    [div = class: row]
+      [fieldset]
+        [legend]Preferred Formats[end]
+        [div = class: check-group]
+          [label = class: check-item]
+            [input = type: checkbox, name: format, value: html, checked][end]
+            HTML
+          [end]
+          [label = class: check-item]
+            [input = type: checkbox, name: format, value: markdown][end]
+            Markdown
+          [end]
+          [label = class: check-item]
+            [input = type: checkbox, name: format, value: mdx][end]
+            MDX
+          [end]
+          [label = class: check-item]
+            [input = type: checkbox, name: format, value: json][end]
+            JSON
+          [end]
+        [end]
+      [end]
+      [fieldset]
+        [legend]Experience Level[end]
+        [div = class: radio-group]
+          [label = class: radio-item]
+            [input = type: radio, name: level, value: beginner, checked][end]
+            Beginner
+          [end]
+          [label = class: radio-item]
+            [input = type: radio, name: level, value: intermediate][end]
+            Intermediate
+          [end]
+          [label = class: radio-item]
+            [input = type: radio, name: level, value: advanced][end]
+            Advanced
+          [end]
+        [end]
+      [end]
+    [end]
+  [end]
+
+  [section = class: card]
+    (Select & Datalist)->(h2)
+    [div = class: row]
+      [div = class: field]
+        [label = for: sel-country]Country[end]
+        [select = id: sel-country, name: country, autocomplete: country-name]
+          [optgroup = label: North America]
+            [option = value: us]United States[end]
+            [option = value: ca]Canada[end]
+            [option = value: mx]Mexico[end]
+          [end]
+          [optgroup = label: Europe]
+            [option = value: gb]United Kingdom[end]
+            [option = value: de]Germany[end]
+            [option = value: fr]France[end]
+          [end]
+          [optgroup = label: Asia]
+            [option = value: jp]Japan[end]
+            [option = value: cn]China[end]
+            [option = value: in]India[end]
+          [end]
+        [end]
+      [end]
+      [div = class: field]
+        [label = for: sel-multiple]Multi-select Skills[end]
+        [select = id: sel-multiple, name: skills, multiple, size: 5]
+          [option = value: html]HTML[end]
+          [option = value: css]CSS[end]
+          [option = value: js, selected]JavaScript[end]
+          [option = value: ts, selected]TypeScript[end]
+          [option = value: node]Node.js[end]
+        [end]
+      [end]
+    [end]
+    [div = class: field]
+      [label = for: inp-browser]Favourite Browser (with datalist)[end]
+      [input = type: text, id: inp-browser, name: browser, list: browsers-list, placeholder: Start typing...][end]
+      [datalist = id: browsers-list]
+        [option = value: Chrome][end]
+        [option = value: Firefox][end]
+        [option = value: Safari][end]
+        [option = value: Edge][end]
+        [option = value: Arc][end]
+        [option = value: Brave][end]
+      [end]
+    [end]
+  [end]
+
+  [section = class: card]
+    (Textarea)->(h2)
+    [div = class: field]
+      [label = for: inp-msg]Message[end]
+      [textarea = id: inp-msg, name: message, rows: 5, placeholder: Write your message here..., autocomplete: off]
+Hello! I'm excited to try SomMark v3.
+      [end]
+    [end]
+    [div = class: field]
+      [label = for: inp-code]Paste Code Snippet[end]
+      [textarea = id: inp-code, name: snippet, rows: 6, wrap: off, spellcheck: false, placeholder: Paste code here...][end]
+    [end]
+  [end]
+
+  [section = class: card]
+    (Progress, Meter & Output)->(h2)
+    [div = class: field]
+      [label]Upload Progress[end]
+      [progress = value: 68, max: 100][end]
+      [div = class: meter-label]
+        [span]0%[end]
+        [span](68%)->(bold)[end]
+        [span]100%[end]
+      [end]
+    [end]
+    [div = class: field]
+      [label = for: disk-meter]Disk Usage[end]
+      [meter = id: disk-meter, value: 78, min: 0, max: 100, low: 50, high: 85, optimum: 20, width: 100%][end]
+      [div = class: meter-label]
+        [span]0 GB[end]
+        [span]78 GB used[end]
+        [span]100 GB[end]
+      [end]
+    [end]
+    [div = class: field]
+      [label = for: batt-meter]Battery Level[end]
+      [meter = id: batt-meter, value: 42, min: 0, max: 100, low: 20, high: 60, optimum: 80, width: 100%][end]
+    [end]
+    [div = class: field]
+      [label]BMI Calculator Output[end]
+      [p = font-size: .875rem, color: var(--muted), margin-bottom: 8px]
+        Your BMI: [output = name: bmi, for: weight height]22.4[end]
+        — (Normal weight)->(mark)
+      [end]
+    [end]
+  [end]
+
+  [section = class: card]
+    (Form Submission Buttons)->(h2)
+    [form = action: #, method: POST]
+      [input = type: hidden, name: step, value: review][end]
+      [div = class: btn-row]
+        [button = type: submit, class: btn btn-primary]Submit Form[end]
+        [button = type: reset, class: btn btn-outline]Reset[end]
+        [button = type: button, class: btn btn-danger, onclick: alert('Cancelled')]Cancel[end]
+        [button = type: button, class: btn btn-success, disabled]Approved ✓[end]
+      [end]
+    [end]
+  [end]
+[end]
+[end]

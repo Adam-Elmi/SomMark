@@ -7,9 +7,7 @@
 
 ### Breaking Changes
 
-- Removed GFM format; use plugins instead.
 - Stricter identifier rules: `$`, `_`, and `-` enforced consistently in lexer and parser.
-- `end` is now a reserved keyword.
 - Mapper `type` property deprecated in favour of explicit registration types.
 
 ### Features

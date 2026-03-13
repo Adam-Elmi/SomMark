@@ -38,6 +38,8 @@ export async function runInit() {
     outputDir: "",
     outputFile: "output",
     mappingFile: "",
+    plugins: [],
+    priority: [],
 };
 `;
 

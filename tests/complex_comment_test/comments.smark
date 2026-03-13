@@ -1,0 +1,26 @@
+# Top-level comment 1
+[Header]
+  # Comment inside a block
+  [Title]Welcome[end]
+  # Another comment inside Header
+[end]
+
+# Comment between blocks
+
+[Section = "Content"]
+  Here is some content.
+  # Inline-ish comment (starting a line)
+  [Div]
+    # Deeply nested comment
+    Inner content.
+  [end]
+[end]
+
+# Multi-line
+# Comment
+# Block
+
+[Footer]
+  Done.
+[end]
+# Trailing comment

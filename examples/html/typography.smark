@@ -1,0 +1,231 @@
+[Block]
+[Html =
+  title: SomMark — HTML5 Typography Showcase,
+  --primary: #7c3aed,
+  --accent: #db2777,
+  --bg: #faf5ff,
+  --card: #ffffff,
+  --text: #1e1b4b,
+  --muted: #6b7280,
+  --code-bg: #f5f3ff,
+  --code-text: #5b21b6
+][end]
+
+@_Style_@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Georgia", "Times New Roman", serif; background: var(--bg); color: var(--text); line-height: 1.8; padding: 40px 20px; }
+.page { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px; }
+
+/* Page title */
+.hero { text-align: center; padding: 40px 0 20px; border-bottom: 2px solid #ede9fe; }
+.hero h1 { font-size: 2.8rem; font-family: system-ui, sans-serif; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+.hero p { font-size: 1.05rem; color: var(--muted); font-family: system-ui, sans-serif; }
+
+/* Section cards */
+.card { background: var(--card); border-radius: 16px; padding: 36px; box-shadow: 0 1px 8px rgba(0,0,0,.06); }
+.section-label { font-family: system-ui, sans-serif; font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--primary); margin-bottom: 16px; }
+p { margin-bottom: 14px; }
+
+/* Heading scale */
+.type-scale h1 { font-size: 2.4rem; line-height: 1.2; margin-bottom: 8px; }
+.type-scale h2 { font-size: 1.9rem; line-height: 1.3; margin-bottom: 8px; }
+.type-scale h3 { font-size: 1.5rem; line-height: 1.35; margin-bottom: 8px; }
+.type-scale h4 { font-size: 1.2rem; line-height: 1.4; margin-bottom: 8px; }
+.type-scale h5 { font-size: 1rem; line-height: 1.5; margin-bottom: 8px; }
+.type-scale h6 { font-size: .875rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; color: var(--muted); }
+.scale-note { font-family: system-ui, sans-serif; font-size: .75rem; color: var(--muted); margin-bottom: 0; margin-top: -4px; padding-left: 4px; }
+
+/* Inline elements */
+abbr { text-decoration: underline dotted var(--primary); cursor: help; }
+dfn { font-style: italic; font-weight: 600; }
+cite { font-style: italic; color: var(--muted); }
+mark { background: #fde68a; padding: 0 3px; border-radius: 2px; }
+del { color: #dc2626; }
+ins { color: #16a34a; text-decoration-color: #16a34a; }
+s { color: #9ca3af; }
+u { text-decoration: underline wavy var(--accent); }
+small { font-size: .8em; color: var(--muted); }
+sub, sup { font-size: .75em; }
+code { background: var(--code-bg); color: var(--code-text); padding: 2px 7px; border-radius: 5px; font-family: "Fira Code", monospace; font-size: .88em; }
+kbd { background: #f3f4f6; border: 1px solid #d1d5db; border-bottom: 3px solid #9ca3af; border-radius: 5px; padding: 2px 7px; font-family: monospace; font-size: .85em; }
+samp { font-family: monospace; color: #0369a1; background: #f0f9ff; padding: 2px 6px; border-radius: 4px; }
+var { font-style: italic; color: var(--accent); font-weight: 600; }
+q { quotes: "\"" "\"" "'" "'"; }
+q::before { content: open-quote; }
+q::after { content: close-quote; }
+ruby { ruby-align: center; }
+rt { font-size: .6em; color: var(--primary); }
+bdo, bdi { color: var(--primary); }
+blockquote { border-left: 4px solid var(--primary); padding: 14px 20px; margin: 16px 0; background: #f5f3ff; border-radius: 0 10px 10px 0; font-style: italic; }
+blockquote footer { font-style: normal; font-size: .875rem; color: var(--muted); margin-top: 8px; }
+address { font-style: normal; background: #f5f3ff; border-radius: 10px; padding: 16px 20px; }
+
+/* SomMark-specific inlines */
+.smark-inline-demo p { margin-bottom: 10px; font-family: system-ui, sans-serif; }
+.palette { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.swatch { padding: 6px 14px; border-radius: 20px; font-size: .875rem; font-weight: 600; }
+@_end_@
+
+[main = class: page]
+  [div = class: hero]
+    (HTML5 Typography — Complete Showcase)->(h1)
+    (Every text-level semantic element, authored entirely in SomMark)->(p)
+  [end]
+
+  [section = class: card]
+    [p = class: section-label]Heading Scale — h1 through h6[end]
+    [div = class: type-scale]
+      [h1]Heading Level 1 — Page Title[end]
+      [p = class: scale-note]h1 · used once per page[end]
+      [h2]Heading Level 2 — Section[end]
+      [p = class: scale-note]h2 · major sections[end]
+      [h3]Heading Level 3 — Sub-section[end]
+      [p = class: scale-note]h3 · nested sections[end]
+      [h4]Heading Level 4 — Topic[end]
+      [p = class: scale-note]h4 · individual topics[end]
+      [h5]Heading Level 5 — Detail[end]
+      [p = class: scale-note]h5 · fine-grained detail[end]
+      [h6]Heading Level 6 — Footnote-Level[end]
+      [p = class: scale-note]h6 · least important heading[end]
+    [end]
+  [end]
+
+  [section = class: card]
+    [p = class: section-label]Abbreviation, Definition & Citation[end]
+    [p]
+      [abbr = title: HyperText Markup Language]HTML[end] is the standard markup language.
+      [abbr = title: Cascading Style Sheets]CSS[end] adds presentation.
+      [abbr = title: JavaScript]JS[end] adds behaviour.
+      [abbr = title: Application Programming Interface]API[end] endpoints expose data.
+    [end]
+    [p]
+      A [dfn = id: transpiler]transpiler[dfn] converts source code to another target language.
+      SomMark is a [dfn = id: dsl]domain-specific language[end] for structured content.
+      The output is [dfn]well-formed HTML[end] as defined by [cite]WHATWG HTML Living Standard[end].
+    [end]
+    [blockquote]
+      The goal of HTML is to be a language that is simultaneously readable by humans
+      and understandable by computers.
+      [footer]— [cite]Tim Berners-Lee[end], inventor of the World Wide Web[end]
+    [end]
+  [end]
+
+  [section = class: card]
+    [p = class: section-label]Edits, Highlights & Annotations[end]
+    [p]
+      Document edits: original price was [del]$149.99[end], now [ins]$99.00[end].
+      This text is [mark]highlighted for editorial review[end].
+      This offer is [s]no longer available[end].
+      [u]Stylistically differentiated text[end] (e.g. a proper name in Chinese).
+      [p = font-size: .875rem, font-family: system-ui, sans-serif, color: var(--muted), margin-top: -6px]
+        del = deleted · ins = inserted · mark = highlighted · s = struck · u = underlined wavy
+      [end]
+    [end]
+  [end]
+
+  [section = class: card]
+    [p = class: section-label]Superscript, Subscript & Small Print[end]
+    [p]
+      Einstein's equation: E = mc(2)->(sup).
+      Water: H(2)->(sub)O. Caffeine: C(8)->(sub)H(10)->(sub)N(4)->(sub)O(2)->(sub).
+      Footnote(1)->(sup). Reference(†)->(sup).
+      Currency: €29(99)->(sup) (euro with superscript cents).
+    [end]
+    [p = font-size: .9rem]
+      (Fine print:)->(small) prices include tax. VAT registration
+      [abbr = title: number]no.[end] GB123456789. All rights reserved.
+      (Offer valid until)->(small) [time = datetime: 2026-12-31]31 December 2026[end].
+    [end]
+  [end]
+
+  [section = class: card]
+    [p = class: section-label]Code, Keyboard, Sample & Variable[end]
+    [p]
+      Run the following in your terminal: [kbd]npm install -g sommark[end].
+      To transpile: [kbd]sommark[end] [kbd]--html[end] [kbd]input.smark[end].
+    [end]
+    [p]
+      Expected output: [samp]✓ Transpiled to output.html[end].
+      If you see [samp]Error: unknown identifier[end], check that your block name is registered.
+    [end]
+    [p]
+      The function [code]transpile(src, options)[end] returns a [code]Promise&lt;string&gt;[end].
+      Let [var]n[end] be the number of tokens. The loop invariant holds for all [var]i[end]
+      where [var]0 ≤ i &lt; n[end].
+    [end]
+  [end]
+
+  [section = class: card]
+    [p = class: section-label]Quotation, Ruby Annotation & Bidirectional Text[end]
+    [p]
+      Inline quotation: [q]The best markup is the markup you never have to write twice.[end]
+      Nested quote: [q]She said [q]hello[end] and smiled.[end]
+    [end]
+    [p]
+      Ruby annotations:
+      [ruby]漢[rt]Kanji[end][end]
+      [ruby]字[rt]Ji[end][end]
+      [ruby]東京[rt]Tōkyō[end][end]
+      [ruby]大阪[rt]Ōsaka[end][end].
+    [end]
+    [p]
+      Bidirectional text: this sentence contains [bdi]مرحبا بالعالم[end] (Arabic: Hello World).
+      Forced direction: [bdo = dir: rtl]SomMark is declarative[end].
+    [end]
+  [end]
+
+  [section = class: card]
+    [p = class: section-label]Address & Time[end]
+    [address]
+      (SomMark Project)->(bold)
+      [br][end]
+      Open source on (GitHub)->(url: https://github.com/Adam-Elmi/SomMark, SomMark on GitHub).
+      [br][end]
+      Maintained by (Adam Elmi)->(url: https://github.com/Adam-Elmi).
+      [br][end]
+      Released: [time = datetime: 2026-03-13]March 13, 2026[end].
+      Event starts: [time = datetime: 2026-04-01T10:00:00Z]April 1, 2026 at 10:00 UTC[end].
+    [end]
+  [end]
+
+  [section = class: card]
+    [p = class: section-label]SomMark-Specific Inline Shorthand[end]
+    [div = class: smark-inline-demo]
+      [p](bold)->(bold) — renders as [code]&lt;strong&gt;[end][end]
+      [p](italic)->(italic) — renders as [code]&lt;i&gt;[end][end]
+      [p](strike)->(strike) — renders as [code]&lt;s&gt;[end][end]
+      [p](emphasis)->(emphasis) — bold + italic combined[end]
+      [p](url)->(url: https://github.com/Adam-Elmi/SomMark, SomMark on GitHub) — [code]&lt;a&gt;[end][end]
+    [end]
+    [p = class: section-label, margin-top: 20px]Colour Shorthand[end]
+    [div = class: palette]
+      [span = class: swatch, background: #fee2e2, color: #dc2626](colour: red)->(color: #dc2626)[end]
+      [span = class: swatch, background: #dcfce7, color: #16a34a](colour: green)->(color: #16a34a)[end]
+      [span = class: swatch, background: #dbeafe, color: #2563eb](colour: blue)->(color: #2563eb)[end]
+      [span = class: swatch, background: #f5f3ff, color: #7c3aed](colour: violet)->(color: #7c3aed)[end]
+      [span = class: swatch, background: #fff7ed, color: #ea580c](colour: orange)->(color: #ea580c)[end]
+    [end]
+    [p = margin-top: 16px, font-family: system-ui, sans-serif]
+      (Note:)->(bold) all of the above are SomMark's built-in inline identifiers, which map
+      to standard HTML elements. They coexist with every HTML5 tag registered automatically
+      via the [code]HTML_TAGS[end] constant — over (160 elements)->(bold) in total.
+    [end]
+  [end]
+
+  [section = class: card]
+    [p = class: section-label]Word Break Opportunity — wbr[end]
+    [p]
+      Without [code]wbr[end], browsers can't break long compound identifiers:
+      [b]SomMarkDeclarativeTranspilerHTML5Plugin[end]
+    [end]
+    [p]
+      With [code]wbr[end] hints, the browser breaks gracefully at marked points:
+      [b]SomMark[wbr][end]Declarative[wbr][end]Transpiler[wbr][end]HTML5[wbr][end]Plugin[end]
+    [end]
+    [p]
+      Also useful for long URLs and technical strings like
+      [code]some[wbr][end]Very[wbr][end]Long[wbr][end]ClassName[end].
+    [end]
+  [end]
+[end]
+[end]

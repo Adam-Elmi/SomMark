@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { removeNewline, removeWhiteSpaces } from "../../helpers/removeChar";
 import peek from "../../helpers/peek";
 import escapeHTML from "../../helpers/escapeHTML";
-import colorize from "../../helpers/colorize";
+import colorize, { enableColor } from "../../helpers/colorize";
 import { vi } from "vitest";
 
 // ========================================================================== //
@@ -70,8 +70,14 @@ describe("escapeHTML", () => {
 //  Colorize                                                                  //
 // ========================================================================== //
 describe("colorize", () => {
-    it("wraps text with color codes when color provided", () => {
+    it("returns plain text when colors are disabled", () => {
+        enableColor(false);
+        expect(colorize("red", "hello")).toBe("hello");
+    });
+    it("wraps text with color codes when colors are enabled", () => {
+        enableColor(true);
         expect(colorize("red", "hello")).toBe("\x1b[31m" + "hello" + "\x1b[0m");
+        enableColor(false);
     });
     it("returns text unchanged when no color provided", () => {
         expect(colorize(null, "hello")).toBe("hello");

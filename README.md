@@ -36,12 +36,12 @@ Test SomMark features live here:
 
 ----
 
-# SomMark v2
+# SomMark v3
 
 > [!WARNING]
-> Old version(v1) is no longer supported.
+> Older versions (v1 and v2) are no longer supported.
 
-**SomMark** lets you write structured content that can be converted to HTML, Markdown, JSON, or other formats. Unlike standard Markdown, it uses explicit syntax for blocks and elements, making content easier to process, customize, and transform.
+**SomMark** lets you write structured content that can be converted to HTML, Markdown, MDX, JSON, or other formats. Unlike standard Markdown, it uses explicit syntax for blocks and elements, making content easier to process, customize, and transform.
 
 # Installation
 

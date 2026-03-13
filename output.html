@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<title>SomMark - CSS Animation</title>
+
+
+<body>
+
+<h1 id="__sommark_body_placeholder_n6si4wculh__">Pure CSS animation in SomMark</h1>
+This example demonstrates a complex &quot;Solar System&quot; animation built using only standard HTML tags, SomMark inline styles, and the `Style` At-Block for keyframes.
+<style>.cosmos {
+    background: #050510;
+    height: 400px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    margin: 20px 0;
+}
+.sun {
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle, #ffd700, #ff8c00);
+    border-radius: 50%;
+    box-shadow: 0 0 50px rgba(255, 140, 0, 0.9);
+    position: relative;
+    z-index: 2;
+}
+.orbit {
+    position: absolute;
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    animation: rotate linear infinite;
+}
+.planet {
+    border-radius: 50%;
+}
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+<div class="cosmos"><div class="sun"></div>
+<div class="orbit" style="width:180px;height:180px;animation-duration:3s;"><div class="planet" style="width:14px;height:14px;background:#3498db;margin-left:-7px;"></div>
+</div>
+<div class="orbit" style="width:260px;height:260px;animation-duration:6s;"><div class="planet" style="width:20px;height:20px;background:#e67e22;margin-left:-10px;"></div>
+</div>
+<div class="orbit" style="width:340px;height:340px;animation-duration:10s;"><div class="planet" style="width:16px;height:16px;background:#2ecc71;margin-left:-8px;"></div>
+</div>
+</div>
+<footer style="text-align:center;color:#888;padding:20px;">    Built with
+<a href="https://github.com/Adam-Elmi/SomMark" title="" target="_blank">SomMark</a>
+</footer>
+
+</body>
+</html>

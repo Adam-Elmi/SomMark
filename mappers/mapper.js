@@ -5,6 +5,33 @@ import atomOneDark from "../helpers/defaultTheme.js";
 import loadCss from "../helpers/loadCss.js";
 import { sommarkError } from "../core/errors.js";
 
+// ========================================================================== //
+//  Helpers                                                                   //
+// ========================================================================== //
+function matchedValue(outputs, targetId) {
+	let result;
+	for (const outputValue of outputs) {
+		const targetLower = targetId.toLowerCase();
+		if (typeof outputValue.id === "string") {
+			if (outputValue.id.toLowerCase() === targetLower) {
+				result = outputValue;
+				break;
+			}
+		} else if (Array.isArray(outputValue.id)) {
+			for (const id of outputValue.id) {
+				if (id.toLowerCase() === targetLower) {
+					result = outputValue;
+					break;
+				}
+			}
+		}
+	}
+	return result;
+}
+
+// ========================================================================== //
+//  Main Mapper Class                                                         //
+// ========================================================================== //
 class Mapper {
 	#customHeaderContent;
 	// ========================================================================== //
@@ -14,6 +41,8 @@ class Mapper {
 		this.outputs = [];
 		this.enable_highlightTheme = true;
 		this.md = new MarkdownBuilder();
+
+		this.extraProps = new Set(); // For plugins to add recognized arguments
 
 		this.pageProps = {
 			pageTitle: "SomMark Page",
@@ -39,6 +68,8 @@ class Mapper {
 		};
 		this.currentTheme = this.highlightCode && typeof this.highlightCode === "function" ? "atom-one-dark" : "sommark-default";
 		this.enable_table_styles = true;
+		this.mappers = [];
+		this.scripts = [];
 	}
 
 	registerHighlightTheme(themes) {
@@ -75,10 +106,10 @@ class Mapper {
 		}
 	}
 
-	loadCss = async (env = this.env, filePath) => {
+	async loadCss(env = this.env, filePath) {
 		const css = await loadCss(env, filePath);
 		this.addStyle(css);
-	};
+	}
 
 	// ========================================================================== //
 	//  Header Generation                                                         //
@@ -106,7 +137,7 @@ class Mapper {
 	// ========================================================================== //
 	//  Mappings                                                                  //
 	// ========================================================================== //
-	register = (id, renderOutput, options = { escape: true }) => {
+	register(id, renderOutput, options = { escape: true }) {
 		if (!id || !renderOutput) {
 			throw new Error("Expected arguments are not defined");
 		}
@@ -118,7 +149,7 @@ class Mapper {
 		if (typeof renderOutput !== "function") {
 			throw new TypeError("argument 'renderOutput' expected to be a function");
 		}
-		const render = data => {
+		const render = function (data) {
 			if (
 				typeof data !== "object" ||
 				data === null ||
@@ -127,7 +158,7 @@ class Mapper {
 			) {
 				throw new TypeError("render expects an object with properties { args, content }");
 			}
-			return renderOutput(data);
+			return renderOutput.call(this, data);
 		};
 
 		// Prevent duplicate IDs by removing any existing overlap before registering
@@ -136,10 +167,23 @@ class Mapper {
 			this.removeOutput(singleId);
 		}
 
-		this.outputs.push({ id, render, options });
-	};
+		// Handle legacy nested 'rules.type' and warn
+		if (options.rules?.type && !options.type) {
+			console.warn(`[SomMark Deprecation]: Registering identifier '${id}' with nested 'rules.type' is deprecated. Please use top-level 'type' option instead.`);
+			options.type = options.rules.type;
+		}
 
-	inherit = (...mappers) => {
+		// Map top-level 'type' to 'rules.type' for transpiler compatibility
+		if (options.type) {
+			options.rules = options.rules || {};
+			options.rules.type = options.type;
+			delete options.type;
+		}
+
+		this.outputs.push({ id, render, options });
+	}
+
+	inherit(...mappers) {
 		for (const mapper of mappers) {
 			if (mapper && Array.isArray(mapper.outputs)) {
 				for (const output of mapper.outputs) {
@@ -151,36 +195,41 @@ class Mapper {
 				}
 			}
 		}
-	};
+	}
 
-	removeOutput = id => {
+	removeOutput(id) {
+		const targetLower = id.toLowerCase();
 		this.outputs = this.outputs.filter(output => {
 			if (Array.isArray(output.id)) {
-				return !output.id.some(singleId => singleId === id);
+				return !output.id.some(singleId => singleId.toLowerCase() === targetLower);
 			} else {
-				return output.id !== id;
+				return output.id.toLowerCase() !== targetLower;
 			}
 		});
-	};
+	}
 
-	get = id => {
-		for (const output of this.outputs) {
-			if (Array.isArray(output.id)) {
-				if (output.id.some(singleId => singleId === id)) return output;
-			} else if (output.id === id) {
-				return output;
-			}
-		}
-		return null;
-	};
+	get(id) {
+		return matchedValue(this.outputs, id) || null;
+	}
 
 	// ========================================================================== //
 	//  Helpers                                                                   //
 	// ========================================================================== //
-	tag = tagName => {
+	comment(text) {
+		return "";
+	}
+	getUnknownTag(node) {
+		return null;
+	}
+	tag(tagName) {
 		return new TagBuilder(tagName);
-	};
-	setHeader = rawData => {
+	}
+
+	getCustomHeaderContent() {
+		return this.#customHeaderContent;
+	}
+
+	setHeader(rawData) {
 		if (Array.isArray(rawData)) {
 			for (const data of rawData) {
 				if (typeof data === "string") {
@@ -188,22 +237,38 @@ class Mapper {
 				}
 			}
 		}
-	};
+	}
 	// ========================================================================== //
 	//  Formatters                                                                //
 	// ========================================================================== //
-	code = (args, content) => {
+	code(args, content) {
 		const lang = this.safeArg(args, 0, "lang", null, null, "text");
 		const code = content || "";
-		let value = content;
+		let value = code;
 		const code_element = this.tag("code");
+		
+		// Default neutral class
+		let codeClass = `language-${lang}`;
+		let codeStyle = "";
+
 		if (this.highlightCode && typeof this.highlightCode === "function") {
-			code_element.attributes({ class: `hljs language-${lang}` });
-			value = this.highlightCode(code, lang);
+			const highlighted = this.highlightCode(code, lang);
+			
+			if (typeof highlighted === "object" && highlighted !== null) {
+				value = highlighted.html || highlighted.content || code;
+				if (highlighted.class) codeClass = highlighted.class;
+				if (highlighted.style) codeStyle = highlighted.style;
+			} else {
+				value = highlighted;
+			}
 		}
+
+		code_element.attributes({ class: codeClass });
+		if (codeStyle) code_element.attributes({ style: codeStyle });
+		
 		return this.tag("pre").body(code_element.body(value));
-	};
-	htmlTable = (data, headers, defaultStyle = true) => {
+	}
+	htmlTable(data, headers, defaultStyle = true) {
 		const isAddedStyle = this.styles.some(s => s.includes(".sommark-table"));
 		if (!data) return "";
 
@@ -241,8 +306,8 @@ class Mapper {
 
 		tableHTML += "</tbody>\n</table>";
 		return tableHTML;
-	};
-	parseList = (data, indentSize = 2) => {
+	}
+	parseList(data, indentSize = 2) {
 		if (typeof data === "string") {
 			data = data.split("\n");
 		}
@@ -271,7 +336,7 @@ class Mapper {
 
 		return root.children;
 	};
-	list = (data, as = "ul") => {
+	list(data, as = "ul") {
 		const nodes = this.parseList(data);
 		if (!Array.isArray(nodes) || nodes.length === 0) return "";
 
@@ -296,11 +361,11 @@ class Mapper {
 		};
 
 		return renderItems(nodes);
-	};
+	}
 	// ========================================================================== //
 	//  Utilities                                                                 //
 	// ========================================================================== //
-	includesId = ids => {
+	includesId(ids) {
 		try {
 			if (!Array.isArray(ids) || ids.length === 0) {
 				return false;
@@ -333,11 +398,11 @@ class Mapper {
 			console.error(error);
 			return false;
 		}
-	};
+	}
 	todo(checked = false) {
 		return checked.trim() === "x" || checked.trim().toLowerCase() === "done" ? true : false;
 	}
-	safeArg = (args, index, key, type = null, setType = null, fallBack = null) => {
+	safeArg(args, index, key, type = null, setType = null, fallBack = null) {
 		if (!Array.isArray(args)) {
 			sommarkError([`{line}<$red:TypeError:$> <$yellow:args must be an array$>{line}`]);
 		}
@@ -427,5 +492,37 @@ class Mapper {
 			})
 			.join("");
 	};
+
+	clone() {
+		const newMapper = new this.constructor();
+		
+		// Map-clone outputs to ensure options are isolated but render remains bound
+		newMapper.outputs = this.outputs.map(out => ({
+			...out,
+			options: out.options ? { ...out.options } : { escape: true }
+		}));
+
+		newMapper.mappers = [...this.mappers];
+		newMapper.styles = [...this.styles];
+		newMapper.scripts = [...this.scripts];
+		newMapper.themes = { ...this.themes };
+		
+		// deep clone pageProps
+		newMapper.pageProps = JSON.parse(JSON.stringify(this.pageProps));
+		
+		newMapper.extraProps = new Set(this.extraProps);
+		newMapper.currentTheme = this.currentTheme;
+		newMapper.highlightCode = this.highlightCode;
+		newMapper.setHeader([this.getCustomHeaderContent()]);
+		return newMapper;
+	}
+
+	clear() {
+		this.outputs = [];
+	}
+
+	formatOutput(output, includeDocument) {
+		return output;
+	}
 }
 export default Mapper;

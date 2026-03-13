@@ -25,7 +25,7 @@ function validateName(
 	keyRegex = /^[a-zA-Z0-9\-_$]+$/,
 	name = "Identifier",
 	rule = "(A–Z, a–z, 0–9, -, _, $)",
-	ruleMessage = "must contain only letters, numbers, hyphens, underscores, or dollar signs"
+	ruleMessage = "must contain only letters, numbers, hyphens, underscores, or dollar signs ($)"
 ) {
 	if (!keyRegex.test(id)) {
 		parserError([`{line}<$red:Invalid ${name}:$><$blue: '${id}'$>{N}<$yellow:${name} ${ruleMessage}$> <$cyan: ${rule}.$>{line}`]);
@@ -133,12 +133,10 @@ function parseKey(tokens, i) {
 //  Parse Value                                                               //
 // ========================================================================== //
 function parseValue(tokens, i) {
-	let value = current_token(tokens, i).value.trim();
-	// ========================================================================== //
-	//  consume Value                                                             //
-	// ========================================================================== //
+	let val = current_token(tokens, i).value;
+	// consume Value
 	i++;
-	return [value, i];
+	return [val, i];
 }
 // ========================================================================== //
 //  Parse ','                                                                 //
@@ -297,6 +295,10 @@ function parseBlock(tokens, i) {
 				}
 
 				if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COMMA) {
+					v = v.trim();
+					if (v.startsWith('"') && v.endsWith('"')) {
+						v = v.slice(1, -1);
+					}
 					blockNode.args.push(v);
 					if (k) {
 						blockNode.args[k] = v;
@@ -312,6 +314,10 @@ function parseBlock(tokens, i) {
 			}
 		}
 		if (v !== "") {
+			v = v.trim();
+			if (v.startsWith('"') && v.endsWith('"')) {
+				v = v.slice(1, -1);
+			}
 			blockNode.args.push(v);
 			if (k) {
 				blockNode.args[k] = v;
@@ -459,6 +465,9 @@ function parseInline(tokens, i) {
 		parserError(errorMessage(tokens, i, inline_id, "("));
 	}
 	inlineNode.id = current_token(tokens, i).value.trim();
+	if (inlineNode.id === end_keyword) {
+		parserError(errorMessage(tokens, i, inlineNode.id, "", `'${inlineNode.id}' is a reserved keyword and cannot be used as an identifier.`));
+	}
 	validateName(inlineNode.id);
 	// ========================================================================== //
 	//  consume Inline Identifier                                                 //
@@ -478,10 +487,11 @@ function parseInline(tokens, i) {
 		let v = "";
 		const pushArg = () => {
 			if (v !== "") {
-				inlineNode.args.push(v);
-				if (!Number.isInteger(Number(v))) {
-					inlineNode.args[v] = v;
+				v = v.trim();
+				if (v.startsWith('"') && v.endsWith('"')) {
+					v = v.slice(1, -1);
 				}
+				inlineNode.args.push(v);
 				v = "";
 			}
 		};
@@ -683,6 +693,10 @@ function parseAtBlock(tokens, i) {
 						break;
 					}
 				}
+				v = v.trim();
+				if (v.startsWith('"') && v.endsWith('"')) {
+					v = v.slice(1, -1);
+				}
 				atBlockNode.args.push(v);
 				if (k) {
 					atBlockNode.args[k] = v;
@@ -775,9 +789,13 @@ function parseNode(tokens, i) {
 		return parseCommentNode(tokens, i);
 	}
 	// ========================================================================== //
-	//  Block                                                                     //
+	//  Block or Reserved Keyword                                                 //
 	// ========================================================================== //
-	else if (current_token(tokens, i).value === "[" && peek(tokens, i, 1) && peek(tokens, i, 1).type !== TOKEN_TYPES.END_KEYWORD) {
+	else if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.OPEN_BRACKET)) {
+		const next = peek(tokens, i, 1);
+		if (next && next.type === TOKEN_TYPES.END_KEYWORD) {
+			parserError(errorMessage(tokens, i + 1, "Block ID", "[", `'${next.value}' is a reserved keyword and cannot be used as a start identifier.`));
+		}
 		return parseBlock(tokens, i);
 	}
 	// ========================================================================== //
@@ -798,7 +816,7 @@ function parseNode(tokens, i) {
 	// ========================================================================== //
 	//  Atblock                                                                   //
 	// ========================================================================== //
-	else if (current_token(tokens, i).value === "@_") {
+	else if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.OPEN_AT)) {
 		return parseAtBlock(tokens, i);
 	} else {
 		parserError(errorMessage(tokens, i, current_token(tokens, i).value, "", "Syntax Error:"));
@@ -818,7 +836,7 @@ function parser(tokens) {
 	while (i < tokens.length) {
 		let [nodes, nextIndex] = parseNode(tokens, i);
 		if (current_token(tokens, i).type !== TOKEN_TYPES.COMMENT && current_token(tokens, i).depth === 0) {
-			parserError(errorMessage(tokens, i, "[", ""));
+			parserError(errorMessage(tokens, i, "Top-level Block", "", "Top-level content must be wrapped in a block. Found:"));
 		}
 		if (nodes) {
 			ast.push(nodes);
