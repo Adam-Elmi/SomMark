@@ -1,6 +1,47 @@
 # Changelog
 
-## v2.3.2 (2026-03-07)
+## v3.0.0 (2026-03-13)
+
+> [!WARNING]
+> Older versions (v1 and v2) are no longer supported.
+
+### Breaking Changes
+
+- Removed GFM format; use plugins instead.
+- Stricter identifier rules: `$`, `_`, and `-` enforced consistently in lexer and parser.
+- `end` is now a reserved keyword.
+- Mapper `type` property deprecated in favour of explicit registration types.
+
+### Features
+
+- Full HTML5 support with built-in `html_tags`, `html_props`, and `void_elements` constants.
+- Full Markdown and MDX support with rewritten class-based mappers.
+- Scoped plugin system with instance isolation and priority-based `PluginManager`.
+- Multi-stage plugin pipeline: `beforeLex`, `onAst`, `afterTranspile`.
+- Built-in plugins: `CommentRemover`, `SelfClosing`, `QuoteEscaper`, `ModuleSystem`, `RawContent`, `RulesValidation`, `Highlighting`.
+- `register()` and `inherit()` methods on the `SomMark` instance.
+- Safe custom overrides for component mappers.
+- CSS variable support (e.g. `color: --primary`).
+- Auto-generated anchor IDs for headings.
+- Case-insensitive target matching and `BODY_PLACEHOLDER` in transpiler.
+- Mapper base class gains `clone()`, `clear()`, `extraProps()`.
+- Broader JSON mapper output.
+- Smart MDX mapper with JSX and style conversion.
+- `lex` and `parse` CLI options added.
+- Local `smark.config.js` takes priority over global config; CLI passes plugins and priority from config.
+
+### Fixed
+
+- Lexer infinite loops and crashes.
+- Block spacing and paragraph newline handling.
+- Newline tokenization for multi-line blocks.
+- Multi-line prefixing in Markdown output.
+- Comma handling in inline components.
+- Void element nesting.
+- Lexer `=` bug for literal equal signs.
+- `--text` format error in CLI.
+
+## v2.3.2
 
 ### Fixed
 - Fixed: [Cli] CLI Fails to Print JSON Output with --json Flag (Issue #8)
