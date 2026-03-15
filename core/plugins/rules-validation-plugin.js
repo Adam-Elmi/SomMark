@@ -8,6 +8,8 @@ import { transpilerError } from "../errors.js";
 const RulesValidationPlugin = {
 	name: "rules-validation",
 	type: "on-ast",
+	author: "Adam-Elmi",
+	description: "Validates AST nodes against rules defined in the mapper (e.g., argument count, required keys, content length).",
 	onAst(ast, { mapperFile }) {
 		if (!mapperFile) return ast;
 
@@ -18,7 +20,7 @@ const RulesValidationPlugin = {
 			//  1. TEXT nodes validation                                                  //
 			// ========================================================================== //
 			if (node.type === "Text" && parentTarget) {
-				this.runValidations(parentTarget, null, node.text, "Text");
+				this.runValidations(parentTarget, null, node.text, "Text", mapperFile);
 			}
 
 			// ========================================================================== //
@@ -27,7 +29,7 @@ const RulesValidationPlugin = {
 			if (node.id) {
 				const target = mapperFile.get(node.id);
 				if (target) {
-					this.runValidations(target, node.args, this.getContent(node), node.type);
+					this.runValidations(target, node.args, this.getContent(node), node.type, mapperFile);
 				}
 			}
 
@@ -52,9 +54,9 @@ const RulesValidationPlugin = {
 		return "";
 	},
 
-	runValidations(target, args, content, type) {
-		if (!target.options || !target.options.rules) return;
-		const { rules } = target.options;
+	runValidations(target, args, content, type, mapperFile) {
+		if (!target.options) return;
+		const rules = target.options.rules || {};
 		const id = Array.isArray(target.id) ? target.id.join(" | ") : target.id;
 
 		// ========================================================================== //
@@ -87,7 +89,9 @@ const RulesValidationPlugin = {
 				}
 			}
 			if (includes && Array.isArray(includes)) {
-				const invalidKeys = argKeys.filter(key => !includes.includes(key));
+				const invalidKeys = argKeys.filter(key => {
+					return !includes.includes(key) && !mapperFile.extraProps.has(key);
+				});
 				if (invalidKeys.length > 0) {
 					transpilerError([
 						"{line}<$red:Validation Error:$> ",
@@ -177,8 +181,9 @@ const RulesValidationPlugin = {
 		// ========================================================================== //
 		//  5. Type Validation (Block, Inline, AtBlock)                               //
 		// ========================================================================== //
-		if (rules.type && type !== "Text") {
-			const allowedTypes = Array.isArray(rules.type) ? rules.type : [rules.type];
+		const typeToValidate = target.options.type;
+		if (typeToValidate && type !== "Text") {
+			const allowedTypes = Array.isArray(typeToValidate) ? typeToValidate : [typeToValidate];
 			if (!allowedTypes.includes("any") && !allowedTypes.includes(type)) {
 				transpilerError([
 					"{line}<$red:Validation Error:$> ",
