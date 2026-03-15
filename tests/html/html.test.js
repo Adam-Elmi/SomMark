@@ -104,9 +104,9 @@ describe("HTML Transpiler — Inline statements", () => {
 		inlineStatement_2 = removeNewline(inlineStatement_2);
 		expect(inlineStatement_2).toBe('<span style="color:red">SomMark</span>');
 	});
-	it("transpiles inline link to <a href=... title=...>", async () => {
+	it("transpiles [a] tag to <a href=... title=...>", async () => {
 		let inlineStatement_3 = await new SomMark({
-			src: "[Block](My Site)->(url:www.example.com, Title)[end]",
+			src: "[a = href: www.example.com, title: Title, target: _blank]My Site[end]",
 			format: "html",
 			includeDocument: false
 		}).transpile();
@@ -121,7 +121,7 @@ describe("HTML Transpiler — Inline statements", () => {
 describe("HTML Transpiler — @-blocks", () => {
 	it("transpiles @_list_@ to nested <ul> list", async () => {
 		let output = await new SomMark({
-			src: "[Block]@_list_@\nItem 1\n   Sub-Item 1\n  Sub-Item 2\nItem 2\nItem 3\n@_end_@[end]",
+			src: "[Block]@_list_@;\nItem 1\n   Sub-Item 1\n  Sub-Item 2\nItem 2\nItem 3\n@_end_@[end]",
 			format: "html",
 			includeDocument: false
 		}).transpile();
