@@ -1,46 +1,43 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import { cliError, formatMessage } from "../../core/errors.js";
-import { getConfigDir } from "./init.js";
+import { loadConfig, getResolvedConfigPath } from "../helpers/config.js";
 
 // ========================================================================== //
 //  Show Command                                                              //
 // ========================================================================== //
 
 export async function runShow(target) {
+    const config = await loadConfig();
+    const resolvedPath = getResolvedConfigPath();
+
     if (target === "config") {
         try {
-            const configDir = getConfigDir();
-            const configFilePath = path.join(configDir, "smark.config.js");
-            const pluginsDir = path.join(configDir, "plugins");
-            //========================================================================== //
-            //  Helper to check existence and format message                               //
-            //========================================================================== //
-            const checkPath = async (itemPath, isDir = false) => {
-                try {
-                    await fs.access(itemPath);
-                    return `<$green:${itemPath}$> <$cyan:(Exists)$>`;
-                } catch {
-                    return `<$red:${itemPath}$> <$yellow:(Not Found)$>`;
-                }
-            };
-
-            const configStatus = await checkPath(configFilePath);
-            const pluginsStatus = await checkPath(pluginsDir, true);
-
-            console.log(formatMessage(`{N}<$yellow:SomMark Configuration Files:$>{N}`));
-            console.log(formatMessage(`  <$magenta:Config File:$>    ${configStatus}`));
-            console.log(formatMessage(`  <$magenta:Plugins Dir:$>    ${pluginsStatus}{N}`));
-
+            console.log(formatMessage(`{N}<$yellow:SomMark Configuration Data:$>{N}`));
+            
+            // Format config for display (hide large objects)
+            const displayConfig = { ...config };
+            if (displayConfig.mappingFile && typeof displayConfig.mappingFile === "object") {
+                displayConfig.mappingFile = "[Mapper Object]";
+            }
+            
+            console.log(JSON.stringify(displayConfig, null, 4));
+            console.log("");
         } catch (error) {
             cliError([
-                `{line}<$red:Failed to retrieve configuration paths:$> <$magenta:${error.message}$>{line}`
+                `{line}<$red:Failed to retrieve configuration data:$> <$magenta:${error.message}$>{line}`
             ]);
+        }
+    } else if (target === "--path-config") {
+        console.log(formatMessage(`{N}<$yellow:SomMark Configuration Path:$>{N}`));
+        if (resolvedPath) {
+            console.log(formatMessage(`  <$green:${resolvedPath}$>{N}`));
+        } else {
+            console.log(formatMessage(`  <$red:No configuration file found. Using defaults.$>{N}`));
         }
     } else {
         cliError([
             `{line}<$red:Invalid target for 'show' command:$> <$blue:'${target || ""}'$> `,
-            `<$yellow:Usage:$> <$cyan:sommark show config$>{line}`
+            `{N}<$yellow:Usage:$> {N} <$cyan:sommark show config$>        - Displays configuration data`,
+            ` <$cyan:sommark show --path-config$> - Displays configuration file path{line}`
         ]);
     }
 }
