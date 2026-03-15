@@ -110,7 +110,7 @@ describe("Lexer: Syntax Compliance (Alphabetical Cases)", () => {
     //  Case I: At-block isolation                                                //
     // ========================================================================== //
     it("Case I: isolates At-block body from nested syntax", () => {
-        const tokens = lexer("@_Code_@ [Block] body [end] @_end_@");
+        const tokens = lexer("@_Code_@; [Block] body [end] @_end_@");
         const textToken = tokens.find(t => t.type === "TEXT");
         expect(textToken.value).toBe(" [Block] body [end] ");
     });
