@@ -22,6 +22,12 @@ import {
 } from "./labels.js";
 import { lexerError, sommarkError } from "./errors.js";
 
+const atBlockEndRegex = new RegExp(`^@_\\s*${end_keyword}\\s*_@`);
+function isAtBlockEnd(input, index) {
+	const slice = typeof input === "string" ? input.slice(index, index + 100) : input.slice(index, index + 100).join("");
+	return atBlockEndRegex.test(slice);
+}
+
 const updateNewLine = text => {
 	if (text && typeof text === "string") {
 		return text.split("").filter(value => value === "\n").length;
@@ -54,7 +60,7 @@ function concatText(input, index, scope_state, extraConditions = []) {
 				["]", !scope_state],
 				["(", !scope_state],
 				["-", peek(input, i, 1) === ">" && !scope_state],
-				["@", peek(input, i, 1) === "_" && (!scope_state || (peek(input, i, 2) === "e" && peek(input, i, 3) === "n" && peek(input, i, 4) === "d" && peek(input, i, 5) === "_"))],
+				["@", peek(input, i, 1) === "_" && (!scope_state || isAtBlockEnd(input, i))],
 				["_", peek(input, i, 1) === "@" && !scope_state],
 				["#", !scope_state],
 				["\\", true]
@@ -181,7 +187,7 @@ function lexer(src) {
 			if (!/^[a-zA-Z0-9\-_$]+$/.test(id.trim())) {
 				lexerError([
 					`{line}<$red:Invalid ${type}:$>{N}`,
-					`<$yellow:Identifiers can only contain letters, numbers, underscores (_), dollar signs ($), and hyphens (-). Got$> <$blue:'${id.trim()}'$>{N}`,
+					`<$yellow:Identifiers can only contain letters, numbers, underscores (_), dollar signs, and hyphens (-). Got$> <$blue:'${id.trim()}'$>{N}`,
 					"{line}"
 				]);
 			}
@@ -287,7 +293,7 @@ function lexer(src) {
 			else if (
 				current_char === "@" &&
 				peek(src, i, 1) === "_" &&
-				(!scope_state || (peek(src, i, 2) === "e" && peek(src, i, 3) === "n" && peek(src, i, 4) === "d" && peek(src, i, 5) === "_"))
+				(!scope_state || isAtBlockEnd(src, i))
 			) {
 				temp_str = current_char + peek(src, i, 1);
 				i += temp_str.length - 1;
@@ -295,8 +301,7 @@ function lexer(src) {
 				updateMetadata(temp_str);
 				addToken(TOKEN_TYPES.OPEN_AT, temp_str);
 				// is next token end keyword?
-				const endKey = concatChar(src, i + 1, ["_"]);
-				if (endKey.trim() === end_keyword) {
+				if (isAtBlockEnd(src, i - 1)) {
 					previous_value = at_end;
 				} else {
 					previous_value = temp_str;
@@ -389,6 +394,7 @@ function lexer(src) {
 			// ========================================================================== //
 			else if (
 				(current_char === ";" && previous_value === at_value) ||
+				(current_char === ";" && previous_value === "_@+") || // New: Allow semicolon directly after identifier
 				(current_char === ";" && previous_value === ";") ||
 				(current_char === ";" && previous_value === ATBLOCKCOMMA)
 			) {
@@ -597,7 +603,10 @@ function lexer(src) {
 				//  Token: Text                                                               //
 				// ========================================================================== //
 				else {
-					if (previous_value === "_@+") scope_state = true;
+					if (previous_value === "_@+") {
+						// Strictly wait for semicolon or arguments on the same line.
+						// No more heuristic lookahead.
+					}
 					context = concatText(src, i, scope_state, [
 						[":", previous_value === inline_id_2],
 						[",", previous_value === block_value || previous_value === at_value || previous_value === inline_value],
