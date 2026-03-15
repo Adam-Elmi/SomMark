@@ -38,8 +38,8 @@ export default class PluginManager {
 			// 4. Neither have a priority
 			// Default rule: built-ins first, then external/user-defined
 			// ========================================================================== //
-			const isBuiltInA = ["module-system", "quote-escaper", "raw-content", "comment-remover", "rules-validation"].includes(a.name); // Hardcoded for now based on current project
-			const isBuiltInB = ["module-system", "quote-escaper", "raw-content", "comment-remover", "rules-validation"].includes(b.name);
+			const isBuiltInA = ["module-system", "quote-escaper", "raw-content", "comment-remover", "rules-validation", "sommark-format"].includes(a.name); // Hardcoded for now based on current project
+			const isBuiltInB = ["module-system", "quote-escaper", "raw-content", "comment-remover", "rules-validation", "sommark-format"].includes(b.name);
 
 			if (isBuiltInA && !isBuiltInB) return -1;
 			if (!isBuiltInA && isBuiltInB) return 1;
