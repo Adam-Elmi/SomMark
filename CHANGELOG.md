@@ -1,43 +1,40 @@
 # Changelog
 
-## v3.0.0 (2026-03-13)
+## v3.0.0 (2026-03-16)
 
-> [!WARNING]
-> Older versions (v1 and v2) are no longer supported.
+### Big Changes
 
-### Breaking Changes
+- Better naming rules for tags: `$`, `_`, and `-` now work the same everywhere.
+- Tag types are now clearer when you register them.
+- Atblocks now require a semicolon (`;`) at the Atblock header even there are no arguments.
 
-- Stricter identifier rules: `$`, `_`, and `-` enforced consistently in lexer and parser.
-- Mapper `type` property deprecated in favour of explicit registration types.
+### New Features
 
-### Features
+- Full support for all HTML5 tags and properties.
+- Full support for Markdown and MDX.
+- Better plugin system: Plugins can now run in a specific order and don't interfere with each other.
+- Plugins can run at different times (before lexing, during parsing, or after transpiling).
+- Many new built-in plugins for common tasks like removing comments or escaping quotes.
+- New ways to add features directly to a SomMark instance.
+- Easier to change or add your own tag behaviors.
+- Support for CSS variables (like `color: --primary`).
+- Links for headings are now made automatically.
+- Tag matching can now ignore big or small letters.
+- Much faster and more reliable internal code.
+- New CLI commands to see your plugins, configuration, and colors.
+- Common plugins like `CommentRemover` are now on by default.
 
-- Full HTML5 support with built-in `html_tags`, `html_props`, and `void_elements` constants.
-- Full Markdown and MDX support with rewritten class-based mappers.
-- Scoped plugin system with instance isolation and priority-based `PluginManager`.
-- Multi-stage plugin pipeline: `beforeLex`, `onAst`, `afterTranspile`.
-- Built-in plugins: `CommentRemover`, `SelfClosing`, `QuoteEscaper`, `ModuleSystem`, `RawContent`, `RulesValidation`, `Highlighting`.
-- `register()` and `inherit()` methods on the `SomMark` instance.
-- Safe custom overrides for component mappers.
-- CSS variable support (e.g. `color: --primary`).
-- Auto-generated anchor IDs for headings.
-- Case-insensitive target matching and `BODY_PLACEHOLDER` in transpiler.
-- Mapper base class gains `clone()`, `clear()`, `extraProps()`.
-- Broader JSON mapper output.
-- Smart MDX mapper with JSX and style conversion.
-- `lex` and `parse` CLI options added.
-- Local `smark.config.js` takes priority over global config; CLI passes plugins and priority from config.
+### Fixes
 
-### Fixed
-
-- Lexer infinite loops and crashes.
-- Block spacing and paragraph newline handling.
-- Newline tokenization for multi-line blocks.
-- Multi-line prefixing in Markdown output.
-- Comma handling in inline components.
-- Void element nesting.
-- Lexer `=` bug for literal equal signs.
-- `--text` format error in CLI.
+- Fixed cases where the program would get stuck (infinite loops).
+- Better handling of spaces and new lines between paragraphs.
+- Better multi-line support for blocks and Markdown.
+- Fixed small bugs with commas and nested tags.
+- Fixed a bug where `=` didn't work right in some places.
+- Better error messages in the CLI.
+- Fixed a bug where `todo` lists didn't show the correct checkmark status.
+- Moved common tools to a single place for better maintenance.
+- Full documentation for all parts of the code.
 
 ## v2.3.2
 
