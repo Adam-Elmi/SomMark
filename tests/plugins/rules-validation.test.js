@@ -95,7 +95,20 @@ describe("Plugin: rules-validation", () => {
 		});
 
 		// Correct AtBlock syntax: @_id_@ content @_end_@
-		const srcFail = "[Div]@_Self_@ Illegal Content @_end_@[end]";
+		const srcFail = "[Div]@_Self_@; Illegal Content @_end_@[end]";
 		await expect(sm.transpile(srcFail)).rejects.toMatch(/is.*self-closing.*not.*allowed.*content/);
+	});
+
+	it("validates identifier type (Block, Inline, AtBlock)", async () => {
+		const sm = new SomMark(defaultOptions);
+		sm.register("OnlyBlock", ({ content }) => content, {
+			type: "Block"
+		});
+
+		const srcFail = "[Block](Value)->(OnlyBlock)[end]";
+		await expect(sm.transpile(srcFail)).rejects.toMatch(/is.*expected.*to.*be.*type.*'Block'/);
+		
+		const srcPass = "[OnlyBlock]Content[end]";
+		await expect(sm.transpile(srcPass)).resolves.toBeDefined();
 	});
 });
