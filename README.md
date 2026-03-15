@@ -16,7 +16,7 @@ SomMark v3 is a simple, flexible markup language for structured content.
 </a>
 
 <!--Language Type-->
-<img src="https://img.shields.io/badge/type-markup%20language-white?style=flat-square" />
+<img src="https://img.shields.io/badge/type-markup%20language-orange?style=flat-square" />
 
 <!--SomMark Playground-->
 <a href="https://adam-elmi.github.io/SomMark-Playground" target="_blank">
