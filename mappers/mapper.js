@@ -1,33 +1,9 @@
 import TagBuilder from "../formatter/tag.js";
 import MarkdownBuilder from "../formatter/mark.js";
 import escapeHTML from "../helpers/escapeHTML.js";
-import atomOneDark from "../helpers/defaultTheme.js";
-import loadCss from "../helpers/loadCss.js";
 import { sommarkError } from "../core/errors.js";
+import { matchedValue, safeArg } from "../helpers/utils.js";
 
-// ========================================================================== //
-//  Helpers                                                                   //
-// ========================================================================== //
-function matchedValue(outputs, targetId) {
-	let result;
-	for (const outputValue of outputs) {
-		const targetLower = targetId.toLowerCase();
-		if (typeof outputValue.id === "string") {
-			if (outputValue.id.toLowerCase() === targetLower) {
-				result = outputValue;
-				break;
-			}
-		} else if (Array.isArray(outputValue.id)) {
-			for (const id of outputValue.id) {
-				if (id.toLowerCase() === targetLower) {
-					result = outputValue;
-					break;
-				}
-			}
-		}
-	}
-	return result;
-}
 
 // ========================================================================== //
 //  Main Mapper Class                                                         //
@@ -39,7 +15,6 @@ class Mapper {
 	// ========================================================================== //
 	constructor() {
 		this.outputs = [];
-		this.enable_highlightTheme = true;
 		this.md = new MarkdownBuilder();
 
 		this.extraProps = new Set(); // For plugins to add recognized arguments
@@ -57,31 +32,8 @@ class Mapper {
 
 		this.#customHeaderContent = "";
 
-		this.highlightCode = null;
 		this.escapeHTML = escapeHTML;
 		this.styles = [];
-		this.env = "node";
-		// Theme Registry
-		this.themes = {
-			"sommark-default": "pre{padding: 5px; background-color: #f6f8fa; font-family: monospace}",
-			"atom-one-dark": atomOneDark
-		};
-		this.currentTheme = this.highlightCode && typeof this.highlightCode === "function" ? "atom-one-dark" : "sommark-default";
-		this.enable_table_styles = true;
-		this.mappers = [];
-		this.scripts = [];
-	}
-
-	registerHighlightTheme(themes) {
-		this.themes = { ...this.themes, ...themes };
-	}
-
-	selectHighlightTheme(themeName) {
-		if (this.themes[themeName]) {
-			this.currentTheme = themeName;
-		} else {
-			console.warn(`Theme '${themeName}' not found in registry.`);
-		}
 	}
 
 	// ========================================================================== //
@@ -106,10 +58,6 @@ class Mapper {
 		}
 	}
 
-	async loadCss(env = this.env, filePath) {
-		const css = await loadCss(env, filePath);
-		this.addStyle(css);
-	}
 
 	// ========================================================================== //
 	//  Header Generation                                                         //
@@ -167,19 +115,6 @@ class Mapper {
 			this.removeOutput(singleId);
 		}
 
-		// Handle legacy nested 'rules.type' and warn
-		if (options.rules?.type && !options.type) {
-			console.warn(`[SomMark Deprecation]: Registering identifier '${id}' with nested 'rules.type' is deprecated. Please use top-level 'type' option instead.`);
-			options.type = options.rules.type;
-		}
-
-		// Map top-level 'type' to 'rules.type' for transpiler compatibility
-		if (options.type) {
-			options.rules = options.rules || {};
-			options.rules.type = options.type;
-			delete options.type;
-		}
-
 		this.outputs.push({ id, render, options });
 	}
 
@@ -198,12 +133,11 @@ class Mapper {
 	}
 
 	removeOutput(id) {
-		const targetLower = id.toLowerCase();
 		this.outputs = this.outputs.filter(output => {
 			if (Array.isArray(output.id)) {
-				return !output.id.some(singleId => singleId.toLowerCase() === targetLower);
+				return !output.id.some(singleId => singleId === id);
 			} else {
-				return output.id.toLowerCase() !== targetLower;
+				return output.id !== id;
 			}
 		});
 	}
@@ -238,133 +172,6 @@ class Mapper {
 			}
 		}
 	}
-	// ========================================================================== //
-	//  Formatters                                                                //
-	// ========================================================================== //
-	code(args, content) {
-		const lang = this.safeArg(args, 0, "lang", null, null, "text");
-		const code = content || "";
-		let value = code;
-		const code_element = this.tag("code");
-		
-		// Default neutral class
-		let codeClass = `language-${lang}`;
-		let codeStyle = "";
-
-		if (this.highlightCode && typeof this.highlightCode === "function") {
-			const highlighted = this.highlightCode(code, lang);
-			
-			if (typeof highlighted === "object" && highlighted !== null) {
-				value = highlighted.html || highlighted.content || code;
-				if (highlighted.class) codeClass = highlighted.class;
-				if (highlighted.style) codeStyle = highlighted.style;
-			} else {
-				value = highlighted;
-			}
-		}
-
-		code_element.attributes({ class: codeClass });
-		if (codeStyle) code_element.attributes({ style: codeStyle });
-		
-		return this.tag("pre").body(code_element.body(value));
-	}
-	htmlTable(data, headers, defaultStyle = true) {
-		const isAddedStyle = this.styles.some(s => s.includes(".sommark-table"));
-		if (!data) return "";
-
-		const css = `
-.sommark-table{border-collapse:collapse;width:100%;border:1px solid #e1e1e1}
-.sommark-table th,.sommark-table td{border:1px solid #e1e1e1;padding:6px 8px;text-align:left}
-.sommark-table th{background:#f6f8fa;font-weight:600}
-.sommark-table tr:nth-child(even){background:#fbfbfb}`;
-
-		if (defaultStyle && this.enable_table_styles && !isAddedStyle) {
-			this.addStyle(css.trim());
-		}
-
-		if (typeof data === "string") {
-			data = data.split(/\r?\n/);
-		} else if (!Array.isArray(data) || data.length === 0) {
-			return "";
-		}
-
-		let tableHTML = `<table class="sommark-table">\n<thead>\n<tr>`;
-		for (const header of headers) {
-			tableHTML += `<th>${this.escapeHTML(header)}</th>`;
-		}
-		tableHTML += "</tr>\n</thead>\n<tbody>\n";
-
-		for (const row of data) {
-			if (!row.trim()) continue;
-			const rowData = row.split(",").map(cell => cell.trim());
-			tableHTML += "<tr>";
-			for (const cell of rowData) {
-				tableHTML += `<td>${this.escapeHTML(cell.trim())}</td>`;
-			}
-			tableHTML += "</tr>\n";
-		}
-
-		tableHTML += "</tbody>\n</table>";
-		return tableHTML;
-	}
-	parseList(data, indentSize = 2) {
-		if (typeof data === "string") {
-			data = data.split("\n");
-		}
-		const root = { level: -1, children: [] };
-		const stack = [root];
-
-		const getLevel = line => {
-			const spaces = line.match(/^\s*/)[0].length;
-			return Math.floor(spaces / indentSize);
-		};
-
-		for (const raw of data) {
-			if (!raw.trim()) continue;
-			const level = getLevel(raw);
-			const text = raw.trim();
-
-			const node = { text, children: [] };
-
-			while (stack.length && stack[stack.length - 1].level >= level) {
-				stack.pop();
-			}
-
-			stack[stack.length - 1].children.push(node);
-			stack.push({ ...node, level });
-		}
-
-		return root.children;
-	};
-	list(data, as = "ul") {
-		const nodes = this.parseList(data);
-		if (!Array.isArray(nodes) || nodes.length === 0) return "";
-
-		const tag = as === "ol" ? "ol" : "ul";
-
-		const renderItems = items => {
-			let html = `<${tag}>`;
-
-			for (const item of items) {
-				html += `<li>`;
-
-				html += this.escapeHTML(item.text);
-				if (item.children && item.children.length > 0) {
-					html += renderItems(item.children);
-				}
-
-				html += `</li>`;
-			}
-
-			html += `</${tag}>`;
-			return html;
-		};
-
-		return renderItems(nodes);
-	}
-	// ========================================================================== //
-	//  Utilities                                                                 //
-	// ========================================================================== //
 	includesId(ids) {
 		try {
 			if (!Array.isArray(ids) || ids.length === 0) {
@@ -399,120 +206,26 @@ class Mapper {
 			return false;
 		}
 	}
-	todo(checked = false) {
-		return checked.trim() === "x" || checked.trim().toLowerCase() === "done" ? true : false;
-	}
+
 	safeArg(args, index, key, type = null, setType = null, fallBack = null) {
-		if (!Array.isArray(args)) {
-			sommarkError([`{line}<$red:TypeError:$> <$yellow:args must be an array$>{line}`]);
-		}
-
-		if (index === undefined && key === undefined) {
-			sommarkError([`{line}<$red:ReferenceError:> <$yellow:At least one of 'index' or 'key' must be provided$>{line}`]);
-		}
-
-		if (index !== undefined && typeof index !== "number") {
-			sommarkError([`{line}<$red:TypeError:$> <$yellow:index must be a number$>{line}`]);
-		}
-
-		if (key !== undefined && typeof key !== "string") {
-			sommarkError([`{line}<$red:TypeError:$> <$yellow:key must be a string$>{line}`]);
-		}
-
-		if (type !== null && typeof type !== "string") {
-			sommarkError([`{line}<$red:TypeError:$> <$yellow:type must be a string$>{line}`]);
-		}
-
-		if (setType !== null && typeof setType !== "function") {
-			sommarkError([`{line}<$red:TypeError:$> <$yellow:setType must be a function$>{line}`]);
-		}
-
-		const validate = value => {
-			if (value === undefined) return false;
-			if (!type) return true;
-			const evaluated = setType ? setType(value) : value;
-			return typeof evaluated === type;
-		};
-
-		if (index !== undefined && validate(args[index])) {
-			return args[index];
-		}
-
-		if (key !== undefined && validate(args[key])) {
-			return args[key];
-		}
-
-		return fallBack;
-	};
-	makeFrontmatter = entries => {
-		if (!entries || typeof entries !== "object") {
-			console.warn(`From function: ${this.makeFrontmatter.name}: invalid entries, returning empty string.`);
-			return "";
-		}
-		const keys = Object.keys(entries);
-		if (keys.length === 0) {
-			console.warn(`From function: ${this.makeFrontmatter.name}: invalid entries, returning empty string.`);
-			return "";
-		}
-		const body = keys
-			.map(key => {
-				const value = entries[key];
-				if (Array.isArray(value)) {
-					const list = value.map(item => `  - ${JSON.stringify(item)}`).join("\n");
-					return `${key}:\n${list}`;
-				}
-				return `${key}: ${JSON.stringify(value)}`;
-			})
-			.join("\n");
-		return `---\n${body}\n---\n`;
-	};
-
-	raw_js_imports = imports => {
-		if (!Array.isArray(imports)) {
-			console.warn("raw_js_imports: imports must be an array");
-			return "";
-		}
-
-		if (imports.length === 0) {
-			console.warn("raw_js_imports: imports array is empty");
-			return "";
-		}
-
-		return imports
-			.map((imp, index) => {
-				if (!imp?.name || !imp?.path) {
-					console.warn(`raw_js_imports: invalid import entry at index ${index}`);
-					return "";
-				}
-
-				const path = JSON.stringify(imp.path);
-				const newline = index === imports.length - 1 ? "\n\n" : "\n";
-
-				return `import ${imp.name} from ${path};${newline}`;
-			})
-			.join("");
-	};
+		return safeArg(args, index, key, type, setType, fallBack);
+	}
 
 	clone() {
 		const newMapper = new this.constructor();
-		
+
 		// Map-clone outputs to ensure options are isolated but render remains bound
 		newMapper.outputs = this.outputs.map(out => ({
 			...out,
 			options: out.options ? { ...out.options } : { escape: true }
 		}));
 
-		newMapper.mappers = [...this.mappers];
 		newMapper.styles = [...this.styles];
-		newMapper.scripts = [...this.scripts];
-		newMapper.themes = { ...this.themes };
-		
+
 		// deep clone pageProps
 		newMapper.pageProps = JSON.parse(JSON.stringify(this.pageProps));
-		
+
 		newMapper.extraProps = new Set(this.extraProps);
-		newMapper.currentTheme = this.currentTheme;
-		newMapper.highlightCode = this.highlightCode;
 		newMapper.setHeader([this.getCustomHeaderContent()]);
 		return newMapper;
 	}
