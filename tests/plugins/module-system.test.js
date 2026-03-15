@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { transpile } from "../../index.js";
 
 describe("Plugin: module-system", () => {
-    const defaultOptions = { plugins: ["module-system"], includeDocument: false };
+    const defaultOptions = { includeDocument: false };
 
     it("successfully imports a .smark file", async () => {
         const src = '[[import = $header: "tests/fixtures/header.smark"]]\n[Block]\n$[[header]]\n[end]';
@@ -54,7 +54,6 @@ describe("Plugin: module-system", () => {
                 format: htmlFormat,
                 includeDocument: false,
                 plugins: [
-                    "module-system",
                     { name: "raw-content", options: { targetBlocks: ["Style", "Code"] } }
                 ]
             });
