@@ -119,9 +119,9 @@ class MarkdownBuilder {
 			rows = rows.map(row => {
 				let columns;
 				if (typeof row === "string") {
-					columns = row.split(",").map(c => c.trim());
+					columns = row.split(/(?<!\\),/).map(c => c.trim().replace(/\\(.)/g, "$1"));
 				} else if (Array.isArray(row)) {
-					columns = row.map(c => String(c).trim());
+					columns = row.map(c => String(c).trim().replace(/\\(.)/g, "$1"));
 				} else {
 					return "";
 				}
