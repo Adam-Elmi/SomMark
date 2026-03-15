@@ -1,0 +1,27 @@
+[div = class: "intro-badge"]MISSION CONTROL[end]
+[h1]The v3 Engine Journey.[end]
+[p = class: "lead"]Tracking the technical evolution and core milestones of the SomMark transpiler ecosystem.[end]
+
+[h2]Architectural Vision[end]
+[blockquote]
+    "Our goal for v3 was simple: Performance without compromise and extensibility through a modular plugin architecture."
+[end]
+
+[h2]Performance Benchmarks[end]
+@_Table_@: Component, Optimization, Status;
+Lexer, Infinite loop protection & safe identifier rules, Stable;
+Parser, Distributed argument trimming & multi-line support, Stable;
+Plugin Dev, stage-based lifecycle \(beforeLex\, onAst\, afterTranspile\), Stable;
+CLI, Unified API integration with smark.config.js support, Stable;
+@_end_@
+
+[h2]Completed Milestones[end]
+[div = class: "checklist-container"]
+    [h3]Feature Velocity List[end]
+    (x)->(todo: Full HTML5 and Markdown/MDX support)
+    (x)->(todo: Scoped plugin system with instance isolation)
+    (x)->(todo: Auto-generate anchor IDs for headings)
+    (x)->(todo: Case-insensitive target matching)
+    (x)->(todo: Built-in QuoteEscaper and RawContentPlugin)
+    ( )->(todo: Real-time Visual Playground)
+[end]
