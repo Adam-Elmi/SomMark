@@ -1,19 +1,18 @@
 import { describe, it, expect } from "vitest";
 import SomMark from "../../index.js";
 
-describe("Syntax Highlighting Enhancements", () => {
-    it("should support object-based returns from highlightCode for custom attributes", async () => {
+describe("Syntax Highlighting (Modular Architecture)", () => {
+    it("should allow a plugin/user to override the Code block for custom highlighting", async () => {
         const sm = new SomMark({ 
             src: "[Block]\n@_Code_@: js; const x = 1 @_end_@\n[end]", 
             format: "html" 
         });
-        sm.mapperFile.highlightCode = (code, lang) => {
-            return {
-                html: `<u>${code}</u>`,
-                class: "custom-prism-theme",
-                style: "color: red;"
-            };
-        };
+
+        // Manually override Code registration to simulate a highlighting plugin
+        sm.mapperFile.register("Code", ({ args, content }) => {
+            const lang = sm.mapperFile.safeArg(args, 0, "lang", null, null, "text");
+            return `<pre class="custom-prism-theme" style="color: red;"><code class="language-${lang}"><u>${content}</u></code></pre>`;
+        }, { escape: false, type: "AtBlock" });
         
         const output = await sm.transpile();
         expect(output).toContain('class="custom-prism-theme"');
@@ -21,10 +20,15 @@ describe("Syntax Highlighting Enhancements", () => {
         expect(output).toContain('<u> const x = 1 </u>');
     });
 
-    it("should automatically link highlighting plugins to the mapper", async () => {
+    it("should allow highlighting plugins to register themselves via hooks", async () => {
         const highlighterPlugin = {
             name: "test-highlighter",
-            highlighter: (code, lang) => `[[${lang}:${code}]]`
+            register: (sm) => {
+                sm.mapperFile.register("Code", ({ args, content }) => {
+                    const lang = sm.mapperFile.safeArg(args, 0, "lang", null, null, "text");
+                    return `[[${lang}:${content}]]`;
+                }, { escape: false, type: "AtBlock" });
+            }
         };
 
         const sm = new SomMark({
@@ -35,6 +39,5 @@ describe("Syntax Highlighting Enhancements", () => {
 
         const output = await sm.transpile();
         expect(output).toContain("[[python: print('hello') ]]");
-        expect(output).toContain('class="language-python"');
     });
 });
