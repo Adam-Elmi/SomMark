@@ -38,7 +38,7 @@ describe("Text Transpiler", () => {
 
     it("transpiles @-blocks to their content", async () => {
         let output = await new SomMark({
-            src: "[Block]@_List_@\nItem 1\nItem 2\n@_end_@[end]",
+            src: "[Block]@_List_@;\nItem 1\nItem 2\n@_end_@[end]",
             format: "text",
             includeDocument: false
         }).transpile();
