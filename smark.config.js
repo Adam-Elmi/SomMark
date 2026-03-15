@@ -4,6 +4,7 @@ export default {
 	mappingFile: null,
     plugins: [
         "comment-remover",
-        { name: "self-closing", options: { all: true } }
+        "quote-escaper",
+        "module-system",
     ]
 };
