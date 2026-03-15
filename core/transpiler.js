@@ -10,12 +10,11 @@ const BODY_PLACEHOLDER = `__SOMMARK_BODY_PLACEHOLDER_${Math.random().toString(36
 // ========================================================================== //
 function matchedValue(outputs, targetId) {
 	if (!outputs || !targetId) return undefined;
-	const targetLower = targetId.toLowerCase();
 	return outputs.find(output => {
 		if (Array.isArray(output.id)) {
-			return output.id.some(id => id.toLowerCase() === targetLower);
+			return output.id.some(id => id === targetId);
 		}
-		return typeof output.id === "string" && output.id.toLowerCase() === targetLower;
+		return typeof output.id === "string" && output.id === targetId;
 	});
 }
 
