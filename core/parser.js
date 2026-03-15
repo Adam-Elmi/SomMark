@@ -103,12 +103,33 @@ const updateData = (tokens, i) => {
 };
 
 const errorMessage = (tokens, i, expectedValue, behindValue, frontText) => {
-	const tokensUntilError = tokens.slice(0, i);
-	const contextText = tokensUntilError.map(t => t.value).join("");
-	const pointerPadding = " ".repeat(contextText.length);
 	const current = tokens[i] ?? fallback;
+	const errorLineNumber = current.line;
+
+	// Find starting index of the error line
+	let lineStartIndex = i;
+	while (lineStartIndex > 0 && tokens[lineStartIndex - 1].line === errorLineNumber) {
+		lineStartIndex--;
+	}
+
+	// Find ending index of the error line
+	let lineEndIndex = i;
+	while (lineEndIndex < tokens.length - 1 && tokens[lineEndIndex + 1].line === errorLineNumber) {
+		lineEndIndex++;
+	}
+
+	// Get all tokens on the error line
+	const lineTokens = tokens.slice(lineStartIndex, lineEndIndex + 1);
+	const lineContent = lineTokens.map(t => t.value).join('');
+
+	// Get content on the line before the error token
+	const tokensBeforeErrorOnLine = tokens.slice(lineStartIndex, i);
+	const contentBeforeErrorOnLine = tokensBeforeErrorOnLine.map(t => t.value).join('');
+	
+	const pointerPadding = " ".repeat(contentBeforeErrorOnLine.length);
+
 	return [
-		`<$blue:{line}$><$red:Here where error occurred:$>{N}${contextText}${current.value}{N}${pointerPadding}<$yellow:^$>{N}{N}`,
+		`<$blue:{line}$><$red:Here where error occurred:$>{N}${lineContent}{N}${pointerPadding}<$yellow:^$>{N}{N}`,
 		`<$red:${frontText ? frontText : "Expected token"}$> <$blue:'${expectedValue}'$> ${behindValue ? "after <$blue:'" + behindValue + "'$>" : ""} at line <$yellow:${line}$>,`,
 		` from column <$yellow: ${start}$> to <$yellow: ${end}$>`,
 		`{N}<$yellow:Received:$> <$blue:'${value === "\n" ? "\\n' (newline)" : value}'$>`,
@@ -136,6 +157,7 @@ function parseValue(tokens, i) {
 	let val = current_token(tokens, i).value;
 	// consume Value
 	i++;
+	updateData(tokens, i);
 	return [val, i];
 }
 // ========================================================================== //
@@ -220,8 +242,8 @@ function parseBlock(tokens, i) {
 		parserError(errorMessage(tokens, i, block_id, "["));
 	}
 	const id = current_token(tokens, i).value;
-	if (id === end_keyword) {
-		parserError(errorMessage(tokens, i, id, "", `'${id}' is a reserved keyword and cannot be used as an identifier.`));
+	if (id.trim() === end_keyword) {
+		parserError(errorMessage(tokens, i, id, "", `'${id.trim()}' is a reserved keyword and cannot be used as an identifier.`));
 	}
 	blockNode.id = id.trim();
 	validateName(blockNode.id);
@@ -353,18 +375,17 @@ function parseBlock(tokens, i) {
 			//  consume child node                                                        //
 			// ========================================================================== //
 			i = nextIndex;
-			updateData(tokens, i);
 		} else if (
 			current_token(tokens, i) &&
 			current_token(tokens, i).type === TOKEN_TYPES.OPEN_BRACKET &&
 			peek(tokens, i, 1) &&
-			peek(tokens, i, 1).type === TOKEN_TYPES.END_KEYWORD
+			(peek(tokens, i, 1).type === TOKEN_TYPES.END_KEYWORD || peek(tokens, i, 1).value.trim() === end_keyword)
 		) {
 			// ========================================================================== //
 			//  consume '['                                                               //
 			// ========================================================================== //
 			i++;
-			if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.END_KEYWORD)) {
+			if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.END_KEYWORD && current_token(tokens, i).value.trim() !== end_keyword)) {
 				parserError(errorMessage(tokens, i, "end", "["));
 			}
 			// ========================================================================== //
@@ -393,7 +414,6 @@ function parseBlock(tokens, i) {
 			}
 			blockNode.body.push(childNode);
 			i = nextIndex;
-			updateData(tokens, i);
 		}
 	}
 	return [blockNode, i];
@@ -408,34 +428,21 @@ function parseInline(tokens, i) {
 	// ========================================================================== //
 	i++;
 	updateData(tokens, i);
-	if (
-		!current_token(tokens, i) ||
-		(current_token(tokens, i) &&
-			current_token(tokens, i).type !== TOKEN_TYPES.VALUE &&
-			current_token(tokens, i).type !== TOKEN_TYPES.ESCAPE)
-	) {
-		parserError(errorMessage(tokens, i, inline_value, "("));
+	if (current_token(tokens, i)) {
+		inlineNode.depth = current_token(tokens, i).depth;
 	}
-	inlineNode.depth = current_token(tokens, i).depth;
-	updateData(tokens, i);
 	while (i < tokens.length) {
-		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.VALUE) {
-			inlineNode.value += current_token(tokens, i).value;
-			// ========================================================================== //
-			//  consume Inline Value                                                      //
-			// ========================================================================== //
-			i++;
-			continue;
-		} else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.ESCAPE) {
-			inlineNode.value += current_token(tokens, i).value.slice(1);
-			// ========================================================================== //
-			//  consume Escape Character '\'                                              //
-			// ========================================================================== //
-			i++;
-			continue;
-		} else {
+		const token = current_token(tokens, i);
+		if (!token || token.type === TOKEN_TYPES.CLOSE_PAREN) {
 			break;
 		}
+		if (token.type === TOKEN_TYPES.ESCAPE) {
+			inlineNode.value += token.value.slice(1);
+		} else {
+			inlineNode.value += token.value;
+		}
+		i++;
+		updateData(tokens, i);
 	}
 	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN)) {
 		parserError(errorMessage(tokens, i, ")", inline_value));
@@ -570,22 +577,28 @@ function parseInline(tokens, i) {
 // ========================================================================== //
 //  Parse Text                                                                //
 // ========================================================================== //
-function parseText(tokens, i) {
+function parseText(tokens, i, options = {}) {
 	const textNode = makeTextNode();
 	textNode.depth = current_token(tokens, i).depth;
+	const { selectiveUnescape = false } = options;
+
 	while (i < tokens.length) {
-		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
-			textNode.text += current_token(tokens, i).value;
-			// ========================================================================== //
-			//  consume Text Node                                                         //
-			// ========================================================================== //
+		const token = current_token(tokens, i);
+		if (token && token.type === TOKEN_TYPES.TEXT) {
+			textNode.text += token.value;
 			i++;
 			updateData(tokens, i);
-		} else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.ESCAPE) {
-			textNode.text += current_token(tokens, i).value.slice(1);
-			// ========================================================================== //
-			//  consume Text Node                                                         //
-			// ========================================================================== //
+		} else if (token && token.type === TOKEN_TYPES.ESCAPE) {
+			if (selectiveUnescape) {
+				const char = token.value.slice(1);
+				if (char === "@" || char === "_") {
+					textNode.text += char;
+				} else {
+					textNode.text += token.value;
+				}
+			} else {
+				textNode.text += token.value.slice(1); // Standard behavior: unescape all
+			}
 			i++;
 			updateData(tokens, i);
 		} else {
@@ -605,8 +618,8 @@ function parseAtBlock(tokens, i) {
 	i++;
 	updateData(tokens, i);
 	const id = current_token(tokens, i).value;
-	if (id === end_keyword) {
-		parserError(errorMessage(tokens, i, id, "", `'${id}' is a reserved keyword and cannot be used as an identifier.`));
+	if (id.trim() === end_keyword) {
+		parserError(errorMessage(tokens, i, id, "", `'${id.trim()}' is a reserved keyword and cannot be used as an identifier.`));
 	}
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.IDENTIFIER) {
 		atBlockNode.id = id.trim();
@@ -628,21 +641,6 @@ function parseAtBlock(tokens, i) {
 	// ========================================================================== //
 	i++;
 	updateData(tokens, i);
-	if (
-		current_token(tokens, i) &&
-		current_token(tokens, i).type === TOKEN_TYPES.TEXT &&
-		(current_token(tokens, i).value.includes("[") || current_token(tokens, i).value.includes("]"))
-	) {
-		parserError(
-			errorMessage(
-				tokens,
-				i,
-				current_token(tokens, i).value,
-				"",
-				`SomMark uses a scope-based state system to control tokenizing.When @_ is encountered, tokenizing is turned off.Tokenizing is turned back on after the lexer encounters @_end_@. If the At-Block syntax is not completed, all remaining characters are concatenated and treated as plain text until the end of input.`
-			)
-		);
-	}
 	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COLON) {
 		// ========================================================================== //
 		//  consume ':'                                                               //
@@ -712,11 +710,11 @@ function parseAtBlock(tokens, i) {
 				break;
 			}
 		}
-		if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.SEMICOLON)) {
-			parserError(errorMessage(tokens, i, ";", at_value));
-		}
-		i = parseSemiColon(tokens, i, at_value);
 	}
+	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.SEMICOLON)) {
+		parserError(errorMessage(tokens, i, ";", at_value));
+	}
+	i = parseSemiColon(tokens, i, at_value);
 	if (
 		!current_token(tokens, i) ||
 		(current_token(tokens, i) &&
@@ -729,7 +727,7 @@ function parseAtBlock(tokens, i) {
 		current_token(tokens, i) &&
 		(current_token(tokens, i).type === TOKEN_TYPES.TEXT || current_token(tokens, i).type === TOKEN_TYPES.ESCAPE)
 	) {
-		const [childNode, nextIndex] = parseText(tokens, i);
+		const [childNode, nextIndex] = parseText(tokens, i, { selectiveUnescape: true });
 		atBlockNode.content = childNode.text;
 		i = nextIndex;
 		updateData(tokens, i);
@@ -742,7 +740,7 @@ function parseAtBlock(tokens, i) {
 	// ========================================================================== //
 	i++;
 	updateData(tokens, i);
-	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.END_KEYWORD)) {
+	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.END_KEYWORD && current_token(tokens, i).value.trim() !== end_keyword)) {
 		parserError(errorMessage(tokens, i, end_keyword, "@_"));
 	}
 	// ========================================================================== //
@@ -793,8 +791,8 @@ function parseNode(tokens, i) {
 	// ========================================================================== //
 	else if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.OPEN_BRACKET)) {
 		const next = peek(tokens, i, 1);
-		if (next && next.type === TOKEN_TYPES.END_KEYWORD) {
-			parserError(errorMessage(tokens, i + 1, "Block ID", "[", `'${next.value}' is a reserved keyword and cannot be used as a start identifier.`));
+		if (next && (next.type === TOKEN_TYPES.END_KEYWORD || next.value.trim() === end_keyword)) {
+			parserError(errorMessage(tokens, i + 1, "Block ID", "[", `'${next.value.trim()}' is a reserved keyword and cannot be used as a start identifier.`));
 		}
 		return parseBlock(tokens, i);
 	}
@@ -835,7 +833,7 @@ function parser(tokens) {
 	let i = 0;
 	while (i < tokens.length) {
 		let [nodes, nextIndex] = parseNode(tokens, i);
-		if (current_token(tokens, i).type !== TOKEN_TYPES.COMMENT && current_token(tokens, i).depth === 0) {
+		if (nodes && nodes.type !== "Comment" && nodes.depth === 0) {
 			parserError(errorMessage(tokens, i, "Top-level Block", "", "Top-level content must be wrapped in a block. Found:"));
 		}
 		if (nodes) {
