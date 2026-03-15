@@ -19,19 +19,19 @@ describe("Comment Remover Plugin", () => {
         });
         registerTags(sm);
         const output = await sm.transpile("[Div]# This is a comment\nHello World\n[end]");
-        expect(output).not.toContain("<!-- This is a comment-->");
+        expect(output).not.toContain("<!-- This is a comment -->");
         expect(output).toContain("Hello World");
     });
 
-    it("should preserve comments when the plugin is disabled", async () => {
+    it("should preserve comments when the plugin is explicitly excluded", async () => {
         const sm = new SomMark({
-            plugins: [],
+            excludePlugins: ["comment-remover"],
             format: htmlFormat,
             includeDocument: false
         });
         registerTags(sm);
         const output = await sm.transpile("[Div]# This is a comment\nHello World\n[end]");
-        expect(output).toContain("<!-- This is a comment-->");
+        expect(output).toContain("<!-- This is a comment -->");
         expect(output).toContain("Hello World");
     });
 
@@ -47,15 +47,15 @@ describe("Comment Remover Plugin", () => {
                 includeDocument: false
             });
             registerTags(smWithDefaults);
-            const outputWithComments = await smWithDefaults.transpile(src);
+            const outputWithoutComments = await smWithDefaults.transpile(src);
 
-            const smWithRemover = new SomMark({
+            const smWithExcludedRemover = new SomMark({
                 format: htmlFormat,
                 includeDocument: false,
-                plugins: ["comment-remover"]
+                excludePlugins: ["comment-remover"]
             });
-            registerTags(smWithRemover);
-            const outputWithoutComments = await smWithRemover.transpile(src);
+            registerTags(smWithExcludedRemover);
+            const outputWithComments = await smWithExcludedRemover.transpile(src);
 
             expect(outputWithComments).toContain("<!--");
             expect(outputWithoutComments).not.toContain("<!--");
