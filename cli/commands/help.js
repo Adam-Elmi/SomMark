@@ -16,6 +16,10 @@ export function getHelp(unknown_option = true) {
 		"{N}  <$green:init$>           <$cyan: Initialize global SomMark configuration directory$>",
 		"{N}  <$green:show config$>    <$cyan: Display the absolute paths to the active SomMark configuration files$>",
 		"{N}  <$green:color on|off$>   <$cyan: Enable or disable colored output$>",
+		"{N}  <$green:list plugins$>    <$cyan: List all enabled plugins with author and description$>",
+		"{N}  <$green:list -i plugins$> <$cyan: List only internal (built-in) plugins$>",
+		"{N}  <$green:list -e plugins$> <$cyan: List only external (user-defined) plugins$>",
+		"{N}  <$green:list pipeline$>   <$cyan: Show the execution order of all active plugin phases$>",
 
 		"{N}{N}<$yellow:Transpilation Options:$>",
 		"{N}<$yellow:Usage:$> <$blue:sommark [option] [targetFile] [option] [outputFile] [outputDir]$>",
