@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import SomMark from "../../index.js";
+import SomMark, { parseList, list } from "../../index.js";
 import md from "../../mappers/languages/markdown.js";
 import { removeWhiteSpaces, removeNewline } from "../../helpers/removeChar.js";
 
@@ -18,13 +18,13 @@ describe("Transpiling -> [MD]: Blocks & Inline", () => {
     });
 
     it("returns h1 markdown", async () => {
-        let output = await new SomMark({ src: "[Block](SomMark)->(h1)[end]", format: "markdown" }).transpile();
+        let output = await new SomMark({ src: "[h1]SomMark[end]", format: "markdown" }).transpile();
         output = removeNewline(output);
         expect(output).toBe("# SomMark");
     });
 
     it("returns h3 markdown", async () => {
-        let output = await new SomMark({ src: "[Block](Title)->(h3)[end]", format: "markdown" }).transpile();
+        let output = await new SomMark({ src: "[h3]Title[end]", format: "markdown" }).transpile();
         output = removeNewline(output);
         expect(output).toBe("### Title");
     });
@@ -64,7 +64,7 @@ describe("Transpiling -> [MD]: Blocks & Inline", () => {
 
     it("returns url markdown with title", async () => {
         let output = await new SomMark({
-            src: '[Block](My Site)->(url:www.example.com, Title)[end]',
+            src: '[link = src: www.example.com, title: Title, alt: My Site][end]',
             format: "markdown",
             includeDocument: false
         }).transpile();
@@ -74,7 +74,7 @@ describe("Transpiling -> [MD]: Blocks & Inline", () => {
 
     it("returns image markdown with alt and title", async () => {
         let output = await new SomMark({
-            src: '[Block](Alt Text)->(image:www.example.com/img.png, ImgTitle)[end]',
+            src: '[image = src: www.example.com/img.png, title: ImgTitle, alt: Alt Text][end]',
             format: "markdown",
             includeDocument: false
         }).transpile();
@@ -119,7 +119,7 @@ describe("Transpiling -> [MD]: Blocks & Inline", () => {
 describe("Transpiling -> [MD]: Lists and Tables", () => {
     it("returns nested list markdown", async () => {
         let output = await new SomMark({
-            src: "[Block]@_list_@\nItem 1\n   Sub-Item 1\n  Sub-Item 2\nItem 2\n@_end_@[end]",
+            src: "[Block]@_list_@;\nItem 1\n   Sub-Item 1\n  Sub-Item 2\nItem 2\n@_end_@[end]",
             format: "markdown",
             includeDocument: false
         }).transpile();
@@ -138,6 +138,18 @@ describe("Transpiling -> [MD]: Lists and Tables", () => {
         expect(output.includes("|------|-----|")).toBe(true);
         expect(output.includes("| John | 30 |")).toBe(true);
     });
+
+    it("handles escaped commas in Table markdown", async () => {
+        let output = await new SomMark({
+            src: "[Block]@_Table_@: City, Info;\nNew York, High\\, busy\nParis, Romantic\\, old\n@_end_@[end]",
+            format: "markdown",
+            includeDocument: false
+        }).transpile();
+        output = removeNewline(output);
+        expect(output.includes("| City | Info |")).toBe(true);
+        expect(output.includes("| New York | High, busy |")).toBe(true);
+        expect(output.includes("| Paris | Romantic, old |")).toBe(true);
+    });
 });
 
 // ========================================================================== //
@@ -146,7 +158,7 @@ describe("Transpiling -> [MD]: Lists and Tables", () => {
 describe("Mapper - parseList & list", () => {
     it("parseList returns nested structure", () => {
         const data = "Item 1\n  Sub-Item 1\n  Sub-Item 2\nItem 2";
-        const result = md.parseList(data);
+        const result = parseList(data);
         expect(result).toEqual([
             {
                 text: "Item 1",
