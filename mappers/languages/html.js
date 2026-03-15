@@ -3,16 +3,37 @@ import { HTML_TAGS } from "../../constants/html_tags.js";
 import { HTML_PROPS } from "../../constants/html_props.js";
 import { VOID_ELEMENTS } from "../../constants/void_elements.js";
 import kebabize from "../../helpers/kebabize.js";
+import { todo, list, htmlTable } from "../../helpers/utils.js";
 
 class HtmlMapper extends Mapper {
 	constructor() {
 		super();
 	}
 	comment(text) {
-		return `<!--${text.replace("#", "")}-->\n`;
+		return `<!-- ${text.replace(/^#/, "").trim()} -->`;
 	}
 
 	formatOutput(output, includeDocument) {
+		const todoRegex = /@@TODO_BLOCK:([\s\S]*?):([\s\S]*?)@@/g;
+		const statusMarkers = ["done", "x", "X", "-", ""];
+		output = output.replace(todoRegex, (match, body, arg0) => {
+			const bodyTrimmed = body.trim().toLowerCase();
+			const arg0Trimmed = arg0.trim().toLowerCase();
+
+			const bodyIsStatus = statusMarkers.includes(bodyTrimmed);
+			const arg0IsStatus = statusMarkers.includes(arg0Trimmed);
+
+			let finalStatus = arg0; // Default: arg is status
+			let finalTask = body;   // Default: body is task
+
+			if (bodyIsStatus && !arg0IsStatus) {
+				finalStatus = body;
+				finalTask = arg0;
+			}
+
+			const checked = todo(finalStatus);
+			return this.tag("div").body(this.tag("input").attributes({ type: "checkbox", disabled: true, checked }).selfClose() + " " + (finalTask || ""));
+		});
 		if (includeDocument) {
 			let finalHeader = this.header;
 			let styleContent = "";
@@ -25,11 +46,7 @@ class HtmlMapper extends Mapper {
 				}
 			};
 
-			// Inject Style Tag if code blocks exist
-			if (this.enable_highlightTheme && (output.includes("<pre") || output.includes("<code"))) {
-				this.addStyle(this.themes[this.currentTheme]);
-			}
-			
+
 			styleContent = this.styles.join("\n");
 			updateStyleTag(styleContent);
 
@@ -114,17 +131,17 @@ HTML.register("color", function ({ args, content }) {
 		.attributes({ style: `color:${color}` })
 		.body(content);
 }, { type: "any" });
-// Link
-HTML.register("url", function ({ args, content }) {
-	const url = this.safeArg(args, 0, "url", null, null, "");
-	const title = this.safeArg(args, 1, "title", null, null, "");
-	return this.tag("a").attributes({ href: url.trim(), title: title.trim(), target: "_blank" }).body(content);
-}, { type: "any" });
 // Code
 HTML.register(
 	"Code",
 	function ({ args, content }) {
-		return this.code(args, content);
+		const lang = this.safeArg(args, 0, "lang", null, null, "text");
+		const code = content || "";
+		const code_element = this.tag("code");
+
+		code_element.attributes({ class: `language-${lang}` });
+
+		return this.tag("pre").body(code_element.body(code));
 	},
 	{ escape: false, type: "AtBlock" }
 );
@@ -132,93 +149,97 @@ HTML.register(
 HTML.register(
 	"list",
 	function ({ content }) {
-		return this.list(content);
+		return list(content, "ul", this.escapeHTML);
 	},
 	{ escape: false, type: "any" }
 );
 HTML.register(
 	"Table",
 	function ({ content, args }) {
-		return this.htmlTable(content.split(/\n/), args, true, false);
+		return htmlTable(content.split(/\n/), args, this.escapeHTML);
 	},
 	{
 		escape: false,
 		type: "AtBlock"
 	}
 );
-// Style
-HTML.register(
-	"Style",
-	function ({ content }) {
-		return this.tag("style").body(content);
-	},
-	{ escape: false, type: "AtBlock" }
-);
 
 // Todo
 HTML.register("todo", function ({ args, content }) {
-	const isInline = ["done", "x", "X", "-", ""].includes(content.trim().toLowerCase()) && args.length > 0;
+	const isPlaceholder = content.includes("__SOMMARK_BODY_PLACEHOLDER_");
+	if (isPlaceholder) {
+		return `@@TODO_BLOCK:${content}:${args[0] || ""}@@`;
+	}
+	const statusMarkers = ["done", "x", "X", "-", ""];
+	const isInline = !isPlaceholder && statusMarkers.includes(content.trim().toLowerCase()) && args.length > 0;
 	const status = isInline ? content : (args[0] || "");
 	const label = isInline ? (args[0] || "") : content;
-	const checked = this.todo(status);
+	const checked = todo(status);
 	return this.tag("div").body(this.tag("input").attributes({ type: "checkbox", disabled: true, checked }).selfClose() + " " + (label || ""));
 }, { type: "any" });
 
 HTML_TAGS.forEach(tagName => {
-	const capitalized = tagName.charAt(0).toUpperCase() + tagName.slice(1);
+	const idsToRegister = [tagName].filter(id => {
+		const existing = HTML.get(id);
+		if (!existing || !existing.id) return true;
+		return Array.isArray(existing.id) ? !existing.id.includes(id) : existing.id !== id;
+	});
 
-	const idsToRegister = [tagName, capitalized].filter(id => !HTML.get(id));
-	if (idsToRegister.length === 0) return;
+	idsToRegister.forEach(id => {
+		const isAtBlock = ["style", "script"].includes(id.toLowerCase());
 
-	HTML.register(
-		idsToRegister,
-		function ({ args, content }) {
-			const element = this.tag(tagName);
-			let inline_style = args.style ? (args.style.endsWith(";") ? args.style : args.style + ";") : "";
+		HTML.register(
+			id,
+			function ({ args, content }) {
+				const element = this.tag(id);
+				let inline_style = args.style ? (args.style.endsWith(";") ? args.style : args.style + ";") : "";
 
-			// Auto-ID for Headings
-			if (/^h[1-6]$/i.test(tagName) && !args.id && content) {
-				const id = content
-					.toString()
-					.toLowerCase()
-					.replace(/[^\w\s-]/g, "")
-					.replace(/\s+/g, "-");
-				element.attributes({ id });
-			}
-
-			const keys = Object.keys(args).filter(arg => isNaN(arg));
-			keys.forEach(key => {
-				if (key === "style") return; // Already handled
-
-				const isDimensionAttributeSupported = ["img", "video", "svg", "canvas", "iframe", "object", "embed"].includes(tagName);
-				const isWidthOrHeight = key === "width" || key === "height";
-				const isEvent = key.toLowerCase().startsWith("on");
-
-				const k = isEvent ? key.toLowerCase() : (HTML_PROPS.has(key) || this.extraProps.has(key)) ? key : kebabize(key);
-
-				if (isEvent || ((HTML_PROPS.has(key) || this.extraProps.has(key)) && (!isWidthOrHeight || isDimensionAttributeSupported)) || k.startsWith("data-") || k.startsWith("aria-")) {
-					element.attributes({ [k]: args[key] });
-				} else {
-					inline_style += `${k}:${args[key]};`;
+				// Auto-ID for Headings
+				if (/^h[1-6]$/i.test(id) && !args.id && content) {
+					const idAttr = content
+						.toString()
+						.toLowerCase()
+						.replace(/[^\w\s-]/g, "")
+						.replace(/\s+/g, "-");
+					element.attributes({ id: idAttr });
 				}
-			});
 
-			if (inline_style) {
-				element.attributes({ style: inline_style });
+				const keys = Object.keys(args).filter(arg => isNaN(arg));
+				keys.forEach(key => {
+					if (key === "style") return; // Already handled
+
+					const isDimensionAttributeSupported = ["img", "video", "svg", "canvas", "iframe", "object", "embed"].includes(id.toLowerCase());
+					const isWidthOrHeight = key === "width" || key === "height";
+					const isEvent = key.toLowerCase().startsWith("on");
+
+					const k = isEvent ? key.toLowerCase() : (HTML_PROPS.has(key) || this.extraProps.has(key)) ? key : kebabize(key);
+
+					if (isEvent || ((HTML_PROPS.has(key) || this.extraProps.has(key)) && (!isWidthOrHeight || isDimensionAttributeSupported)) || k.startsWith("data-") || k.startsWith("aria-")) {
+						element.attributes({ [k]: args[key] });
+					} else {
+						inline_style += `${k}:${args[key]};`;
+					}
+				});
+
+				if (inline_style) {
+					element.attributes({ style: inline_style });
+				}
+				// Self-Closing Element
+				if (VOID_ELEMENTS.has(id.toLowerCase())) {
+					return element.selfClose();
+				}
+
+				return element.body(content);
+			},
+			{
+				type: isAtBlock ? "AtBlock" : "Block",
+				escape: !isAtBlock,
+				rules: {
+					is_self_closing: VOID_ELEMENTS.has(id.toLowerCase())
+				}
 			}
-			// Self-Closing Element
-			if (VOID_ELEMENTS.has(tagName)) {
-				return element.selfClose();
-			}
-			return element.body(content);
-		},
-		{
-			type: VOID_ELEMENTS.has(tagName) ? "Block" : ["Block", "Inline"],
-			rules: {
-				is_self_closing: VOID_ELEMENTS.has(tagName)
-			}
-		}
-	);
+		);
+	});
 });
 
 
