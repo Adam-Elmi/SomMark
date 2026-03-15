@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { transpile } from "../../cli/helpers/transpile.js";
 
 const simpleSmark = "[Block]\nHello World\n[end]";
-const headingSmark = "[Block] (Title)->(h1) [end]\n[Block]\nContent here\n[end]";
+const headingSmark = "[h1]Title[end]\n[Block]\nContent here\n[end]";
 
 describe("CLI Transpile Helper", () => {
     it("should transpile to HTML", async () => {
