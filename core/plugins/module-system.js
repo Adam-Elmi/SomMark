@@ -6,6 +6,8 @@ import { runtimeError } from "../errors.js";
 const ModuleSystem = {
 	name: "module-system",
 	type: "preprocessor",
+	author: "Adam-Elmi",
+	description: "Provides file inclusion capabilities and global variable substitution (e.g., [[import = ...]]).",
 	scope: "top-level",
 	async beforeLex(src) {
         if (!src) return src;
