@@ -18,9 +18,12 @@ import ModuleSystem from "./core/plugins/module-system.js";
 import RawContentPlugin from "./core/plugins/raw-content-plugin.js";
 import CommentRemover from "./core/plugins/comment-remover.js";
 import RulesValidationPlugin from "./core/plugins/rules-validation-plugin.js";
+import SomMarkFormat from "./core/plugins/sommark-format.js";
+import { enableColor } from "./helpers/colorize.js";
+import { htmlTable, list, parseList, safeArg, todo } from "./helpers/utils.js";
 
 
-const BUILT_IN_PLUGINS = [QuoteEscaper, ModuleSystem, RawContentPlugin, CommentRemover, RulesValidationPlugin];
+export const BUILT_IN_PLUGINS = [QuoteEscaper, ModuleSystem, RawContentPlugin, CommentRemover, RulesValidationPlugin, SomMarkFormat];
 
 class SomMark {
 	constructor({ src, format, mapperFile = null, includeDocument = true, plugins = [], excludePlugins = [], priority = [] }) {
@@ -31,7 +34,7 @@ class SomMark {
 
 		// 1. Identify which built-in plugins should be active by default
 		// For now, QuoteEscaper is active, others are inactive (require manual activation)
-		const inactiveByDefault = ["module-system", "raw-content", "comment-remover"];
+		const inactiveByDefault = ["raw-content", "sommark-format"];
 		let activeBuiltIns = BUILT_IN_PLUGINS.filter(p =>
 			!inactiveByDefault.includes(p.name) && !excludePlugins.includes(p.name)
 		);
@@ -152,8 +155,6 @@ class SomMark {
 			const replacements = await Promise.all(
 				matches.map(async match => {
 					// match[2] is the group for content inside quotes/brackets/whatever depending on the regex
-					// Let's make it more generic: we want to process the capture group that represents the content.
-					// For both our current regexes, the content is in a specific group.
 					let contentToProcess;
 					if (scope === "arguments") contentToProcess = match[2];
 					if (scope === "content") contentToProcess = match[2];
@@ -217,13 +218,7 @@ class SomMark {
 			]);
 		}
 
-		// 2. Auto-link highlighters from plugins
-		const highlighterPlugin = this.pluginManager.plugins.find(p => typeof p.highlighter === "function");
-		if (highlighterPlugin) {
-			this.mapperFile.highlightCode = highlighterPlugin.highlighter;
-		}
-
-		// 3. Run active registration hooks from plugins
+		// Run active registration hooks from plugins
 		this.pluginManager.runRegisterHooks(this);
 
 		const ast = await this.parse(src);
@@ -305,6 +300,11 @@ export {
 	transpile,
 	TOKEN_TYPES,
 	labels,
-	enableColor
+	enableColor,
+	htmlTable,
+	list,
+	parseList,
+	safeArg,
+	todo
 };
 export default SomMark;
