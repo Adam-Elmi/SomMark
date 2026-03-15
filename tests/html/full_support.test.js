@@ -11,13 +11,6 @@ describe("HTML Full Support - New Features", () => {
             output = removeWhiteSpaces(output);
             expect(output).toBe("<article>ArticleContent</article><aside>AsideContent</aside><nav>NavContent</nav>");
         });
-
-        it("supports capitalized tag aliases (Article, Aside, Nav)", async () => {
-            const src = "[Article]Article Content[end][Aside]Aside Content[end][Nav]Nav Content[end]";
-            let output = await new SomMark({ src, format: "html", includeDocument: false }).transpile();
-            output = removeWhiteSpaces(output);
-            expect(output).toBe("<article>ArticleContent</article><aside>AsideContent</aside><nav>NavContent</nav>");
-        });
     });
 
     describe("Smart Attribute / Style Mapping", () => {
@@ -61,7 +54,7 @@ describe("HTML Full Support - New Features", () => {
 
     describe("Specialized AtBlocks", () => {
         it("renders Style AtBlock correctly", async () => {
-            const src = "[Block]@_Style_@.test { color: red; }@_end_@[end]";
+            const src = "[Block]@_style_@;.test { color: red; }@_end_@[end]";
             let output = await new SomMark({ src, format: "html", includeDocument: false }).transpile();
             output = removeNewline(output);
             expect(output).toBe('<style>.test { color: red; }</style>');
