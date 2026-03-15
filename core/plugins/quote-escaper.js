@@ -8,6 +8,8 @@
 const QuoteEscaper = {
 	name: "quote-escaper",
 	type: "preprocessor",
+	author: "Adam-Elmi",
+	description: "Automatically escapes special characters within double-quoted string arguments.",
 	scope: "arguments",
 	beforeLex(args) {
 		return args.replace(/"([^"]*)"/g, (match, content) => {
