@@ -25,6 +25,8 @@ let config = {
 // ========================================================================== //
 //  Load Configuration                                                        //
 // ========================================================================== //
+let resolvedConfigPath = null;
+
 export async function loadConfig() {
     const userConfigPath = path.join(getConfigDir(), CONFIG_FILE_NAME);
     let targetConfigPath = null;
@@ -34,6 +36,8 @@ export async function loadConfig() {
     } else if (await isExist(userConfigPath)) {
         targetConfigPath = userConfigPath;
     }
+
+    resolvedConfigPath = targetConfigPath;
 
     if (targetConfigPath) {
         try {
@@ -51,4 +55,8 @@ export async function loadConfig() {
         config.outputDir = process.cwd();
     }
     return config;
+}
+
+export function getResolvedConfigPath() {
+    return resolvedConfigPath;
 }
