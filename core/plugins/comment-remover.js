@@ -7,6 +7,8 @@ import { COMMENT } from "../labels.js";
 export default {
     name: "comment-remover",
     type: "on-ast",
+    author: "Adam-Elmi",
+    description: "Removes all comment nodes from the AST during the parsing phase.",
     onAst: function (ast) {
         // ========================================================================== //
         //  Recursive function to filter out comments                               //
