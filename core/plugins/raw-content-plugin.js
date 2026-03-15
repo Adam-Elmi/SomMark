@@ -8,14 +8,16 @@
 const RawContentPlugin = {
 	name: "raw-content",
 	type: ["preprocessor", "on-ast"],
+	author: "Adam-Elmi",
+	description: "Prevents SomMark syntax parsing within specific blocks (e.g., [code], [mdx]) to allow raw content.",
 	scope: "top-level",
 	options: {
-		targetBlocks: ["mdx", "raw", "code"] // Blocks to treat as raw
+		targetBlocks: ["mdx", "raw"] // Blocks to treat as raw
 	},
 	beforeLex(src) {
 		let processed = src;
 		const options = this.options || {};
-		const targetBlocks = options.targetBlocks || ["mdx", "raw", "code"];
+		const targetBlocks = options.targetBlocks || ["mdx", "raw"];
 
 		targetBlocks.forEach(tag => {
 			const regex = new RegExp(`\\[${tag}([^ \\]]*|\\s*=[^\\]]*)?\\]([\\s\\S]*?)\\[end\\]`, "g");
