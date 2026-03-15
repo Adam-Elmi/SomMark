@@ -63,6 +63,17 @@ async function main() {
 		runColor(args[1]);
 		return;
 	}
+	
+	// 5.6. List
+	if (command === "list") {
+		const { runListPlugins, runListPipeline } = await import("./commands/list.js");
+		if (args[1] === "pipeline") {
+			await runListPipeline();
+		} else {
+			await runListPlugins(args.slice(1));
+		}
+		return;
+	}
 
 	// 6. Lex
 	if (command === "--lex") {
