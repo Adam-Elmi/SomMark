@@ -1,0 +1,39 @@
+[[ import = $hubCss: "examples/html/hub.css" ]]
+[[ import = $roadmap: "examples/html/roadmap.smark" ]]
+[[ import = $specification: "examples/html/specification.smark" ]]
+[[ import = $guides: "examples/html/guides.smark" ]]
+
+[Html = 
+    title: "SomMark | Documentation Hub",
+    charset: "UTF-8",
+    --brand: "hsl(221, 83%, 53%)",
+    --brand-soft: "hsl(221, 83%, 95%)",
+    --text-primary: "hsl(215, 25%, 27%)",
+    --text-secondary: "hsl(215, 16%, 47%)",
+    --surface: "hsl(0, 0%, 100%)",
+    --bg-app: "hsl(210, 40%, 98%)",
+    --border: "hsl(214, 32%, 91%)"
+]
+[end]
+
+[section = class: "main-viewport"]
+@_style_@;
+$[[hubCss]]
+@_end_@
+
+    # --- ROADMAP MODULE ---
+    $[[roadmap]]
+
+    [div = class: "module-separator"][end]
+
+    # --- SPECIFICATION MODULE ---
+    $[[specification]]
+
+    [div = class: "module-separator"][end]
+
+    # --- GUIDES MODULE ---
+    $[[guides]]
+
+    [h2]System Verification[end]
+    [p]All modules imported successfully via the SomMark (Module System)->(bold).[end]
+[end]
