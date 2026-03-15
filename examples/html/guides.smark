@@ -1,0 +1,46 @@
+[div = class: "intro-badge"]PRACTICAL GUIDES[end]
+[h1]Mastering the Syntax.[end]
+[p = class: "lead"]Hands-on examples and best practices for building rich documentation with SomMark's core features.[end]
+
+[h2]1. Advanced Blocks[end]
+[p]Blocks group content together and support flexible argument passing. Escape colons \(`\:`\) if they appear inside a key-value value.[end]
+[div = class: "syntax-window"]
+    [span = class: "syntax-label"]// Standard Block with Arguments[end]
+    @_Code_@: sommark;
+    [Section = id: "about", class: "dark"]
+        (Welcome)->(h1)
+        This is structured content.
+    [end]
+    @_end_@
+[end]
+
+[h2]2. Fluent Inline Statements[end]
+[p]Transform short text fragments using identifiers. Inline arguments are comma-separated and do not support key-value pairs.[end]
+[div = class: "syntax-window"]
+    [span = class: "syntax-label"]// Functional Inlines[end]
+    @_Code_@: sommark;
+    [Block]
+        Click (here)->(link: "https://sommark.org", target: "_blank")
+        (IMPORTANT)->(emphasis)
+    [end]
+    @_end_@
+[end]
+
+[h2]3. Secure At-Blocks[end]
+[p]Use At-Blocks for raw content that must bypass the parser. Remember to terminate the argument list with a semicolon \(`\;`\).[end]
+[div = class: "syntax-window"]
+    [span = class: "syntax-label"]// Raw Code Injection[end]
+    @_Code_@;
+    \@_Code\_@: javascript;
+    function hello() {
+        return "world";
+    }
+    \@_end\_@
+    @_end_@
+[end]
+
+[h2]4. Expert Escaping[end]
+[blockquote]
+    "The backslash character '\\' is your most powerful tool for rendering literal syntax characters."
+[end]
+[p]To print a literal bracket, use '\\\['. To print a literal equal sign as the start of a block argument value, use '\\\='.[end]
