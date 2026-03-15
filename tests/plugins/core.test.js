@@ -8,7 +8,7 @@ describe("Plugin System: Core Functionality", () => {
             type: "preprocessor",
             scope: "top-level",
             beforeLex(src) {
-                return src.replace(/\[\[IMPORT\]\]/g, "[Section]Imported content[end]");
+                return src.replace(/\[\[IMPORT\]\]/g, "[section]Imported content[end]");
             }
         },
         {
@@ -59,7 +59,7 @@ describe("Plugin System: Core Functionality", () => {
     const src = `
 [[IMPORT]]
 
-[Section = class:bg-blue-500, @blue, type:modern]
+[section = class:bg-blue-500, @blue, type:modern]
 !!HI!!
 [end]
 
@@ -97,7 +97,7 @@ This is a custom alert
 
     it("allows excluding built-in plugins", async () => {
         // By default quote-escaper is active.
-        const src = '[Section = class:"hover:bg-blue-500"]Content[end]';
+        const src = '[section = class:"hover:bg-blue-500"]Content[end]';
         
         // With quote-escaper (default)
         const resultWith = await transpile({ src, format: "html", includeDocument: false });
