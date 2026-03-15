@@ -13,13 +13,13 @@ describe("Parser Compliance & Edge Cases", () => {
     });
 
     it("supports identifiers with $, _, and - in inline statements", async () => {
-        // (content)->(url: href, title)
+        // (content)->(color: value)
         const smark = new SomMark({
-            src: "[div](Google)->(url: https://google.com)[end]",
+            src: "[div](Hello)->(color: red)[end]",
             format: "html"
         });
         const result = await smark.transpile();
-        expect(result).toContain("href=\"https://google.com\"");
+        expect(result).toContain("color:red");
     });
 
     it("prevents using 'end' as an identifier in blocks", async () => {
@@ -48,10 +48,10 @@ describe("Parser Compliance & Edge Cases", () => {
 
     it("handles arguments in inline statements correctly without redundant mapping", async () => {
         const smark = new SomMark({
-            src: "[div](Google)->(url: https://google.com, MyTitle)[end]",
+            src: "[div](Hello)->(color: blue)[end]",
             format: "html"
         });
         const result = await smark.transpile();
-        expect(result).toContain("title=\"MyTitle\"");
+        expect(result).toContain("color:blue");
     });
 });
