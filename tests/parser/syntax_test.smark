@@ -15,7 +15,7 @@ This is the body, it accepts chldnode.
 Anything inside atblock is considered as plain text
 @_end_@
 
-@_Identifier_@
+@_Identifier_@;
 content.....
 @_end_@
 
