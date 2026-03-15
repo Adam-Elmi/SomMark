@@ -1,7 +1,7 @@
 <img width="2000" height="491" alt="SomMark Cover" src="https://raw.githubusercontent.com/Adam-Elmi/SomMark/master/assets/smark_bg.png" />
 
 <p align="center">
-SomMark is a declarative, extensible markup language for structured content that can be converted to HTML, Markdown, MDX, JSON, and more. 
+SomMark v3 is a simple, flexible markup language for structured content.
 </p>
 
 <p align="center">
@@ -26,26 +26,29 @@ alt="SomMark Playground Badge" />
 </a>
 </p>
 
-
 ----
 
 ## Try SomMark Playground
 
-Test SomMark features live here:
+Test SomMark live in your browser:  
 [https://adam-elmi.github.io/SomMark-Playground/](https://adam-elmi.github.io/SomMark-Playground/)
 
 ----
 
-# SomMark v3
+# What's new in v3?
 
-> [!WARNING]
-> Older versions (v1 and v2) are no longer supported.
+SomMark v3 is faster, more powerful, and easier to extend.
 
-**SomMark** lets you write structured content that can be converted to HTML, Markdown, MDX, JSON, or other formats. Unlike standard Markdown, it uses explicit syntax for blocks and elements, making content easier to process, customize, and transform.
+- **HTML Support**: Full HTML5 Support
+- **Markdown Support**: Full Markdown Support
+- **JSON Support**: Full JSON Support
+- **MDX Support**: Full MDX Support
+- **Plugin System**: Add new features without changing the core code.
+- **Modular Support**: Easily import files and use variables.
+- **Type-Safe Rules**: Set requirements for tags and attributes.
+- **Clean Syntax**: Simplified block, atblock & inline rules and better error handling.
 
 # Installation
-
-To install the Command Line Interface (CLI) globally:
 
 ```bash
 npm install -g sommark
@@ -53,54 +56,56 @@ npm install -g sommark
 
 # Usage
 
-## Using the CLI
+## v3 Syntax Example
 
-You can convert files using the terminal.
+SomMark is designed to be readable and clear.
 
-```bash
-# Convert to HTML
-sommark --html input.smark -o output
+```ini
+# Html
+[h1]Welcome to SomMark v3[end]
 
-# Convert to Markdown
-sommark --markdown input.smark -o output.md
+[section = class: "hero", id: "main"]
+  [a = href: "https://sommark.org"]Visit Website[end]
+[end]
+
+# Markdown
+[quote]
+SomMark is simple and powerful.
+[end]
+
+[bold]Check out our syntax guide![end]
+
+# Json
+[Json= object]
+[Object = "user"]
+  (name)->(string: "Adam Elmi")
+  (age)->(number: 25)
+  (is_active_user)->(bool: true)
+[end]
+[end]
 ```
 
-## Using in Code
-
-You can use SomMark in your JavaScript or Node.js projects.
+## Using in JavaScript
 
 ```javascript
 import SomMark from "sommark";
 
-const source = `
-[Block]
-Hello World
-[end]
-`;
-
 const smark = new SomMark({
-	src: source,
+	src: '[h1]Hello World[end]',
 	format: "html"
 });
 
 console.log(await smark.transpile());
 ```
 
-## Supported Languages
-
-* HTML
-* Markdown
-* MDX (Only ready components)
-* JSON
-
-
 # Documentation
 
-Detailed guides and API references are available in the `docs/` directory:
+Read our detailed guides in the `docs/` folder:
 
-- **[Syntax Guide](docs/03.syntax.md)**: Master SomMark syntax (Blocks, Inline, At-Blocks).
-- **[Core API](docs/09.core.md)**: Programmatic usage of the library (`transpile`, `lex`, `parse`).
-- **[Mapper API](docs/13.mapper.md)**: Guide for creating custom mappers and rules.
-- **[CLI Reference](docs/11.cli.md)**: Command line options and configurations.
-- **[API Quick Reference](docs/api)**: Fast lookup for all classes and functions.
-- **[Configuration Reference](docs/12.config.md)**: Guide for creating custom configurations.
+- **[Syntax Guide](docs/03.syntax.md)**: How to write SomMark (Blocks, Inline, At-Blocks).
+- **[Plugin System](docs/19.plugin-system.md)**: How to create your own plugins.
+- **[Built-in Plugins](docs/20.built-in-plugins.md)**: Guide to standard plugins.
+- **[Core API](docs/09.core.md)**: How to use SomMark in your code.
+- **[Mapper API](docs/13.mapper.md)**: How to create new output formats.
+- **[CLI Reference](docs/11.cli.md)**: Terminal commands and flags.
+- **[API Quick Reference](docs/api)**: Fast lookup for all functions.
