@@ -1,0 +1,90 @@
+[  Document =  version:1.0, type: article ]
+#    Starting the document with messy comments   
+  ( Welcome )->(Strong) to the test document!
+[ Section = id: intro ]
+[ Paragraph ]
+This is [Block][end] the first paragraph. It has      some weird spaces    and
+attached.[Block][end]
+[ end ]
+[ Paragraph ]
+Another paragraph with [ nested ] text that is not a real block, wait, [ nested ] is a block!
+[ end ]
+[end]
+[end]
+[ Section = id: content ][ List = type: bullet ][ Item ]( Apple )->(Bold)
+[ end ]
+[ Item ]
+Banana[ end ][ Item ]Cherry
+[ end ]
+[ end ]
+@_  CodeSnippet _@ : javascript;
+function doSomething() {
+  let x = 10;
+    return x * 2;
+}
+@_ end _@
+[ Paragraph ]
+Some text after the code snippet.
+[ end ]
+[ Subsection = title: "Deep Nesting" ]
+[ Level1 ][ Level2 ][ Level3 ]
+[ Level4 ]
+[ Level5 ]
+( Deeply )->( Nested )
+[ end ]
+[ end ]
+[ end ]
+[ end ]
+[ end ]
+[ end ]
+[ Subsection = title: "Mix and Match" ]
+[ Paragraph ]
+( Start )->( A ) ( Middle )->( B ) ( End )->( C )
+[ end ]
+[ end ]
+[ Section = id: outro ]
+[ Paragraph ]
+Thank you for reading!
+# A wild comment appears
+[ end ]
+@_ RawText _@ : plain ;
+Just some raw text.
+   It should preserve its internal spacing.
+   
+But the at-block itself will be properly indented.
+@_ end _@
+[ end ]
+[ Section = id: footer ]
+[ Paragraph ]
+( Copyright )->( Small ) 2023. All rights reserved.
+[ end ]
+[ end ]
+[ Section = empty ]
+[ end ]
+[ Section = single_line ]
+Single line content.
+[ end ]
+[ Section = messy_arguments , another_arg: value ]
+Content here.
+[ end ]
+[ Section = id: mixed_content ]
+Text before block.
+[ Paragraph ]
+Inside block.
+[ end ]
+Text after block.
+[ end ]
+[ Section = id: last_one ]
+[ Paragraph ]
+( The )->(bold)
+[ end ]
+[ end ]
+[ Section = id: extra ]
+[ Paragraph ]
+( Extra )->( One )text glued to an inline!
+( Extra )->( Two )
+[ end ]
+[ end ]
+[end]
+[end]
+[end]
