@@ -26,7 +26,7 @@ describe("AST Access Consistency", () => {
             ]
         }];
 
-        const src = "[SniffBlock]\n(test)->(SniffInline)\n@_SniffAt_@\ncontent\n@_end_@\n[end]";
+        const src = "[SniffBlock]\n(test)->(SniffInline)\n@_SniffAt_@;\ncontent\n@_end_@\n[end]";
         const output = await transpile({ src, format: htmlFormat, plugins });
 
         expect(output).toContain('data-id="SniffBlock"');
