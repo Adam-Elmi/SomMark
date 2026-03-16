@@ -124,17 +124,17 @@ const updateData = (tokens, i) => {
 
 const errorMessage = (tokens, i, expectedValue, behindValue, frontText) => {
 	const current = tokens[i] ?? fallback;
-	const errorLineNumber = current.line;
+	const errorLineNumber = current.range.start.line;
 
 	// Find starting index of the error line
 	let lineStartIndex = i;
-	while (lineStartIndex > 0 && tokens[lineStartIndex - 1].line === errorLineNumber) {
+	while (lineStartIndex > 0 && tokens[lineStartIndex - 1].range.start.line === errorLineNumber) {
 		lineStartIndex--;
 	}
 
 	// Find ending index of the error line
 	let lineEndIndex = i;
-	while (lineEndIndex < tokens.length - 1 && tokens[lineEndIndex + 1].line === errorLineNumber) {
+	while (lineEndIndex < tokens.length - 1 && tokens[lineEndIndex + 1].range.start.line === errorLineNumber) {
 		lineEndIndex++;
 	}
 
