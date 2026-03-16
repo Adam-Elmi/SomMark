@@ -286,6 +286,10 @@ async function transpile(options = {}) {
 	return await sm.transpile();
 }
 
+const lexSync = src => lexer(src);
+
+const parseSync = src => parser(lexer(src));
+
 export {
 	HTML,
 	MARKDOWN,
@@ -298,6 +302,8 @@ export {
 	lex,
 	parse,
 	transpile,
+	lexSync,
+	parseSync,
 	TOKEN_TYPES,
 	labels,
 	enableColor,
