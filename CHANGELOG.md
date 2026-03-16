@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.2.0 (2026-03-16)
+
+### Improvements
+
+- **Better Position Tracking**: All parts of the code now track exactly where they are in the file using standard 0-indexed positions.
+- **Range Support**: Tokens and AST nodes now include `range` data to help editors with highlighting and navigation.
+- **Improved Lexer**: Simplified how position data is updated for better reliability.
+- **End-of-File Marker**: Added an `EOF` marker to ensure the final position of the file is always recorded.
+
 ## v3.1.0 (2026-03-16)
 
 ### New Features
