@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.1.0 (2026-03-16)
+
+### New Features
+
+- Added `lexSync` and `parseSync` as pure synchronous functions for easier integration.
+
 ## v3.0.0 (2026-03-16)
 
 ### Big Changes
