@@ -1,5 +1,25 @@
 # Changelog
 
+## v3.2.3 (2026-03-16)
+
+### Fixes
+
+- **Error Reporting Positioning**: Fixed a bug where error messages would sometimes fallback to the wrong line number (line 1) when hitting the end of a file.
+- **Lexer Precision**: Improved position tracking in the lexer and added explicit line/column info to lexer-thrown errors for better LSP diagnostics.
+
+## v3.2.2 (2026-03-16)
+
+### Fixes
+
+- **Whitespace Handling**: Fixed a regression where the lexer would skip whitespace and newlines without updating position counts.
+- **Improved Token Creation**: Standardized internal token creation to always advance the cursor correctly, even for trimmed identifiers.
+
+## v3.2.1 (2026-03-16)
+
+### Fixes
+
+- **Parser Regression**: Restored broken error reporting caused by using old `.line` property instead of the new `.range` object.
+
 ## v3.2.0 (2026-03-16)
 
 ### Improvements
