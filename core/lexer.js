@@ -192,17 +192,9 @@ function lexer(src) {
 			}
 		}
 
-		function addToken(type, value) {
+		function addToken(type, value, rawValue) {
 			const startPos = { line, character };
-			// Update position based on value length and newlines
-			const newlines = (value.match(/\n/g) || []).length;
-			if (newlines > 0) {
-				line += newlines;
-				const parts = value.split("\n");
-				character = parts[parts.length - 1].length;
-			} else {
-				character += value.length;
-			}
+			advance(rawValue || value);
 			const endPos = { line, character };
 			tokens.push({
 				type,
@@ -400,9 +392,10 @@ function lexer(src) {
 			else if (current_char === "\\") {
 				temp_str = concatEscape(src, i);
 				i += temp_str.length - 1;
-				temp_str = temp_str.trim();
-				if (temp_str && temp_str.length > 0) {
+				if (temp_str.trim()) {
 					addToken(TOKEN_TYPES.ESCAPE, temp_str);
+				} else {
+					advance(temp_str);
 				}
 			}
 			// ========================================================================== //
@@ -430,9 +423,11 @@ function lexer(src) {
 							validateIdentifier(trimmedStr, "Block Identifier");
 						}
 						// Add Token
-						addToken(TOKEN_TYPES.IDENTIFIER, trimmedStr);
+						addToken(TOKEN_TYPES.IDENTIFIER, trimmedStr, temp_str);
 						// Update Previous Value
 						previous_value = block_id;
+					} else {
+						advance(temp_str);
 					}
 				}
 				// ========================================================================== //
@@ -454,14 +449,16 @@ function lexer(src) {
 							case ":":
 								const trimmedKey = temp_str.trim();
 								validateIdentifier(trimmedKey, "Argument Key");
-								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey);
+								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey, temp_str);
 								previous_value = block_id_2;
 								break;
 							default:
-								addToken(TOKEN_TYPES.VALUE, temp_str);
+								addToken(TOKEN_TYPES.VALUE, temp_str.trim(), temp_str);
 								previous_value = block_value;
 								break;
 						}
+					} else {
+						advance(temp_str);
 					}
 				}
 				// ========================================================================== //
@@ -477,13 +474,13 @@ function lexer(src) {
 							case ":":
 								const trimmedKey = temp_str.trim();
 								validateIdentifier(trimmedKey, "Argument Key");
-								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey);
+								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey, temp_str);
 								previous_value = inline_id_2;
 								break;
 							default:
 								const trimmedId = temp_str.trim();
 								validateIdentifier(trimmedId, "Inline Identifier");
-								addToken(TOKEN_TYPES.IDENTIFIER, trimmedId);
+								addToken(TOKEN_TYPES.IDENTIFIER, trimmedId, temp_str);
 								previous_value = inline_id;
 								break;
 						}
@@ -503,9 +500,22 @@ function lexer(src) {
 					i += temp_str.length - 1;
 					if (temp_str.trim()) {
 						// Add Token
-						addToken(TOKEN_TYPES.VALUE, temp_str);
+						addToken(TOKEN_TYPES.VALUE, temp_str.trim(), temp_str);
 						// Update Previous Value
 						previous_value = inline_value;
+					}
+				}
+				// ========================================================================== //
+				//  Token: Inline Identifier (after open parenthesis)                         //
+				// ========================================================================== //
+				else if (previous_value === "(" && !scope_state) {
+					temp_str = concatChar(src, i, ["-", ")", "\\"]);
+					i += temp_str.length - 1;
+					if (temp_str.trim()) {
+						addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim(), temp_str);
+						previous_value = inline_id;
+					} else {
+						advance(temp_str);
 					}
 				}
 				// ========================================================================== //
@@ -520,8 +530,10 @@ function lexer(src) {
 							validateIdentifier(trimmedStr, "At-Block Identifier");
 						}
 						// Add Token
-						addToken(TOKEN_TYPES.IDENTIFIER, trimmedStr);
+						addToken(TOKEN_TYPES.IDENTIFIER, trimmedStr, temp_str);
 						previous_value = at_id;
+					} else {
+						advance(temp_str);
 					}
 				}
 				// ========================================================================== //
@@ -536,14 +548,16 @@ function lexer(src) {
 							case ":":
 								const trimmedKey = temp_str.trim();
 								validateIdentifier(trimmedKey, "Argument Key");
-								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey);
+								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey, temp_str);
 								previous_value = at_id_2;
 								break;
 							default:
-								addToken(TOKEN_TYPES.VALUE, temp_str);
+								addToken(TOKEN_TYPES.VALUE, temp_str.trim(), temp_str);
 								previous_value = at_value;
 								break;
 						}
+					} else {
+						advance(temp_str);
 					}
 				}
 				// ========================================================================== //
@@ -557,6 +571,8 @@ function lexer(src) {
 						// Update Previous Value
 						previous_value = end_keyword;
 						scope_state = false;
+					} else {
+						advance(temp_str);
 					}
 				}
 				// ========================================================================== //
@@ -567,6 +583,9 @@ function lexer(src) {
 					if (temp_str.trim()) {
 						i += temp_str.length - 1;
 						addToken(TOKEN_TYPES.COMMENT, temp_str);
+					} else {
+						i += temp_str.length - 1;
+						advance(temp_str);
 					}
 				}
 				// ========================================================================== //
@@ -587,6 +606,8 @@ function lexer(src) {
 					i += context.length - 1;
 					if (context.trim()) {
 						addToken(TOKEN_TYPES.TEXT, context);
+					} else {
+						advance(context);
 					}
 				}
 			}
