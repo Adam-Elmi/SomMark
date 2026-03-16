@@ -8,7 +8,7 @@
     [span = class: "syntax-label"]// Standard Block with Arguments[end]
     @_Code_@: sommark;
     [Section = id: "about", class: "dark"]
-        (Welcome)->(h1)
+        [h1]Welcome[end]
         This is structured content.
     [end]
     @_end_@
@@ -20,7 +20,7 @@
     [span = class: "syntax-label"]// Functional Inlines[end]
     @_Code_@: sommark;
     [Block]
-        Click (here)->(link: "https://sommark.org", target: "_blank")
+        [a = href: "https://sommark.org", target: _blank]Click Here[end]
         (IMPORTANT)->(emphasis)
     [end]
     @_end_@
