@@ -38,7 +38,11 @@ function makeBlockNode() {
 		id: "",
 		args: [],
 		body: [],
-		depth: 0
+		depth: 0,
+		range: {
+			start: { line: 0, character: 0 },
+			end: { line: 0, character: 0 }
+		}
 	};
 }
 
@@ -46,7 +50,11 @@ function makeTextNode() {
 	return {
 		type: TEXT,
 		text: "",
-		depth: 0
+		depth: 0,
+		range: {
+			start: { line: 0, character: 0 },
+			end: { line: 0, character: 0 }
+		}
 	};
 }
 
@@ -54,7 +62,11 @@ function makeCommentNode() {
 	return {
 		type: COMMENT,
 		text: "",
-		depth: 0
+		depth: 0,
+		range: {
+			start: { line: 0, character: 0 },
+			end: { line: 0, character: 0 }
+		}
 	};
 }
 
@@ -64,7 +76,11 @@ function makeInlineNode() {
 		value: "",
 		id: "",
 		args: [],
-		depth: 0
+		depth: 0,
+		range: {
+			start: { line: 0, character: 0 },
+			end: { line: 0, character: 0 }
+		}
 	};
 }
 
@@ -74,30 +90,34 @@ function makeAtBlockNode() {
 		id: "",
 		args: [],
 		content: "",
-		depth: 0
+		depth: 0,
+		range: {
+			start: { line: 0, character: 0 },
+			end: { line: 0, character: 0 }
+		}
 	};
 }
 
 let end_stack = [];
 let tokens_stack = [];
-let line = 1,
-	start = 1,
-	end = 1,
+let range = {
+	start: { line: 0, character: 0 },
+	end: { line: 0, character: 0 }
+},
 	value = "";
 
 const fallback = {
 	value: "Unknown",
-	line: "Unknown",
-	start: "Unknown",
-	end: "Unknown",
+	range: {
+		start: { line: 0, character: 0 },
+		end: { line: 0, character: 0 }
+	},
 	tokens_stack: ["--Empty--"]
 };
 const updateData = (tokens, i) => {
 	if (tokens[i]) {
 		tokens_stack.push(tokens[i].value);
-		line = tokens[i].line;
-		start = tokens[i].start;
-		end = tokens[i].end;
+		range = tokens[i].range;
 		value = tokens[i].value;
 	}
 };
@@ -130,11 +150,11 @@ const errorMessage = (tokens, i, expectedValue, behindValue, frontText) => {
 
 	return [
 		`<$blue:{line}$><$red:Here where error occurred:$>{N}${lineContent}{N}${pointerPadding}<$yellow:^$>{N}{N}`,
-		`<$red:${frontText ? frontText : "Expected token"}$> <$blue:'${expectedValue}'$> ${behindValue ? "after <$blue:'" + behindValue + "'$>" : ""} at line <$yellow:${line}$>,`,
-		` from column <$yellow: ${start}$> to <$yellow: ${end}$>`,
+		`<$red:${frontText ? frontText : "Expected token"}$> <$blue:'${expectedValue}'$> ${behindValue ? "after <$blue:'" + behindValue + "'$>" : ""} at line <$yellow:${current.range.start.line + 1}$>,`,
+		` from column <$yellow: ${current.range.start.character}$> to <$yellow: ${current.range.end.character}$>`,
 		`{N}<$yellow:Received:$> <$blue:'${value === "\n" ? "\\n' (newline)" : value}'$>`,
-		` at line <$yellow:${current.line}$>,`,
-		` from column <$yellow: ${current.start}$> to <$yellow: ${current.end}$>{N}`,
+		` at line <$yellow:${current.range.start.line + 1}$>,`,
+		` from column <$yellow: ${current.range.start.character}$> to <$yellow: ${current.range.end.character}$>{N}`,
 		"<$blue:{line}$>"
 	];
 };
@@ -233,21 +253,21 @@ function parseSemiColon(tokens, i, afterChar = "") {
 // ========================================================================== //
 function parseBlock(tokens, i) {
 	const blockNode = makeBlockNode();
+	const openBracketToken = current_token(tokens, i);
 	// ========================================================================== //
 	//  consume '['                                                               //
 	// ========================================================================== //
 	i++;
 	updateData(tokens, i);
-	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.IDENTIFIER)) {
-		parserError(errorMessage(tokens, i, block_id, "["));
-	}
-	const id = current_token(tokens, i).value;
+	const idToken = current_token(tokens, i);
+	const id = idToken.value;
 	if (id.trim() === end_keyword) {
 		parserError(errorMessage(tokens, i, id, "", `'${id.trim()}' is a reserved keyword and cannot be used as an identifier.`));
 	}
 	blockNode.id = id.trim();
 	validateName(blockNode.id);
-	blockNode.depth = current_token(tokens, i).depth;
+	blockNode.depth = idToken.depth;
+	blockNode.range.start = openBracketToken.range.start;
 	end_stack.push(id);
 	// ========================================================================== //
 	//  consume Block Identifier                                                  //
@@ -403,8 +423,10 @@ function parseBlock(tokens, i) {
 			// ========================================================================== //
 			//  consume ']'                                                               //
 			// ========================================================================== //
+			const closeBracketToken = current_token(tokens, i);
 			i++;
 			updateData(tokens, i);
+			blockNode.range.end = closeBracketToken.range.end;
 			break;
 		} else {
 			const [childNode, nextIndex] = parseNode(tokens, i);
@@ -423,6 +445,8 @@ function parseBlock(tokens, i) {
 // ========================================================================== //
 function parseInline(tokens, i) {
 	const inlineNode = makeInlineNode();
+	const openParenToken = current_token(tokens, i);
+	inlineNode.range.start = openParenToken.range.start;
 	// ========================================================================== //
 	//  consume '('                                                               //
 	// ========================================================================== //
@@ -569,8 +593,10 @@ function parseInline(tokens, i) {
 	// ========================================================================== //
 	//  consume ')'                                                               //
 	// ========================================================================== //
+	const finalParenToken = current_token(tokens, i);
 	i++;
 	updateData(tokens, i);
+	inlineNode.range.end = finalParenToken.range.end;
 	tokens_stack.length = 0;
 	return [inlineNode, i];
 }
@@ -579,7 +605,9 @@ function parseInline(tokens, i) {
 // ========================================================================== //
 function parseText(tokens, i, options = {}) {
 	const textNode = makeTextNode();
-	textNode.depth = current_token(tokens, i).depth;
+	const startToken = current_token(tokens, i);
+	textNode.range.start = startToken.range.start;
+	textNode.depth = startToken.depth;
 	const { selectiveUnescape = false } = options;
 
 	while (i < tokens.length) {
@@ -604,6 +632,7 @@ function parseText(tokens, i, options = {}) {
 		} else {
 			break;
 		}
+		textNode.range.end = current_token(tokens, i - 1).range.end;
 	}
 	return [textNode, i];
 }
@@ -612,6 +641,8 @@ function parseText(tokens, i, options = {}) {
 // ========================================================================== //
 function parseAtBlock(tokens, i) {
 	const atBlockNode = makeAtBlockNode();
+	const openAtToken = current_token(tokens, i);
+	atBlockNode.range.start = openAtToken.range.start;
 	// ========================================================================== //
 	//  consume '@_'                                                              //
 	// ========================================================================== //
@@ -754,8 +785,10 @@ function parseAtBlock(tokens, i) {
 	// ========================================================================== //
 	//  consume '_@'                                                              //
 	// ========================================================================== //
+	const closeAtToken = current_token(tokens, i);
 	i++;
 	updateData(tokens, i);
+	atBlockNode.range.end = closeAtToken.range.end;
 	tokens_stack.length = 0;
 	return [atBlockNode, i];
 }
@@ -764,9 +797,11 @@ function parseAtBlock(tokens, i) {
 // ========================================================================== //
 function parseCommentNode(tokens, i) {
 	const commentNode = makeCommentNode();
-	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COMMENT) {
-		commentNode.text = current_token(tokens, i).value;
-		commentNode.depth = current_token(tokens, i).depth;
+	const token = current_token(tokens, i);
+	if (token && token.type === TOKEN_TYPES.COMMENT) {
+		commentNode.text = token.value;
+		commentNode.depth = token.depth;
+		commentNode.range = token.range;
 	}
 	// ========================================================================== //
 	//  consume Comment '#'                                                       //
@@ -825,9 +860,10 @@ function parseNode(tokens, i) {
 function parser(tokens) {
 	end_stack = [];
 	tokens_stack = [];
-	line = 1;
-	start = 1;
-	end = 1;
+	range = {
+		start: { line: 0, character: 0 },
+		end: { line: 0, character: 0 }
+	};
 	value = "";
 	let ast = [];
 	let i = 0;

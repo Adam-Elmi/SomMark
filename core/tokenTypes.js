@@ -16,7 +16,8 @@ const TOKEN_TYPES = {
   COMMA: "COMMA",
   SEMICOLON: "SEMICOLON",
   COMMENT: "COMMENT",
-  ESCAPE: "ESCAPE"
+  ESCAPE: "ESCAPE",
+  EOF: "EOF"
 };
 
 export default TOKEN_TYPES;
