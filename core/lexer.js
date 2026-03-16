@@ -186,7 +186,7 @@ function lexer(src) {
 			if (!/^[a-zA-Z0-9\-_$]+$/.test(id.trim())) {
 				lexerError([
 					`{line}<$red:Invalid ${type}:$>{N}`,
-					`<$yellow:Identifiers can only contain letters, numbers, underscores (_), dollar signs, and hyphens (-). Got$> <$blue:'${id.trim()}'$>{N}`,
+					`<$yellow:Identifiers can only contain letters, numbers, underscores (_), dollar signs, and hyphens (-). Got$> <$blue:'${id.trim()}'$> at line <$yellow:${line + 1}$>, from column <$yellow:${character}$>{N}`,
 					"{line}"
 				]);
 			}
@@ -196,6 +196,7 @@ function lexer(src) {
 			const startPos = { line, character };
 			advance(rawValue || value);
 			const endPos = { line, character };
+            // console.log(`DEBUG addToken: type=${type} start=${startPos.line},${startPos.character} end=${endPos.line},${endPos.character} val='${value}'`);
 			tokens.push({
 				type,
 				value,
@@ -627,7 +628,7 @@ function lexer(src) {
 		return tokens;
 	} else {
 		lexerError([
-			`{line}<$red:Invalid SomMark syntax:$> ${src === "" ? "<$yellow: Got empty string '' $>" : `<$yellow:Expected source input to be a string, got$> <$blue: '${typeof src}'$>`}{line}`
+			`{line}<$red:Invalid SomMark syntax:$> ${src === "" ? "<$yellow: Got empty string '' $>" : `<$yellow:Expected source input to be a string, got$> <$blue: '${typeof src}'$>`} at line <$yellow:${line + 1}$>, from column <$yellow:${character}$>{line}`
 		]);
 	}
 }

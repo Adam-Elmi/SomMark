@@ -123,7 +123,7 @@ const updateData = (tokens, i) => {
 };
 
 const errorMessage = (tokens, i, expectedValue, behindValue, frontText) => {
-	const current = tokens[i] ?? fallback;
+	const current = tokens[i] || tokens[tokens.length - 1] || fallback;
 	const errorLineNumber = current.range.start.line;
 
 	// Find starting index of the error line
