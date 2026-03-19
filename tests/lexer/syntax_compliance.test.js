@@ -66,9 +66,9 @@ describe("Lexer: Syntax Compliance (Alphabetical Cases)", () => {
     // ========================================================================== //
     describe("Case F: Colon Sensitivity", () => {
         it("treats inline colons as plain text", () => {
-            const tokens = lexer("(V)->(P: x:y:z)");
+            const tokens = lexer("(V)->(P: \"x:y:z\")");
             const colons = tokens.filter(t => t.type === "COLON");
-            // Only the first colon after (P is a separator, others are text/value
+            // Only the first colon after (P is a separator, others are part of the quoted VALUE
             expect(colons.length).toBe(1);
         });
 
