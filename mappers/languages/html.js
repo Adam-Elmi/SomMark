@@ -108,6 +108,10 @@ HTML.register(
 HTML.register(["quote", "blockquote"], function ({ content }) {
 	return this.tag("blockquote").body(content);
 }, { type: "Block" });
+// Raw Content Blocks
+HTML.register(["raw", "mdx"], function ({ content }) {
+	return content;
+}, { type: "Block" });
 // Bold
 HTML.register("bold", function ({ content }) {
 	return this.tag("strong").body(content);
@@ -190,19 +194,10 @@ HTML_TAGS.forEach(tagName => {
 
 		HTML.register(
 			id,
-			function ({ args, content }) {
+			function ({ args, content, textContent }) {
 				const element = this.tag(id);
 				let inline_style = args.style ? (args.style.endsWith(";") ? args.style : args.style + ";") : "";
 
-				// Auto-ID for Headings
-				if (/^h[1-6]$/i.test(id) && !args.id && content) {
-					const idAttr = content
-						.toString()
-						.toLowerCase()
-						.replace(/[^\w\s-]/g, "")
-						.replace(/\s+/g, "-");
-					element.attributes({ id: idAttr });
-				}
 
 				const keys = Object.keys(args).filter(arg => isNaN(arg));
 				keys.forEach(key => {
