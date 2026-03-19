@@ -1,18 +1,23 @@
 import colorize from "../helpers/colorize.js";
 
+/**
+ * SomMark Errors
+ * Handles formatting and throwing errors with beautiful CLI coloring and pointers.
+ */
+
+// ========================================================================== //
+//  Message Formatting                                                       //
+// ========================================================================== //
+
 function formatMessage(text) {
 	/*
-	Format:
-	{line} = Horizontal line
-	{N} = Newline
-  <color: Text> = Colored Text
-
-  [No Nest]
-  -----------------------------
-	Example: <$red: Expected token$> <$magenta: ']'$> {N} at line <$red: 1$> {N} column <$green: 2$> {line}
+	Format System:
+	{line} = Draws a horizontal line
+	{N}    = Inserts a newline
+	<$color: Text$> = Colors the text (supports red, yellow, green, blue, magenta, cyan)
 	*/
 	const horizontal_rule = "\n----------------------------------------------------------------------------------------------\n";
-	const pattern = /<\$([^:]+):([^$]+)\$>/g;
+	const pattern = /<\$([^:]+):([\s\S]*?)\$>/g;
 
 	if (Array.isArray(text)) {
 		text = text.join("");
@@ -32,6 +37,10 @@ function formatMessage(text) {
 
 	return text;
 }
+
+// ========================================================================== //
+//  Error Classes                                                            //
+// ========================================================================== //
 
 class CustomError extends Error {
 	constructor(message, name) {
@@ -79,6 +88,10 @@ class SommarkError extends CustomError {
 		super(message, "SomMark Error");
 	}
 }
+
+// ========================================================================== //
+//  Error Dispatcher (Helper)                                               //
+// ========================================================================== //
 
 function getError(type) {
 	const validate_msg = msg => Array.isArray(msg) && msg.length > 0;
