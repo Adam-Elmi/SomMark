@@ -1,10 +1,14 @@
+/**
+ * Plugin Manager
+ * Handles sorting by priority and running hooks at various stages.
+ */
 export default class PluginManager {
 	constructor(plugins = [], priority = []) {
+		// ========================================================================== //
+		//  Plugin Sorting by Priority                                               //
+		// ========================================================================== //
 		this.plugins = [...plugins].sort((a, b) => {
 			const getIndex = (p) => {
-				// ========================================================================== //
-				// Priority array can contain plugin objects or plugin names (for built-ins)
-				// ========================================================================== //
 				const index = priority.findIndex(item => {
 					if (typeof item === "string") {
 						return item === p.name;
@@ -17,29 +21,13 @@ export default class PluginManager {
 			const indexA = getIndex(a);
 			const indexB = getIndex(b);
 
-			// ========================================================================== //
-			// 1. Both have a priority index
-			// ========================================================================== //
-			if (indexA !== -1 && indexB !== -1) {
-				return indexA - indexB;
-			}
-
-			// ========================================================================== //
-			// 2. Only A has a priority
-			// ========================================================================== //
+			if (indexA !== -1 && indexB !== -1) return indexA - indexB;
 			if (indexA !== -1) return -1;
-
-			// ========================================================================== //
-			// 3. Only B has a priority
-			// ========================================================================== //
 			if (indexB !== -1) return 1;
 
-			// ========================================================================== //
-			// 4. Neither have a priority
 			// Default rule: built-ins first, then external/user-defined
-			// ========================================================================== //
-			const isBuiltInA = ["module-system", "quote-escaper", "raw-content", "comment-remover", "rules-validation", "sommark-format"].includes(a.name); // Hardcoded for now based on current project
-			const isBuiltInB = ["module-system", "quote-escaper", "raw-content", "comment-remover", "rules-validation", "sommark-format"].includes(b.name);
+			const isBuiltInA = ["module-system", "raw-content", "comment-remover", "rules-validation", "sommark-format"].includes(a.name);
+			const isBuiltInB = ["module-system", "raw-content", "comment-remover", "rules-validation", "sommark-format"].includes(b.name);
 
 			if (isBuiltInA && !isBuiltInB) return -1;
 			if (!isBuiltInA && isBuiltInB) return 1;
@@ -48,7 +36,10 @@ export default class PluginManager {
 		});
 	}
 
-	async runPreprocessor(src, scope) {
+	// ========================================================================== //
+	//  Preprocessing Hooks (Before Lexing)                                      //
+	// ========================================================================== //
+	async runPreprocessor(src, scope, context) {
 		let processedSrc = src;
 		const preprocessors = this.plugins.filter(p => {
 			const types = Array.isArray(p.type) ? p.type : [p.type];
@@ -57,12 +48,16 @@ export default class PluginManager {
 
 		for (const plugin of preprocessors) {
 			if (typeof plugin.beforeLex === "function") {
+				plugin.context = context;
 				processedSrc = await plugin.beforeLex.call(plugin, processedSrc);
 			}
 		}
 		return processedSrc;
 	}
 
+	// ========================================================================== //
+	//  Post-Lexing Hooks (Token Transformation)                                  //
+	// ========================================================================== //
 	async runAfterLex(tokens) {
 		let processedTokens = tokens;
 		const afterLexers = this.plugins.filter(p => {
@@ -76,6 +71,9 @@ export default class PluginManager {
 		return processedTokens;
 	}
 
+	// ========================================================================== //
+	//  AST Transformation Hooks (After Parsing)                                 //
+	// ========================================================================== //
 	async runOnAst(ast, context = {}) {
 		let processedAst = ast;
 		const astPlugins = this.plugins.filter(p => {
@@ -89,6 +87,9 @@ export default class PluginManager {
 		return processedAst;
 	}
 
+	// ========================================================================== //
+	//  Mapper Extensions (Tag Definitions and Rules)                            //
+	// ========================================================================== //
 	getMapperExtensions() {
 		const extensions = { outputs: [], rules: {} };
 		const mapperPlugins = this.plugins.filter(p => {
@@ -107,6 +108,9 @@ export default class PluginManager {
 		return extensions;
 	}
 
+	// ========================================================================== //
+	//  Registration Hooks                                                       //
+	// ========================================================================== //
 	runRegisterHooks(sm) {
 		for (const plugin of this.plugins) {
 			const registerFn = plugin.registerOutput || plugin.register;
@@ -116,6 +120,9 @@ export default class PluginManager {
 		}
 	}
 
+	// ========================================================================== //
+	//  Post-Processing Hooks (Final Output Transformation)                      //
+	// ========================================================================== //
 	async runTransformers(output) {
 		let processedOutput = output;
 		const transformers = this.plugins.filter(p => {
@@ -132,6 +139,9 @@ export default class PluginManager {
 		return processedOutput;
 	}
 
+	// ========================================================================== //
+	//  Format-Specific Mapper Retrieval                                         //
+	// ========================================================================== //
 	getFormatMapper(formatName) {
 		const plugin = this.plugins.find(p => p.format === formatName && p.mapper);
 		return plugin ? plugin.mapper : null;
