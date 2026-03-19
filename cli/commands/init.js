@@ -20,15 +20,11 @@ export function getConfigDir() {
 
 export async function runInit() {
     try {
-        const configDir = getConfigDir();
-        const pluginsDir = path.join(configDir, "plugins");
-        const configFilePath = path.join(configDir, "smark.config.js");
-
         // ======================================================
-        // Create directories
+        // Create configuration directory
         // ======================================================
 
-        await fs.mkdir(pluginsDir, { recursive: true });
+        await fs.mkdir(configDir, { recursive: true });
 
         // ======================================================
         // Default configuration content
