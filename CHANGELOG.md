@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.3.0 (2026-03-20)
+
+### New Features
+
+- **Top-Level Scope**: You can now use Text, Inline tags, and At-Blocks directly at the top level of a document. A wrapping `[Block]` is no longer mandatory for basic content.
+- **Native Quote Support**: The `quote-escaper` plugin has been replaced by high-performance native quote handling built directly into the core engine.
+
+### Improvements
+
+- **Module System**: Standardized the syntax for the built-in module system (`[import]` and `[$use-module]`).
+- **Documentation Refresh**: Updated all guides and syntax references to reflect the new top-level rules and native features.
+- **LSP Full Support**: Finalized internal range and position tracking to provide full support for Language Server Protocol (LSP) features in code editors.
+
 ## v3.2.3 (2026-03-16)
 
 ### Fixes
