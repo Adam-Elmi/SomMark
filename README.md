@@ -109,3 +109,10 @@ Read our detailed guides in the `docs/` folder:
 - **[Mapper API](docs/13.mapper.md)**: How to create new output formats.
 - **[CLI Reference](docs/11.cli.md)**: Terminal commands and flags.
 - **[API Quick Reference](docs/api)**: Fast lookup for all functions.
+
+# Editor Support
+
+### Editor Support
+High-quality syntax highlighting and diagnostics are provided via **LSP Semantic Tokens**. This ensures perfect coloring in any editor that supports the Language Server Protocol (e.g., VS Code, Neovim, CoC).
+
+Information for integration can be found in the [SomMark-LSP](https://github.com/Adam-Elmi/SomMark-LSP) project.
