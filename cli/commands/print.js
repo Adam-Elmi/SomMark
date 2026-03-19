@@ -13,11 +13,12 @@ export async function printOutput(format, filePath) {
     const fileName = path.basename(filePath);
     console.log(formatMessage(`{line}<$blue: Printing output for$> <$yellow:'${fileName}'$>{line}`));
     let source_code = await readContent(filePath);
+    const absolutePath = path.resolve(process.cwd(), filePath);
     if (format === "json") {
-      const output = await transpile({ src: source_code.toString(), format });
+      const output = await transpile({ src: source_code.toString(), format, filename: absolutePath });
       console.log(JSON.stringify(JSON.parse(output, null, 2), null, 2));
     } else {
-      console.log(await transpile({ src: source_code.toString(), format }));
+      console.log(await transpile({ src: source_code.toString(), format, filename: absolutePath }));
     }
   } else {
     cliError([`{line}<$red:File$> <$blue:'${filePath}'$> <$red: is not found$>{line}`]);
@@ -34,9 +35,11 @@ export async function printLex(filePath) {
     const source_code = await readContent(filePath);
     const config = await loadConfig();
 
+    const absolutePath = path.resolve(process.cwd(), filePath);
     const smark = new SomMark({
       src: source_code.toString(),
       format: "text",
+      filename: absolutePath,
       plugins: config.plugins,
       priority: config.priority
     });
@@ -58,9 +61,11 @@ export async function printParse(filePath) {
     const source_code = await readContent(filePath);
     const config = await loadConfig();
 
+    const absolutePath = path.resolve(process.cwd(), filePath);
     const smark = new SomMark({
       src: source_code.toString(),
       format: "text",
+      filename: absolutePath,
       plugins: config.plugins,
       priority: config.priority
     });
