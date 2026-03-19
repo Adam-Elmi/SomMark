@@ -9,7 +9,7 @@ const RulesValidationPlugin = {
 	name: "rules-validation",
 	type: "on-ast",
 	author: "Adam-Elmi",
-	description: "Validates AST nodes against rules defined in the mapper (e.g., argument count, required keys, content length).",
+	description: "Checks your document to make sure all tags and arguments follow the rules set in the mapper.",
 	onAst(ast, { mapperFile }) {
 		if (!mapperFile) return ast;
 
@@ -107,7 +107,7 @@ const RulesValidationPlugin = {
 		// ========================================================================== //
 		if (args) {
 			const argKeys = Object.keys(args).filter(key => isNaN(parseInt(key)));
-			
+
 			// Validate keys pattern
 			if (rules.keys) {
 				const keyPattern = rules.keys instanceof RegExp ? rules.keys : null;
