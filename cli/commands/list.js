@@ -10,7 +10,16 @@ import { formatMessage } from "../../core/errors.js";
  */
 export async function runListPlugins(args) {
     const config = await loadConfig();
-    const enabledPlugins = config.plugins || [];
+
+    const sm = new SomMark({
+        src: "",
+        format: "html",
+        plugins: config.plugins,
+        excludePlugins: config.excludePlugins,
+        priority: config.priority
+    });
+
+    const enabledPlugins = sm.plugins;
 
     // Filter flags
     const showInternal = args.includes("--internal") || args.includes("-i");
@@ -24,16 +33,14 @@ export async function runListPlugins(args) {
     // 1. Internal Plugins
     if (showInternal || showAll) {
         const internal = enabledPlugins.filter(p => {
-             const name = typeof p === "string" ? p : p.name;
-             return BUILT_IN_PLUGINS.some(bp => bp.name === name);
+            return BUILT_IN_PLUGINS.some(bp => bp.name === p.name);
         });
 
         if (internal.length > 0) {
             console.log(formatMessage(`  <$magenta:Internal Plugins (Built-in):$>{N}`));
             internal.forEach(p => {
-                const name = typeof p === "string" ? p : p.name;
-                const pluginObj = BUILT_IN_PLUGINS.find(bp => bp.name === name);
-                printPluginInfo(name, pluginObj);
+                const pluginObj = BUILT_IN_PLUGINS.find(bp => bp.name === p.name);
+                printPluginInfo(p.name, pluginObj);
             });
             found = true;
         }
@@ -42,15 +49,13 @@ export async function runListPlugins(args) {
     // 2. External Plugins
     if (showExternal || showAll) {
         const external = enabledPlugins.filter(p => {
-            const name = typeof p === "string" ? p : p.name;
-            return !BUILT_IN_PLUGINS.some(bp => bp.name === name);
+            return !BUILT_IN_PLUGINS.some(bp => bp.name === p.name);
         });
 
         if (external.length > 0) {
             console.log(formatMessage(`${found ? "{N}" : ""}  <$magenta:External Plugins (User-defined):$>{N}`));
             external.forEach(p => {
-                const name = typeof p === "string" ? p : (p.name || "Unknown");
-                printPluginInfo(name, typeof p === "object" ? p : null);
+                printPluginInfo(p.name || "Unknown", p);
             });
             found = true;
         }
@@ -101,7 +106,7 @@ export async function runListPipeline() {
         console.log(formatMessage(`  <$magenta:${phase.name}$>`));
         if (matched.length > 0) {
             matched.forEach(p => {
-                console.log(formatMessage(`    <$green:• ${p.name}$> <$cyan:[${Array.isArray(p.type) ? p.type.join(", ") : p.type}]$>`));
+                console.log(formatMessage(`    <$green:└── ${p.name}$> <$cyan:[${Array.isArray(p.type) ? p.type.join(", ") : p.type}]$>`));
             });
         } else {
             console.log(formatMessage(`    <$yellow: (None registered)$>`));
@@ -114,6 +119,6 @@ export async function runListPipeline() {
 function printPluginInfo(name, pluginObj) {
     const author = pluginObj?.author || "Unknown";
     const desc = pluginObj?.description || "No description provided.";
-    console.log(formatMessage(`    <$green:• ${name}$> <$cyan:by ${author}$>`));
+    console.log(formatMessage(`    <$green:└── ${name}$> - <$cyan:by ${author}$>`));
     console.log(formatMessage(`      <$yellow:${desc}$>`));
 }
