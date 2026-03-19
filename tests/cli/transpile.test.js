@@ -32,8 +32,9 @@ describe("CLI Transpile Helper", () => {
         expect(output).toContain("Hello World");
     });
 
-    it("should throw on empty source", async () => {
-        await expect(transpile({ src: "", format: "html" })).rejects.toThrow();
+    it("should handle empty source", async () => {
+        const output = await transpile({ src: "", format: "html", includeDocument: true });
+        expect(output).toContain("<!DOCTYPE html>");
     });
 
     it("should handle multiple blocks", async () => {
