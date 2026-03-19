@@ -1,3 +1,6 @@
+/**
+ * SomMark Parser
+ */
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
 import { parserError } from "./errors.js";
@@ -7,6 +10,8 @@ import {
 	INLINE,
 	ATBLOCK,
 	COMMENT,
+	IMPORT,
+	USE_MODULE,
 	block_id,
 	block_value,
 	inline_id,
@@ -15,6 +20,11 @@ import {
 	at_value,
 	end_keyword
 } from "./labels.js";
+import { levenshtein } from "../helpers/utils.js";
+
+// ========================================================================== //
+//  Helper Functions                                                         //
+// ========================================================================== //
 
 function current_token(tokens, i) {
 	return tokens[i] || null;
@@ -84,6 +94,10 @@ function makeInlineNode() {
 	};
 }
 
+// ========================================================================== //
+//  Node Creators (Factories)                                                //
+// ========================================================================== //
+
 function makeAtBlockNode() {
 	return {
 		type: ATBLOCK,
@@ -97,6 +111,10 @@ function makeAtBlockNode() {
 		}
 	};
 }
+
+// ========================================================================== //
+//  Parser State and Error Tracking                                          //
+// ========================================================================== //
 
 let end_stack = [];
 let tokens_stack = [];
@@ -122,19 +140,28 @@ const updateData = (tokens, i) => {
 	}
 };
 
-const errorMessage = (tokens, i, expectedValue, behindValue, frontText) => {
-	const current = tokens[i] || tokens[tokens.length - 1] || fallback;
+const errorMessage = (tokens, i, expectedValue, behindValue, frontText, filename = null) => {
+	const current = tokens[i] || fallback;
 	const errorLineNumber = current.range.start.line;
+	const errorCharNumber = current.range.start.character;
+	const source = current.source || filename;
+	const sourceLabel = source ? ` [${source}]` : "";
 
-	// Find starting index of the error line
 	let lineStartIndex = i;
-	while (lineStartIndex > 0 && tokens[lineStartIndex - 1].range.start.line === errorLineNumber) {
+	while (
+		lineStartIndex > 0 &&
+		tokens[lineStartIndex - 1].range.start.line === errorLineNumber &&
+		(tokens[lineStartIndex - 1].source || filename) === source
+	) {
 		lineStartIndex--;
 	}
 
-	// Find ending index of the error line
 	let lineEndIndex = i;
-	while (lineEndIndex < tokens.length - 1 && tokens[lineEndIndex + 1].range.start.line === errorLineNumber) {
+	while (
+		lineEndIndex < tokens.length - 1 &&
+		tokens[lineEndIndex + 1].range.start.line === errorLineNumber &&
+		(tokens[lineEndIndex + 1].source || filename) === source
+	) {
 		lineEndIndex++;
 	}
 
@@ -145,16 +172,19 @@ const errorMessage = (tokens, i, expectedValue, behindValue, frontText) => {
 	// Get content on the line before the error token
 	const tokensBeforeErrorOnLine = tokens.slice(lineStartIndex, i);
 	const contentBeforeErrorOnLine = tokensBeforeErrorOnLine.map(t => t.value).join('');
-	
+
 	const pointerPadding = " ".repeat(contentBeforeErrorOnLine.length);
+	const rangeInfo = current.range.start.line === current.range.end.line
+		? `from column <$yellow:${current.range.start.character}$> to <$yellow:${current.range.end.character}$>`
+		: `from line <$yellow:${current.range.start.line + 1}$>, column <$yellow:${current.range.start.character}$> to line <$yellow:${current.range.end.line + 1}$>, column <$yellow:${current.range.end.character}$>`;
 
 	return [
-		`<$blue:{line}$><$red:Here where error occurred:$>{N}${lineContent}{N}${pointerPadding}<$yellow:^$>{N}{N}`,
-		`<$red:${frontText ? frontText : "Expected token"}$> <$blue:'${expectedValue}'$> ${behindValue ? "after <$blue:'" + behindValue + "'$>" : ""} at line <$yellow:${current.range.start.line + 1}$>,`,
-		` from column <$yellow: ${current.range.start.character}$> to <$yellow: ${current.range.end.character}$>`,
-		`{N}<$yellow:Received:$> <$blue:'${value === "\n" ? "\\n' (newline)" : value}'$>`,
+		`<$blue:{line}$><$red:Here where error occurred${sourceLabel}:$>{N}${lineContent}{N}${pointerPadding}<$yellow:^$>{N}{N}`,
+		`<$red:${frontText ? frontText : "Expected token"}$>${!frontText ? " <$blue:'" + expectedValue + "'$>" : ""} ${behindValue ? "after <$blue:'" + behindValue + "'$>" : ""} at line <$yellow:${current.range.start.line + 1}$>,`,
+		` ${rangeInfo}`,
+		`{N}<$yellow:Received:$> <$blue:'${current.value === "\n" ? "\\n' (newline)" : current.value}'$>`,
 		` at line <$yellow:${current.range.start.line + 1}$>,`,
-		` from column <$yellow: ${current.range.start.character}$> to <$yellow: ${current.range.end.character}$>{N}`,
+		` ${rangeInfo}{N}`,
 		"<$blue:{line}$>"
 	];
 };
@@ -251,7 +281,7 @@ function parseSemiColon(tokens, i, afterChar = "") {
 // ========================================================================== //
 //  Parse Block                                                               //
 // ========================================================================== //
-function parseBlock(tokens, i) {
+function parseBlock(tokens, i, filename = null) {
 	const blockNode = makeBlockNode();
 	const openBracketToken = current_token(tokens, i);
 	// ========================================================================== //
@@ -260,11 +290,22 @@ function parseBlock(tokens, i) {
 	i++;
 	updateData(tokens, i);
 	const idToken = current_token(tokens, i);
+	if (!idToken || idToken.type === TOKEN_TYPES.EOF) {
+		parserError(errorMessage(tokens, i, "Block ID", "[", "Missing Block Identifier"));
+	}
 	const id = idToken.value;
 	if (id.trim() === end_keyword) {
 		parserError(errorMessage(tokens, i, id, "", `'${id.trim()}' is a reserved keyword and cannot be used as an identifier.`));
 	}
 	blockNode.id = id.trim();
+	if (!blockNode.id) {
+		parserError(errorMessage(tokens, i, "Block ID", "[", "Block identifier cannot be empty"));
+	}
+	if (blockNode.id === "import") {
+		blockNode.type = IMPORT;
+	} else if (blockNode.id === "$use-module") {
+		blockNode.type = USE_MODULE;
+	}
 	validateName(blockNode.id);
 	blockNode.depth = idToken.depth;
 	blockNode.range.start = openBracketToken.range.start;
@@ -389,7 +430,7 @@ function parseBlock(tokens, i) {
 			peek(tokens, i, 1) &&
 			peek(tokens, i, 1).type !== TOKEN_TYPES.END_KEYWORD
 		) {
-			const [childNode, nextIndex] = parseBlock(tokens, i);
+			const [childNode, nextIndex] = parseBlock(tokens, i, filename);
 			blockNode.body.push(childNode);
 			// ========================================================================== //
 			//  consume child node                                                        //
@@ -405,8 +446,16 @@ function parseBlock(tokens, i) {
 			//  consume '['                                                               //
 			// ========================================================================== //
 			i++;
-			if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.END_KEYWORD && current_token(tokens, i).value.trim() !== end_keyword)) {
-				parserError(errorMessage(tokens, i, "end", "["));
+			const current = current_token(tokens, i);
+			if (!current || (current.type !== TOKEN_TYPES.END_KEYWORD && current.value.trim() !== end_keyword)) {
+				let extraInfo = "";
+				if (current && current.value) {
+					const dist = levenshtein(current.value.trim().toLowerCase(), "end");
+					if (dist <= 2) {
+						extraInfo = ` (Did you mean <$cyan:'[end]'$>?)`;
+					}
+				}
+				parserError(errorMessage(tokens, i, "end", "[", extraInfo));
 			}
 			// ========================================================================== //
 			//  consume End Keyword                                                       //
@@ -429,13 +478,13 @@ function parseBlock(tokens, i) {
 			blockNode.range.end = closeBracketToken.range.end;
 			break;
 		} else {
-			const [childNode, nextIndex] = parseNode(tokens, i);
-			if (!childNode) {
-				i += 1;
-				continue;
+			const [childNode, nextIndex] = parseNode(tokens, i, filename);
+			if (childNode) {
+				blockNode.body.push(childNode);
+				i = nextIndex;
+			} else {
+				i++; // Should not happen with current parseNode fallback but good for safety
 			}
-			blockNode.body.push(childNode);
-			i = nextIndex;
 		}
 	}
 	return [blockNode, i];
@@ -639,7 +688,7 @@ function parseText(tokens, i, options = {}) {
 // ========================================================================== //
 //  Parse AtBlock                                                             //
 // ========================================================================== //
-function parseAtBlock(tokens, i) {
+function parseAtBlock(tokens, i, filename = null) {
 	const atBlockNode = makeAtBlockNode();
 	const openAtToken = current_token(tokens, i);
 	atBlockNode.range.start = openAtToken.range.start;
@@ -743,7 +792,7 @@ function parseAtBlock(tokens, i) {
 		}
 	}
 	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.SEMICOLON)) {
-		parserError(errorMessage(tokens, i, ";", at_value));
+		parserError(errorMessage(tokens, i, ";", at_value, "A semicolon (;) is required after the AtBlock identifier or its arguments (e.g., '@_Table_@:' or '@_Table_@: key, val;').", filename));
 	}
 	i = parseSemiColon(tokens, i, at_value);
 	if (
@@ -811,7 +860,11 @@ function parseCommentNode(tokens, i) {
 	return [commentNode, i];
 }
 
-function parseNode(tokens, i) {
+// ========================================================================== //
+//  Main Node Dispatcher                                                     //
+// ========================================================================== //
+
+function parseNode(tokens, i, filename = null) {
 	if (!current_token(tokens, i) || (current_token(tokens, i) && !current_token(tokens, i).value)) {
 		return [null, i];
 	}
@@ -832,10 +885,31 @@ function parseNode(tokens, i) {
 		return parseBlock(tokens, i);
 	}
 	// ========================================================================== //
-	//  Inline Statement                                                          //
+	//  Inline Statement or Text                                                  //
 	// ========================================================================== //
 	else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.OPEN_PAREN) {
-		return parseInline(tokens, i);
+		// Look ahead to see if this is an inline statement: (...) -> (...)
+		let j = i + 1;
+		let foundClose = false;
+		while (j < tokens.length) {
+			if (tokens[j].type === TOKEN_TYPES.CLOSE_PAREN) {
+				foundClose = true;
+				break;
+			}
+			// Avoid going too far if it's definitely not an inline (not matching the value part structure)
+			if (tokens[j].type === TOKEN_TYPES.OPEN_PAREN || tokens[j].type === TOKEN_TYPES.OPEN_BRACKET) break;
+			j++;
+		}
+
+		if (foundClose && tokens[j + 1] && tokens[j + 1].type === TOKEN_TYPES.THIN_ARROW) {
+			return parseInline(tokens, i);
+		}
+
+		// Treat as text if not an inline
+		const textNode = makeTextNode();
+		textNode.text = current_token(tokens, i).value;
+		textNode.range = current_token(tokens, i).range;
+		return [textNode, i + 1];
 	}
 	// ========================================================================== //
 	//  Text                                                                      //
@@ -850,14 +924,23 @@ function parseNode(tokens, i) {
 	//  Atblock                                                                   //
 	// ========================================================================== //
 	else if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.OPEN_AT)) {
-		return parseAtBlock(tokens, i);
+		return parseAtBlock(tokens, i, filename);
 	} else {
-		parserError(errorMessage(tokens, i, current_token(tokens, i).value, "", "Syntax Error:"));
+		// FALLBACK: Treat any other token as TEXT to avoid infinite loops and allow literal content
+		const textNode = makeTextNode();
+		textNode.text = current_token(tokens, i).value;
+		textNode.range = current_token(tokens, i).range;
+		return [textNode, i + 1];
 	}
-	return [null, i + 1];
 }
 
-function parser(tokens) {
+// ========================================================================== //
+//  Main Parser Entry Point                                                  //
+// ========================================================================== //
+
+function parser(tokens, filename = null) {
+	// Filter out structural whitespace (junk) that was emitted for highlighting purposes
+	tokens = tokens.filter(t => !t.isStructural);
 	end_stack = [];
 	tokens_stack = [];
 	range = {
@@ -868,19 +951,36 @@ function parser(tokens) {
 	let ast = [];
 	let i = 0;
 	while (i < tokens.length) {
-		let [nodes, nextIndex] = parseNode(tokens, i);
-		if (nodes && nodes.type !== "Comment" && nodes.depth === 0) {
-			parserError(errorMessage(tokens, i, "Top-level Block", "", "Top-level content must be wrapped in a block. Found:"));
-		}
-		if (nodes) {
-			ast.push(nodes);
+		let [node, nextIndex] = parseNode(tokens, i, filename);
+		if (node) {
+			ast.push(node);
 			i = nextIndex;
 		} else {
 			i++;
 		}
 	}
 	if (end_stack.length !== 0) {
-		parserError(errorMessage(tokens, tokens.length - 1, "[end]", "", "Missing"));
+		let extraInfo = "";
+
+		const checkTypo = (token) => {
+			if (token && token.value) {
+				const val = token.value.trim().toLowerCase();
+				if (val === "") return "";
+				const dist = levenshtein(val, "end");
+				if (dist > 0 && dist <= 2) return ` (Did you mean <$cyan:'[end]'$>?)`;
+			}
+			return "";
+		};
+
+		// Check last few tokens for a typo
+		for (let j = 1; j <= 5; j++) {
+			const token = tokens[tokens.length - j];
+			if (!token) break;
+			extraInfo = checkTypo(token);
+			if (extraInfo) break;
+		}
+
+		parserError(errorMessage(tokens, tokens.length - 1, "[end]", "", extraInfo ? `Missing '[end]'${extraInfo}` : "Missing '[end]'", filename));
 	}
 	return ast;
 }
