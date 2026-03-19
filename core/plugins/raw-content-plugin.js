@@ -1,19 +1,22 @@
 /**
- * Raw Content Plugin for SomMark
- * 
- * Scope: top-level
- * 
- * Automatically escapes SomMark tokens within specified blocks to allow raw content.
+ * Raw Content Plugin
+ * Lets you write raw code or text inside special blocks without it being processed by SomMark.
  */
 const RawContentPlugin = {
 	name: "raw-content",
 	type: ["preprocessor", "on-ast"],
 	author: "Adam-Elmi",
-	description: "Prevents SomMark syntax parsing within specific blocks (e.g., [code], [mdx]) to allow raw content.",
+	description: "Lets you write raw code or text inside special blocks without it being processed by SomMark.",
 	scope: "top-level",
 	options: {
-		targetBlocks: ["mdx", "raw"] // Blocks to treat as raw
+		// ========================================================================== //
+		//  Target blocks to treat as raw                                           //
+		// ========================================================================== //
+		targetBlocks: ["mdx", "raw"]
 	},
+	// ========================================================================== //
+	//  1. Preprocessing phase (escaping raw blocks)                             //
+	// ========================================================================== //
 	beforeLex(src) {
 		let processed = src;
 		const options = this.options || {};
@@ -28,8 +31,9 @@ const RawContentPlugin = {
 					.replace(/\]/g, "\\]")
 					.replace(/@_/g, "\\@_")
 					.replace(/_@/g, "\\_@")
-					.replace(/=/g, "\\=")
+					.replace(/={1}/g, "\\=")
 					.replace(/:/g, "\\:")
+					.replace(/#/g, "\\#")
 					.replace(/,/g, "\\,")
 					.replace(/\(/g, "\\(")
 					.replace(/\)/g, "\\)")
@@ -42,7 +46,9 @@ const RawContentPlugin = {
 		});
 		return processed;
 	},
-
+	// ========================================================================== //
+	//  2. AST Transformation phase (unescaping whitespace)                      //
+	// ========================================================================== //
 	onAst(ast) {
 		const options = this.options || {};
 		const targetBlocks = (options.targetBlocks || ["mdx", "raw", "code"]).map(t => t.toLowerCase());
