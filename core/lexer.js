@@ -1,636 +1,253 @@
 import TOKEN_TYPES from "./tokenTypes.js";
 import peek from "../helpers/peek.js";
-import {
-	block_value,
-	block_id,
-	block_id_2,
-	block_end,
-	inline_id,
-	inline_value,
-	inline_id_2,
-	at_id,
-	at_value,
-	at_id_2,
-	at_end,
-	end_keyword,
-	BLOCKCOMMA,
-	ATBLOCKCOMMA,
-	INLINECOMMA,
-	BLOCKCOLON,
-	ATBLOCKCOLON,
-	INLINECOLON
-} from "./labels.js";
-import { lexerError, sommarkError } from "./errors.js";
+import { end_keyword } from "./labels.js";
+import { lexerError } from "./errors.js";
+
+/**
+ * SomMark Lexer
+ */
+
+// ========================================================================== //
+//  Helper Functions                                                         //
+// ========================================================================== //
 
 const atBlockEndRegex = new RegExp(`^@_\\s*${end_keyword}\\s*_@`);
+
+// Checks if we reached the end of an At-Block
 function isAtBlockEnd(input, index) {
 	const slice = typeof input === "string" ? input.slice(index, index + 100) : input.slice(index, index + 100).join("");
 	return atBlockEndRegex.test(slice);
 }
 
-const updateNewLine = text => {
-	if (text && typeof text === "string") {
-		return text.split("").filter(value => value === "\n").length;
+// Collects characters inside a quoted string
+function concatQuote(input, index) {
+	let text = "\"";
+	for (let i = index + 1; i < input.length; i++) {
+		const char = input[i];
+		if (char === "\\" && peek(input, i, 1) === "\"") {
+			text += "\\\"";
+			i++;
+			continue;
+		}
+		text += char;
+		if (char === "\"") return text;
 	}
-	return;
-};
+	lexerError(["[Lexer Error]: Unclosed quote"]);
+	return text;
+}
 
-const updateColumn = (end = 0, textLength) => {
-	const start = end + 1;
-	const newEnd = start + textLength - 1;
-	return { start, end: newEnd };
-};
-
-function concatText(input, index, scope_state, extraConditions = []) {
+// Collects plain text until a special character is found
+function concatText(input, index, isInHeader, isInAtBlockBody, isLiberalValue = false) {
 	let text = "";
-	if (index >= input.length) {
-		return text;
-	}
-	if (
-		(Array.isArray(input) || typeof input === "string") &&
-		input.length > 0 &&
-		typeof index === "number" &&
-		typeof scope_state === "boolean"
-	) {
-		for (let i = index; i < input.length; i++) {
-			const char = input[i];
-			const defaultConditions = [
-				["[", !scope_state],
-				["=", !scope_state],
-				["]", !scope_state],
-				["(", !scope_state],
-				["-", peek(input, i, 1) === ">" && !scope_state],
-				["@", peek(input, i, 1) === "_" && (!scope_state || isAtBlockEnd(input, i))],
-				["_", peek(input, i, 1) === "@" && !scope_state],
-				["#", !scope_state],
-				["\\", true]
-			];
-			if (defaultConditions.some(([ch, condition]) => (!ch || ch === char) && condition)) {
-				break;
-			} else if (extraConditions.some(([ch, condition]) => (!ch || ch === char) && condition)) {
+	if (index >= input.length) return text;
+	for (let i = index; i < input.length; i++) {
+		const char = input[i];
+		const stopConditions = [
+			["[", !isInAtBlockBody],
+			["(", !isInAtBlockBody],
+			["#", !isInAtBlockBody && !isLiberalValue],
+			["=", isInHeader && !isInAtBlockBody],
+			["\"", isInHeader],
+			["]", isInHeader],
+			[")", isInHeader],
+			["-", peek(input, i, 1) === ">" && (isInHeader || true)],
+			["@", peek(input, i, 1) === "_" && (!isInAtBlockBody || isAtBlockEnd(input, i))],
+			["_", peek(input, i, 1) === "@" && isInHeader],
+			["\\", true],
+			[":", isInHeader && !isInAtBlockBody],
+			[";", isInHeader],
+			[",", isInHeader]
+		];
+		let shouldStop = false;
+		for (const [stopChar, conditionMet] of stopConditions) {
+			if (conditionMet && input.substring(i, i + stopChar.length) === stopChar) {
+				shouldStop = true;
 				break;
 			}
-			text += char;
 		}
-		return text;
-	} else {
-		sommarkError([
-			"{line}<$red:Invalid Arguments:$> <$yellow:Assign arguments to their correct types, ",
-			"'input' must be an array and have to be not empty, 'index' must be a number value, and 'scope_state' ",
-			"must be a boolean.$>{line}."
-		]);
+		if (shouldStop) break;
+		text += char;
 	}
+	return text;
 }
 
+// Handles backslash escapes in the text
 function concatEscape(input, index) {
-	let str = "";
-	if (index >= input.length) {
-		return str;
-	}
-	const WHITESPACES = [
-		" ",
-		"\t",
-		"\n",
-		"\r",
-		"\v",
-		"\f",
-		//+++++++//
-		"\u00A0",
-		"\u1680",
-		"\u2000",
-		"\u2001",
-		"\u2002",
-		"\u2003",
-		"\u2004",
-		"\u2005",
-		"\u2006",
-		"\u2007",
-		"\u2008",
-		"\u2009",
-		"\u200A",
-		"\u202F",
-		"\u205F",
-		"\u3000"
-	];
-	let WHITESPACE_SET = new Set(WHITESPACES);
-	if ((Array.isArray(input) || typeof input === "string") && input.length > 0 && typeof index === "number") {
-		const nextChar = peek(input, index, 1);
-		if (input[index] === "\\" && nextChar !== null) {
-			str += "\\" + nextChar;
-		} else {
-			lexerError([
-				"{line}<$red:Invalid escape sequence$>{N}",
-				"<$yellow:Escape character '\\' must be followed immediately by a character.$>{N}",
-				nextChar === null ? "<$yellow:Found end of file after escape character$>" : "<$yellow:Missing character after escape character$>",
-				"{line}"
-			]);
-		}
-		if (WHITESPACE_SET.has(str[1])) {
-			const matchedCharacter = Array.from(WHITESPACE_SET).find(ch => ch === str[1]);
-			lexerError([
-				"{line}<$red:Invalid escape sequence$>{N}",
-				"<$yellow:Escape character '\\' must be followed immediately by a character.$>{N}",
-				`<$yellow:Found$> <$blue:${JSON.stringify(matchedCharacter)}$> <$yellow:after escape character$>{N}`,
-				"{line}"
-			]);
-		}
-		return str;
-	} else {
-		sommarkError([
-			"{line}<$red:Invalid Arguments:$> <$yellow:Assign arguments to their correct types, ",
-			"'input' must be an array and have to be not empty, and 'index' must be a number value.$>{line}"
-		]);
-	}
+	if (index >= input.length) return "";
+	const nextChar = peek(input, index, 1);
+	const WHITESPACES = [" ", "\t", "\n", "\r", "\v", "\f"];
+	if (WHITESPACES.includes(nextChar)) lexerError(["[Lexer Error]: Invalid escape sequence (escaped whitespace)"]);
+	if (input[index] === "\\" && nextChar !== null) return "\\" + nextChar;
+	lexerError(["[Lexer Error]: Invalid escape sequence"]);
+	return "";
 }
 
-function concatChar(input, index, stop_at_char) {
-	if ((Array.isArray(input) || typeof input === "string") && input.length > 0 && typeof index === "number") {
-		let str = "";
-		if (index >= input.length) {
-			return str;
-		}
-		if (Array.isArray(stop_at_char) && stop_at_char.length > 0) {
-			for (let i = index; i < input.length; i++) {
-				const char = input[i];
-				if (stop_at_char.includes(char)) {
-					break;
-				}
-				str += char;
-			}
-		} else {
-			sommarkError([
-				"{line}<$red:Invalid Type:$> <$yellow:Argument 'stop_at_char' must be an array and have to be not empty array$>{line}"
-			]);
-		}
-		return str;
-	} else {
-		sommarkError([
-			"{line}<$red:Invalid Arguments:$> <$yellow:Assign arguments to their correct types, ",
-			"'input' must be an array and have to be not empty, 'index' must be a number value$>{line}"
-		]);
-	}
-}
+// ========================================================================== //
+//  Main Lexer Function                                                      //
+// ========================================================================== //
 
 function lexer(src) {
-	if (src && typeof src === "string") {
-		const tokens = [];
-		let scope_state = false;
-		let line = 0;
-		let character = 0;
-		let depth_stack = [];
-		let context = "",
-			temp_str = "",
-			previous_value = "";
+	if (!src || typeof src !== "string") return [];
+	const tokens = [];
+	let isInHeader = false, isInAtBlockBody = false;
+	let line = 0, character = 0, depth_stack = [];
 
-		function validateIdentifier(id, type = "Identifier") {
-			if (!/^[a-zA-Z0-9\-_$]+$/.test(id.trim())) {
-				lexerError([
-					`{line}<$red:Invalid ${type}:$>{N}`,
-					`<$yellow:Identifiers can only contain letters, numbers, underscores (_), dollar signs, and hyphens (-). Got$> <$blue:'${id.trim()}'$> at line <$yellow:${line + 1}$>, from column <$yellow:${character}$>{N}`,
-					"{line}"
-				]);
+	// ========================================================================== //
+	//  Token Creation Helpers                                                   //
+	// ========================================================================== //
+
+	function addToken(type, value, rawValue) {
+		if (typeof rawValue === "string" && typeof value === "string" && rawValue !== value) {
+			const offset = rawValue.indexOf(value);
+			if (offset !== -1) {
+				advance(rawValue.slice(0, offset));
+				const startPos = { line, character }; advance(value);
+				const endPos = { line, character };
+				tokens.push({ type, value, range: { start: startPos, end: endPos }, depth: depth_stack.length });
+				advance(rawValue.slice(offset + value.length));
+				return;
+			}
+		}
+		const startPos = { line, character }; advance(rawValue || value);
+		const endPos = { line, character };
+		tokens.push({ type, value, range: { start: startPos, end: endPos }, depth: depth_stack.length });
+	}
+
+	function advance(text) {
+		const newlines = (text.match(/\n/g) || []).length;
+		if (newlines > 0) { line += newlines; character = text.split("\n").pop().length; }
+		else character += text.length;
+	}
+
+	function validateIdentifier(id, charPos) {
+		if (!/^[a-zA-Z0-9\-_$]+$/.test(id.trim())) {
+			lexerError([`[Lexer Error]: Invalid Identifier: '${id.trim()}' at line ${line + 1}, col ${charPos || character}`]);
+		}
+	}
+
+	// ========================================================================== //
+	//  Main Tokenization Loop                                                   //
+	// ========================================================================== //
+
+	for (let i = 0; i < src.length; i++) {
+		const char = src[i];
+		const next = peek(src, i, 1);
+		
+		// ========================================================================== //
+		//  Look back at previous tokens to determine current context                //
+		// ========================================================================== //
+		let prev_type = "", prev_prev_type = "", count = 0;
+		for (let j = tokens.length - 1; j >= 0; j--) {
+			const t = tokens[j];
+			if (t.type !== TOKEN_TYPES.TEXT && t.type !== TOKEN_TYPES.COMMENT) {
+				if (count === 0) prev_type = t.type;
+				else if (count === 1) prev_prev_type = t.type;
+				count++; if (count >= 2) break;
 			}
 		}
 
-		function addToken(type, value, rawValue) {
-			const startPos = { line, character };
-			advance(rawValue || value);
-			const endPos = { line, character };
-            // console.log(`DEBUG addToken: type=${type} start=${startPos.line},${startPos.character} end=${endPos.line},${endPos.character} val='${value}'`);
-			tokens.push({
-				type,
-				value,
-				range: { start: startPos, end: endPos },
-				depth: depth_stack.length
-			});
-		}
+		// ========================================================================== //
+		//  Check for structural characters ([ ], ( ), @_, _@)                      //
+		// ========================================================================== //
 
-		// Helper to advance position without adding a token (e.g., for whitespace/newlines that don't emit tokens)
-		function advance(text) {
-			const newlines = (text.match(/\n/g) || []).length;
-			if (newlines > 0) {
-				line += newlines;
-				const parts = text.split("\n");
-				character = parts[parts.length - 1].length;
-			} else {
-				character += text.length;
-			}
-		}
-
-		for (let i = 0; i < src.length; i++) {
-			let current_char = src[i];
-			// ========================================================================== //
-			//  Token: Open Bracket                                                       //
-			// ========================================================================== //
-			if (current_char === "[" && !scope_state && previous_value !== "(") {
-				// i + 1 -> skip current character
-				temp_str = concatChar(src, i + 1, ["]"]);
-				if (temp_str && temp_str.length > 0) {
-					if (temp_str.trim() !== end_keyword) {
-						depth_stack.push("Block");
-					}
-				}
-				addToken(TOKEN_TYPES.OPEN_BRACKET, current_char);
-				// is next token end keyword?
-				if (temp_str.trim() === end_keyword) {
-					previous_value = block_end;
-				} else {
-					previous_value = current_char;
+		if (char === "[" && !isInAtBlockBody) {
+			let idPeek = ""; for (let j = i + 1; j < src.length && !/[=\]:#]/.test(src[j]); j++) idPeek += src[j];
+			if (idPeek.trim() !== end_keyword) depth_stack.push("B");
+			addToken(TOKEN_TYPES.OPEN_BRACKET, char); isInHeader = true;
+		} else if (char === "]" && isInHeader) {
+			addToken(TOKEN_TYPES.CLOSE_BRACKET, char); isInHeader = false;
+			// Reliable depth pop on [end]
+			for (let j = tokens.length - 1; j >= 0; j--) {
+				const t = tokens[j];
+				if (t.type === TOKEN_TYPES.IDENTIFIER || t.type === TOKEN_TYPES.END_KEYWORD) {
+					if (t.type === TOKEN_TYPES.END_KEYWORD || t.value.trim() === end_keyword) depth_stack.pop();
+					break;
 				}
 			}
-			// ========================================================================== //
-			//  Token: Equal Sign                                                         //
-			// ========================================================================== //
-			else if (current_char === "=" && !scope_state) {
-				addToken(TOKEN_TYPES.EQUAL, current_char);
-				previous_value = current_char;
-			}
-			// ========================================================================== //
-			//  Token: Close Bracket                                                      //
-			// ========================================================================== //
-			else if (current_char === "]" && !scope_state) {
-				addToken(TOKEN_TYPES.CLOSE_BRACKET, current_char);
-				if (previous_value === end_keyword) {
-					depth_stack.pop();
-				}
-				previous_value = current_char;
-			}
-			// ========================================================================== //
-			//  Token: Open Parenthesis '('                                               //
-			// ========================================================================== //
-			else if (current_char === "(" && !scope_state) {
-				addToken(TOKEN_TYPES.OPEN_PAREN, current_char);
-				if (previous_value !== "->") {
-					previous_value = current_char;
+		} else if (char === "(" && !isInAtBlockBody) {
+			addToken(TOKEN_TYPES.OPEN_PAREN, char); isInHeader = true;
+		} else if (char === ")" && isInHeader) {
+			addToken(TOKEN_TYPES.CLOSE_PAREN, char); isInHeader = false;
+		} else if (char === "@" && next === "_" && (!isInAtBlockBody || isAtBlockEnd(src, i))) {
+			let idPeek = ""; for (let j = i + 2; j < src.length && !/[_@:#]/.test(src[j]); j++) idPeek += src[j];
+			if (idPeek.trim() !== end_keyword) depth_stack.push("A");
+			addToken(TOKEN_TYPES.OPEN_AT, "@_"); i++; isInHeader = true;
+		} else if (char === "_" && next === "@" && (isInHeader || isInAtBlockBody)) {
+			addToken(TOKEN_TYPES.CLOSE_AT, "_@"); i++;
+			for (let j = tokens.length - 1; j >= 0; j--) {
+				const t = tokens[j];
+				if (t.type === TOKEN_TYPES.IDENTIFIER || t.type === TOKEN_TYPES.END_KEYWORD) {
+					if (t.type === TOKEN_TYPES.END_KEYWORD || t.value.trim() === end_keyword) depth_stack.pop();
+					break;
 				}
 			}
+			isInHeader = true; isInAtBlockBody = false;
+		} else if (char === ";" && isInHeader) {
+			addToken(TOKEN_TYPES.SEMICOLON, char); isInHeader = false; isInAtBlockBody = true;
+		} else if (char === "=" && isInHeader && !isInAtBlockBody) {
+			addToken(TOKEN_TYPES.EQUAL, char);
+		} else if (char === ":" && isInHeader && !isInAtBlockBody && (prev_type === TOKEN_TYPES.IDENTIFIER || prev_type === TOKEN_TYPES.CLOSE_AT)) {
+			addToken(TOKEN_TYPES.COLON, char);
+		} else if (char === "," && isInHeader) {
+			addToken(TOKEN_TYPES.COMMA, char);
+		} else if (char === "-" && next === ">" && (isInHeader || prev_type === TOKEN_TYPES.CLOSE_PAREN)) {
+			addToken(TOKEN_TYPES.THIN_ARROW, "->"); i++;
+		} else if (char === "\"" && isInHeader) {
+			const quote = concatQuote(src, i); addToken(TOKEN_TYPES.VALUE, quote); i += quote.length - 1;
+		} else if (char === "\\") {
+			const esc = concatEscape(src, i); addToken(TOKEN_TYPES.ESCAPE, esc); i += esc.length - 1;
+		} else if (char === "#" && !isInAtBlockBody) {
+			let comm = ""; for (; i < src.length && src[i] !== "\n"; i++) comm += src[i];
+			addToken(TOKEN_TYPES.COMMENT, comm, comm); i--;
+		} else if (char === "\n" && !isInAtBlockBody) {
+			advance(char);
+		} else {
 			// ========================================================================== //
-			//  Token: Thin Arrow '->'                                                    //
+			//  Capture plain text or Identifier values                                 //
 			// ========================================================================== //
-			else if (current_char === "-" && peek(src, i, 1) === ">") {
-				temp_str = current_char + peek(src, i, 1);
-				i += temp_str.length - 1;
-				addToken(TOKEN_TYPES.THIN_ARROW, temp_str);
-				previous_value = temp_str;
-			}
-			// ========================================================================== //
-			//  Token: Close Parenthesis ')'                                              //
-			// ========================================================================== //
-			else if (current_char === ")" && !scope_state) {
-				addToken(TOKEN_TYPES.CLOSE_PAREN, current_char);
-				previous_value = current_char;
-			}
-			// ========================================================================== //
-			//  Token: Open At '@_'                                                       //
-			// ========================================================================== //
-			else if (
-				current_char === "@" &&
-				peek(src, i, 1) === "_" &&
-				(!scope_state || isAtBlockEnd(src, i))
-			) {
-				temp_str = current_char + peek(src, i, 1);
-				i += temp_str.length - 1;
-				addToken(TOKEN_TYPES.OPEN_AT, temp_str);
-				// is next token end keyword?
-				if (isAtBlockEnd(src, i - 1)) {
-					previous_value = at_end;
-				} else {
-					previous_value = temp_str;
-				}
-			}
-			// ========================================================================== //
-			//  Token: Close At '_@'                                                      //
-			// ========================================================================== //
-			else if (current_char === "_" && peek(src, i, 1) === "@") {
-				temp_str = current_char + peek(src, i, 1);
-				i += temp_str.length - 1;
-				addToken(TOKEN_TYPES.CLOSE_AT, temp_str);
-				switch (previous_value) {
-					case at_id:
-						previous_value = temp_str + "+";
-						break;
-					default:
-						previous_value = temp_str;
-						break;
-				}
-			}
-			// ========================================================================== //
-			//  Token: Colon ':'                                                          //
-			// ========================================================================== //
-			else if (
-				current_char === ":" &&
-				(previous_value === "_@+" ||
-					previous_value === BLOCKCOMMA ||
-					previous_value === block_id_2 ||
-					previous_value === inline_id_2 ||
-					previous_value === at_id_2 ||
-					previous_value === at_value ||
-					previous_value === BLOCKCOLON ||
-					previous_value === ATBLOCKCOLON ||
-					previous_value === INLINECOLON) &&
-				!scope_state
-			) {
-				addToken(TOKEN_TYPES.COLON, current_char);
-				switch (previous_value) {
-					case block_id_2:
-						previous_value = BLOCKCOLON;
-						break;
-					case "_@+":
-						previous_value = ATBLOCKCOLON;
-						break;
-					case at_id_2:
-						previous_value = ATBLOCKCOLON;
-						break;
-					case inline_id_2:
-						previous_value = INLINECOLON;
-						break;
-				}
-			}
-			// ========================================================================== //
-			//  Token: Comma ','                                                          //
-			// ========================================================================== //
-			else if (
-				current_char === "," &&
-				(previous_value === block_value ||
-					previous_value === at_value ||
-					previous_value === inline_value ||
-					previous_value === BLOCKCOMMA ||
-					previous_value === ATBLOCKCOMMA ||
-					previous_value === INLINECOMMA)
-			) {
-				addToken(TOKEN_TYPES.COMMA, current_char);
-				switch (previous_value) {
-					case "=":
-						previous_value = BLOCKCOMMA;
-						break;
-					case block_value:
-						previous_value = BLOCKCOMMA;
-						break;
-					case at_value:
-						previous_value = ATBLOCKCOMMA;
-						break;
-					case inline_value:
-						previous_value = INLINECOMMA;
-						break;
-				}
-			}
-			// ========================================================================== //
-			//  Token: Semi-colon ';'                                                     //
-			// ========================================================================== //
-			else if (
-				(current_char === ";" && previous_value === at_value) ||
-				(current_char === ";" && previous_value === "_@+") || // New: Allow semicolon directly after identifier
-				(current_char === ";" && previous_value === ";") ||
-				(current_char === ";" && previous_value === ATBLOCKCOMMA)
-			) {
-				addToken(TOKEN_TYPES.SEMICOLON, current_char);
-				scope_state = true;
-				previous_value = current_char;
-			}
-			// ========================================================================== //
-			//  Token: Escape Character '\'                                               //
-			// ========================================================================== //
-			else if (current_char === "\\") {
-				temp_str = concatEscape(src, i);
-				i += temp_str.length - 1;
-				if (temp_str.trim()) {
-					addToken(TOKEN_TYPES.ESCAPE, temp_str);
-				} else {
-					advance(temp_str);
-				}
-			}
-			// ========================================================================== //
-			//  Count Newlines and Whitespace (No Tokens)                                 //
-			// ========================================================================== //
-			else if (current_char === "\n") {
-				if (!scope_state) {
-					advance(current_char);
-					continue;
-				}
-			}
-			// ========================================================================== //
-			//  +++++++++++++++++                                                        //
-			// ========================================================================== //
-			else {
-				// ========================================================================== //
-				//  Token: Block Identifier                                                   //
-				// ========================================================================== //
-				if (previous_value === "[" && !scope_state) {
-					temp_str = concatChar(src, i, ["=", "]"]);
-					i += temp_str.length - 1;
-					if (temp_str.trim()) {
-						const trimmedStr = temp_str.trim();
-						if (trimmedStr !== end_keyword) {
-							validateIdentifier(trimmedStr, "Block Identifier");
+			const isValueContext = (prev_type === TOKEN_TYPES.COLON || prev_type === TOKEN_TYPES.EQUAL);
+			const context = concatText(src, i, isInHeader, isInAtBlockBody, isValueContext);
+			if (context.length > 0) {
+				if (isInHeader) {
+					const trimmed = context.trim();
+					if ((prev_type === TOKEN_TYPES.OPEN_BRACKET || prev_type === TOKEN_TYPES.OPEN_AT) && trimmed === end_keyword) {
+						addToken(TOKEN_TYPES.END_KEYWORD, trimmed, context);
+					} else if (trimmed.length > 0) {
+						let isNextColon = false;
+						for (let j = i + context.length; j < src.length; j++) {
+							const c = src[j];
+							if (c === " " || c === "\t" || c === "\n") continue;
+							if (c === ":") isNextColon = true;
+							break;
 						}
-						// Add Token
-						addToken(TOKEN_TYPES.IDENTIFIER, trimmedStr, temp_str);
-						// Update Previous Value
-						previous_value = block_id;
-					} else {
-						advance(temp_str);
-					}
-				}
-				// ========================================================================== //
-				//  Token: Block Value                                                        //
-				// ========================================================================== //
-				else if (
-					(previous_value === "=" ||
-						previous_value === BLOCKCOMMA ||
-						previous_value === BLOCKCOLON ||
-						previous_value === block_value) &&
-					!scope_state
-				) {
-					temp_str = concatChar(src, i, ["]", "\\", ",", ":"]);
-					i += temp_str.length - 1;
-					const nextToken = peek(src, i, 1);
-					if (temp_str.trim()) {
-						// Add token
-						switch (nextToken) {
-							case ":":
-								const trimmedKey = temp_str.trim();
-								validateIdentifier(trimmedKey, "Argument Key");
-								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey, temp_str);
-								previous_value = block_id_2;
-								break;
-							default:
-								addToken(TOKEN_TYPES.VALUE, temp_str.trim(), temp_str);
-								previous_value = block_value;
-								break;
+						
+						const isBlockStart = (prev_type === TOKEN_TYPES.OPEN_BRACKET || prev_type === TOKEN_TYPES.OPEN_AT);
+						const isMapperHead = (prev_type === TOKEN_TYPES.OPEN_PAREN && prev_prev_type === TOKEN_TYPES.THIN_ARROW);
+						const isMandatoryId = (isNextColon || prev_type === TOKEN_TYPES.THIN_ARROW);
+						
+						if (isBlockStart || isMapperHead || isMandatoryId) {
+							validateIdentifier(trimmed, character + context.indexOf(trimmed));
+							addToken(TOKEN_TYPES.IDENTIFIER, trimmed, context);
+						} else {
+							addToken(TOKEN_TYPES.VALUE, trimmed, context);
 						}
-					} else {
-						advance(temp_str);
-					}
-				}
-				// ========================================================================== //
-				//  Token: Inline Identifier                                                  //
-				// ========================================================================== //
-				else if (previous_value === "->" && !scope_state) {
-					temp_str = concatChar(src, i, ["(", ")", ":"]);
-					i += temp_str.length - 1;
-					const nextToken = peek(src, i, 1);
-					if (temp_str.trim()) {
-						// Add Token
-						switch (nextToken) {
-							case ":":
-								const trimmedKey = temp_str.trim();
-								validateIdentifier(trimmedKey, "Argument Key");
-								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey, temp_str);
-								previous_value = inline_id_2;
-								break;
-							default:
-								const trimmedId = temp_str.trim();
-								validateIdentifier(trimmedId, "Inline Identifier");
-								addToken(TOKEN_TYPES.IDENTIFIER, trimmedId, temp_str);
-								previous_value = inline_id;
-								break;
-						}
-					}
-				}
-				// ========================================================================== //
-				//  Token: Inline Value                                                       //
-				// ========================================================================== //
-				else if (
-					(previous_value === "(" ||
-						previous_value === INLINECOLON ||
-						previous_value === INLINECOMMA ||
-						previous_value === inline_value) &&
-					!scope_state
-				) {
-					temp_str = concatChar(src, i, [")", "\\", ",", previous_value === INLINECOLON ? ":" : null]);
-					i += temp_str.length - 1;
-					if (temp_str.trim()) {
-						// Add Token
-						addToken(TOKEN_TYPES.VALUE, temp_str.trim(), temp_str);
-						// Update Previous Value
-						previous_value = inline_value;
-					}
-				}
-				// ========================================================================== //
-				//  Token: Inline Identifier (after open parenthesis)                         //
-				// ========================================================================== //
-				else if (previous_value === "(" && !scope_state) {
-					temp_str = concatChar(src, i, ["-", ")", "\\"]);
-					i += temp_str.length - 1;
-					if (temp_str.trim()) {
-						addToken(TOKEN_TYPES.IDENTIFIER, temp_str.trim(), temp_str);
-						previous_value = inline_id;
-					} else {
-						advance(temp_str);
-					}
-				}
-				// ========================================================================== //
-				//  Token: At Identifier                                                      //
-				// ========================================================================== //
-				else if (previous_value === "@_") {
-					temp_str = concatChar(src, i, ["_", ":"]);
-					i += temp_str.length - 1;
-					if (temp_str.trim()) {
-						const trimmedStr = temp_str.trim();
-						if (trimmedStr !== end_keyword) {
-							validateIdentifier(trimmedStr, "At-Block Identifier");
-						}
-						// Add Token
-						addToken(TOKEN_TYPES.IDENTIFIER, trimmedStr, temp_str);
-						previous_value = at_id;
-					} else {
-						advance(temp_str);
-					}
-				}
-				// ========================================================================== //
-				//  Token: At Value                                                           //
-				// ========================================================================== //
-				else if (previous_value === ATBLOCKCOLON || previous_value === ATBLOCKCOMMA || previous_value === at_value) {
-					temp_str = concatChar(src, i, [";", "\\", ",", ":"]);
-					i += temp_str.length - 1;
-					const nextToken = peek(src, i, 1);
-					if (temp_str.trim()) {
-						switch (nextToken) {
-							case ":":
-								const trimmedKey = temp_str.trim();
-								validateIdentifier(trimmedKey, "Argument Key");
-								addToken(TOKEN_TYPES.IDENTIFIER, trimmedKey, temp_str);
-								previous_value = at_id_2;
-								break;
-							default:
-								addToken(TOKEN_TYPES.VALUE, temp_str.trim(), temp_str);
-								previous_value = at_value;
-								break;
-						}
-					} else {
-						advance(temp_str);
-					}
-				}
-				// ========================================================================== //
-				//  Token:End Keyword                                                         //
-				// ========================================================================== //
-				else if ((previous_value === block_end && !scope_state) || previous_value === at_end) {
-					temp_str = concatChar(src, i, ["]", "_"]);
-					i += temp_str.length - 1;
-					if (temp_str.trim()) {
-						addToken(TOKEN_TYPES.END_KEYWORD, temp_str);
-						// Update Previous Value
-						previous_value = end_keyword;
-						scope_state = false;
-					} else {
-						advance(temp_str);
-					}
-				}
-				// ========================================================================== //
-				//  Token: Comment                                                            //
-				// ========================================================================== //
-				else if (current_char === "#") {
-					temp_str = concatChar(src, i, ["\n"]);
-					if (temp_str.trim()) {
-						i += temp_str.length - 1;
-						addToken(TOKEN_TYPES.COMMENT, temp_str);
-					} else {
-						i += temp_str.length - 1;
-						advance(temp_str);
-					}
-				}
-				// ========================================================================== //
-				//  Token: Text                                                               //
-				// ========================================================================== //
-				else {
-					if (previous_value === "_@+") {
-						// Strictly wait for semicolon or arguments on the same line.
-						// No more heuristic lookahead.
-					}
-					context = concatText(src, i, scope_state, [
-						[":", previous_value === inline_id_2],
-						[",", previous_value === block_value || previous_value === at_value || previous_value === inline_value],
-						[":", (previous_value === "_@+" && !scope_state) || previous_value === at_value],
-						[";", previous_value === at_value],
-						[")", previous_value === inline_value]
-					]);
-					i += context.length - 1;
-					if (context.trim()) {
-						addToken(TOKEN_TYPES.TEXT, context);
 					} else {
 						advance(context);
 					}
+				} else {
+					addToken(TOKEN_TYPES.TEXT, context);
 				}
+				i += context.length - 1;
+			} else {
+				addToken(TOKEN_TYPES.TEXT, char);
 			}
-			context = "";
-			temp_str = "";
 		}
-
-		// Ensure EOF token
-		const eofPos = { line, character };
-		tokens.push({
-			type: TOKEN_TYPES.EOF,
-			value: "",
-			range: { start: eofPos, end: eofPos },
-			depth: depth_stack.length
-		});
-
-		return tokens;
-	} else {
-		lexerError([
-			`{line}<$red:Invalid SomMark syntax:$> ${src === "" ? "<$yellow: Got empty string '' $>" : `<$yellow:Expected source input to be a string, got$> <$blue: '${typeof src}'$>`} at line <$yellow:${line + 1}$>, from column <$yellow:${character}$>{line}`
-		]);
 	}
+	// ========================================================================== //
+	//  Finalize with End-of-File token                                          //
+	// ========================================================================== //
+	addToken(TOKEN_TYPES.EOF, "");
+	return tokens;
 }
 
 export default lexer;
