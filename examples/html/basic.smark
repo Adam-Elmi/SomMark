@@ -1,7 +1,7 @@
-[[ import = $hubCss: "examples/html/hub.css" ]]
-[[ import = $roadmap: "examples/html/roadmap.smark" ]]
-[[ import = $specification: "examples/html/specification.smark" ]]
-[[ import = $guides: "examples/html/guides.smark" ]]
+[import = hubCss: "examples/html/hub.css" ]
+[import = roadmap: "examples/html/roadmap.smark" ]
+[import = specification: "examples/html/specification.smark" ]]
+[import = guides: "examples/html/guides.smark" ]
 
 [Html = 
     title: "SomMark | Documentation Hub",
@@ -17,22 +17,22 @@
 [end]
 
 [section = class: "main-viewport"]
-@_style_@;
-$[[hubCss]]
-@_end_@
+[style]
+[$use-module = hubCss][end]
+[end]
 
     # --- ROADMAP MODULE ---
-    $[[roadmap]]
+    [$use-module = roadmap][end]
 
     [div = class: "module-separator"][end]
 
     # --- SPECIFICATION MODULE ---
-    $[[specification]]
+    [$use-module = specification][end]
 
     [div = class: "module-separator"][end]
 
     # --- GUIDES MODULE ---
-    $[[guides]]
+    [$use-module = guides][end]
 
     [h2]System Verification[end]
     [p]All modules imported successfully via the SomMark (Module System)->(bold).[end]
