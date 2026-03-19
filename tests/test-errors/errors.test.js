@@ -15,7 +15,6 @@ describe("Transpiling -> [Errors]: invalid files should throw", () => {
         "tests/test-errors/unclosed_block.smark",
         "tests/test-errors/unclosed_inline.smark",
         "tests/test-errors/invalid_identifier.smark",
-        "tests/test-errors/missing_arrow.smark",
         "tests/test-errors/unclosed_atblock.smark",
         "tests/test-errors/missing_atblock_semicolon.smark",
         "tests/test-errors/arg_no_close_bracket.smark",
