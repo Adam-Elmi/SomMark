@@ -1,14 +1,14 @@
 import { COMMENT } from "../labels.js";
 
 /**
- * Built-in plugin to remove all comments from the AST.
- * Active by default.
+ * Comment Remover Plugin
+ * Removes all comments from the document so they don't appear in the final output.
  */
 export default {
     name: "comment-remover",
     type: "on-ast",
     author: "Adam-Elmi",
-    description: "Removes all comment nodes from the AST during the parsing phase.",
+    description: "Removes all comments from the document so they don't appear in the final output.",
     onAst: function (ast) {
         // ========================================================================== //
         //  Recursive function to filter out comments                               //
