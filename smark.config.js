@@ -4,7 +4,6 @@ export default {
 	mappingFile: null,
     plugins: [
         "comment-remover",
-        "quote-escaper",
         "module-system",
     ]
 };
