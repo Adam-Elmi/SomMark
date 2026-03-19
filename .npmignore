@@ -9,6 +9,13 @@ coverage
 .vscode
 .github
 .prettierrc
+.npmignore
+commit_plan.sh
+range_debug.js
+test_relative_path.js
+unformatted.smark
+format.js
+repro_top_level.js
 
 # Dev Files
 smark.config.js
