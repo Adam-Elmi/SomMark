@@ -38,14 +38,14 @@ describe("HTML Full Support - New Features", () => {
 
     describe("Event Handler Support", () => {
         it("transpiles lowercase event handlers (onclick)", async () => {
-            const src = "[button = onclick:alert('hi')]Click me[end]";
+            const src = "[button = onclick:\"alert('hi')\"]Click me[end]";
             let output = await new SomMark({ src, format: "html", includeDocument: false }).transpile();
             output = removeNewline(output);
             expect(output).toBe('<button onclick="alert(&#39;hi&#39;)">Click me</button>');
         });
 
         it("standardizes camelCase event handlers to lowercase (onClick -> onclick)", async () => {
-            const src = "[button = onClick:alert('hi')]Click me[end]";
+            const src = "[button = onClick:\"alert('hi')\"]Click me[end]";
             let output = await new SomMark({ src, format: "html", includeDocument: false }).transpile();
             output = removeNewline(output);
             expect(output).toBe('<button onclick="alert(&#39;hi&#39;)">Click me</button>');
