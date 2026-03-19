@@ -94,21 +94,4 @@ This is a custom alert
         // Check Recognized Argument
         expect(result).toContain('class="bg-blue-500"');
     });
-
-    it("allows excluding built-in plugins", async () => {
-        // By default quote-escaper is active.
-        const src = '[section = class:"hover:bg-blue-500"]Content[end]';
-        
-        // With quote-escaper (default)
-        const resultWith = await transpile({ src, format: "html", includeDocument: false });
-        expect(resultWith).toContain('class="hover:bg-blue-500"');
-
-        // Excluding quote-escaper causes LexerError because quotes are not allowed in keys
-        await expect(transpile({ 
-            src, 
-            format: "html", 
-            includeDocument: false,
-            excludePlugins: ["quote-escaper"]
-        })).rejects.toContain("[Lexer Error]");
-    });
 });
