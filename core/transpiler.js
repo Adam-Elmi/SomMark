@@ -3,11 +3,17 @@ import escapeHTML from "../helpers/escapeHTML.js";
 import { transpilerError } from "./errors.js";
 import { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat } from "./formats.js";
 
+/**
+ * SomMark Transpiler
+ */
+
 const BODY_PLACEHOLDER = `__SOMMARK_BODY_PLACEHOLDER_${Math.random().toString(36).slice(2)}__`;
 
 // ========================================================================== //
-//  Extracting target identifier                                              //
+//  Helpers                                                                  //
 // ========================================================================== //
+
+// Finds the matching output definition for a tag identifier
 function matchedValue(outputs, targetId) {
 	if (!outputs || !targetId) return undefined;
 	return outputs.find(output => {
@@ -18,6 +24,24 @@ function matchedValue(outputs, targetId) {
 	});
 }
 
+// Recursively collects all plain text from a node and its children
+function getNodeText(node) {
+	if (!node.body) return "";
+	let text = "";
+	for (const child of node.body) {
+		if (child.type === TEXT) text += child.text;
+		else if (child.type === INLINE) text += child.value;
+		else if (child.type === ATBLOCK) text += child.content;
+		else if (child.type === BLOCK) text += getNodeText(child);
+	}
+	return text;
+}
+
+// ========================================================================== //
+//  Core Rendering Logic                                                     //
+// ========================================================================== //
+
+// Processes an individual node and its body to produce formatted output
 async function generateOutput(ast, i, format, mapper_file) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	let result = "";
@@ -33,12 +57,13 @@ async function generateOutput(ast, i, format, mapper_file) {
 		//  Always use placeholders for blocks to support wrapping                      //
 		// ========================================================================== //
 		const placeholder = format === mdxFormat && node.body.length > 0 ? `\n${BODY_PLACEHOLDER}\n` : BODY_PLACEHOLDER;
-		
-		result += target.render.call(mapper_file, { args: node.args, content: placeholder, ast: node });
+		const textContent = getNodeText(node);
+
+		result += target.render.call(mapper_file, { args: node.args, content: placeholder, textContent, ast: node });
 		if (format === mdxFormat) result = "\n" + result + "\n";
 
 		// ========================================================================== //
-		//  Body nodes                                                                //
+		//  Process body nodes recursively                                           //
 		// ========================================================================== //
 		for (let j = 0; j < node.body.length; j++) {
 			const body_node = node.body[j];
@@ -116,13 +141,50 @@ async function generateOutput(ast, i, format, mapper_file) {
 	return result.trimEnd() + "\n";
 }
 
+// ========================================================================== //
+//  Main Transpiler Entry Point                                              //
+// ========================================================================== //
+
 async function transpiler({ ast, format, mapperFile, includeDocument = true }) {
 	let output = "";
 	for (let i = 0; i < ast.length; i++) {
-		if (ast[i].type === BLOCK) {
-			output += await generateOutput(ast, i, format, mapperFile);
-		} else if (ast[i].type === COMMENT) {
-			output += mapperFile.comment(ast[i].text);
+		const node = ast[i];
+		switch (node.type) {
+			case BLOCK:
+				output += await generateOutput(ast, i, format, mapperFile);
+				break;
+			case COMMENT:
+				output += mapperFile.comment(node.text);
+				break;
+			case TEXT:
+				const shouldEscapeText = (format === htmlFormat || format === mdxFormat);
+				output += shouldEscapeText ? escapeHTML(node.text) : node.text;
+				break;
+			case INLINE:
+				let inlineTarget = matchedValue(mapperFile.outputs, node.id);
+				if (!inlineTarget) inlineTarget = mapperFile.getUnknownTag(node);
+				if (inlineTarget) {
+					const shouldEscapeInline = inlineTarget.options?.escape !== false;
+					output += inlineTarget.render.call(mapperFile, {
+						args: node.args.length > 0 ? node.args : [],
+						content: (format === htmlFormat || format === mdxFormat) && shouldEscapeInline ? escapeHTML(node.value) : node.value,
+						ast: node
+					}) + (format === mdxFormat ? "\n" : "");
+				}
+				break;
+			case ATBLOCK:
+				let atTarget = matchedValue(mapperFile.outputs, node.id);
+				if (!atTarget) atTarget = mapperFile.getUnknownTag(node);
+				if (atTarget) {
+					const shouldEscapeAt = atTarget.options?.escape !== false;
+					let content = node.content;
+					if (shouldEscapeAt && (format === htmlFormat || format === mdxFormat)) {
+						content = escapeHTML(content);
+					}
+					const rendered = atTarget.render.call(mapperFile, { args: node.args, content, ast: node }).trimEnd() + "\n";
+					output = output.trim() ? output.trimEnd() + "\n" + rendered : output + rendered;
+				}
+				break;
 		}
 	}
 	// ========================================================================== //
