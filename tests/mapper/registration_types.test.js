@@ -10,7 +10,7 @@ describe("Registration Type Enforcement", () => {
 
     it("prevents Block tags in inline context", async () => {
         // Tag 'Html' is registered as type 'Block' in html.js
-        const src = `[div](text)->(Html: title="My Page")[end]`;
+        const src = `[div](text)->(Html: title)[end]`;
         try {
             await transpile({ src, format: htmlFormat });
             throw new Error("Should have failed");
