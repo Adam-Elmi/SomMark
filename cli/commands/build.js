@@ -16,7 +16,8 @@ import { transpile } from "../helpers/transpile.js";
 async function generateOutput(outputDir, outputFile, format, sourcePath, mappingFile) {
     let source_code = await readContent(sourcePath);
     source_code = source_code.toString();
-    const output = await transpile({ src: source_code, format, mappingFile });
+    const absolutePath = path.resolve(process.cwd(), sourcePath);
+    const output = await transpile({ src: source_code, format, filename: absolutePath, mappingFile });
     const finalPath = path.join(outputDir, `${outputFile}.${extensions[format]}`);
     await createFile(outputDir, `${outputFile}.${extensions[format]}`, output);
     return finalPath;
