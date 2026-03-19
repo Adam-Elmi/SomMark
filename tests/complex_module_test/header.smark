@@ -1,8 +1,0 @@
-[Navbar]
-  [Logo = "SomMark Logo"][end]
-  [Menu]
-    [Item = "Home"][end]
-    [Item = "Documentation"][end]
-    [Item = "Examples"][end]
-  [end]
-[end]
