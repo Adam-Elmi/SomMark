@@ -13,7 +13,6 @@ import FORMATS, { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat 
 import TOKEN_TYPES from "./core/tokenTypes.js";
 import * as labels from "./core/labels.js";
 import PluginManager from "./core/pluginManager.js";
-import QuoteEscaper from "./core/plugins/quote-escaper.js";
 import ModuleSystem from "./core/plugins/module-system.js";
 import RawContentPlugin from "./core/plugins/raw-content-plugin.js";
 import CommentRemover from "./core/plugins/comment-remover.js";
@@ -23,17 +22,18 @@ import { enableColor } from "./helpers/colorize.js";
 import { htmlTable, list, parseList, safeArg, todo } from "./helpers/utils.js";
 
 
-export const BUILT_IN_PLUGINS = [QuoteEscaper, ModuleSystem, RawContentPlugin, CommentRemover, RulesValidationPlugin, SomMarkFormat];
+export const BUILT_IN_PLUGINS = [ModuleSystem, RawContentPlugin, CommentRemover, RulesValidationPlugin, SomMarkFormat];
 
 class SomMark {
-	constructor({ src, format, mapperFile = null, includeDocument = true, plugins = [], excludePlugins = [], priority = [] }) {
+	constructor({ src, format, mapperFile = null, includeDocument = true, plugins = [], excludePlugins = [], priority = [], filename = "anonymous" }) {
 		this.src = src;
 		this.format = format;
 		this.mapperFile = mapperFile;
 		this.priority = priority;
+		this.filename = filename;
+		this.warnings = [];
 
 		// 1. Identify which built-in plugins should be active by default
-		// For now, QuoteEscaper is active, others are inactive (require manual activation)
 		const inactiveByDefault = ["raw-content", "sommark-format"];
 		let activeBuiltIns = BUILT_IN_PLUGINS.filter(p =>
 			!inactiveByDefault.includes(p.name) && !excludePlugins.includes(p.name)
@@ -142,8 +142,12 @@ class SomMark {
 		}
 	}
 
+	reportWarning(message) {
+		this.warnings.push(message);
+	}
+
 	async _applyScopedPreprocessors(src) {
-		let processed = await this.pluginManager.runPreprocessor(src, "top-level");
+		let processed = await this.pluginManager.runPreprocessor(src, "top-level", this);
 
 		// Helper for async regex replacement
 		const asyncReplace = async (str, regex, scope) => {
@@ -160,7 +164,7 @@ class SomMark {
 					if (scope === "content") contentToProcess = match[2];
 
 					if (contentToProcess !== undefined) {
-						const processedContent = await this.pluginManager.runPreprocessor(contentToProcess, scope);
+						const processedContent = await this.pluginManager.runPreprocessor(contentToProcess, scope, this);
 						// Reconstruct the match with processed content
 						if (scope === "arguments") return match[0].replace(match[2], processedContent);
 						if (scope === "content") return match[0].replace(match[2], processedContent);
@@ -188,15 +192,20 @@ class SomMark {
 	async lex(src = this.src) {
 		if (src !== this.src) this.src = src;
 		const processedSrc = await this._applyScopedPreprocessors(this.src);
-		let tokens = lexer(processedSrc);
+		let tokens = lexer(processedSrc, this.filename);
 		tokens = await this.pluginManager.runAfterLex(tokens);
 		return tokens;
 	}
 
 	async parse(src = this.src) {
 		const tokens = await this.lex(src);
-		let ast = parser(tokens);
-		ast = await this.pluginManager.runOnAst(ast, { mapperFile: this.mapperFile });
+		let ast = parser(tokens, this.filename);
+		ast = await this.pluginManager.runOnAst(ast, { 
+			mapperFile: this.mapperFile, 
+			filename: this.filename,
+			format: this.format,
+			instance: this
+		});
 		return ast;
 	}
 
@@ -254,23 +263,23 @@ class SomMark {
 	}
 }
 
-const lex = async (src, plugins = [], excludePlugins = []) => {
-	return await new SomMark({ src, plugins, format: htmlFormat, excludePlugins }).lex();
+const lex = async (src, filename = "anonymous", plugins = [], excludePlugins = []) => {
+	return await new SomMark({ src, filename, plugins, format: htmlFormat, excludePlugins }).lex();
 };
 
-async function parse(src, plugins = [], excludePlugins = []) {
+async function parse(src, filename = "anonymous", plugins = [], excludePlugins = []) {
 	if (!src) {
 		runtimeError([`{line}<$red:Missing Source:$> <$yellow:The 'src' argument is required for parsing.$>{line}`]);
 	}
-	return await new SomMark({ src, plugins, format: htmlFormat, excludePlugins }).parse();
+	return await new SomMark({ src, filename, plugins, format: htmlFormat, excludePlugins }).parse();
 }
 
 async function transpile(options = {}) {
-	const { src, format = htmlFormat, mapperFile = null, includeDocument = true, plugins = [], excludePlugins = [], priority = [] } = options;
+	const { src, format = htmlFormat, filename = "anonymous", mapperFile = null, includeDocument = true, plugins = [], excludePlugins = [], priority = [] } = options;
 	if (typeof options !== "object" || options === null) {
 		runtimeError([`{line}<$red:Invalid Options:$> <$yellow:The options argument must be a non-null object.$>{line}`]);
 	}
-	const knownProps = ["src", "format", "mapperFile", "includeDocument", "plugins", "excludePlugins", "priority"];
+	const knownProps = ["src", "format", "filename", "mapperFile", "includeDocument", "plugins", "excludePlugins", "priority"];
 	Object.keys(options).forEach(key => {
 		if (!knownProps.includes(key)) {
 			runtimeError([
@@ -282,7 +291,7 @@ async function transpile(options = {}) {
 		runtimeError([`{line}<$red:Missing Source:$> <$yellow:The 'src' argument is required for transpilation.$>{line}`]);
 	}
 
-	const sm = new SomMark({ src, format, mapperFile, includeDocument, plugins, excludePlugins, priority });
+	const sm = new SomMark({ src, format, filename, mapperFile, includeDocument, plugins, excludePlugins, priority });
 	return await sm.transpile();
 }
 
