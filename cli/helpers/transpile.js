@@ -15,7 +15,7 @@ const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [m
 // ========================================================================== //
 //  Transpile Function                                                        //
 // ========================================================================== //
-export async function transpile({ src, format, mappingFile = "" }) {
+export async function transpile({ src, format, filename = null, mappingFile = "" }) {
     const config = await loadConfig();
     let finalMapper = mappingFile;
 
@@ -39,6 +39,7 @@ export async function transpile({ src, format, mappingFile = "" }) {
     const smark = new SomMark({
         src,
         format,
+        filename,
         mapperFile: finalMapper,
         plugins: config.plugins,
         priority: config.priority
