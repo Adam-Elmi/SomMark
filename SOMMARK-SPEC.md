@@ -50,8 +50,6 @@ Identifiers **must not contain spaces**.
 
 # 2. Blocks
 
-> At the top level, only Blocks and comments are permitted.
-
 
 Blocks are hierarchical containers that can contain other blocks, inline statements, or plain text.
 
