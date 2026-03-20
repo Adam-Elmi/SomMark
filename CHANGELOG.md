@@ -1,4 +1,13 @@
 # Changelog
+All notable changes to this project will be documented in this file.
+
+## v3.3.1 (2026-03-20)
+### Fixed
+- **sommark-format plugin**:
+  - Restored native quote preservation/restoration for arguments containing spaces or special characters.
+  - Ensured `AtBlocks` always include a mandatory trailing semicolon, even when no arguments are present.
+  - Standardized key-value argument formatting with a space after the colon.
+  - Improved top-level content preservation during formatting.
 
 ## v3.3.0 (2026-03-20)
 
