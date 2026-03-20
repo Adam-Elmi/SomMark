@@ -54,6 +54,11 @@ export default {
 		// ========================================================================== //
 		//  2. Formatting Logic                                                      //
 		// ========================================================================== //
+		const shouldQuote = (val) => {
+			if (typeof val !== "string") return false;
+			return /[ \t\n\r,:[\]()@#]/.test(val);
+		};
+
 		const formatArgs = (args, type) => {
 			if (!args || args.length === 0) return "";
 			let usedKeys = new Set();
@@ -73,8 +78,15 @@ export default {
 				}
 
 				let escapedVal = escapeArg(val, type);
+				if (shouldQuote(val)) {
+					const quotedVal = String(val)
+						.replace(/\\/g, "\\\\")
+						.replace(/"/g, '\\"');
+					escapedVal = `"${quotedVal}"`;
+				}
+
 				if (matchedKey) {
-					formattedArgs.push(`${matchedKey}:${escapedVal}`);
+					formattedArgs.push(`${matchedKey}: ${escapedVal}`);
 				} else {
 					formattedArgs.push(escapedVal);
 				}
@@ -183,7 +195,8 @@ export default {
 							result += `${innerIndentStr}[end]\n`;
 						} else if (child.type === "AtBlock") {
 							const argsStr = formatArgs(child.args, "AtBlock");
-							result += `${innerIndentStr}@_${child.id}_@${argsStr}\n`;
+							const atHeader = argsStr ? `@_${child.id}_@${argsStr}` : `@_${child.id}_@;`;
+							result += `${innerIndentStr}${atHeader}\n`;
 							if (child.content) {
 								// ========================================================================== //
 								//  Remove leading spaces from messy text block and re-indent         //
