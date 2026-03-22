@@ -39,7 +39,7 @@ export async function runBuild(format_option, sourcePath, outputFlag, outputFile
         if (await isExist(sourcePath)) {
             const file = path.parse(sourcePath);
             if (file.ext === ".smark") {
-                const config = await loadConfig();
+                const config = await loadConfig(sourcePath);
 
                 const success_msg = (outputDir, outputFile, size, date) => {
                     return formatMessage(

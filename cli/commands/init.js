@@ -20,6 +20,9 @@ export function getConfigDir() {
 
 export async function runInit() {
     try {
+        const configDir = getConfigDir();
+        const configFilePath = path.join(configDir, "smark.config.js");
+
         // ======================================================
         // Create configuration directory
         // ======================================================

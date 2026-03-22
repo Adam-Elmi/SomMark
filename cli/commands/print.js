@@ -33,7 +33,7 @@ export async function printLex(filePath) {
     const fileName = path.basename(filePath);
     console.log(formatMessage(`{line}<$blue: Printing tokens for$> <$yellow:'${fileName}'$>{line}`));
     const source_code = await readContent(filePath);
-    const config = await loadConfig();
+    const config = await loadConfig(filePath);
 
     const absolutePath = path.resolve(process.cwd(), filePath);
     const smark = new SomMark({
@@ -59,7 +59,7 @@ export async function printParse(filePath) {
     const fileName = path.basename(filePath);
     console.log(formatMessage(`{line}<$blue: Printing AST for$> <$yellow:'${fileName}'$>{line}`));
     const source_code = await readContent(filePath);
-    const config = await loadConfig();
+    const config = await loadConfig(filePath);
 
     const absolutePath = path.resolve(process.cwd(), filePath);
     const smark = new SomMark({

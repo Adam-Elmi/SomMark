@@ -32,6 +32,7 @@ class SomMark {
 		this.priority = priority;
 		this.filename = filename;
 		this.warnings = [];
+		this._prepared = false;
 
 		// 1. Identify which built-in plugins should be active by default
 		const inactiveByDefault = ["raw-content", "sommark-format"];
@@ -188,29 +189,10 @@ class SomMark {
 
 		return processed;
 	}
+	
+	_ensurePrepared() {
+		if (this._prepared) return;
 
-	async lex(src = this.src) {
-		if (src !== this.src) this.src = src;
-		const processedSrc = await this._applyScopedPreprocessors(this.src);
-		let tokens = lexer(processedSrc, this.filename);
-		tokens = await this.pluginManager.runAfterLex(tokens);
-		return tokens;
-	}
-
-	async parse(src = this.src) {
-		const tokens = await this.lex(src);
-		let ast = parser(tokens, this.filename);
-		ast = await this.pluginManager.runOnAst(ast, { 
-			mapperFile: this.mapperFile, 
-			filename: this.filename,
-			format: this.format,
-			instance: this
-		});
-		return ast;
-	}
-
-	async transpile(src = this.src) {
-		if (src !== this.src) this.src = src;
 		// 1. Resolve Dynamic Formats from Plugins if built-in failed
 		if (!this.mapperFile) {
 			const PluginMapper = this.pluginManager.getFormatMapper(this.format);
@@ -229,8 +211,6 @@ class SomMark {
 
 		// Run active registration hooks from plugins
 		this.pluginManager.runRegisterHooks(this);
-
-		const ast = await this.parse(src);
 
 		// 2. Extend Mapper with static plugins definitions
 		const extensions = this.pluginManager.getMapperExtensions();
@@ -255,6 +235,36 @@ class SomMark {
 				extensions.rules.recognizedArguments.forEach(arg => this.mapperFile.extraProps.add(arg));
 			}
 		}
+
+		this._prepared = true;
+	}
+
+	async lex(src = this.src) {
+		this._ensurePrepared();
+		if (src !== this.src) this.src = src;
+		const processedSrc = await this._applyScopedPreprocessors(this.src);
+		let tokens = lexer(processedSrc, this.filename);
+		tokens = await this.pluginManager.runAfterLex(tokens);
+		return tokens;
+	}
+
+	async parse(src = this.src) {
+		const tokens = await this.lex(src);
+		let ast = parser(tokens, this.filename);
+		ast = await this.pluginManager.runOnAst(ast, { 
+			mapperFile: this.mapperFile, 
+			filename: this.filename,
+			format: this.format,
+			instance: this
+		});
+		return ast;
+	}
+
+	async transpile(src = this.src) {
+		if (src !== this.src) this.src = src;
+		this._ensurePrepared();
+
+		const ast = await this.parse(src);
 
 		let result = await transpiler({ ast, format: this.format, mapperFile: this.mapperFile, includeDocument: this.includeDocument });
 
@@ -299,6 +309,8 @@ const lexSync = src => lexer(src);
 
 const parseSync = src => parser(lexer(src));
 
+import { findAndLoadConfig } from "./core/helpers/config-loader.js";
+
 export {
 	HTML,
 	MARKDOWN,
@@ -320,6 +332,7 @@ export {
 	list,
 	parseList,
 	safeArg,
-	todo
+	todo,
+	findAndLoadConfig
 };
 export default SomMark;

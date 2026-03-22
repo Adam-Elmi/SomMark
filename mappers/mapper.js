@@ -2,7 +2,7 @@ import TagBuilder from "../formatter/tag.js";
 import MarkdownBuilder from "../formatter/mark.js";
 import escapeHTML from "../helpers/escapeHTML.js";
 import { sommarkError } from "../core/errors.js";
-import { matchedValue, safeArg } from "../helpers/utils.js";
+import { matchedValue, safeArg, htmlTable, list, todo } from "../helpers/utils.js";
 
 
 // ========================================================================== //
@@ -33,6 +33,9 @@ class Mapper {
 		this.#customHeaderContent = "";
 
 		this.escapeHTML = escapeHTML;
+		this.htmlTable = htmlTable;
+		this.list = list;
+		this.todo = todo;
 		this.styles = [];
 	}
 
@@ -202,7 +205,6 @@ class Mapper {
 
 			return false;
 		} catch (error) {
-			console.error(error);
 			return false;
 		}
 	}

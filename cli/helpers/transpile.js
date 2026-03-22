@@ -16,7 +16,7 @@ const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [m
 //  Transpile Function                                                        //
 // ========================================================================== //
 export async function transpile({ src, format, filename = null, mappingFile = "" }) {
-    const config = await loadConfig();
+    const config = await loadConfig(filename);
     let finalMapper = mappingFile;
 
     // 1. Resolve Mapping File

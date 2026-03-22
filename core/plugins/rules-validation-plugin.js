@@ -10,7 +10,7 @@ const RulesValidationPlugin = {
 	type: "on-ast",
 	author: "Adam-Elmi",
 	description: "Checks your document to make sure all tags and arguments follow the rules set in the mapper.",
-	onAst(ast, { mapperFile }) {
+	onAst(ast, { mapperFile, instance }) {
 		if (!mapperFile) return ast;
 
 		const validateNode = (node, parentTarget = null) => {
@@ -20,7 +20,7 @@ const RulesValidationPlugin = {
 			//  1. TEXT nodes validation                                                  //
 			// ========================================================================== //
 			if (node.type === "Text" && parentTarget) {
-				this.runValidations(parentTarget, null, node.text, "Text", mapperFile);
+				this.runValidations(node, parentTarget, null, node.text, "Text", mapperFile, instance);
 			}
 
 			// ========================================================================== //
@@ -29,7 +29,7 @@ const RulesValidationPlugin = {
 			if (node.id) {
 				const target = mapperFile.get(node.id);
 				if (target) {
-					this.runValidations(target, node.args, this.getContent(node), node.type, mapperFile);
+					this.runValidations(node, target, node.args, this.getContent(node), node.type, mapperFile, instance);
 				}
 			}
 
@@ -54,10 +54,11 @@ const RulesValidationPlugin = {
 		return "";
 	},
 
-	runValidations(target, args, content, type, mapperFile) {
+	runValidations(node, target, args, content, type, mapperFile, instance) {
 		if (!target.options) return;
 		const rules = target.options.rules || {};
 		const id = Array.isArray(target.id) ? target.id.join(" | ") : target.id;
+		const context = instance ? { src: instance.src, range: node.range, filename: instance.filename } : null;
 
 		// ========================================================================== //
 		//  1. Validate Args Count & Keys                                             //
@@ -68,24 +69,33 @@ const RulesValidationPlugin = {
 			const argCount = args.length;
 
 			if (min !== undefined && argCount < min) {
-				transpilerError([
-					"{line}<$red:Validation Error:$> ",
-					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:requires at least$> <$green:${min}$> <$yellow:argument(s). Found$> <$red:${argCount}$>{line}`
-				]);
+				transpilerError(
+					[
+						"<$red:Validation Error:$> ",
+						`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:requires at least$> <$green:${min}$> <$yellow:argument(s). Found$> <$red:${argCount}$>`
+					],
+					context
+				);
 			}
 			if (max !== undefined && argCount > max) {
-				transpilerError([
-					"{line}<$red:Validation Error:$> ",
-					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:accepts at most$> <$green:${max}$> <$yellow:argument(s). Found$> <$red:${argCount}$>{line}`
-				]);
+				transpilerError(
+					[
+						"<$red:Validation Error:$> ",
+						`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:accepts at most$> <$green:${max}$> <$yellow:argument(s). Found$> <$red:${argCount}$>`
+					],
+					context
+				);
 			}
 			if (required && Array.isArray(required)) {
 				const missingKeys = required.filter(key => !Object.prototype.hasOwnProperty.call(args, key));
 				if (missingKeys.length > 0) {
-					transpilerError([
-						"{line}<$red:Validation Error:$> ",
-						`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is missing required argument(s):$> <$red:${missingKeys.join(", ")}$>{line}`
-					]);
+					transpilerError(
+						[
+							"<$red:Validation Error:$> ",
+							`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is missing required argument(s):$> <$red:${missingKeys.join(", ")}$>`
+						],
+						context
+					);
 				}
 			}
 			if (includes && Array.isArray(includes)) {
@@ -93,11 +103,14 @@ const RulesValidationPlugin = {
 					return !includes.includes(key) && !mapperFile.extraProps.has(key);
 				});
 				if (invalidKeys.length > 0) {
-					transpilerError([
-						"{line}<$red:Validation Error:$> ",
-						`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:contains invalid argument key(s):$> <$red:${invalidKeys.join(", ")}$>`,
-						`{N}<$yellow:Allowed keys are:$> <$green:${includes.join(", ")}$>{line}`
-					]);
+					transpilerError(
+						[
+							"<$red:Validation Error:$> ",
+							`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:contains invalid argument key(s):$> <$red:${invalidKeys.join(", ")}$>`,
+							`{N}<$yellow:Allowed keys are:$> <$green:${includes.join(", ")}$>`
+						],
+						context
+					);
 				}
 			}
 		}
@@ -114,10 +127,13 @@ const RulesValidationPlugin = {
 				if (keyPattern) {
 					const invalidKeys = argKeys.filter(key => !keyPattern.test(key));
 					if (invalidKeys.length > 0) {
-						transpilerError([
-							"{line}<$red:Validation Error:$> ",
-							`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:contains argument keys that do not match pattern $> <$green:${keyPattern.toString()}$>: <$red:${invalidKeys.join(", ")}$>{line}`
-						]);
+						transpilerError(
+							[
+								"<$red:Validation Error:$> ",
+								`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:contains argument keys that do not match pattern $> <$green:${keyPattern.toString()}$>: <$red:${invalidKeys.join(", ")}$>`
+							],
+							context
+						);
 					}
 				}
 			}
@@ -131,15 +147,21 @@ const RulesValidationPlugin = {
 						const valueRule = rules.values[key];
 						if (valueRule) {
 							if (valueRule instanceof RegExp && !valueRule.test(value)) {
-								transpilerError([
-									"{line}<$red:Validation Error:$> ",
-									`<$yellow:Argument key$> <$blue:'${key}'$> <$yellow:in$> <$blue:'${id}'$> <$yellow:has invalid value:$> <$red:'${value}'$>{N}<$yellow:Expected to match pattern:$> <$green:${valueRule.toString()}$>{line}`
-								]);
+								transpilerError(
+									[
+										"<$red:Validation Error:$> ",
+										`<$yellow:Argument key$> <$blue:'${key}'$> <$yellow:in$> <$blue:'${id}'$> <$yellow:has invalid value:$> <$red:'${value}'$>{N}<$yellow:Expected to match pattern:$> <$green:${valueRule.toString()}$>`
+									],
+									context
+								);
 							} else if (typeof valueRule === "function" && !valueRule(value)) {
-								transpilerError([
-									"{line}<$red:Validation Error:$> ",
-									`<$yellow:Argument key$> <$blue:'${key}'$> <$yellow:in$> <$blue:'${id}'$> <$yellow:failed custom validation for value:$> <$red:'${value}'$>{line}`
-								]);
+								transpilerError(
+									[
+										"<$red:Validation Error:$> ",
+										`<$yellow:Argument key$> <$blue:'${key}'$> <$yellow:in$> <$blue:'${id}'$> <$yellow:failed custom validation for value:$> <$red:'${value}'$>`
+									],
+									context
+								);
 							}
 						}
 					}
@@ -153,16 +175,22 @@ const RulesValidationPlugin = {
 		if (content !== undefined && rules.content) {
 			const { maxLength, match } = rules.content;
 			if (maxLength && content.length > maxLength) {
-				transpilerError([
-					"{line}<$red:Validation Error:$> ",
-					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:content exceeds maximum length of$> <$green:${maxLength}$> <$yellow:characters. Found$> <$red:${content.length}$>{line}`
-				]);
+				transpilerError(
+					[
+						"<$red:Validation Error:$> ",
+						`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:content exceeds maximum length of$> <$green:${maxLength}$> <$yellow:characters. Found$> <$red:${content.length}$>`
+					],
+					context
+				);
 			}
 			if (match && match instanceof RegExp && !match.test(content)) {
-				transpilerError([
-					"{line}<$red:Validation Error:$> ",
-					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:content does not match required pattern:$> <$green:${match.toString()}$>{line}`
-				]);
+				transpilerError(
+					[
+						"<$red:Validation Error:$> ",
+						`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:content does not match required pattern:$> <$green:${match.toString()}$>`
+					],
+					context
+				);
 			}
 		}
 
@@ -171,10 +199,13 @@ const RulesValidationPlugin = {
 		// ========================================================================== //
 		if (rules.is_self_closing && (type === "Block" || content)) {
 			if (content) {
-				transpilerError([
-					"{line}<$red:Validation Error:$> ",
-					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is self-closing tag and is not allowed to have a content | children$>{line}`
-				]);
+				transpilerError(
+					[
+						"<$red:Validation Error:$> ",
+						`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is self-closing tag and is not allowed to have a content | children$>`
+					],
+					context
+				);
 			}
 		}
 
@@ -185,10 +216,13 @@ const RulesValidationPlugin = {
 		if (typeToValidate && type !== "Text") {
 			const allowedTypes = Array.isArray(typeToValidate) ? typeToValidate : [typeToValidate];
 			if (!allowedTypes.includes("any") && !allowedTypes.includes(type)) {
-				transpilerError([
-					"{line}<$red:Validation Error:$> ",
-					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is expected to be type$> <$green:'${allowedTypes.join(" | ")}'$>{N}<$cyan:Received type: $> <$magenta:'${type}'$>{line}`
-				]);
+				transpilerError(
+					[
+						"<$red:Validation Error:$> ",
+						`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is expected to be type$> <$green:'${allowedTypes.join(" | ")}'$>{N}<$cyan:Received type: $> <$magenta:'${type}'$>`
+					],
+					context
+				);
 			}
 		}
 	}
