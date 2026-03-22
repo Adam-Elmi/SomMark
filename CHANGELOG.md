@@ -1,6 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v3.3.2 (2026-03-22)
+
+### Improvements
+
+- **Core Engine**: Better at finding and loading config files.
+- **Error Handling**: More accurate error messages with exact line and column info.
+- **Mappers**: Added easy-to-use tools for tables, lists, and todos.
+- **Specification**: Clearer rules for writing content at the top level of documents.
+
 ## v3.3.1 (2026-03-20)
 ### Fixed
 - **sommark-format plugin**:
