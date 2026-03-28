@@ -147,7 +147,7 @@ HTML.register(
 
 		return this.tag("pre").body(code_element.body(code));
 	},
-	{ escape: false, type: "AtBlock" }
+	{ escape: false, type: ["AtBlock", "Block"] }
 );
 // List
 HTML.register(
