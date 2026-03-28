@@ -74,7 +74,7 @@ MARKDOWN.register(
 	},
 	{
 		escape: false,
-		type: "AtBlock"
+		type: ["AtBlock", "Block"]
 	}
 );
 // Link
