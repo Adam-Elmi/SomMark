@@ -90,7 +90,7 @@ const { tag } = MDX;
 MDX.inherit(MARKDOWN);
 
 // Block for raw MDX content (ESM, etc.)
-MDX.register("mdx", ({ content }) => content, { escape: false, type: "Block" });
+MDX.register("mdx", ({ content }) => content, { escape: false, type: ["AtBlock", "Block"] });
 
 // Re-register HTML tags to use jsxProps
 HTML_TAGS.forEach(tagName => {
