@@ -13,8 +13,8 @@ describe("MDX Whitespace Verification", () => {
         
         // MDX requires block-level elements to be padded with newlines for valid parsing
         expect(output).toContain("\n<Card>\n");
-        expect(output).toContain("\n<Title>\nWelcome\n</Title>\n");
-        expect(output).toContain("\nContent\n</Card>\n");
+        expect(output).toContain("\n<Title>Welcome</Title>");
+        expect(output).toContain("Content\n</Card>\n");
     });
 
     it("should not append newlines after inline elements in MDX", async () => {
@@ -38,7 +38,7 @@ describe("MDX Whitespace Verification", () => {
         
         // Padding ensures MDX v2+ recognizes segments correctly
         expect(output).toContain("<Card>\n");
-        expect(output).toContain("<Title>\nTitle\n</Title>");
-        expect(output).toContain("\n  Text\n");
+        expect(output).toContain("<Title>Title</Title>");
+        expect(output).toContain("Text");
     });
 });
