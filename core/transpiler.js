@@ -56,11 +56,12 @@ async function generateOutput(ast, i, format, mapper_file) {
 		// ========================================================================== //
 		//  Always use placeholders for blocks to support wrapping                      //
 		// ========================================================================== //
-		const placeholder = format === mdxFormat && node.body.length > 0 ? `\n${BODY_PLACEHOLDER}\n` : BODY_PLACEHOLDER;
+		const isParentBlock = format === mdxFormat && node.body.length > 1;
+		const placeholder = isParentBlock ? `\n${BODY_PLACEHOLDER}\n` : BODY_PLACEHOLDER;
 		const textContent = getNodeText(node);
 
 		result += target.render.call(mapper_file, { args: node.args, content: placeholder, textContent, ast: node });
-		if (format === mdxFormat) result = "\n" + result + "\n";
+		if (isParentBlock) result = "\n" + result + "\n";
 
 		// ========================================================================== //
 		//  Process body nodes recursively                                           //
@@ -112,7 +113,12 @@ async function generateOutput(ast, i, format, mapper_file) {
 
 				case BLOCK:
 					const blockOutput = await generateOutput(body_node, i, format, mapper_file);
-					context = context.trim() ? context.trimEnd() + "\n" + blockOutput : context + blockOutput;
+					const blockIsParent = format === mdxFormat && body_node.body.length > 1;
+					if (format === mdxFormat && !blockIsParent) {
+						context += blockOutput;
+					} else {
+						context = context.trim() ? context.trimEnd() + "\n" + blockOutput : context + blockOutput;
+					}
 					break;
 			}
 		}
@@ -138,7 +144,8 @@ async function generateOutput(ast, i, format, mapper_file) {
 			`<$yellow:Identifier$> <$blue:'${node.id}'$> <$yellow: is not found in mapping outputs$>{line}`
 		]);
 	}
-	return result.trimEnd() + "\n";
+	const newline = (format === mdxFormat && node.body.length <= 1) ? "" : "\n";
+	return result.trimEnd() + newline;
 }
 
 // ========================================================================== //
