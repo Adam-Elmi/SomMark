@@ -1,6 +1,14 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v3.3.3 (2026-03-28)
+
+### Fixed
+
+- **MDX Output**: Fixed unwanted newlines breaking MDX output.
+  - Tags with one child stay on one line now.
+  - Tags with many children still get newlines for mdx compatibility.
+
 ## v3.3.2 (2026-03-22)
 
 ### Improvements
