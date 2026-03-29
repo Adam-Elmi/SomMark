@@ -1,9 +1,7 @@
 import Mapper from "../mapper.js";
 import MARKDOWN from "./markdown.js";
 import { HTML_TAGS } from "../../constants/html_tags.js";
-import { HTML_PROPS } from "../../constants/html_props.js";
 import { VOID_ELEMENTS } from "../../constants/void_elements.js";
-import kebabize from "../../helpers/kebabize.js";
 
 class MdxMapper extends Mapper {
 	constructor() {
@@ -90,7 +88,14 @@ const { tag } = MDX;
 MDX.inherit(MARKDOWN);
 
 // Block for raw MDX content (ESM, etc.)
-MDX.register("mdx", ({ content }) => content, { escape: false, type: ["AtBlock", "Block"] });
+MDX.register("mdx", ({ content }) => {
+	// Clean up hidden characters
+	let clean = content.replace(/\u200B/g, "").trim();
+	// Remove leading semicolon to avoid MDX errors
+	if (clean.startsWith(";")) clean = clean.substring(1).trim();
+	// Add spacing around ESM blocks
+	return "\n" + clean + "\n\n";
+}, { escape: false, type: ["AtBlock", "Block"] });
 
 // Re-register HTML tags to use jsxProps
 HTML_TAGS.forEach(tagName => {
@@ -122,6 +127,7 @@ HTML_TAGS.forEach(tagName => {
 			return element.body(content);
 		},
 		{
+			escape: false,
 			type: VOID_ELEMENTS.has(tagName) ? "Block" : ["Block", "Inline"],
 			rules: {
 				is_self_closing: VOID_ELEMENTS.has(tagName)
