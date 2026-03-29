@@ -71,7 +71,7 @@ async function generateOutput(ast, i, format, mapper_file) {
 			switch (body_node.type) {
 				case TEXT:
 					const shouldEscapeText = target.options?.escape !== false;
-					context += (format === htmlFormat || format === mdxFormat) && shouldEscapeText ? escapeHTML(body_node.text) : body_node.text;
+					context += (format === htmlFormat) && shouldEscapeText ? escapeHTML(body_node.text) : body_node.text;
 					break;
 
 				case INLINE:
@@ -85,7 +85,7 @@ async function generateOutput(ast, i, format, mapper_file) {
 						context +=
 							inlineTarget.render.call(mapper_file, {
 								args: body_node.args.length > 0 ? body_node.args : [],
-								content: (format === htmlFormat || format === mdxFormat) && shouldEscapeInline ? escapeHTML(body_node.value) : body_node.value,
+								content: (format === htmlFormat) && shouldEscapeInline ? escapeHTML(body_node.value) : body_node.value,
 								ast: body_node
 							}) + (format === mdxFormat ? "\n" : "");
 					}
@@ -99,11 +99,12 @@ async function generateOutput(ast, i, format, mapper_file) {
 					if (atTarget) {
 						const shouldEscapeAt = atTarget.options?.escape !== false;
 						let content = body_node.content;
-						if (shouldEscapeAt && (format === htmlFormat || format === mdxFormat)) {
+						if (shouldEscapeAt && (format === htmlFormat)) {
 							content = escapeHTML(content);
 						}
-						const rendered = atTarget.render.call(mapper_file, { args: body_node.args, content, ast: body_node }).trimEnd() + "\n";
-						context = context.trim() ? context.trimEnd() + "\n" + rendered : context + rendered;
+						const rendered = atTarget.render.call(mapper_file, { args: body_node.args, content, ast: body_node });
+						const finalAtRendered = (format === mdxFormat) ? rendered : rendered.trimEnd() + "\n";
+						context = context.trim() ? context.trimEnd() + "\n" + finalAtRendered : context + finalAtRendered;
 					}
 					break;
 
@@ -145,7 +146,8 @@ async function generateOutput(ast, i, format, mapper_file) {
 		]);
 	}
 	const newline = (format === mdxFormat && node.body.length <= 1) ? "" : "\n";
-	return result.trimEnd() + newline;
+	const finalResult = (format === mdxFormat) ? result : result.trimEnd();
+	return finalResult + newline;
 }
 
 // ========================================================================== //
@@ -164,7 +166,7 @@ async function transpiler({ ast, format, mapperFile, includeDocument = true }) {
 				output += mapperFile.comment(node.text);
 				break;
 			case TEXT:
-				const shouldEscapeText = (format === htmlFormat || format === mdxFormat);
+				const shouldEscapeText = (format === htmlFormat);
 				output += shouldEscapeText ? escapeHTML(node.text) : node.text;
 				break;
 			case INLINE:
@@ -174,7 +176,7 @@ async function transpiler({ ast, format, mapperFile, includeDocument = true }) {
 					const shouldEscapeInline = inlineTarget.options?.escape !== false;
 					output += inlineTarget.render.call(mapperFile, {
 						args: node.args.length > 0 ? node.args : [],
-						content: (format === htmlFormat || format === mdxFormat) && shouldEscapeInline ? escapeHTML(node.value) : node.value,
+						content: (format === htmlFormat) && shouldEscapeInline ? escapeHTML(node.value) : node.value,
 						ast: node
 					}) + (format === mdxFormat ? "\n" : "");
 				}
@@ -185,11 +187,12 @@ async function transpiler({ ast, format, mapperFile, includeDocument = true }) {
 				if (atTarget) {
 					const shouldEscapeAt = atTarget.options?.escape !== false;
 					let content = node.content;
-					if (shouldEscapeAt && (format === htmlFormat || format === mdxFormat)) {
+					if (shouldEscapeAt && (format === htmlFormat)) {
 						content = escapeHTML(content);
 					}
-					const rendered = atTarget.render.call(mapperFile, { args: node.args, content, ast: node }).trimEnd() + "\n";
-					output = output.trim() ? output.trimEnd() + "\n" + rendered : output + rendered;
+					const rendered = atTarget.render.call(mapperFile, { args: node.args, content, ast: node });
+					const finalAtRendered = (format === mdxFormat) ? rendered : rendered.trimEnd() + "\n";
+					output = output.trim() ? output.trimEnd() + "\n" + finalAtRendered : output + finalAtRendered;
 				}
 				break;
 		}
