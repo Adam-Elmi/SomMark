@@ -41,8 +41,11 @@ export async function printLex(filePath) {
       format: "text",
       filename: absolutePath,
       plugins: config.plugins,
-      priority: config.priority
+      priority: config.priority,
+      excludePlugins: config.excludePlugins,
+      includeDocument: config.includeDocument ?? true
     });
+
 
     const tokens = await smark.lex();
     console.log(JSON.stringify(tokens, null, 2));
@@ -67,8 +70,11 @@ export async function printParse(filePath) {
       format: "text",
       filename: absolutePath,
       plugins: config.plugins,
-      priority: config.priority
+      priority: config.priority,
+      excludePlugins: config.excludePlugins,
+      includeDocument: config.includeDocument ?? true
     });
+
 
     const ast = await smark.parse();
     console.log(JSON.stringify(ast, null, 2));
