@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { enableColor } from "../helpers/colorize.js";
+
 import { getHelp } from "./commands/help.js";
 import { printVersion, printHeader } from "./commands/version.js";
 import { runBuild } from "./commands/build.js";
@@ -48,9 +49,10 @@ async function main() {
 
 	// 4. Init
 	if (command === "init") {
-		await runInit();
+		await runInit(args[1] === "--local" || args[1] === "-l");
 		return;
 	}
+
 
 	// 5. Show
 	if (command === "show") {
