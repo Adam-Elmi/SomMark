@@ -1,6 +1,21 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v3.3.4 (2026-03-29)
+
+### New & Improved
+
+- **Better MDX**: You can now use math and code like `{1 < 5}` without any issues.
+- **Fixed Spacing**: MDX code blocks and components now have the correct spacing between them.
+- **Faster and More Reliable**: Moved MDX logic into the core engine for a better experience.
+
+### CLI & Configuration
+
+- **Better Config Loading**: Fixed a bug where the program could get stuck looking for the config file.
+- **Consistent Settings**: The CLI now correctly applies all your configuration settings (like excluding plugins) everywhere.
+- **Local Config**: You can now run `sommark init --local` to create a `smark.config.js` file right in your current folder.
+
+
 ## v3.3.3 (2026-03-28)
 
 ### Fixed
