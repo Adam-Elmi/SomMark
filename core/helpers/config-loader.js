@@ -23,13 +23,16 @@ export function getConfigDir() {
  * Recursively searches for smark.config.js up the directory tree starting from startDir.
  */
 async function findConfig(startDir) {
-	let currentDir = startDir;
-	while (currentDir !== path.parse(currentDir).root) {
+	let currentDir = path.resolve(startDir);
+	const root = path.parse(currentDir).root;
+
+	while (true) {
 		const configPath = path.join(currentDir, CONFIG_FILE_NAME);
 		try {
 			await fs.access(configPath);
 			return configPath;
 		} catch {
+			if (currentDir === root) break;
 			currentDir = path.dirname(currentDir);
 		}
 	}
@@ -56,7 +59,17 @@ async function loadConfigFile(configPath) {
  * Checks local directory, parent directories, and finally the global config directory.
  */
 export async function findAndLoadConfig(targetPath) {
-	const startDir = targetPath ? (await fs.stat(targetPath)).isDirectory() ? targetPath : path.dirname(targetPath) : process.cwd();
+	let startDir;
+	if (targetPath) {
+		try {
+			const stats = await fs.stat(targetPath);
+			startDir = stats.isDirectory() ? targetPath : path.dirname(targetPath);
+		} catch {
+			startDir = process.cwd();
+		}
+	} else {
+		startDir = process.cwd();
+	}
 	
 	let configPath = await findConfig(startDir);
 	
@@ -87,15 +100,28 @@ export async function findAndLoadConfig(targetPath) {
 		outputDir: startDir,
 		mappingFile: null,
 		plugins: [],
-		priority: []
+		priority: [],
+		excludePlugins: [],
+		includeDocument: true
 	};
 
 	if (configPath) {
 		const loadedConfig = await loadConfigFile(configPath);
 		if (loadedConfig) {
-			return { ...defaultConfig, ...loadedConfig, resolvedConfigPath: configPath };
+			const finalConfig = { ...defaultConfig, ...loadedConfig, resolvedConfigPath: configPath };
+			
+			// Ensure outputDir is resolved if it's relative in the config
+			if (loadedConfig.outputDir) {
+				const configDir = path.dirname(configPath);
+				finalConfig.outputDir = path.resolve(configDir, loadedConfig.outputDir);
+			}
+
+			return finalConfig;
 		}
 	}
 
 	return { ...defaultConfig, resolvedConfigPath: null };
 }
+
+
+
