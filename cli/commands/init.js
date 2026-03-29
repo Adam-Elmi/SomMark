@@ -18,42 +18,29 @@ export function getConfigDir() {
     }
 }
 
-export async function runInit() {
+export async function runInit(isLocal = false) {
     try {
-        const configDir = getConfigDir();
+        const configDir = isLocal ? process.cwd() : getConfigDir();
         const configFilePath = path.join(configDir, "smark.config.js");
 
-        // ======================================================
-        // Create configuration directory
-        // ======================================================
-
-        await fs.mkdir(configDir, { recursive: true });
-
-        // ======================================================
-        // Default configuration content
-        // ======================================================
+        if (!isLocal) {
+            await fs.mkdir(configDir, { recursive: true });
+        }
 
         const defaultConfigContent = `export default {
-    outputDir: "",
+    outputDir: "./",
     outputFile: "output",
-    mappingFile: "",
+    mappingFile: null,
     plugins: [],
     priority: [],
+    excludePlugins: [],
 };
 `;
-
-        // ======================================================
-        // Check if config file already exists
-        // ======================================================
 
         try {
             await fs.access(configFilePath);
             console.log(formatMessage(`<$yellow:Configuration already exists at:$> <$cyan:${configFilePath}$>`));
         } catch {
-            // ======================================================
-            // Create default config file if it doesn't exist
-            // ======================================================
-
             await fs.writeFile(configFilePath, defaultConfigContent, "utf-8");
             console.log(formatMessage(`<$green:Initialized SomMark configuration at:$> <$cyan:${configFilePath}$>`));
         }
@@ -63,3 +50,4 @@ export async function runInit() {
         ]);
     }
 }
+
