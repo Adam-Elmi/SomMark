@@ -19,6 +19,8 @@ export async function transpile({ src, format, filename = null, mappingFile = ""
     const config = await loadConfig(filename);
     let finalMapper = mappingFile;
 
+
+
     // 1. Resolve Mapping File
     if (typeof mappingFile !== "object" || mappingFile === null) {
         if (config.mappingFile) {
@@ -42,7 +44,9 @@ export async function transpile({ src, format, filename = null, mappingFile = ""
         filename,
         mapperFile: finalMapper,
         plugins: config.plugins,
-        priority: config.priority
+        priority: config.priority,
+        excludePlugins: config.excludePlugins,
+        includeDocument: config.includeDocument ?? true
     });
 
     return await smark.transpile();
