@@ -1,191 +1,142 @@
 import Mapper from "../mapper.js";
-import { TEXT } from "../../core/labels.js";
-import { transpilerError } from "../../core/errors.js";
+import { getPositionalArgs, matchedValue, safeArg } from "../../helpers/utils.js";
 
+/**
+ * JSON Mapper - Creates JSON output.
+ * It manages the structure manually using 'handleAst: true'.
+ */
 
-// ========================================================================== //
-//  Helpers                                                                   //
-// ========================================================================== //
-
-function escapeString(str) {
-	return JSON.stringify(str);
+/**
+ * Returns a string representing the specified indentation level.
+ */
+function getIndent(depth) {
+	return "  ".repeat(depth);
 }
 
-function processNode(node, parentType = null) {
-	if (!node) return "";
-
-	if (node.id === "Object" || node.id === "Array" || node.id === "Json") {
-		return renderBlock(node, parentType);
-	} else if (["string", "number", "bool", "null", "array", "none"].includes(node.id)) {
-		return renderInline(node, parentType);
-	} else if (node.type === TEXT) {
-		return "";
-	}
-	return "";
+/**
+ * Escapes a string for use in a JSON property or value.
+ * @param {string} str - The string to escape.
+ * @param {boolean} [trim=false] - Whether to trim the string.
+ */
+function escapeString(str, trim = false) {
+	let out = String(str);
+	if (trim) out = out.trim();
+	return JSON.stringify(out);
 }
 
-function renderBlock(node, parentType) {
-	let output = "";
-	let key = "";
-	let isRoot = node.id === "Json";
-	let type = node.id === "Array" || (isRoot && node.args.includes("array")) ? "array" : "object";
-
-	// ========================================================================== //
-	//  Key                                                                       //
-	// ========================================================================== //
-	if (!isRoot) {
-		if (parentType === "object") {
-			key = node.args && node.args[0] ? escapeString(node.args[0]) : null;
-			if (!key) {
-				key = '"unknown_key"';
-			}
-		}
+/**
+ * Recursively extracts text content from a node, ignoring structural metadata.
+ */
+function getNodeText(node) {
+	if (!node.body) return "";
+	let text = "";
+	for (const child of node.body) {
+		if (child.type === "Text") text += child.text;
+		else if (child.type === "Block") text += getNodeText(child);
 	}
+	return text;
+}
 
-	// ========================================================================== //
-	//  Children                                                                  //
-	// ========================================================================== //
-	let children = [];
-	if (node.body && node.body.length > 0) {
-		for (const child of node.body) {
-			const childOutput = processNode(child, type);
-			if (childOutput) {
-				children.push(childOutput);
-			}
-		}
-	}
-
-	let content = children.join(",");
-	let wrapper = type === "array" ? `[${content}]` : `{${content}}`;
+/**
+ * Resolves the key-value pairing for a JSON member.
+ */
+function renderMember(args, value) {
+	const posArgs = getPositionalArgs(args);
+	const key = args.key || posArgs[0]; // The 'key' rule determines the member name
 
 	if (key) {
-		return `${key}:${wrapper}`;
-	} else {
-		if (parentType === "object") {
-			if (!node.args || !node.args[0]) {
-				transpilerError([`{line}<$red:JSON Error:$> <$yellow:Blocks inside an Object must have a key argument.$>{line}`]);
+		return `${escapeString(key)}: ${value}`;
+	}
+	return value;
+}
+
+/**
+ * Formats a given node and tracks its indentation.
+ */
+async function renderNode(node, mapper, depth = 0) {
+	const target = matchedValue(mapper.outputs, node.id) || mapper.getUnknownTag(node);
+	if (!target) return "";
+
+	const textContent = getNodeText(node);
+	return await target.render.call(mapper, {
+		nodeType: node.type,
+		args: node.args,
+		content: "",
+		textContent,
+		ast: node,
+		depth
+	});
+}
+
+/**
+ * Formats the children of a node into a neat list.
+ */
+async function renderChildren(node, mapper, depth = 0) {
+	let results = [];
+	const childIndent = getIndent(depth + 1);
+
+	for (const child of node.body) {
+		if (child.type === "Block") {
+			const output = await renderNode(child, mapper, depth + 1);
+			if (output) {
+				results.push(childIndent + output);
 			}
 		}
-		return wrapper;
 	}
+	return results.join(",\n");
 }
 
-function renderInline(node, parentType) {
-	let key = null;
-	let value = "";
+const Json = Mapper.define({});
 
-	// ========================================================================== //
-	//  Value                                                                     //
-	// ========================================================================== //
-	if (node.id === "string") {
-		if (!node.args || node.args.length === 0) {
-			transpilerError([`{line}<$red:JSON Error:$> <$yellow:String inline must have a value.$>{line}`]);
-		}
-		value = escapeString(node.args[0] || "");
-	} else if (node.id === "number") {
-		if (!node.args || node.args.length === 0 || isNaN(Number(node.args[0]))) {
-			transpilerError([`{line}<$red:JSON Error:$> <$yellow:Invalid or missing number value for inline.$>{line}`]);
-		}
-		value = node.args[0];
-	} else if (node.id === "bool") {
-		if (!node.args || (node.args[0] !== "true" && node.args[0] !== "false")) {
-			transpilerError([`{line}<$red:JSON Error:$> <$yellow:Bool inline must be 'true' or 'false'.$>{line}`]);
-		}
-		value = node.args[0] === "true" ? "true" : "false";
-	} else if (node.id === "null") {
-		value = "null";
-	} else if (node.id === "array") {
-		// ========================================================================== //
-		//  Inline array                                                              //
-		// ========================================================================== //
-		// (data)->(array: 1, 2, 3)
-		// args = ["1", " 2", " 3"]
-		const items = node.args.map(arg => {
-			const trimmed = arg.trim();
-			if (trimmed === "null") return "null";
-			if (trimmed === "true" || trimmed === "false") return trimmed;
-			if (!isNaN(parseFloat(trimmed)) && isFinite(trimmed)) return trimmed;
-			return escapeString(trimmed);
-		});
-		value = `[${items.join(",")}]`;
-	} else if (node.id === "none") {
-		// Special case: (-)->(none: val)
-		if (parentType === "object") {
-			transpilerError([
-				`{line}<$red:JSON Error:$> <$yellow:'none' inline is not allowed directly inside an Object. It must be inside an Array.$>{line}`
-			]);
-			return "";
-		}
+/**
+ * The JSON object node rule.
+ */
+Json.register(["Object", "object"], async ({ args, ast, depth = 0 }) => {
+	if (ast.body.length === 0) return renderMember(args, "{}");
+	const content = await renderChildren(ast, Json, depth);
+	const val = `{\n${content}\n${getIndent(depth)}}`;
+	return renderMember(args, val);
+}, { type: "Block", handleAst: true });
 
-		// (-)->(none: 1, 2, null) -> [1, 2, null] -> args.length > 1
-		// (-)->(none: true) -> true -> args.length == 1
+/**
+ * The JSON array node rule.
+ */
+Json.register(["Array", "array"], async ({ args, ast, depth = 0 }) => {
+	if (ast.body.length === 0) return renderMember(args, "[]");
+	const content = await renderChildren(ast, Json, depth);
+	const val = `[\n${content}\n${getIndent(depth)}]`;
+	return renderMember(args, val);
+}, { type: "Block", handleAst: true });
 
-		if (node.args.length > 1) {
-			const items = node.args.map(arg => {
-				const trimmed = arg.trim();
-				if (trimmed === "null") return "null";
-				if (trimmed === "true" || trimmed === "false") return trimmed;
-				if (!isNaN(parseFloat(trimmed)) && isFinite(trimmed)) return trimmed;
-				return escapeString(trimmed);
-			});
-			value = `[${items.join(",")}]`;
-		} else {
-			const arg = node.args[0] || "";
-			const trimmed = arg.trim();
-			if (trimmed === "null") value = "null";
-			else if (trimmed === "true" || trimmed === "false") value = trimmed;
-			else if (!isNaN(parseFloat(trimmed)) && isFinite(trimmed)) value = trimmed;
-			else value = escapeString(trimmed);
-		}
-	}
+/**
+ * JSON Primitives
+ */
+Json.register("string", ({ args, textContent }) => {
+	const trim = safeArg({ 
+		args, 
+		key: "trim", 
+		type: "boolean", 
+		setType: v => v === "true" || v === true,
+		fallBack: false 
+	});
+	const val = escapeString(textContent, trim);
+	return renderMember(args, val);
+}, { type: "Block", handleAst: true });
 
-	if (parentType === "object") {
-		if (node.id === "none") return "";
+Json.register("number", ({ args, textContent }) => {
+	const raw = textContent.trim();
+	const val = (isNaN(Number(raw)) || raw === "") ? "0" : raw;
+	return renderMember(args, val);
+}, { type: "Block", handleAst: true });
 
-		if (!node.value) {
-			transpilerError([
-				`{line}<$red:JSON Error:$> <$yellow:Inline elements inside an Object must have an identifier (key).$>{line}`
-			]);
-		}
+Json.register("bool", ({ args, textContent }) => {
+	const raw = textContent.trim().toLowerCase();
+	const val = (raw === "true" || raw === "1") ? "true" : "false";
+	return renderMember(args, val);
+}, { type: "Block", handleAst: true });
 
-		key = escapeString(node.value);
-		return `${key}:${value}`;
-	} else {
-		return value;
-	}
-}
-
-class JsonMapper extends Mapper {
-	constructor() {
-		super();
-	}
-
-	formatOutput(output) {
-		try {
-			return JSON.parse(JSON.stringify(output));
-		} catch (e) {
-			transpilerError([
-				"{line}<$red:JSON Format Error:$> ",
-				`<$yellow:Failed to parse generated JSON output.$>{N}<$cyan:Reason: $> <$magenta:'${e.message}'$>{line}`
-			]);
-			return output;
-		}
-	}
-}
-
-const Json = new JsonMapper();
-
-// ========================================================================== //
-//  Main Registration                                                         //
-// ========================================================================== //
-
-const noop = () => "";
-Json.register(["Object", "Array"], noop, { type: "Block" });
-Json.register(["string", "number", "bool", "null", "array", "none"], noop, { type: "Inline" });
-
-Json.register("Json", ({ args, content, ast }) => {
-	if (!ast) return "";
-	return processNode(ast, null);
-}, { type: "Block" });
+Json.register("null", ({ args }) => {
+	return renderMember(args, "null");
+}, { type: "Block", handleAst: true });
 
 export default Json;
