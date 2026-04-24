@@ -6,97 +6,59 @@ import HTML from "./mappers/languages/html.js";
 import MARKDOWN from "./mappers/languages/markdown.js";
 import MDX from "./mappers/languages/mdx.js";
 import Json from "./mappers/languages/json.js";
-import TagBuilder from "./formatter/tag.js";
-import MarkdownBuilder from "./formatter/mark.js";
+import XML from "./mappers/languages/xml.js";
 import { runtimeError } from "./core/errors.js";
-import FORMATS, { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat } from "./core/formats.js";
+import FORMATS, { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat, xmlFormat } from "./core/formats.js";
 import TOKEN_TYPES from "./core/tokenTypes.js";
 import * as labels from "./core/labels.js";
-import PluginManager from "./core/pluginManager.js";
-import ModuleSystem from "./core/plugins/module-system.js";
-import RawContentPlugin from "./core/plugins/raw-content-plugin.js";
-import CommentRemover from "./core/plugins/comment-remover.js";
-import RulesValidationPlugin from "./core/plugins/rules-validation-plugin.js";
-import SomMarkFormat from "./core/plugins/sommark-format.js";
+import { resolveModules } from "./core/modules.js";
+import { formatAST } from "./core/formatter.js";
+import { validateAST } from "./core/validator.js";
 import { enableColor } from "./helpers/colorize.js";
-import { htmlTable, list, parseList, safeArg, todo } from "./helpers/utils.js";
+import { safeArg } from "./helpers/utils.js";
 
 
-export const BUILT_IN_PLUGINS = [ModuleSystem, RawContentPlugin, CommentRemover, RulesValidationPlugin, SomMarkFormat];
-
+/**
+ * The SomMark Core Engine.
+ * Processes SomMark code and turns it into different formats.
+ */
 class SomMark {
-	constructor({ src, format, mapperFile = null, includeDocument = true, plugins = [], excludePlugins = [], priority = [], filename = "anonymous" }) {
+	static Mapper = Mapper;
+	/**
+	 * Creates a new SomMark engine.
+	 * 
+	 * @param {Object} options - Settings for the engine.
+	 * @param {string} options.src - The SomMark code to process.
+	 * @param {string} options.format - The final format you want (like 'html' or 'markdown').
+	 * @param {Mapper|null} [options.mapperFile=null] - Custom rules for formatting.
+	 * @param {string} [options.filename="anonymous"] - The name of the file, used for errors and settings.
+	 * @param {boolean} [options.removeComments=true] - If true, comments will be removed from the final code.
+	 * @param {Object} [options.placeholders={}] - Values to use for {placeholders}.
+	 * @param {Object} [options.placeholder={}] - Alias for placeholders (backward compatibility).
+	 * @param {Array<string>} [options.customProps=[]] - Allowed custom HTML attributes.
+	 * @param {Array<string>} [options.importStack=[]] - Tracking for circular dependencies.
+	 */
+	constructor({ src, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholder = {}, placeholders = {}, customProps = [], importStack = [] }) {
 		this.src = src;
-		this.format = format;
+		this.targetFormat = format;
 		this.mapperFile = mapperFile;
-		this.priority = priority;
 		this.filename = filename;
+		this.removeComments = removeComments;
+		this.placeholders = { ...placeholder, ...placeholders };
+		this.customProps = customProps;
+		this.importStack = importStack;
 		this.warnings = [];
 		this._prepared = false;
 
-		// 1. Identify which built-in plugins should be active by default
-		const inactiveByDefault = ["raw-content", "sommark-format"];
-		let activeBuiltIns = BUILT_IN_PLUGINS.filter(p =>
-			!inactiveByDefault.includes(p.name) && !excludePlugins.includes(p.name)
-		);
-
-		// 2. Process 'plugins' array: 
-		// - If string, look up in BUILT_IN_PLUGINS
-		// - If object with { name, options }, it's a built-in override
-		// - If object with { plugin, options }, it's an external override
-		// - If object without name/plugin but with other keys, it's a direct plugin object
-		let processedPlugins = [];
-		let manuallyActivatedNames = [];
-
-		plugins.forEach(p => {
-			if (typeof p === "string") {
-				const builtIn = BUILT_IN_PLUGINS.find(bp => bp.name === p);
-				if (builtIn) {
-					processedPlugins.push({ ...builtIn }); // Clone to avoid mutation
-					manuallyActivatedNames.push(p);
-				}
-			} else if (typeof p === "object" && p !== null) {
-				if (p.name && p.options && !p.type) {
-					// Built-in Override: { name: "raw-content", options: { ... } }
-					const builtIn = BUILT_IN_PLUGINS.find(bp => bp.name === p.name);
-					if (builtIn) {
-						processedPlugins.push({
-							...builtIn,
-							options: { ...builtIn.options, ...p.options }
-						});
-						manuallyActivatedNames.push(p.name);
-					}
-				} else if (p.plugin && p.options) {
-					// External Override: { plugin: myPlugin, options: { ... } }
-					processedPlugins.push({
-						...p.plugin,
-						options: { ...p.plugin.options, ...p.options }
-					});
-				} else {
-					// Direct Plugin Object
-					processedPlugins.push(p);
-				}
-			}
-		});
-
-		// 3. Merge: Default active built-ins (minus ones manually re-added) + Processed Plugins
-		const finalPlugins = [
-			...activeBuiltIns
-				.filter(p => !manuallyActivatedNames.includes(p.name))
-				.map(p => ({ ...p })), // Clone defaults for isolation
-			...processedPlugins
-		];
-
-		this.plugins = finalPlugins;
-		this.pluginManager = new PluginManager(this.plugins, this.priority);
+		// Create a random token to safely wrap data
+		this.moduleIdentityToken = `$_SM_MOD_${Math.random().toString(36).slice(2, 7)}_$`;
 
 		this.Mapper = Mapper;
-		this.includeDocument = includeDocument;
 
-		const mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json, [textFormat]: new Mapper() };
+		const mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json, [xmlFormat]: XML, [textFormat]: new Mapper() };
 
-		if (!this.mapperFile && this.format) {
-			const DefaultMapper = mapperFiles[this.format];
+		if (!this.mapperFile && this.targetFormat) {
+			const DefaultMapper = mapperFiles[this.targetFormat];
 			if (DefaultMapper) {
 				this.mapperFile = DefaultMapper.clone();
 			}
@@ -104,17 +66,58 @@ class SomMark {
 			this.mapperFile = this.mapperFile.clone();
 		}
 
+		if (this.mapperFile) {
+			this.mapperFile.options.removeComments = this.removeComments;
+			this.mapperFile.options.moduleIdentityToken = this.moduleIdentityToken;
+			this.mapperFile.options.filename = this.filename;
+
+			// Initialize custom props whitelist
+			if (this.customProps && this.customProps.length > 0) {
+				const props = Array.isArray(this.customProps) ? this.customProps : [this.customProps];
+				props.forEach(prop => this.mapperFile.customProps.add(prop));
+			}
+		}
+
 		this._initializeMappers();
 	}
 
+	/**
+	 * Backward compatibility alias for placeholders.
+	 */
+	get placeholder() {
+		return this.placeholders;
+	}
+
+	set placeholder(val) {
+		this.placeholders = val;
+	}
+
+	/**
+	 * Adds a new rule or changes an existing one.
+	 * 
+	 * @param {string} id - The name of the tag.
+	 * @param {Function} render - The function that formats the tag.
+	 * @param {Object} [options] - Extra settings for the tag.
+	 */
 	register = (id, render, options) => {
 		this.mapperFile.register(id, render, options);
 	};
 
+	/**
+	 * Copies rules from other mappers.
+	 * 
+	 * @param {...Mapper} mappers - The mappers to copy from.
+	 */
 	inherit = (...mappers) => {
 		this.mapperFile.inherit(...mappers);
 	};
 
+	/**
+	 * Gets a rule by its name.
+	 * 
+	 * @param {string} id - The tag name.
+	 * @returns {Object|null}
+	 */
 	get = id => {
 		return this.mapperFile.get(id);
 	};
@@ -128,18 +131,12 @@ class SomMark {
 	};
 
 	_initializeMappers() {
-		// 1. Check if a plugin provides a mapper for this format
-		const pluginMapper = this.pluginManager.getFormatMapper(this.format);
-		if (pluginMapper) {
-			this.mapperFile = pluginMapper.clone();
-		}
-
-		if (!this.format) {
+		if (!this.targetFormat) {
 			runtimeError(["{line}<$red:Undefined Format$>: <$yellow:Format argument is not defined.$>{line}"]);
 		}
 
-		if (!this.mapperFile && this.format) {
-			runtimeError([`{line}<$red:Unknown Format$>: <$yellow:Mapper for format '${this.format}' not found.$>{line}`]);
+		if (!this.mapperFile && this.targetFormat) {
+			runtimeError([`{line}<$red:Unknown Format$>: <$yellow:Mapper for format '${this.targetFormat}' not found.$>{line}`]);
 		}
 	}
 
@@ -147,149 +144,150 @@ class SomMark {
 		this.warnings.push(message);
 	}
 
-	async _applyScopedPreprocessors(src) {
-		let processed = await this.pluginManager.runPreprocessor(src, "top-level", this);
 
-		// Helper for async regex replacement
-		const asyncReplace = async (str, regex, scope) => {
-			if (typeof str !== "string") return str;
-			const matches = [...str.matchAll(regex)];
-			if (matches.length === 0) return str;
-
-			// Process all matches in parallel for efficiency
-			const replacements = await Promise.all(
-				matches.map(async match => {
-					// match[2] is the group for content inside quotes/brackets/whatever depending on the regex
-					let contentToProcess;
-					if (scope === "arguments") contentToProcess = match[2];
-					if (scope === "content") contentToProcess = match[2];
-
-					if (contentToProcess !== undefined) {
-						const processedContent = await this.pluginManager.runPreprocessor(contentToProcess, scope, this);
-						// Reconstruct the match with processed content
-						if (scope === "arguments") return match[0].replace(match[2], processedContent);
-						if (scope === "content") return match[0].replace(match[2], processedContent);
-					}
-					return match[0];
-				})
-			);
-
-			// Reconstruct string by replacing matches in order
-			let i = 0;
-			return str.replace(regex, () => replacements[i++]);
-		};
-
-		// 1. Process Arguments Scope [...]
-		const argRegex = /\[\s*([a-zA-Z0-9\-_$]+)\s*(?:=\s*((?:[^"\\\]]|\\[\s\S]|"[^"]*")*))?\s*\]/g;
-		processed = await asyncReplace(processed, argRegex, "arguments");
-
-		// 2. Process Content Scope
-		const contentRegex = /(\]\s*)([\s\S]*?)(\s*\[\s*end\s*\])/g;
-		processed = await asyncReplace(processed, contentRegex, "content");
-
-		return processed;
-	}
-	
 	_ensurePrepared() {
 		if (this._prepared) return;
-
-		// 1. Resolve Dynamic Formats from Plugins if built-in failed
-		if (!this.mapperFile) {
-			const PluginMapper = this.pluginManager.getFormatMapper(this.format);
-			if (PluginMapper) {
-				this.mapperFile = PluginMapper.clone ? PluginMapper.clone() : PluginMapper;
-			}
-		}
 
 		// Final check
 		if (!this.mapperFile) {
 			runtimeError([
-				`{line}<$red:Unknown Format$>: <$yellow:No mapper found for format:$> <$green:'${this.format}'$>`,
-				`{N}<$yellow:Make sure you have registered a plugin that provides this format.$>{line}`
+				`{line}<$red:Unknown Format$>: <$yellow:No mapper found for format:$> <$green:'${this.targetFormat}'$>`,
+				`{N}<$yellow:Make sure you have registered format mapper correctly.$>{line}`
 			]);
-		}
-
-		// Run active registration hooks from plugins
-		this.pluginManager.runRegisterHooks(this);
-
-		// 2. Extend Mapper with static plugins definitions
-		const extensions = this.pluginManager.getMapperExtensions();
-		if (extensions.outputs.length > 0) {
-			for (const out of extensions.outputs) {
-				// Support both object {id, render, options} and array [id, render, options]
-				if (Array.isArray(out)) {
-					const [id, render, options = {}] = out;
-					this.register(id, render, options);
-				} else if (typeof out === "object" && out !== null) {
-					const renderFn = out.register || out.render;
-					if (typeof renderFn === "function") {
-						this.register(out.id, renderFn, out.options || {});
-					}
-				}
-			}
-		}
-
-		// Add recognized arguments if provided by plugins
-		if (extensions.rules && extensions.rules.recognizedArguments) {
-			if (Array.isArray(extensions.rules.recognizedArguments)) {
-				extensions.rules.recognizedArguments.forEach(arg => this.mapperFile.extraProps.add(arg));
-			}
 		}
 
 		this._prepared = true;
 	}
 
+	/**
+	 * Breaks the code into small pieces called tokens.
+	 * 
+	 * @param {string} [src=this.src] - The code to break apart.
+	 * @returns {Promise<Array<Object>>} - The list of tokens.
+	 */
 	async lex(src = this.src) {
 		this._ensurePrepared();
 		if (src !== this.src) this.src = src;
-		const processedSrc = await this._applyScopedPreprocessors(this.src);
-		let tokens = lexer(processedSrc, this.filename);
-		tokens = await this.pluginManager.runAfterLex(tokens);
+		let tokens = lexer(this.src, this.filename);
 		return tokens;
 	}
 
+	/**
+	 * Organizes the code into a tree structure.
+	 * Also handles modules and checks for errors.
+	 * 
+	 * @param {string} [src=this.src] - Optional source override.
+	 * @returns {Promise<Array<Object>>} - The final code tree.
+	 */
 	async parse(src = this.src) {
 		const tokens = await this.lex(src);
-		let ast = parser(tokens, this.filename);
-		ast = await this.pluginManager.runOnAst(ast, { 
-			mapperFile: this.mapperFile, 
+		let ast = parser(tokens, this.filename, this.placeholders);
+
+		ast = await resolveModules(ast, {
+			mapperFile: this.mapperFile,
 			filename: this.filename,
-			format: this.format,
-			instance: this
+			format: this.targetFormat,
+			instance: this,
+			importStack: this.importStack
 		});
+
+		if (this.mapperFile) {
+			validateAST(ast, this.mapperFile, this);
+		}
+
 		return ast;
 	}
 
+	parseSync(src = this.src) {
+		this._ensurePrepared();
+		if (src !== this.src) this.src = src;
+		const tokens = lexer(this.src, this.filename);
+		let ast = parser(tokens, this.filename, this.placeholders);
+
+		if (this.mapperFile) {
+			validateAST(ast, this.mapperFile, this);
+		}
+
+		return ast;
+	}
+
+	/**
+	 * Turns the SomMark code into the final format.
+	 * 
+	 * @param {string} [src=this.src] - Optional source override.
+	 * @returns {Promise<string>} - The finished code.
+	 */
 	async transpile(src = this.src) {
 		if (src !== this.src) this.src = src;
 		this._ensurePrepared();
 
 		const ast = await this.parse(src);
+		let result = await transpiler({ ast, format: this.targetFormat, mapperFile: this.mapperFile });
 
-		let result = await transpiler({ ast, format: this.format, mapperFile: this.mapperFile, includeDocument: this.includeDocument });
+		return result;
+	}
 
-		// 3. Run Transformers
-		return await this.pluginManager.runTransformers(result);
+
+	async format(options = {}) {
+		const tokens = await this.lex();
+		const ast = parser(tokens, this.filename);
+		return formatAST(ast, options);
+	}
+
+	formatSync(options = {}) {
+		const tokens = lexer(this.src, this.filename);
+		const ast = parser(tokens, this.filename);
+		return formatAST(ast, options);
 	}
 }
 
-const lex = async (src, filename = "anonymous", plugins = [], excludePlugins = []) => {
-	return await new SomMark({ src, filename, plugins, format: htmlFormat, excludePlugins }).lex();
+/**
+ * A quick way to break code into tokens.
+ * Uses HTML settings by default.
+ * 
+ * @param {string} src - The raw SomMark source.
+ * @param {string} [filename="anonymous"] - Filename for error context.
+ * @returns {Promise<Array<Object>>} - The list of tokens.
+ */
+const lex = async (src, filename = "anonymous") => {
+	return await new SomMark({ src, filename, format: htmlFormat }).lex();
 };
 
-async function parse(src, filename = "anonymous", plugins = [], excludePlugins = []) {
+/**
+ * A quick way to organize code into a tree.
+ * Uses HTML settings by default.
+ * 
+ * @param {string} src - The raw SomMark source.
+ * @param {string} [filename="anonymous"] - Filename for error context.
+ * @returns {Promise<Array<Object>>} - The final code tree.
+ */
+async function parse(src, filename = "anonymous") {
 	if (!src) {
 		runtimeError([`{line}<$red:Missing Source:$> <$yellow:The 'src' argument is required for parsing.$>{line}`]);
 	}
-	return await new SomMark({ src, filename, plugins, format: htmlFormat, excludePlugins }).parse();
+	return await new SomMark({ src, filename, format: htmlFormat }).parse();
 }
 
+/**
+ * The easiest way to process SomMark code.
+ * 
+ * @param {Object} options - Transpilation options.
+ * @param {string} options.src - Raw source code.
+ * @param {string} [options.format="html"] - Target format.
+ * @param {string} [options.filename="anonymous"] - Filename for context.
+ * @param {Mapper|null} [options.mapperFile=null] - Custom rules for formatting.
+ * @param {boolean} [options.removeComments=true] - Strip comments.
+ * @param {Object} [options.placeholders={}] - Global placeholders.
+ * @param {Object} [options.placeholder={}] - Alias for placeholders.
+ * @param {Array<string>} [options.customProps=[]] - Custom attribute whitelist.
+ * @returns {Promise<string>} - Transpiled output.
+ */
 async function transpile(options = {}) {
-	const { src, format = htmlFormat, filename = "anonymous", mapperFile = null, includeDocument = true, plugins = [], excludePlugins = [], priority = [] } = options;
+	const { src, format = htmlFormat, filename = "anonymous", mapperFile = null, removeComments = true, placeholder = {}, placeholders = {}, customProps = [] } = options;
 	if (typeof options !== "object" || options === null) {
 		runtimeError([`{line}<$red:Invalid Options:$> <$yellow:The options argument must be a non-null object.$>{line}`]);
 	}
-	const knownProps = ["src", "format", "filename", "mapperFile", "includeDocument", "plugins", "excludePlugins", "priority"];
+	const knownProps = ["src", "format", "filename", "mapperFile", "removeComments", "placeholder", "placeholders", "customProps"];
 	Object.keys(options).forEach(key => {
 		if (!knownProps.includes(key)) {
 			runtimeError([
@@ -301,13 +299,29 @@ async function transpile(options = {}) {
 		runtimeError([`{line}<$red:Missing Source:$> <$yellow:The 'src' argument is required for transpilation.$>{line}`]);
 	}
 
-	const sm = new SomMark({ src, format, filename, mapperFile, includeDocument, plugins, excludePlugins, priority });
+	const sm = new SomMark({ src, format, filename, mapperFile, removeComments, placeholder, placeholders, customProps });
 	return await sm.transpile();
 }
 
+/**
+ * A quick, synchronous way to get tokens.
+ * 
+ * @param {string} src - Raw source code.
+ * @returns {Array<Object>} - The list of tokens.
+ */
 const lexSync = src => lexer(src);
 
-const parseSync = src => parser(lexer(src));
+/**
+ * A quick, synchronous way to get the code tree.
+ * 
+ * @param {string} src - Raw source code.
+ * @param {Object} [options={}] - Parsing options.
+ * @returns {Array<Object>} - The code tree.
+ */
+const parseSync = (src, options = {}) => {
+	const { format = htmlFormat, filename = "anonymous", mapperFile = null, removeComments = true, placeholder = {}, placeholders = {}, customProps = [] } = options;
+	return new SomMark({ src, format, filename, mapperFile, removeComments, placeholder, placeholders, customProps }).parseSync();
+};
 
 import { findAndLoadConfig } from "./core/helpers/config-loader.js";
 
@@ -316,23 +330,19 @@ export {
 	MARKDOWN,
 	MDX,
 	Json,
+	XML,
 	Mapper,
-	TagBuilder,
-	MarkdownBuilder,
 	FORMATS,
 	lex,
 	parse,
 	transpile,
 	lexSync,
 	parseSync,
+	formatAST,
 	TOKEN_TYPES,
 	labels,
 	enableColor,
-	htmlTable,
-	list,
-	parseList,
 	safeArg,
-	todo,
 	findAndLoadConfig
 };
 export default SomMark;
