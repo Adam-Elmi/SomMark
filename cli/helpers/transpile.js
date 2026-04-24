@@ -15,16 +15,14 @@ const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [m
 // ========================================================================== //
 //  Transpile Function                                                        //
 // ========================================================================== //
-export async function transpile({ src, format, filename = null, mappingFile = "" }) {
-    const config = await loadConfig(filename);
+export async function transpile({ src, format, filename = null, mappingFile = "", config = null }) {
+    const finalConfig = config || await loadConfig(filename);
     let finalMapper = mappingFile;
 
-
-
-    // 1. Resolve Mapping File
+    // 1. Find the Mapping File
     if (typeof mappingFile !== "object" || mappingFile === null) {
-        if (config.mappingFile) {
-            finalMapper = config.mappingFile;
+        if (finalConfig.mappingFile) {
+            finalMapper = finalConfig.mappingFile;
         } else {
             finalMapper = default_mapperFiles[format];
         }
@@ -37,16 +35,13 @@ export async function transpile({ src, format, filename = null, mappingFile = ""
         }
     }
 
-    // 2. Use SomMark Unified API
+    // 2. Run SomMark Process
     const smark = new SomMark({
+        ...finalConfig,
         src,
         format,
         filename,
         mapperFile: finalMapper,
-        plugins: config.plugins,
-        priority: config.priority,
-        excludePlugins: config.excludePlugins,
-        includeDocument: config.includeDocument ?? true
     });
 
     return await smark.transpile();
