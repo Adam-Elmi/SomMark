@@ -5,6 +5,7 @@ import HTML from "../../mappers/languages/html.js";
 import MARKDOWN from "../../mappers/languages/markdown.js";
 import MDX from "../../mappers/languages/mdx.js";
 import Json from "../../mappers/languages/json.js";
+import XML from "../../mappers/languages/xml.js";
 import { extensions } from "../constants.js";
 import { isExist, readContent, createFile } from "../helpers/file.js";
 import { loadConfig } from "../helpers/config.js";
@@ -13,11 +14,20 @@ import { transpile } from "../helpers/transpile.js";
 // ========================================================================== //
 //  Generate Output File                                                      //
 // ========================================================================== //
-async function generateOutput(outputDir, outputFile, format, sourcePath, mappingFile) {
+/**
+ * Helper to generate and save the created code.
+ * @param {string} outputDir - Directory to save the file.
+ * @param {string} outputFile - Output filename (without extension).
+ * @param {string} format - Target format (html, markdown, etc.).
+ * @param {string} sourcePath - Path to the source .smark file.
+ * @param {Mapper|null} mappingFile - Custom mapped rules.
+ * @returns {Promise<string>} - The full path to the created file.
+ */
+async function generateOutput(outputDir, outputFile, format, sourcePath, mappingFile, config) {
     let source_code = await readContent(sourcePath);
     source_code = source_code.toString();
     const absolutePath = path.resolve(process.cwd(), sourcePath);
-    const output = await transpile({ src: source_code, format, filename: absolutePath, mappingFile });
+    const output = await transpile({ src: source_code, format, filename: absolutePath, mappingFile, config });
     const finalPath = path.join(outputDir, `${outputFile}.${extensions[format]}`);
     await createFile(outputDir, `${outputFile}.${extensions[format]}`, output);
     return finalPath;
@@ -26,6 +36,16 @@ async function generateOutput(outputDir, outputFile, format, sourcePath, mapping
 // ========================================================================== //
 //  Run Build Process                                                         //
 // ========================================================================== //
+/**
+ * The starting point for the build process.
+ * Checks the file type, loads settings, and creates the output code.
+ * 
+ * @param {string} format_option - The file format to output (like '--html').
+ * @param {string} sourcePath - The path to the file you want to build.
+ * @param {string} outputFlag - The '-o' flag.
+ * @param {string} outputFileArg - The custom filename.
+ * @param {string} outputDirArg - The custom directory.
+ */
 export async function runBuild(format_option, sourcePath, outputFlag, outputFileArg, outputDirArg) {
     try {
         const format = format_option.replaceAll("-", "") ?? "";
@@ -58,7 +78,7 @@ export async function runBuild(format_option, sourcePath, outputFlag, outputFile
                 let mappingFile = config.mappingFile;
 
                 if (!mappingFile) {
-                    mappingFile = format === "html" ? HTML : format === "markdown" ? MARKDOWN : format === "mdx" ? MDX : format === "json" ? Json : null;
+                    mappingFile = format === "html" ? HTML : format === "markdown" ? MARKDOWN : format === "mdx" ? MDX : format === "json" ? Json : format === "xml" ? XML : null;
                 }
 
                 // CLI Overrides
@@ -69,7 +89,7 @@ export async function runBuild(format_option, sourcePath, outputFlag, outputFile
                     }
                 }
 
-                const createdFilePath = await generateOutput(finalOutputDir, finalOutputFile, format, sourcePath, mappingFile);
+                const createdFilePath = await generateOutput(finalOutputDir, finalOutputFile, format, sourcePath, mappingFile, config);
                 const stats = await fs.stat(createdFilePath);
                 const date = new Date().toLocaleString();
 
