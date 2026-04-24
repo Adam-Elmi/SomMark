@@ -2,92 +2,40 @@ import TagBuilder from "../formatter/tag.js";
 import MarkdownBuilder from "../formatter/mark.js";
 import escapeHTML from "../helpers/escapeHTML.js";
 import { sommarkError } from "../core/errors.js";
-import { matchedValue, safeArg, htmlTable, list, todo } from "../helpers/utils.js";
+import { matchedValue, safeArg } from "../helpers/utils.js";
 
 
-// ========================================================================== //
-//  Main Mapper Class                                                         //
-// ========================================================================== //
+/**
+ * The base class for all mappers. It manages how tags and blocks are turned into final text.
+ * This is used to build HTML, MDX, and other output formats.
+ */
 class Mapper {
-	#customHeaderContent;
-	// ========================================================================== //
-	//  Constructor                                                               //
-	// ========================================================================== //
+	/**
+	 * Sets up a new mapper with empty lists for rules and tags.
+	 */
 	constructor() {
+		/** @type {Array<Object>} List of rules for formatting tags. */
 		this.outputs = [];
+		/** @type {MarkdownBuilder} Specialized builder for Markdown-related formatting. */
 		this.md = new MarkdownBuilder();
-
-		this.extraProps = new Set(); // For plugins to add recognized arguments
-
-		this.pageProps = {
-			pageTitle: "SomMark Page",
-			tabIcon: {
-				type: "image/x-icon",
-				src: ""
-			},
-			charset: "UTF-8",
-			viewport: "width=device-width, initial-scale=1.0",
-			httpEquiv: { "X-UA-Compatible": "IE=edge" }
-		};
-
-		this.#customHeaderContent = "";
-
+		/** @type {Set<string>} A list of extra property names this mapper understands. */
+		this.customProps = new Set();
+		/** @type {Function} Helper that makes text safe for HTML. */
 		this.escapeHTML = escapeHTML;
-		this.htmlTable = htmlTable;
-		this.list = list;
-		this.todo = todo;
-		this.styles = [];
+		/** @type {Object} Settings that change how this mapper works. */
+		this.options = {};
 	}
 
-	// ========================================================================== //
-	//  Style Management                                                          //
-	// ========================================================================== //
+	// -- Tag Registration ---------------------------------------------------- //
 
-	addStyle(css) {
-		if (typeof css === "object" && css !== null) {
-			let styleString = "";
-			for (const [selector, rules] of Object.entries(css)) {
-				let rulesString = "";
-				for (const [prop, value] of Object.entries(rules)) {
-					rulesString += `${prop}:${value};`;
-				}
-				styleString += `${selector}{${rulesString}}`;
-			}
-			css = styleString;
-		}
-
-		if (typeof css === "string" && css.trim() && !this.styles.includes(css.trim())) {
-			this.styles.push(css.trim());
-		}
-	}
-
-
-	// ========================================================================== //
-	//  Header Generation                                                         //
-	// ========================================================================== //
-	get header() {
-		const { pageTitle, tabIcon, charset, viewport, httpEquiv } = this.pageProps;
-
-		let metas = "";
-		metas += `${this.tag("meta").attributes({ charset }).selfClose()}\n`;
-		metas += `${this.tag("meta").attributes({ name: "viewport", content: viewport }).selfClose()}\n`;
-
-		for (const [key, value] of Object.entries(httpEquiv)) {
-			metas += `${this.tag("meta").attributes({ "http-equiv": key, content: value }).selfClose()}\n`;
-		}
-
-		metas += `${this.tag("title").body(pageTitle)}\n`;
-
-		if (tabIcon && tabIcon.src) {
-			metas += `${this.tag("link").attributes({ rel: "icon", type: tabIcon.type, href: tabIcon.src }).selfClose()}\n`;
-		}
-
-		return metas + this.#customHeaderContent;
-	}
-
-	// ========================================================================== //
-	//  Mappings                                                                  //
-	// ========================================================================== //
+	/**
+	 * Registers a new tag rule. It needs a name and a function that says how to format it.
+	 * 
+	 * @param {string|Array<string>} id - The name of the tag (like 'Person' or ['p', 'para']).
+	 * @param {Function} renderOutput - The function that formats this tag.
+	 * @param {Object} [options={ escape: true }] - Settings for this tag.
+	 * @param {boolean} [options.escape=true] - If true, the content will be made safe for HTML automatically.
+	 */
 	register(id, renderOutput, options = { escape: true }) {
 		if (!id || !renderOutput) {
 			throw new Error("Expected arguments are not defined");
@@ -100,17 +48,8 @@ class Mapper {
 		if (typeof renderOutput !== "function") {
 			throw new TypeError("argument 'renderOutput' expected to be a function");
 		}
-		const render = function (data) {
-			if (
-				typeof data !== "object" ||
-				data === null ||
-				!Object.prototype.hasOwnProperty.call(data, "args") ||
-				!Object.prototype.hasOwnProperty.call(data, "content")
-			) {
-				throw new TypeError("render expects an object with properties { args, content }");
-			}
-			return renderOutput.call(this, data);
-		};
+		
+		const render = renderOutput;
 
 		// Prevent duplicate IDs by removing any existing overlap before registering
 		const ids = Array.isArray(id) ? id : [id];
@@ -121,6 +60,12 @@ class Mapper {
 		this.outputs.push({ id, render, options });
 	}
 
+	/**
+	 * Inherits all registered outputs from one or more other mappers.
+	 * Last-match-wins logic: If an output exists in multiple mappers, the one from the last mapper in the list is used.
+	 * 
+	 * @param {...Mapper} mappers - The mapper instances to inherit from.
+	 */
 	inherit(...mappers) {
 		for (const mapper of mappers) {
 			if (mapper && Array.isArray(mapper.outputs)) {
@@ -135,46 +80,100 @@ class Mapper {
 		}
 	}
 
+	/**
+	 * Removes a specific output registration by its ID.
+	 * @param {string} id - The output identifier to remove.
+	 */
 	removeOutput(id) {
-		this.outputs = this.outputs.filter(output => {
-			if (Array.isArray(output.id)) {
-				return !output.id.some(singleId => singleId === id);
-			} else {
-				return output.id !== id;
-			}
-		});
+		this.outputs = this.outputs
+			.map(output => {
+				if (Array.isArray(output.id)) {
+					// Only remove the specific ID from the array
+					const newIds = output.id.filter(singleId => singleId !== id);
+					if (newIds.length === 0) return null; // Remove entire entry if no IDs left
+					if (newIds.length === output.id.length) return output; // No change
+					return { ...output, id: newIds }; // Return updated entry
+				} else {
+					return output.id === id ? null : output;
+				}
+			})
+			.filter(Boolean); // Clean up nulls
 	}
 
+	/**
+	 * Retrieves a registered output entry (render function and options) by ID.
+	 * @param {string} id - The output identifier.
+	 * @returns {Object|null} - The output entry or null if not found.
+	 */
 	get(id) {
 		return matchedValue(this.outputs, id) || null;
 	}
 
-	// ========================================================================== //
-	//  Helpers                                                                   //
-	// ========================================================================== //
+	// -- Utility Helpers ------------------------------------------------------ //
+
+	/**
+	 * Placeholder for comment rendering. Should be overridden by specific mappers.
+	 * @param {string} text - The raw comment text.
+	 * @returns {string} - The formatted comment string.
+	 */
 	comment(text) {
 		return "";
 	}
+
+	/**
+	 * Formats a plain text node.
+	 * @param {string} text - The raw text content.
+	 * @param {Object} [options] - Target options like { escape: false }.
+	 * @returns {string} - The formatted text string.
+	 */
+	text(text, options) {
+		return text;
+	}
+
+	/**
+	 * Formats the content of an inline statement.
+	 * @param {string} text - The raw inline content.
+	 * @param {Object} options - The target output options.
+	 * @returns {string} - The formatted inline string.
+	 */
+	inlineText(text, options) {
+		return text;
+	}
+
+	/**
+	 * Formats the raw body of an At-Block.
+	 * @param {string} text - The raw atblock body.
+	 * @param {Object} options - The target output options.
+	 * @returns {string} - The formatted atblock string.
+	 */
+	atBlockBody(text, options) {
+		return text;
+	}
+
+
+	/**
+	 * Handles unknown tags. Should be overridden by specific mappers to provide fallback behavior.
+	 * @param {Object} node - The AST node for the unknown id.
+	 * @returns {Object|null} - A tag-like entry for fallback rendering.
+	 */
 	getUnknownTag(node) {
 		return null;
 	}
+
+	/**
+	 * Creates a new TagBuilder instance for programmatic HTML-like tag creation.
+	 * @param {string} tagName - The name of the tag (e.g., 'div', 'p').
+	 * @returns {TagBuilder}
+	 */
 	tag(tagName) {
 		return new TagBuilder(tagName);
 	}
 
-	getCustomHeaderContent() {
-		return this.#customHeaderContent;
-	}
-
-	setHeader(rawData) {
-		if (Array.isArray(rawData)) {
-			for (const data of rawData) {
-				if (typeof data === "string") {
-					this.#customHeaderContent += data + "\n";
-				}
-			}
-		}
-	}
+	/**
+	 * Checks if this mapper has any of the specified IDs registered.
+	 * @param {Array<string>} ids - List of IDs to check for.
+	 * @returns {boolean} - True if at least one ID exists.
+	 */
 	includesId(ids) {
 		try {
 			if (!Array.isArray(ids) || ids.length === 0) {
@@ -209,35 +208,65 @@ class Mapper {
 		}
 	}
 
-	safeArg(args, index, key, type = null, setType = null, fallBack = null) {
-		return safeArg(args, index, key, type, setType, fallBack);
+	/**
+	 * Safely retrieves an argument value, handling both named and positional access.
+	 * 
+	 * @param {Object} options - Resolution options.
+	 * @returns {any} - The resolved argument value.
+	 */
+	safeArg(options) {
+		return safeArg(options);
 	}
 
+	/**
+	 * Creates a deep clone of the mapper instance, isolating output registrations.
+	 * Inherits all properties and binds methods to the new instance.
+	 * 
+	 * @returns {Mapper} - The cloned mapper instance.
+	 */
 	clone() {
-		const newMapper = new this.constructor();
+		const newMapper = new Mapper();
+		for (const [key, val] of Object.entries(this)) {
+			if (key === "outputs" || key === "customProps" || key === "md") continue;
 
-		// Map-clone outputs to ensure options are isolated but render remains bound
+			if (typeof val === "object" && val !== null && !Array.isArray(val)) {
+				newMapper[key] = { ...val };
+			} else {
+				newMapper[key] = val;
+			}
+		}
+
+		newMapper.options = { ...this.options };
+
+		// Deep-clone specific structural properties
 		newMapper.outputs = this.outputs.map(out => ({
 			...out,
 			options: out.options ? { ...out.options } : { escape: true }
 		}));
 
-		newMapper.styles = [...this.styles];
-
-		// deep clone pageProps
-		newMapper.pageProps = JSON.parse(JSON.stringify(this.pageProps));
-
-		newMapper.extraProps = new Set(this.extraProps);
-		newMapper.setHeader([this.getCustomHeaderContent()]);
+		newMapper.customProps = new Set(this.customProps);
+		
 		return newMapper;
 	}
 
+	/**
+	 * Clears all registered outputs from the mapper.
+	 */
 	clear() {
 		this.outputs = [];
 	}
 
-	formatOutput(output, includeDocument) {
-		return output;
+	/**
+	 * Static factory method to create a new Mapper instance with pre-defined properties.
+	 * @param {Object} [options={}] - Properties and methods to add to the mapper.
+	 * @returns {Mapper}
+	 */
+	static define(options = {}) {
+		const mapper = new Mapper();
+		for (const [key, val] of Object.entries(options)) {
+			mapper[key] = val;
+		}
+		return mapper;
 	}
 }
 export default Mapper;
