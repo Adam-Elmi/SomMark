@@ -1,36 +1,32 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import { getConfigDir } from "./init.js";
+import { formatMessage } from "../../core/errors.js";
 
-// ========================================================================== //
-//  Color Command                                                              //
-// ========================================================================== //
-
-const COLOR_FILE = "color.json";
-
-function getColorFilePath() {
-    return path.join(getConfigDir(), COLOR_FILE);
-}
-
+/**
+ * Checks if colors are turned on in your settings.
+ * @returns {Promise<boolean>}
+ */
 export async function isColorEnabled() {
-    try {
-        const data = await fs.readFile(getColorFilePath(), "utf-8");
-        return JSON.parse(data).enabled === true;
-    } catch {
-        return false;
-    }
+    return process.env.SOMMARK_COLOR === "true";
 }
 
+/**
+ * Shows the user how to turn colors on or off.
+ * @param {string} action - 'on' or 'off'.
+ */
 export function runColor(action) {
     if (action === "on") {
-        fs.mkdir(getConfigDir(), { recursive: true })
-            .then(() => fs.writeFile(getColorFilePath(), JSON.stringify({ enabled: true }), "utf-8"))
-            .then(() => console.log("Colors enabled."));
+        console.log(formatMessage([
+            `{line}<$yellow:SomMark uses Environment Variables for colors:$>{line}`,
+            `<$blue:Set this in your current shell:$>`,
+            `  <$cyan:export SOMMARK_COLOR=true$>{line}`,
+            `<$blue:Add it to your .bashrc or .zshrc for permanent effect.$>{line}`
+        ].join("")));
     } else if (action === "off") {
-        fs.mkdir(getConfigDir(), { recursive: true })
-            .then(() => fs.writeFile(getColorFilePath(), JSON.stringify({ enabled: false }), "utf-8"))
-            .then(() => console.log("Colors disabled."));
+        console.log(formatMessage([
+            `{line}<$yellow:To disable colors, run:$>{line}`,
+            `  <$cyan:export SOMMARK_COLOR=false$>{line}`,
+            `<$blue:(Or remove the SOMMARK_COLOR variable from your shell config)$>{line}`
+        ].join("")));
     } else {
-        console.log("Usage: sommark color <on|off>");
+        console.log(formatMessage(`Usage: <$blue:sommark color on|off$>`));
     }
 }
