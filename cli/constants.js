@@ -1,13 +1,17 @@
-// ========================================================================== //
-//  CLI Constants                                                             //
-// ========================================================================== //
+/**
+ * CLI Constants
+ * Supported options and format-to-extension mappings.
+ */
 
-export const options = ["-v", "--version", "-h", "--help", "--html", "--markdown", "--mdx", "--json", "--text", "--print", "-p", "--lex", "--parse", "list"];
+/** @type {Array<string>} List of recognized CLI flags and commands. */
+export const options = ["-v", "--version", "-h", "--help", "--html", "--markdown", "--mdx", "--json", "--text", "--xml", "--print", "-p", "--lex", "--parse", "list"];
 
+/** @type {Object<string, string>} Map of output formats to their respective file extensions. */
 export const extensions = {
 	text: "txt",
 	html: "html",
 	markdown: "md",
 	mdx: "mdx",
-	json: "json"
+	json: "json",
+	xml: "xml"
 };
