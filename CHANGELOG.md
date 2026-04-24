@@ -1,244 +1,28 @@
 # Changelog
-All notable changes to this project will be documented in this file.
 
-## v3.3.4 (2026-03-29)
+## v4.0.0: Redesigned and rewritten the SomMark engine (2026-04-24)
 
-### New & Improved
+### Major Changes & New Features
 
-- **Better MDX**: You can now use math and code like `{1 < 5}` without any issues.
-- **Fixed Spacing**: MDX code blocks and components now have the correct spacing between them.
-- **Faster and More Reliable**: Moved MDX logic into the core engine for a better experience.
+#### 1. Prefix Layers
+I introduced two new layers for dynamic data injection:
+*   **Placeholder Layer (`p{}`)**: For simple text replacement in body text or arguments.
+*   **JavaScript Data Layer (`js{}`)**: For passing native JavaScript types (Arrays, Objects, Booleans, Strings, Numbers, Null, Undefined, etc.) into component headers.
 
-### CLI & Configuration
+#### 2. Native Module System
+I replaced the old, unstable logic with a robust, recursive module system.
+*   **`[import]`**: Allows you to bring in external mappers.
+*   **`[$use-module]`**: Allows you to inject those mappers into specific document scopes.
 
-- **Better Config Loading**: Fixed a bug where the program could get stuck looking for the config file.
-- **Consistent Settings**: The CLI now correctly applies all your configuration settings (like excluding plugins) everywhere.
-- **Local Config**: You can now run `sommark init --local` to create a `smark.config.js` file right in your current folder.
+#### 3. Format-Free Transpiler
+I have cleaned up how the Transpiler and Mapper communicate. Previously, the transpiler was filled with format-specific checks like `if(format === htmlFormat)`. I have removed these, making the transpiler completely format-agnostic and much easier to maintain.
 
+#### 4. New Lexer & Semantic Tokens
+I updated the Lexer to be more precise and introduced new tokens to handle the V4 structural rules:
+*   `whitespace`, `import`, `$use-module`, `quote`, `prefix_js`, `prefix_p`, and `eof`.
 
-## v3.3.3 (2026-03-28)
+#### 5. Complex Arguments with Double Quotes
+I introduced support for double quotes in argument headers. This allows you to use complex keys and values (including those with colons or spaces) safely.
 
-### Fixed
-
-- **MDX Output**: Fixed unwanted newlines breaking MDX output.
-  - Tags with one child stay on one line now.
-  - Tags with many children still get newlines for mdx compatibility.
-
-## v3.3.2 (2026-03-22)
-
-### Improvements
-
-- **Core Engine**: Better at finding and loading config files.
-- **Error Handling**: More accurate error messages with exact line and column info.
-- **Mappers**: Added easy-to-use tools for tables, lists, and todos.
-- **Specification**: Clearer rules for writing content at the top level of documents.
-
-## v3.3.1 (2026-03-20)
-### Fixed
-- **sommark-format plugin**:
-  - Restored native quote preservation/restoration for arguments containing spaces or special characters.
-  - Ensured `AtBlocks` always include a mandatory trailing semicolon, even when no arguments are present.
-  - Standardized key-value argument formatting with a space after the colon.
-  - Improved top-level content preservation during formatting.
-
-## v3.3.0 (2026-03-20)
-
-### New Features
-
-- **Top-Level Scope**: You can now use Text, Inline tags, and At-Blocks directly at the top level of a document. A wrapping `[Block]` is no longer mandatory for basic content.
-- **Native Quote Support**: The `quote-escaper` plugin has been replaced by high-performance native quote handling built directly into the core engine.
-
-### Improvements
-
-- **Module System**: Standardized the syntax for the built-in module system (`[import]` and `[$use-module]`).
-- **Documentation Refresh**: Updated all guides and syntax references to reflect the new top-level rules and native features.
-- **LSP Full Support**: Finalized internal range and position tracking to provide full support for Language Server Protocol (LSP) features in code editors.
-
-## v3.2.3 (2026-03-16)
-
-### Fixes
-
-- **Error Reporting Positioning**: Fixed a bug where error messages would sometimes fallback to the wrong line number (line 1) when hitting the end of a file.
-- **Lexer Precision**: Improved position tracking in the lexer and added explicit line/column info to lexer-thrown errors for better LSP diagnostics.
-
-## v3.2.2 (2026-03-16)
-
-### Fixes
-
-- **Whitespace Handling**: Fixed a regression where the lexer would skip whitespace and newlines without updating position counts.
-- **Improved Token Creation**: Standardized internal token creation to always advance the cursor correctly, even for trimmed identifiers.
-
-## v3.2.1 (2026-03-16)
-
-### Fixes
-
-- **Parser Regression**: Restored broken error reporting caused by using old `.line` property instead of the new `.range` object.
-
-## v3.2.0 (2026-03-16)
-
-### Improvements
-
-- **Better Position Tracking**: All parts of the code now track exactly where they are in the file using standard 0-indexed positions.
-- **Range Support**: Tokens and AST nodes now include `range` data to help editors with highlighting and navigation.
-- **Improved Lexer**: Simplified how position data is updated for better reliability.
-- **End-of-File Marker**: Added an `EOF` marker to ensure the final position of the file is always recorded.
-
-## v3.1.0 (2026-03-16)
-
-### New Features
-
-- Added `lexSync` and `parseSync` as pure synchronous functions for easier integration.
-
-## v3.0.0 (2026-03-16)
-
-### Big Changes
-
-- Better naming rules for tags: `$`, `_`, and `-` now work the same everywhere.
-- Tag types are now clearer when you register them.
-- Atblocks now require a semicolon (`;`) at the Atblock header even there are no arguments.
-
-### New Features
-
-- Full support for all HTML5 tags and properties.
-- Full support for Markdown and MDX.
-- Better plugin system: Plugins can now run in a specific order and don't interfere with each other.
-- Plugins can run at different times (before lexing, during parsing, or after transpiling).
-- Many new built-in plugins for common tasks like removing comments or escaping quotes.
-- New ways to add features directly to a SomMark instance.
-- Easier to change or add your own tag behaviors.
-- Support for CSS variables (like `color: --primary`).
-- Links for headings are now made automatically.
-- Tag matching can now ignore big or small letters.
-- Much faster and more reliable internal code.
-- New CLI commands to see your plugins, configuration, and colors.
-- Common plugins like `CommentRemover` are now on by default.
-
-### Fixes
-
-- Fixed cases where the program would get stuck (infinite loops).
-- Better handling of spaces and new lines between paragraphs.
-- Better multi-line support for blocks and Markdown.
-- Fixed small bugs with commas and nested tags.
-- Fixed a bug where `=` didn't work right in some places.
-- Better error messages in the CLI.
-- Fixed a bug where `todo` lists didn't show the correct checkmark status.
-- Moved common tools to a single place for better maintenance.
-- Full documentation for all parts of the code.
-
-## v2.3.2
-
-### Fixed
-- Fixed: [Cli] CLI Fails to Print JSON Output with --json Flag (Issue #8)
-- Fixed: [Parser] Inline Value Tokenization Fails When Starting or Containing Escape Character (Issue #9)
-
-## v2.3.1 (2026-03-02)
-
-### Fixed
-* Fixed MDX format issue
-
-
-## v2.3.0 (2026-02-23)
-
-### Added
-
-* Added missing JSON support in the CLI.
-* Added two new methods: makeFrontmatter and raw_js_imports.
-* Added new documentation.
-
-### Fixed
-
-* Fixed MDX format output error caused by extra whitespaces.
-* Fixed colon issue in atblock body.
-
-### Improved
-
-* Improved several internal methods.
-* Updated and enhanced tests.
-
-
-## v2.2.0 (2026-02-23)
-## Features
-- Added JSON support
-- Added type rules to validate element type
-- Improved documentation
-- Improved mapper files
-- Removed **highlight.js** dependency
-- Added new CLI feature: automatic configuration file creation
-
-
-## v2.1.2 (2026-02-09)
-### Fixes
--  Fixed cli print functionality
-
-## v2.1.1 (2026-02-09)
-### Fixes
--  Fixed undefined or null arguments
-
-## v2.1.0 (2026-02-08)
-
-### Fixes
--  Fixed styles property to include css styles
-
-### Removed
-- Removed `getStyle` method
-
-### Features
-- Added new rule that handles self-closing tags
-
-### Improvements
-- Improved documentation
-- Added missing property `enable_table_styles` from `/mappers/mapper.js`
-
-
-## v2.0.2 (2026-02-03)
-
-### Features
-- **Exports**: Exposed `TOKEN_TYPES` and `labels` from core for advanced usage.
-
-### Refactoring
-- **Config**: Removed unused `custom_html` import from `smark.config.js`.
-
-### Fixes
-- **CLI**: Fixed typo in help message.
-- **Cleanup**: Cleaned up `.npmignore`.
-
-## v2.0.1 (2026-02-02)
-
-### Refactoring
-- **Highlight System**: Removed dependency on filesystem loading for themes. Bundled `atom-one-dark` theme by default.
-- **Theme Registry**: Introduced `registerHighlightTheme` and `selectHighlightTheme` for easier theme management.
-- **Auto-Detection**: Removed `hasCode` property. The transpiler now auto-detects code blocks for style injection if `enable_highlightTheme` is true.
-
-### Documentation
-- **API Reference**: Complete overhaul of `docs/api` with renumbered files and new methods.
-- **Syntax Guide**: Added comprehensive documentation for Block, Inline, and AtBlock syntax with examples.
-- **Mappers**: Added `default_mappers.md` listing all built-in HTML, Markdown, and MDX mappings.
-- **Escape Characters**: Added `escape_character.md` guide.
-
-### Fixes
-- **Browser Compatibility**: Fixed `loadCss` to work correctly in browser environments using `fetch`.
-- **Path Resolution**: Fixed path resolution issues for theme loading.
-
-## v2.0.0 (2026-02-01)
-
-> [!WARNING]
-> Old version is no longer supported.
-
-### Breaking Changes
-
-- **At-Blocks Terminator**: At-Blocks now require a semicolon (`;`) at the end of the argument list to support multi-line headers.
-
-### Features
-- **Flexible Inline Syntax**: Support for newlines and whitespace within inline syntax.
-- **Flexible Block Definitions**: Support for multi-line headers in block definitions.
-- **Named Arguments**: Blocks and At-Blocks now support Key-Value (named) arguments, allowing for order-independent and optional parameters.
-- **Multi-Value Inlines**: Inline identifiers now support multiple comma-separated values (e.g., `(Text)->(gradient: red, blue)`).
-- **Escape Character Support**: Added support for escaping special characters in arguments using a backslash (`\`).
-- **Text Output Rendering**: Added functionality to render pure text output.
-- **Mapper Validation**: Mappers can now define validation rules (self-rules) that are enforced by the transpiler.
-
-### Improvements
-- **Lexer Refactor**: The lexer now treats commas (`,`) as distinct tokens, also colons (`:`) are now treated as distinct tokens..
-- **Mapper Logic**: General improvements to mapper internal logic.
-- **API References**: Improved documentation and API references.
-- **Testing**: Updated tests for new syntax and added coverage for new features.
+#### 6. Total Cleanup
+I have entirely removed unnecessary methods and properties, streamlining the engine for high performance. SomMark is now clean, predictable, and works exactly as intended.

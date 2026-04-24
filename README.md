@@ -1,4 +1,4 @@
-# SomMark <img src="assets/smark.logo.png" width="80" align="right">
+# SomMark v4 <img src="assets/smark.logo.png" width="80" align="right">
 
 SomMark is a high-performance markup language designed for structured content. It acts as an extensible source language that can be transformed into multiple formats like HTML, JSON, MDX, XML, and Markdown.
 
