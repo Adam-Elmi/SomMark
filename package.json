@@ -1,8 +1,21 @@
 {
 	"name": "sommark",
-	"version": "3.3.4",
-	"description": "SomMark is a declarative, extensible markup language for structured content that can be converted to HTML, Markdown, MDX, JSON, and more.",
+	"version": "4",
+	"description": "SomMark is a declarative, extensible markup language for structured content that can be converted to HTML, Markdown, MDX, JSON, XML, and more.",
 	"main": "index.js",
+	"files": [
+		"index.js",
+		"core/",
+		"mappers/",
+		"helpers/",
+		"formatter/",
+		"constants/",
+		"cli/",
+		"assets/",
+		"grammar.ebnf",
+		"README.md",
+		"LICENSE"
+	],
 	"directories": {
 		"test": "tests"
 	},
@@ -12,8 +25,9 @@
 	},
 	"scripts": {
 		"test": "vitest",
-		"test:run": "vitest run",
-		"test:watch": "vitest watch"
+		"test:run": "vitest run --pool=forks --maxWorkers=1",
+		"test:watch": "vitest watch",
+		"test:html": "vitest run tests/html"
 	},
 	"bin": {
 		"sommark": "cli/cli.mjs"
@@ -32,6 +46,8 @@
 		"html",
 		"markdown",
 		"mdx",
+		"xml",
+		"json",
 		"dsl",
 		"mapper",
 		"mapping"
@@ -43,6 +59,12 @@
 	},
 	"homepage": "https://github.com/Adam-Elmi/SomMark#readme",
 	"devDependencies": {
+		"@mdx-js/mdx": "^3.1.1",
+		"fast-xml-parser": "^5.5.11",
+		"jsdom": "^29.0.2",
+		"remark": "^15.0.1",
+		"remark-gfm": "^4.0.1",
+		"remark-parse": "^11.0.0",
 		"vitest": "^4.0.16"
 	}
 }
