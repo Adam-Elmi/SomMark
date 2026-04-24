@@ -5,6 +5,10 @@ import { loadConfig, getResolvedConfigPath } from "../helpers/config.js";
 //  Show Command                                                              //
 // ========================================================================== //
 
+/**
+ * Shows the configuration data or where the settings file is located.
+ * @param {string} target - The target to show ('config' or '--path-config').
+ */
 export async function runShow(target) {
     const config = await loadConfig();
     const resolvedPath = getResolvedConfigPath();
