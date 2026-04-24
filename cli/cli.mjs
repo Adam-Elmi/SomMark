@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+/**
+ * SomMark CLI Entry Point
+ * Reads your command-line arguments and runs the right tool.
+ */
 import { enableColor } from "../helpers/colorize.js";
 
 import { getHelp } from "./commands/help.js";
@@ -47,11 +51,12 @@ async function main() {
 		return;
 	}
 
-	// 4. Init
+	// 4. Init (Always Local)
 	if (command === "init") {
-		await runInit(args[1] === "--local" || args[1] === "-l");
+		await runInit();
 		return;
 	}
+
 
 
 	// 5. Show
@@ -66,16 +71,6 @@ async function main() {
 		return;
 	}
 	
-	// 5.6. List
-	if (command === "list") {
-		const { runListPlugins, runListPipeline } = await import("./commands/list.js");
-		if (args[1] === "pipeline") {
-			await runListPipeline();
-		} else {
-			await runListPlugins(args.slice(1));
-		}
-		return;
-	}
 
 	// 6. Lex
 	if (command === "--lex") {
@@ -96,14 +91,9 @@ async function main() {
 	if (extensions[format]) {
 		// Build or Print
 		if (args[1] === "-p" || args[1] === "--print") {
-			// smark --format -p file
-			// args[0]=--format, args[1]=-p, args[2]=file
 			await printOutput(format, args[2]);
 			process.exit(0);
 		} else {
-			// smark --format file [options]
-			// args[0]=--format, args[1]=file, args[2]=-o, args[3]=output...
-
 			await runBuild(
 				command,      // format_option (--markdown)
 				args[1],      // sourcePath
