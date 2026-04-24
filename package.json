@@ -1,6 +1,6 @@
 {
 	"name": "sommark",
-	"version": "4",
+	"version": "4.0.0",
 	"description": "SomMark is a declarative, extensible markup language for structured content that can be converted to HTML, Markdown, MDX, JSON, XML, and more.",
 	"main": "index.js",
 	"files": [
