@@ -9,13 +9,17 @@ import colorize from "../helpers/colorize.js";
 //  Message Formatting                                                       //
 // ========================================================================== //
 
+/**
+ * Processes a message by applying colors and formatting.
+ * Supports:
+ * - {line} : Adds a horizontal line
+ * - {N} : Adds a new line
+ * - <$color: Text$> : Adds color (red, yellow, green, blue, magenta, cyan)
+ * 
+ * @param {string|string[]} text - The message or list of message parts to format.
+ * @returns {string} - The final formatted and colored string.
+ */
 function formatMessage(text) {
-	/*
-	Format System:
-	{line} = Draws a horizontal line
-	{N}    = Inserts a newline
-	<$color: Text$> = Colors the text (supports red, yellow, green, blue, magenta, cyan)
-	*/
 	const horizontal_rule = "\n----------------------------------------------------------------------------------------------\n";
 	const pattern = /<\$([^:]+):([\s\S]*?)\$>/g;
 
@@ -39,7 +43,15 @@ function formatMessage(text) {
 }
 
 /**
- * Formats an error with source context (line number, code snippet, pointer).
+ * Creates a detailed error message showing where the error happened in the code.
+ * It adds a line number, a snippet of the code, and a pointer (^) to the exact spot.
+ * 
+ * @param {string} src - The original code being parsed.
+ * @param {Object} range - The location of the error (line and character).
+ * @param {string|null} filename - The name of the file (optional).
+ * @param {string|string[]} message - The error message to show.
+ * @param {string} typeName - The type of error (e.g., "Lexer" or "Parser").
+ * @returns {string[]} - A list of message parts that make up the final error report.
  */
 function formatErrorWithContext(src, range, filename, message, typeName) {
 	if (!src || !range || !range.start) return message;
@@ -70,7 +82,14 @@ function formatErrorWithContext(src, range, filename, message, typeName) {
 //  Error Classes                                                            //
 // ========================================================================== //
 
+/** Base class for all SomMark errors that automatically formats messages for the terminal. */
 class CustomError extends Error {
+	/**
+	 * Creates a new error.
+	 * 
+	 * @param {string|string[]} message - The text describing what went wrong.
+	 * @param {string} name - The name of the error type.
+	 */
 	constructor(message, name) {
 		super(message);
 		this.name = name;
@@ -82,45 +101,39 @@ class CustomError extends Error {
 }
 
 class ParserError extends CustomError {
-	constructor(message) {
-		super(message, "Parser Error");
-	}
+	constructor(message) { super(message, "Parser Error"); }
 }
 
 class LexerError extends CustomError {
-	constructor(message) {
-		super(message, "Lexer Error");
-	}
+	constructor(message) { super(message, "Lexer Error"); }
 }
 
 class TranspilerError extends CustomError {
-	constructor(message) {
-		super(message, "Transpiler Error");
-	}
+	constructor(message) { super(message, "Transpiler Error"); }
 }
 
 class CLIError extends CustomError {
-	constructor(message) {
-		super(message, "CLI Error");
-	}
+	constructor(message) { super(message, "CLI Error"); }
 }
 
 class RuntimeError extends CustomError {
-	constructor(message) {
-		super(message, "Runtime Error");
-	}
+	constructor(message) { super(message, "Runtime Error"); }
 }
 
 class SommarkError extends CustomError {
-	constructor(message) {
-		super(message, "SomMark Error");
-	}
+	constructor(message) { super(message, "SomMark Error"); }
 }
 
 // ========================================================================== //
 //  Error Dispatcher (Helper)                                               //
 // ========================================================================== //
 
+/**
+ * A helper that creates an error "dispatcher" for a specific category.
+ * 
+ * @param {string} type - The category of error (e.g., 'lexer', 'parser').
+ * @returns {Function} - A function that throws the formatted error.
+ */
 function getError(type) {
 	const validate_msg = msg => (Array.isArray(msg) && msg.length > 0) || typeof msg === "string";
 	const typeNames = {
@@ -157,11 +170,22 @@ function getError(type) {
 	};
 }
 
+/** Helper to throw Lexer errors. */
 const lexerError = getError("lexer");
+
+/** Helper to throw Parser errors. */
 const parserError = getError("parser");
+
+/** Helper to throw Transpiler errors. */
 const transpilerError = getError("transpiler");
+
+/** Helper to throw CLI errors. */
 const cliError = getError("cli");
+
+/** Helper to throw Runtime or Module errors. */
 const runtimeError = getError("runtime");
+
+/** Helper to throw general internal SomMark errors. */
 const sommarkError = getError("sommark");
 
 export { parserError, lexerError, transpilerError, cliError, runtimeError, sommarkError, formatMessage };
