@@ -1,0 +1,3 @@
+@_Table_@: col1, col2
+This table is missing a semicolon after the header.
+@_end_@
