@@ -1,5 +1,0 @@
-[Block]
-    [h1]Hello World[end]
-    (Link)->(link: https://example.com, Example)
-    @_Code_@: js; console.log('hi') @_end_@
-[end]
