@@ -1,118 +1,131 @@
-<img width="2000" height="491" alt="SomMark Cover" src="https://raw.githubusercontent.com/Adam-Elmi/SomMark/master/assets/smark_bg.png" />
+# SomMark <img src="assets/smark.logo.png" width="80" align="right">
 
-<p align="center">
-SomMark v3 is a simple, flexible markup language for structured content.
-</p>
+SomMark is a high-performance markup language designed for structured content. It acts as an extensible source language that can be transformed into multiple formats like HTML, JSON, MDX, XML, and Markdown.
 
-<p align="center">
-<!--License-->
-<a href="https://www.npmjs.com/package/sommark" target="_blank">
-<img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
-</a>
+SomMark uses explicit structural boundaries to ensure your document remains stable and predictable. It enables infinite nesting and provides total control over your contents.
 
-<!--Npm Version-->
-<a href="https://www.npmjs.com/package/sommark" target="_blank">
-<img src="https://img.shields.io/npm/v/sommark?style=flat-square" />
-</a>
+---
 
-<!--Language Type-->
-<img src="https://img.shields.io/badge/type-markup%20language-orange?style=flat-square" />
+## Simple Showcase
 
-<!--SomMark Playground-->
-<a href="https://adam-elmi.github.io/SomMark-Playground" target="_blank">
-<img 
-src="https://img.shields.io/badge/SomMark-Playground-blue?style=flat-square" 
-alt="SomMark Playground Badge" />
-</a>
-</p>
+SomMark uses blocks for structure. A block starts with `[identifier]` and must end with `[end]`.
 
-----
+### HTML
+```ini
+[h1]Welcome to SomMark[end]
 
-## Try SomMark Playground
+[div = class: "main"]
+  This is content inside a container block.
+  [p]
+    Blocks are the most important part of SomMark.
+    (This is a span-like inline statement)->(css: "color: green")
+  [end]
+[end]
+```
 
-Test SomMark live in your browser:  
-[https://adam-elmi.github.io/SomMark-Playground/](https://adam-elmi.github.io/SomMark-Playground/)
+### JSON
+SomMark can represent complex data structures through its specialized mappers.
+```ini
+[object]
+  [string = key: "name"]Adam Elmi[end]
+  [number = key: "age"]25[end]
+  [array = key: "skills"]
+    [string]JavaScript[end]
+    [string]SomMark[end]
+  [end]
+[end]
+```
 
-----
+### XML
+SomMark produces clean, structured XML ideal for configuration and data manifests.
+```ini
+[xml = version: "1.0"][end]
+[project = name: "SomMark-App"]
+  [metadata]
+    [author]Adam Elmi[end]
+    [version]4.0.0[end]
+  [end]
+  [settings]
+    [database = type: "postgres"]
+      [host]localhost[end]
+      [port]5432[end]
+    [end]
+  [end]
+[end]
+```
 
-# What's new in v3?
+### MDX
+Use the JavaScript data layer to pass native data to your components.
+```ini
+[h1]MDX Portfolio[end]
 
-SomMark v3 is faster, more powerful, and easier to extend.
+[Gallery = 
+  images: js{["nature.jpg", "tech.jpg"]}, 
+  active: js{true}
+]
+  This block uses native JS arrays and booleans.
+[end]
+```
 
-- **HTML Support**: Full HTML5 Support
-- **Markdown Support**: Full Markdown Support
-- **JSON Support**: Full JSON Support
-- **MDX Support**: Full MDX Support
-- **Plugin System**: Add new features without changing the core code.
-- **Modular Support**: Easily import files and use variables.
-- **Type-Safe Rules**: Set requirements for tags and attributes.
-- **Clean Syntax**: Simplified block, atblock & inline rules and better error handling.
+### Markdown
+Use placeholders to inject dynamic text into your templates.
+```ini
+[h1]Hello p{username}[end]
 
-# Installation
+[quote]
+  You are reading documentation on p{siteName}.
+  SomMark is an extensible language.
+[end]
+
+[hr][end]
+```
+
+---
+
+## How It Works
+
+SomMark is an extensible language that processes content through a four-stage pipeline:
+
+1.  **Lexing**: The engine scans the source and converts it into a stream of tokens.
+2.  **Parsing**: Tokens are organized into a hierarchical tree called an **AST** (Abstract Syntax Tree).
+3.  **Mapping**: This is the translation layer. You define how identifiers (like `[h1]`) look in the target language.
+4.  **Transpilation**: The engine walks the AST and uses the Mapper to generate the final string output.
+
+The **Module System** enables a "Declare-then-Inject" pattern, allowing you to import mappers and create scalable projects with full recursive support.
+
+---
+
+## Installation
+
+Install the SomMark CLI globally:
 
 ```bash
 npm install -g sommark
 ```
 
-# Usage
+---
 
-## v3 Syntax Example
-
-SomMark is designed to be readable and clear.
-
-```ini
-# Html
-[h1]Welcome to SomMark v3[end]
-
-[section = class: "hero", id: "main"]
-  [a = href: "https://sommark.org"]Visit Website[end]
-[end]
-
-# Markdown
-[quote]
-SomMark is simple and powerful.
-[end]
-
-[bold]Check out our syntax guide![end]
-
-# Json
-[Json= object]
-[Object = "user"]
-  (name)->(string: "Adam Elmi")
-  (age)->(number: 25)
-  (is_active_user)->(bool: true)
-[end]
-[end]
-```
-
-## Using in JavaScript
+## Usage in Node.js
 
 ```javascript
 import SomMark from "sommark";
 
-const smark = new SomMark({
-	src: '[h1]Hello World[end]',
-	format: "html"
+const sm = new SomMark({
+  src: "[h1]Hello World[end]",
+  format: "html"
 });
 
-console.log(await smark.transpile());
+const output = await sm.transpile();
+// <h1>Hello World</h1>
 ```
 
-# Documentation
+---
 
-Read our detailed guides in the `docs/` folder:
+## Documentation
 
-- **[Syntax Guide](docs/03.syntax.md)**: How to write SomMark (Blocks, Inline, At-Blocks).
-- **[Plugin System](docs/19.plugin-system.md)**: How to create your own plugins.
-- **[Built-in Plugins](docs/20.built-in-plugins.md)**: Guide to standard plugins.
-- **[Core API](docs/09.core.md)**: How to use SomMark in your code.
-- **[Mapper API](docs/13.mapper.md)**: How to create new output formats.
-- **[CLI Reference](docs/11.cli.md)**: Terminal commands and flags.
-- **[API Quick Reference](docs/api)**: Fast lookup for all functions.
+Read the full guides in the `docs/` folder:
 
-# Editor Support
-
-### Editor Support
-High-quality syntax highlighting and diagnostics are provided via **LSP Semantic Tokens**. This ensures perfect coloring in any editor that supports the Language Server Protocol (e.g., VS Code, Neovim, CoC).
-
-Information for integration can be found in the [SomMark-LSP](https://github.com/Adam-Elmi/SomMark-LSP) project.
+*   **[Syntax Guide](docs/syntax/syntax.md)**: Rules for writing Blocks, At-Blocks, and Inlines.
+*   **[Core Logic](docs/core/core.md)**: Deep dive into the engine architecture.
+*   **[Mapper API](docs/core/mapper.md)**: How to create your own translation layers.
+*   **[Module System](docs/core/module-system.md)**: Managing multi-file projects.
