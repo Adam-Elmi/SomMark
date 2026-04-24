@@ -1,12 +1,16 @@
 import fs from "node:fs/promises";
 import SomMark from "./index.js";
 
-const buffer = await fs.readFile("./examples/markdown/tasks.smark");
+
+const buffer = await fs.readFile("./debug.smark");
 const file_content = buffer.toString();
 let smark = new SomMark({ 
     src: file_content, 
-    format: "markdown", 
-    includeDocument: true,
+    format: "mdx",
+    removeComments: false,
+    placeholders: {
+        id: "Card",
+    }
 });
 
 
