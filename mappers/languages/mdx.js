@@ -1,139 +1,95 @@
 import Mapper from "../mapper.js";
-import MARKDOWN from "./markdown.js";
-import { HTML_TAGS } from "../../constants/html_tags.js";
+import MARKDOWN, { renderHeading } from "./markdown.js";
 import { VOID_ELEMENTS } from "../../constants/void_elements.js";
 
-class MdxMapper extends Mapper {
-	constructor() {
-		super();
-	}
+/**
+ * The MDX Mapper used for generating Markdown with JSX.
+ */
+const MDX = Mapper.define({
+	/**
+	 * Renders a JSX-style comment in MDX output.
+	 * @param {string} text - The raw comment text.
+	 * @returns {string} - Formatted JSX comment string.
+	 */
 	comment(text) {
-		return `{/*${text.replace("#", "")} */}\n`;
-	}
+		return `{/* ${text} */}`;
+	},
+
+	/**
+	 * Provides high-fidelity fallback for unknown tags by rendering them as JSX components.
+	 * @param {Object} node - The unknown AST node.
+	 * @returns {Object} - A virtual tag registration for JSX rendering.
+	 */
 	getUnknownTag(node) {
 		const tagName = node.id;
+		const lowerId = tagName.toLowerCase();
+		const isVoid = VOID_ELEMENTS.has(lowerId);
+		const isCodeStyleOrScript = ["code", "style", "script"].includes(lowerId);
+
 		return {
-			render: ({ args, content }) => {
-				const element = this.tag(tagName);
-				element.props(this.jsxProps(args, tagName));
-				return element.body(content);
+			render: (ctx) => {
+				const { args, content } = ctx;
+				const element = this.tag(tagName).jsxProps(args);
+				return isVoid ? element.selfClose() : element.body(content);
+			},
+			options: {
+				type: isVoid ? "Block" : (isCodeStyleOrScript ? ["Block", "AtBlock"] : ["Block", "Inline", "AtBlock"]),
+				escape: !isCodeStyleOrScript,
+				rules: { is_self_closing: isVoid }
 			}
 		};
-	}
+	},
 
-	jsxProps(args, tagName = "div") {
-		const jsxProps = [];
-		const styleObj = {};
-		const isHtmlTag = HTML_TAGS.has(tagName.toLowerCase());
+	options: {
+		trimAndWrapBlocks: true
+	},
 
-		const keys = Object.keys(args).filter(arg => isNaN(arg));
-		keys.forEach(key => {
-			let val = args[key];
-			const isEvent = key.toLowerCase().startsWith("on");
+	/**
+	 * Formats a plain text node with Markdown escaping.
+	 */
+	text(text, options) {
+		return MARKDOWN.text.call(this, text, options);
+	},
 
-			let k = key;
-			if (k === "class") k = "className";
+	/**
+	 * Formats inline content before rendering, respecting explicit escape flags.
+	 */
+	inlineText(text, options) {
+		return MARKDOWN.inlineText.call(this, text, options);
+	},
 
-			// Quote stripping
-			if (typeof val === "string" && ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'")))) {
-				val = val.slice(1, -1);
-			}
-
-			if (k === "style") {
-				if (typeof val === "string") {
-					const pairs = val.includes(";") ? val.split(";") : val.split(",");
-					pairs.forEach(pair => {
-						let [prop, value] = pair.split(":").map(s => s.trim());
-						if (prop && value) {
-							const camelProp = prop.replace(/-([a-z])/g, g => g[1].toUpperCase());
-							styleObj[camelProp] = value;
-						}
-					});
-				} else if (typeof val === "object") {
-					Object.assign(styleObj, val);
-				}
-			} else {
-				// Detection for expressions
-				const isBoolean = val === "true" || val === "false" || typeof val === "boolean";
-				const isNumeric = val !== "" && !isNaN(val) && typeof val !== "boolean";
-				const looksLikeExpression = typeof val === "string" && 
-					(/[0-9]/.test(val) && /[+\-*/%()]/.test(val)); // Math expression detection
-
-				const shouldBeJSXExpression = isEvent || isBoolean || isNumeric || looksLikeExpression;
-
-				let finalVal = val;
-				if (val === "true") finalVal = true;
-				if (val === "false") finalVal = false;
-				if (isNumeric && typeof val === "string") finalVal = Number(val);
-
-				jsxProps.push({ 
-					__type__: shouldBeJSXExpression ? "other" : "string", 
-					[k]: finalVal 
-				});
-			}
-		});
-
-		if (Object.keys(styleObj).length > 0) {
-			const styleStr = JSON.stringify(styleObj).replace(/"/g, "'").replace(/'([^']+)':/g, '$1:');
-			jsxProps.push({ __type__: "other", style: styleStr });
+	/**
+	 * Formats the literal content inside AtBlocks.
+	 */
+	atBlockBody(text, options) {
+		let out = text;
+		if (options?.escape !== false) {
+			out = this.escapeHTML(out);
 		}
-
-		return jsxProps;
+		if (out.includes('\n')) {
+			out = '\n' + out + '\n';
+		}
+		return out;
 	}
-}
+});
 
-const MDX = new MdxMapper();
 const { tag } = MDX;
 
 MDX.inherit(MARKDOWN);
+MDX.md = MARKDOWN.md; // Provide the Markdown escaping tool
 
-// Block for raw MDX content (ESM, etc.)
-MDX.register("mdx", ({ content }) => {
-	// Clean up hidden characters
-	let clean = content.replace(/\u200B/g, "").trim();
-	// Remove leading semicolon to avoid MDX errors
-	if (clean.startsWith(";")) clean = clean.substring(1).trim();
-	// Add spacing around ESM blocks
-	return "\n" + clean + "\n\n";
-}, { escape: false, type: ["AtBlock", "Block"] });
-
-// Re-register HTML tags to use jsxProps
-HTML_TAGS.forEach(tagName => {
-	const capitalized = tagName.charAt(0).toUpperCase() + tagName.slice(1);
-
-	// Register even if it exists in MARKDOWN to override it with JSX version
-	const idsToRegister = [tagName, capitalized];
-
-	MDX.register(
-		idsToRegister,
-		({ args, content }) => {
-			const element = tag(tagName);
-
-			// Auto-ID for Headings
-			if (/^h[1-6]$/i.test(tagName) && !args.id && content && /^[A-Za-z0-9]/.test(content)) {
-				const id = content
-					.toString()
-					.toLowerCase()
-					.replace(/[^\w\s-]/g, "")
-					.replace(/\s+/g, "-");
-				args.id = id;
-			}
-
-			element.props(MDX.jsxProps(args, tagName));
-
-			if (VOID_ELEMENTS.has(tagName)) {
-				return element.selfClose();
-			}
-			return element.body(content);
-		},
-		{
-			escape: false,
-			type: VOID_ELEMENTS.has(tagName) ? "Block" : ["Block", "Inline"],
-			rules: {
-				is_self_closing: VOID_ELEMENTS.has(tagName)
-			}
-		}
-	);
+// MDX defaults to HTML tags for headings to ensure high-fidelity JSX output
+["h1", "h2", "h3", "h4", "h5", "h6"].forEach(heading => {
+	MDX.register(heading, function (ctx) {
+		return renderHeading.call(this, ctx, "html");
+	}, { type: "Block" });
 });
+
+/**
+ * mdx AtBlock - Renders raw MDX content (ESM imports, exports, or complex JSX).
+ */
+MDX.register("mdx", ({ content }) => {
+	return content;
+}, { escape: false, type: "AtBlock" });
 
 export default MDX;
