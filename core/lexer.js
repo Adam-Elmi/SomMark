@@ -205,9 +205,13 @@ function lexer(src, filename = "anonymous") {
 			continue;
 		}
 
-		if (isInHeader && (char === " " || char === "\t" || char === "\r")) {
-			addToken(TOKEN_TYPES.WHITESPACE, char);
-			i++;
+		if (char === " " || char === "\t" || char === "\r") {
+			let ws = "";
+			while (i < src.length && (src[i] === " " || src[i] === "\t" || src[i] === "\r")) {
+				ws += src[i];
+				i++;
+			}
+			addToken(TOKEN_TYPES.WHITESPACE, ws);
 			continue;
 		}
 
@@ -456,7 +460,7 @@ function lexer(src, filename = "anonymous") {
 			stopChars = stopChars.replace(":", "");
 		}
 		if (!isInHeader && !isInInlineHead) {
-			stopChars = "[]@_()\\\n\r"; // In normal text, stop at markers and newlines
+			stopChars = "[]@_()\\#\n\r"; // In normal text, stop at markers, comments and newlines
 		}
 
 		while (i < src.length && !stopChars.includes(src[i])) { 
