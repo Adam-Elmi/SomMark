@@ -1,5 +1,8 @@
 # SomMark v4 <img src="assets/smark.logo.png" width="80" align="right">
 
+[![npm version](https://img.shields.io/npm/v/sommark.svg)](https://www.npmjs.com/package/sommark)
+[![license](https://img.shields.io/npm/l/sommark.svg)](https://github.com/Adam-Elmi/SomMark/blob/master/LICENSE)
+
 SomMark is a high-performance markup language designed for structured content. It acts as an extensible source language that can be transformed into multiple formats like HTML, JSON, MDX, XML, and Markdown.
 
 SomMark uses explicit structural boundaries to ensure your document remains stable and predictable. It enables infinite nesting and provides total control over your contents.
