@@ -348,7 +348,7 @@ function parseComma(tokens, i, beforeChar = "") {
 				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_JS &&
 				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_P)
 		) {
-			parserError(errorMessage(tokens, i, block_value, ","));
+			parserError(errorMessage(tokens, i, "value", ","));
 		}
 	} else {
 		parserError(errorMessage(tokens, i, ",", beforeChar));
@@ -876,7 +876,7 @@ function parseAtBlock(tokens, i, filename = null, placeholders = {}) {
 				if (!nextToken || nextToken.type === TOKEN_TYPES.SEMICOLON || nextToken.type === TOKEN_TYPES.COMMA) {
 					parserError(errorMessage(tokens, i, at_value, ":", "Missing value after colon"));
 				}
-				
+
 				if (token.type === TOKEN_TYPES.KEY) {
 					validateName(k);
 				}
