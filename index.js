@@ -34,17 +34,16 @@ class SomMark {
 	 * @param {string} [options.filename="anonymous"] - The name of the file, used for errors and settings.
 	 * @param {boolean} [options.removeComments=true] - If true, comments will be removed from the final code.
 	 * @param {Object} [options.placeholders={}] - Values to use for {placeholders}.
-	 * @param {Object} [options.placeholder={}] - Alias for placeholders (backward compatibility).
 	 * @param {Array<string>} [options.customProps=[]] - Allowed custom HTML attributes.
 	 * @param {Array<string>} [options.importStack=[]] - Tracking for circular dependencies.
 	 */
-	constructor({ src, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholder = {}, placeholders = {}, customProps = [], importStack = [] }) {
+	constructor({ src, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], importStack = [] }) {
 		this.src = src;
 		this.targetFormat = format;
 		this.mapperFile = mapperFile;
 		this.filename = filename;
 		this.removeComments = removeComments;
-		this.placeholders = { ...placeholder, ...placeholders };
+		this.placeholders = placeholders;
 		this.customProps = customProps;
 		this.importStack = importStack;
 		this.warnings = [];
@@ -81,16 +80,6 @@ class SomMark {
 		this._initializeMappers();
 	}
 
-	/**
-	 * Backward compatibility alias for placeholders.
-	 */
-	get placeholder() {
-		return this.placeholders;
-	}
-
-	set placeholder(val) {
-		this.placeholders = val;
-	}
 
 	/**
 	 * Adds a new rule or changes an existing one.
@@ -278,16 +267,15 @@ async function parse(src, filename = "anonymous") {
  * @param {Mapper|null} [options.mapperFile=null] - Custom rules for formatting.
  * @param {boolean} [options.removeComments=true] - Strip comments.
  * @param {Object} [options.placeholders={}] - Global placeholders.
- * @param {Object} [options.placeholder={}] - Alias for placeholders.
  * @param {Array<string>} [options.customProps=[]] - Custom attribute whitelist.
  * @returns {Promise<string>} - Transpiled output.
  */
 async function transpile(options = {}) {
-	const { src, format = htmlFormat, filename = "anonymous", mapperFile = null, removeComments = true, placeholder = {}, placeholders = {}, customProps = [] } = options;
+	const { src, format = htmlFormat, filename = "anonymous", mapperFile = null, removeComments = true, placeholders = {}, customProps = [] } = options;
 	if (typeof options !== "object" || options === null) {
 		runtimeError([`{line}<$red:Invalid Options:$> <$yellow:The options argument must be a non-null object.$>{line}`]);
 	}
-	const knownProps = ["src", "format", "filename", "mapperFile", "removeComments", "placeholder", "placeholders", "customProps"];
+	const knownProps = ["src", "format", "filename", "mapperFile", "removeComments", "placeholders", "customProps"];
 	Object.keys(options).forEach(key => {
 		if (!knownProps.includes(key)) {
 			runtimeError([
@@ -299,7 +287,7 @@ async function transpile(options = {}) {
 		runtimeError([`{line}<$red:Missing Source:$> <$yellow:The 'src' argument is required for transpilation.$>{line}`]);
 	}
 
-	const sm = new SomMark({ src, format, filename, mapperFile, removeComments, placeholder, placeholders, customProps });
+	const sm = new SomMark({ src, format, filename, mapperFile, removeComments, placeholders, customProps });
 	return await sm.transpile();
 }
 
@@ -319,8 +307,8 @@ const lexSync = src => lexer(src);
  * @returns {Array<Object>} - The code tree.
  */
 const parseSync = (src, options = {}) => {
-	const { format = htmlFormat, filename = "anonymous", mapperFile = null, removeComments = true, placeholder = {}, placeholders = {}, customProps = [] } = options;
-	return new SomMark({ src, format, filename, mapperFile, removeComments, placeholder, placeholders, customProps }).parseSync();
+	const { format = htmlFormat, filename = "anonymous", mapperFile = null, removeComments = true, placeholders = {}, customProps = [] } = options;
+	return new SomMark({ src, format, filename, mapperFile, removeComments, placeholders, customProps }).parseSync();
 };
 
 import { findAndLoadConfig } from "./core/helpers/config-loader.js";

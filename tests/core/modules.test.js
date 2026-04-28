@@ -101,7 +101,7 @@ describe("SomMark Module System (Imports & Usage)", () => {
                 src, 
                 format: "html",
                 filename: __filename,
-                placeholder: { name: "Adam" }
+                placeholders: { name: "Adam" }
             });
             const output = await smark.transpile();
 

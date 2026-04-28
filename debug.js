@@ -4,10 +4,10 @@ import SomMark from "./index.js";
 
 const buffer = await fs.readFile("./debug.smark");
 const file_content = buffer.toString();
-let smark = new SomMark({ 
-    src: file_content, 
+let smark = new SomMark({
+    src: file_content,
     format: "mdx",
-    removeComments: false,
+    // removeComments: false,
     placeholders: {
         id: "Card",
     }

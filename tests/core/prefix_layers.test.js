@@ -10,7 +10,7 @@ describe("SomMark Prefix Layers (Context Logic)", () => {
 
     const options = {
         format: "html",
-        placeholder
+        placeholders: placeholder
     };
 
     describe("p{} Placeholders", () => {

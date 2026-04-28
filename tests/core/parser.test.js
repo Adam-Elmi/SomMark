@@ -39,7 +39,7 @@ describe("SomMark Parser (High-Reliability Suite)", () => {
 		});
 
 		it("should resolve p{} placeholders in regular and quoted values", () => {
-			const config = { placeholder: { user: "Adam", rank: "Admin" } };
+			const config = { placeholders: { user: "Adam", rank: "Admin" } };
 			const ast = parseSync("[tag = p{user}, greet: \"Hello p{user} (p{rank})\"][end]", config);
 			expect(ast[0].args["0"]).toBe("Adam");
 			expect(ast[0].args.greet).toBe("Hello Adam (Admin)");

@@ -63,7 +63,7 @@ describe("CLI Helpers (cli/helpers/*.js)", () => {
             const result = await transpile({ 
                 src: "[div]Content[end]", 
                 format: "html",
-                config: { removeComments: true, placeholder: {} }
+                config: { removeComments: true, placeholders: {} }
             });
             expect(result).toContain("<div>Content</div>");
         });
