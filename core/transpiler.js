@@ -2,6 +2,7 @@ import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT } from "./labels.js";
 import { transpilerError } from "./errors.js";
 import { textFormat, htmlFormat, markdownFormat, mdxFormat, xmlFormat } from "./formats.js";
 import { matchedValue } from "../helpers/utils.js";
+import { dedentBy } from "../helpers/dedent.js";
 
 /**
  * SomMark Transpiler
@@ -84,7 +85,7 @@ async function generateOutput(ast, i, format, mapper_file) {
 		const textContent = getNodeText(node);
 
 		let content = (node.body?.length === 0) ? "" :
-			(node.type === ATBLOCK ? (node.content || "") :
+			(node.type === ATBLOCK ? dedentBy(node.content || "", node.range?.start?.character || 0).trim() :
 				(node.type === INLINE ? (node.value || "") : BODY_PLACEHOLDER));
 
 		// Apply pipelines to format literal values
@@ -132,7 +133,9 @@ async function generateOutput(ast, i, format, mapper_file) {
 				switch (body_node.type) {
 					case TEXT:
 						const text = String(body_node.text || "");
-						bodyOutput = mapper_file ? mapper_file.text(text, target?.options) : text;
+						// Dedent text relative to the parent block's indentation
+						const localDedentedText = dedentBy(text, node.range?.start?.character || 0);
+						bodyOutput = mapper_file ? mapper_file.text(localDedentedText, target?.options) : localDedentedText;
 						break;
 
 					case INLINE:
@@ -160,15 +163,14 @@ async function generateOutput(ast, i, format, mapper_file) {
 						break;
 
 					case ATBLOCK:
-						console.log(`[TRANSPILER] Processing ATBLOCK: ${body_node.id}`);
 						let atTarget = matchedValue(mapper_file.outputs, body_node.id);
 						if (!atTarget) {
 							atTarget = mapper_file.getUnknownTag(body_node);
 						}
 
-						let atContent = String(body_node.content || "").trim();
+						// AtBlocks handle their own absolute dedenting
+						let atContent = dedentBy(body_node.content || "", body_node.range?.start?.character || 0).trim();
 						if (mapper_file) {
-							console.log(`[TRANSPILER] Calling atBlockBody for ${body_node.id}`);
 							atContent = mapper_file.atBlockBody(atContent, atTarget?.options || {});
 						}
 
@@ -195,7 +197,6 @@ async function generateOutput(ast, i, format, mapper_file) {
 			}
 		}
 
-		// Trim only leading/trailing newlines and their surrounding spaces to preserve indentation
 		const finalContext = effectiveTrimAndWrap ? context.replace(/^\s*[\r\n]+|[\r\n]+\s*$/g, "") : context;
 
 		if (result.includes(BODY_PLACEHOLDER)) {
