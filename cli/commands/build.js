@@ -20,14 +20,14 @@ import { transpile } from "../helpers/transpile.js";
  * @param {string} outputFile - Output filename (without extension).
  * @param {string} format - Target format (html, markdown, etc.).
  * @param {string} sourcePath - Path to the source .smark file.
- * @param {Mapper|null} mappingFile - Custom mapped rules.
+ * @param {Mapper|null} mapperFile - Custom mapped rules.
  * @returns {Promise<string>} - The full path to the created file.
  */
-async function generateOutput(outputDir, outputFile, format, sourcePath, mappingFile, config) {
+async function generateOutput(outputDir, outputFile, format, sourcePath, mapperFile, config) {
     let source_code = await readContent(sourcePath);
     source_code = source_code.toString();
     const absolutePath = path.resolve(process.cwd(), sourcePath);
-    const output = await transpile({ src: source_code, format, filename: absolutePath, mappingFile, config });
+    const output = await transpile({ src: source_code, format, filename: absolutePath, mapperFile, config });
     const finalPath = path.join(outputDir, `${outputFile}.${extensions[format]}`);
     await createFile(outputDir, `${outputFile}.${extensions[format]}`, output);
     return finalPath;
@@ -75,10 +75,10 @@ export async function runBuild(format_option, sourcePath, outputFlag, outputFile
                 // Configuration for output
                 let finalOutputFile = config.outputFile;
                 let finalOutputDir = config.outputDir;
-                let mappingFile = config.mappingFile;
+                let mapperFile = config.mapperFile || config.mappingFile;
 
-                if (!mappingFile) {
-                    mappingFile = format === "html" ? HTML : format === "markdown" ? MARKDOWN : format === "mdx" ? MDX : format === "json" ? Json : format === "xml" ? XML : null;
+                if (!mapperFile) {
+                    mapperFile = format === "html" ? HTML : format === "markdown" ? MARKDOWN : format === "mdx" ? MDX : format === "json" ? Json : format === "xml" ? XML : null;
                 }
 
                 // CLI Overrides
@@ -89,7 +89,7 @@ export async function runBuild(format_option, sourcePath, outputFlag, outputFile
                     }
                 }
 
-                const createdFilePath = await generateOutput(finalOutputDir, finalOutputFile, format, sourcePath, mappingFile, config);
+                const createdFilePath = await generateOutput(finalOutputDir, finalOutputFile, format, sourcePath, mapperFile, config);
                 const stats = await fs.stat(createdFilePath);
                 const date = new Date().toLocaleString();
 

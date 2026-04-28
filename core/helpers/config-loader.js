@@ -62,14 +62,24 @@ export async function findAndLoadConfig(targetPath) {
 	const defaultConfig = {
 		outputFile: "output",
 		outputDir: startDir,
-		mappingFile: null,
+		mapperFile: null,
 		removeComments: true,
+		placeholders: {},
+		customProps: [],
 	};
 
 	if (configPath) {
 		const loadedConfig = await loadConfigFile(configPath);
 		if (loadedConfig) {
-			const finalConfig = { ...defaultConfig, ...loadedConfig, resolvedConfigPath: configPath };
+			// Support both mapperFile and mappingFile (backwards compatibility)
+			const finalMapper = loadedConfig.mapperFile || loadedConfig.mappingFile || defaultConfig.mapperFile;
+			
+			const finalConfig = { 
+				...defaultConfig, 
+				...loadedConfig, 
+				mapperFile: finalMapper,
+				resolvedConfigPath: configPath 
+			};
 			if (loadedConfig.outputDir) {
 				const configDir = path.dirname(configPath);
 				finalConfig.outputDir = path.resolve(configDir, loadedConfig.outputDir);

@@ -15,22 +15,25 @@ const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [m
 // ========================================================================== //
 //  Transpile Function                                                        //
 // ========================================================================== //
-export async function transpile({ src, format, filename = null, mappingFile = "", config = null }) {
+export async function transpile({ src, format, filename = null, mapperFile = "", config = null }) {
     const finalConfig = config || await loadConfig(filename);
-    let finalMapper = mappingFile;
+    let finalMapper = mapperFile;
 
     // 1. Find the Mapping File
-    if (typeof mappingFile !== "object" || mappingFile === null) {
-        if (finalConfig.mappingFile) {
-            finalMapper = finalConfig.mappingFile;
+    if (typeof mapperFile !== "object" || mapperFile === null) {
+        // Support both names from config
+        const configMapper = finalConfig.mapperFile || finalConfig.mappingFile;
+        
+        if (configMapper) {
+            finalMapper = configMapper;
         } else {
             finalMapper = default_mapperFiles[format];
         }
 
         // Custom Mapper (String Path)
         if (typeof finalMapper === "string" && finalMapper !== "" && (await isExist(finalMapper))) {
-            const mappingFileURL = pathToFileURL(path.resolve(process.cwd(), finalMapper)).href;
-            const loadedMapper = await import(mappingFileURL);
+            const mapperFileURL = pathToFileURL(path.resolve(process.cwd(), finalMapper)).href;
+            const loadedMapper = await import(mapperFileURL);
             finalMapper = loadedMapper.default;
         }
     }
