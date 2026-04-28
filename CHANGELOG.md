@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.0.1 (2026-04-28)
+
+*   **Fixed**: CLI now correctly loads mapper files (fixed `mappingFile` vs `mapperFile` naming bug).
+*   **Fixed**: Transpiled output no longer contains extra spaces while keeping code correctly indented (column-based dedenting).
+*   **Fixed**: Standardized property names (`placeholders`) and added missing tests for the CLI and config.
+
 ## v4.0.0: Redesigned and rewritten the SomMark engine (2026-04-24)
 
 ### Major Changes & New Features
