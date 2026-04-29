@@ -48,14 +48,25 @@ export async function findAndLoadConfig(targetPath) {
 		}
 	}
 
-	// 2. Check the current folder
+	// 2. Check the target directory
 	if (!configPath) {
 		const localConfig = path.join(startDir, CONFIG_FILE_NAME);
 		try {
 			await fs.access(localConfig);
 			configPath = localConfig;
 		} catch {
-			// No local config found
+			// No local config found in target dir
+		}
+	}
+
+	// 3. Check the current working directory (if different from target dir)
+	if (!configPath && startDir !== process.cwd()) {
+		const cwdConfig = path.join(process.cwd(), CONFIG_FILE_NAME);
+		try {
+			await fs.access(cwdConfig);
+			configPath = cwdConfig;
+		} catch {
+			// No config found in CWD
 		}
 	}
 	
