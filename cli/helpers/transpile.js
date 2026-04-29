@@ -31,10 +31,15 @@ export async function transpile({ src, format, filename = null, mapperFile = "",
         }
 
         // Custom Mapper (String Path)
-        if (typeof finalMapper === "string" && finalMapper !== "" && (await isExist(finalMapper))) {
-            const mapperFileURL = pathToFileURL(path.resolve(process.cwd(), finalMapper)).href;
-            const loadedMapper = await import(mapperFileURL);
-            finalMapper = loadedMapper.default;
+        if (typeof finalMapper === "string" && finalMapper !== "") {
+            const baseDir = finalConfig.resolvedConfigPath ? path.dirname(finalConfig.resolvedConfigPath) : process.cwd();
+            const absoluteMapperPath = path.resolve(baseDir, finalMapper);
+            
+            if (await isExist(absoluteMapperPath)) {
+                const mapperFileURL = `${pathToFileURL(absoluteMapperPath).href}?t=${Date.now()}`;
+                const loadedMapper = await import(mapperFileURL);
+                finalMapper = loadedMapper.default;
+            }
         }
     }
 
