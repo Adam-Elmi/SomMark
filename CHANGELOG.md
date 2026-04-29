@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.0.2 (2026-04-29)
+
+*   **Fixed**: CLI now correctly loads `smark.config.js` from the current working directory (CWD) even when processing files in subdirectories.
+*   **Fixed**: Relative paths for `mapperFile` in the configuration are now correctly resolved relative to the config file's directory.
+
 ## v4.0.1 (2026-04-28)
 
 *   **Fixed**: CLI now correctly loads mapper files (fixed `mappingFile` vs `mapperFile` naming bug).
