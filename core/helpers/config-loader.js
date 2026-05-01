@@ -31,37 +31,42 @@ async function loadConfigFile(configPath) {
  * @returns {Promise<Object>} - The final configuration merged with defaults.
  */
 export async function findAndLoadConfig(targetPath) {
-	let startDir = process.cwd();
+	const cwd = process.cwd();
 	let configPath = null;
+	let startDir = cwd;
 
-	// 1. Check if targetPath is an explicit config file path
+	// 1. Resolve Target Directory
 	if (targetPath) {
 		try {
-			const stats = await fs.stat(targetPath);
-			if (stats.isFile() && targetPath.endsWith(".js")) {
-				configPath = path.resolve(targetPath);
+			const absoluteTarget = path.resolve(cwd, targetPath);
+			const stats = await fs.stat(absoluteTarget);
+			
+			// If target is a .js file, it might be an explicit config (legacy/internal support)
+			if (stats.isFile() && absoluteTarget.endsWith(".js") && !absoluteTarget.endsWith("smark.config.js")) {
+				configPath = absoluteTarget;
 			} else {
-				startDir = stats.isDirectory() ? targetPath : path.dirname(targetPath);
+				startDir = stats.isDirectory() ? absoluteTarget : path.dirname(absoluteTarget);
 			}
 		} catch {
-			// Path doesn't exist
+			// Path doesn't exist, fallback to CWD
 		}
 	}
 
-	// 2. Check the target directory
+	// 2. Check the Target Directory (Highest Priority)
 	if (!configPath) {
-		const localConfig = path.join(startDir, CONFIG_FILE_NAME);
+		const targetConfig = path.join(startDir, CONFIG_FILE_NAME);
 		try {
-			await fs.access(localConfig);
-			configPath = localConfig;
+			await fs.access(targetConfig);
+			configPath = targetConfig;
 		} catch {
-			// No local config found in target dir
+			// No config found in target dir
 		}
 	}
 
-	// 3. Check the current working directory (if different from target dir)
-	if (!configPath && startDir !== process.cwd()) {
-		const cwdConfig = path.join(process.cwd(), CONFIG_FILE_NAME);
+	// 3. Check the Current Working Directory (Fallback)
+	// We only check CWD if it's different from the Target Directory
+	if (!configPath && startDir !== cwd) {
+		const cwdConfig = path.join(cwd, CONFIG_FILE_NAME);
 		try {
 			await fs.access(cwdConfig);
 			configPath = cwdConfig;

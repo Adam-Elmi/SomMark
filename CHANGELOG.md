@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.0.3 (2026-05-02)
+
+*   **Improved**: Implemented **Strict Configuration Priority** (Target Directory > Current Working Directory). The CLI now correctly prioritizes `smark.config.js` found next to the source file.
+*   **Improved**: Updated **Validator** to be whitespace-aware. Self-closing tags can now contain empty lines or spaces without triggering validation errors.
+*   **Improved**: Enhanced `sommark show config [file]` to support targeted configuration inspection for specific source files.
+
+
+
 ## v4.0.2 (2026-04-29)
 
 *   **Fixed**: CLI now correctly loads `smark.config.js` from the current working directory (CWD) even when processing files in subdirectories.

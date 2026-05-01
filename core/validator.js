@@ -22,14 +22,23 @@ const runValidations = (node, target, instance) => {
 	const context = instance ? { src: instance.src, range: node.range, filename: instance.filename } : null;
 
 	// -- Structural Integrity (Self-Closing) ------------------------------ //
-	if (rules.is_self_closing && (node.type === "Block" && (node.body && node.body.length > 0))) {
-		transpilerError(
-			[
-				"<$red:Validation Error:$> ",
-				`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is self-closing and cannot have children (body).$>`
-			],
-			context
-		);
+	if (rules.is_self_closing && node.type === "Block" && node.body) {
+		const hasContent = node.body.some(child => {
+			if (child.type === "Text") {
+				return (child.text || "").trim().length > 0;
+			}
+			return true; // Any other node type (Block, Inline, etc.) counts as content
+		});
+
+		if (hasContent) {
+			transpilerError(
+				[
+					"<$red:Validation Error:$> ",
+					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is self-closing and cannot have children (body).$>`
+				],
+				context
+			);
+		}
 	}
 };
 
