@@ -19,7 +19,8 @@ export function getHelp(unknown_option = true) {
 		"{N}  <$green:-h, --help$>     <$cyan: Show help message$>",
 		"{N}  <$green:-v, --version$>  <$cyan: Show version information$>",
 		"{N}  <$green:init$>           <$cyan: Initialize local SomMark configuration file (smark.config.js)$>",
-		"{N}  <$green:show config$>    <$cyan: Display the absolute paths to the active SomMark configuration files$>",
+		"{N}  <$green:show config [file]$>    <$cyan: Display the configuration data (for a specific file or CWD)$>",
+		"{N}  <$green:show --path-config [file]$>    <$cyan: Display the absolute path to the active config file$>",
 		"{N}  <$green:color on|off$>   <$cyan: Help on enabling colors via Environment Variables$>",
 
 		"{N}{N}<$yellow:Transpilation Options:$>",

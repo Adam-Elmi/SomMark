@@ -61,7 +61,7 @@ async function main() {
 
 	// 5. Show
 	if (command === "show") {
-		await runShow(args[1]);
+		await runShow(args[1], args[2]);
 		return;
 	}
 
