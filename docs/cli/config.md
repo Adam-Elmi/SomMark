@@ -30,16 +30,24 @@ Inside the file, you export a simple JavaScript object. Here are the most common
 
 ## 3. How Priorities Work
 
-If you have settings in multiple places, SomMark follows this simple "Winner" order:
+SomMark uses a "Smart Discovery" system to find your settings. If you have configuration files in multiple locations, it follows this strict priority order to determine which settings "win":
 
-1.  **CLI Flags**: If you type `-o customName` in the terminal, it **always** wins.
-2.  **Explicit Config**: If you use the `-c my-config.js` flag, that file wins.
-3.  **Local Folder Config**: The `smark.config.js` in your current folder.
+1.  **CLI Flags**: Settings typed directly into the terminal (like `-o` or `--json`) **always** have the highest priority.
+2.  **Target File Directory**: SomMark first looks for `smark.config.js` in the **same folder** as the file you are converting. This allows you to have project-specific settings that follow your source files.
+3.  **Current Working Directory (CWD)**: If no config is found next to the source file, it falls back to the `smark.config.js` in the folder where you are currently running the command.
 
-**Example: Which one wins?**
-- `smark.config.js` says `outputFile: "main"`.
-- You run `sommark --html input.smark -o final`.
-- **Result**: The file will be named `final.html` because the CLI flag wins.
+### Example: Which one wins?
+Imagine you are inside a root folder, but you are converting a file in a sub-project:
+- `./smark.config.js` (Root)
+- `./sub-project/smark.config.js` (Local)
+
+If you run `sommark --html sub-project/main.smark`, the settings from **`./sub-project/`** will be used. This ensures your sub-projects always use their intended mappers and options without interference from global settings.
+
+### Verifying your config
+If you are unsure which configuration is being applied to a specific file, use the diagnostic command:
+```bash
+sommark show config path/to/your/file.smark
+```
 
 ---
 

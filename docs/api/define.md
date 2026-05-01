@@ -10,6 +10,14 @@ The `define` method is a static factory used to create a Mapper instance and con
 
 The `define` method is a high-performance, brute-force configuration tool. It creates a `new Mapper()` and then iterates through your configuration object, attaching every key directly to the instance (`mapper[key] = value`).
 
+> [!TIP]
+> **Functional Equivalence**: `Mapper.define({ a: 1 })` is technically identical to:
+> ```js
+> const m = new Mapper();
+> m.a = 1;
+> ```
+> Use `define` when you want a clean, declarative configuration block.
+
 > [!WARNING]
 > **This is NOT a merge operation.** If you provide a property like `options`, it will completely replace the default `options` object initialized by the `Mapper` constructor.
 
@@ -78,3 +86,21 @@ const MARKDOWN = Mapper.define({
 | **Timing** | Happens at creation. | Happens after creation. |
 | **Storage** | Attached directly to the instance. | Pushed into the `outputs` array. |
 | **Scope** | Global (affects all rendering). | Local (affects specific tags). |
+
+---
+
+## 5. Custom Properties
+
+One of the main advantages of `define` is the ability to attach custom state or metadata to your mapper. This is incredibly useful for passing project-wide variables into your render functions.
+
+```javascript
+const CV_MAPPER = Mapper.define({
+    projectName: "My Resume",
+    lastUpdated: "2024-05-01"
+});
+
+CV_MAPPER.register("Header", function({ content }) {
+    // Custom properties are available via 'this'
+    return `<h1>${this.projectName}: ${content}</h1>`;
+});
+```

@@ -50,3 +50,41 @@ Mappers are designed to be modular. You can:
 *   **Clone**: Create a copy of a mapper to experiment with changes safely.
 
 ---
+
+## 5. Creating and Defining Mappers
+
+There are two ways to initialize a Mapper in SomMark. Both result in the same functional object, but they offer different coding styles for handling custom properties and engine settings.
+
+### A. The Shorthand: `Mapper.define()`
+This is a **convenience factory**. It allows you to define core engine overrides (like comments or text escaping) and custom metadata in a single configuration block. It is the preferred way to define "Base" mappers.
+
+```javascript
+const myMapper = Mapper.define({
+  projectName: "My CV Project",  // Custom property
+  version: "1.0.0",               // Custom property
+  comment: (text) => `/* ${text} */` // Engine override
+});
+
+// Register tags
+myMapper.register("Text", ({ content }) => `|${content}|`);
+```
+
+### B. The Standard Way: `new Mapper()`
+This is the standard class constructor. It creates a blank mapper, and you then assign properties or register tags line-by-line using standard JavaScript assignment.
+
+```javascript
+const myMapper = new Mapper();
+
+// Assign properties manually
+myMapper.projectName = "My CV Project";
+myMapper.version = "1.0.0";
+
+// Register tags
+myMapper.register("Text", ({ content }) => `|${content}|`);
+```
+
+> [!TIP]
+> **Functionally Identical**: These two methods are technically identical. `Mapper.define` simply takes your object and copies each key onto a `new Mapper()` instance for you. Use whichever style makes your configuration files easier to read.
+
+> [!IMPORTANT]
+> **Tag Registration**: Neither method automatically registers tags from the initialization object. You must always use the `.register()` method to add tag definitions to the mapper's output list.
