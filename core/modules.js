@@ -2,16 +2,33 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runtimeError } from "./errors.js";
-import { IMPORT, USE_MODULE, TEXT, COMMENT } from "./labels.js";
+import { IMPORT, USE_MODULE, TEXT, BLOCK, COMMENT, SLOT } from "./labels.js";
+
+/**
+ * Resolves a module path relative to a base directory.
+ */
+const resolveModulePath = (filePath, currentBaseDir) => {
+	return path.resolve(currentBaseDir, filePath);
+};
 
 /**
  * Changes a filename or file URL into a full, absolute file path.
  * 
  * @param {string} filename - The name of the file or its URL.
+ * @param {Object} [aliases={}] - Custom path aliases for modules.
  * @returns {string} - The corrected absolute path.
  */
-const normalizePath = (filename) => {
+const normalizePath = (filename, aliases = {}) => {
 	if (!filename || filename === "anonymous") return process.cwd();
+
+	// Handle Aliases (like @/components)
+	for (const [prefix, replacement] of Object.entries(aliases)) {
+		if (filename.startsWith(prefix)) {
+			const resolvedPath = path.resolve(process.cwd(), filename.replace(prefix, replacement));
+			return resolvedPath;
+		}
+	}
+
 	if (filename.startsWith("file://")) {
 		try {
 			return fileURLToPath(filename);
@@ -19,7 +36,91 @@ const normalizePath = (filename) => {
 			return filename;
 		}
 	}
+
 	return path.resolve(process.cwd(), filename);
+};
+
+const VAR_PATTERN = /SOMMARK_UNRESOLVED_v_(.+?)_SOMMARK/g;
+const VAR_PREFIX = "SOMMARK_UNRESOLVED_v_";
+const VAR_SUFFIX = "_SOMMARK";
+
+const resolveAstVariables = (nodes, variables) => {
+	if (!nodes) return;
+
+	for (const node of nodes) {
+		if (node.type === TEXT) {
+			if (node.text.includes(VAR_PREFIX)) {
+				node.text = node.text.replace(VAR_PATTERN, (match, key) => {
+					if (variables[key] !== undefined) {
+						if (!variables.__consumed__) {
+							Object.defineProperty(variables, "__consumed__", {
+								value: new Set(),
+								writable: true,
+								enumerable: false,
+								configurable: true
+							});
+						}
+						variables.__consumed__.add(key);
+						return String(variables[key]);
+					}
+					return match;
+				});
+			}
+		} else if (node.type === BLOCK) {
+			// Resolve any unresolved variables in block arguments
+			for (const [argKey, argVal] of Object.entries(node.args)) {
+				if (typeof argVal === "string" && argVal.startsWith(VAR_PREFIX) && argVal.endsWith(VAR_SUFFIX)) {
+					const varKey = argVal.slice(VAR_PREFIX.length, -VAR_SUFFIX.length);
+					if (variables[varKey] !== undefined) {
+						node.args[argKey] = variables[varKey];
+						if (!variables.__consumed__) {
+							Object.defineProperty(variables, "__consumed__", {
+								value: new Set(),
+								writable: true,
+								enumerable: false,
+								configurable: true
+							});
+						}
+						variables.__consumed__.add(varKey);
+					}
+				}
+			}
+			if (node.body) {
+				resolveAstVariables(node.body, variables);
+			}
+		}
+	}
+};
+
+/**
+ * Hand-optimized AST cloner.
+ * Native structuredClone is extremely slow for basic JSON-like tree data.
+ * This helper achieves up to 11x faster performance by cloning only required AST fields.
+ */
+const cloneAst = (nodes) => {
+	if (!nodes) return [];
+	const len = nodes.length;
+	const copy = new Array(len);
+	for (let i = 0; i < len; i++) {
+		const node = nodes[i];
+		const nodeCopy = {
+			type: node.type,
+			range: node.range
+		};
+		if (node.structure !== undefined) nodeCopy.structure = node.structure;
+		if (node.text !== undefined) nodeCopy.text = node.text;
+		if (node.id !== undefined) nodeCopy.id = node.id;
+		if (node.code !== undefined) nodeCopy.code = node.code;
+		if (node.isSelfClosing !== undefined) nodeCopy.isSelfClosing = node.isSelfClosing;
+		if (node.args !== undefined) {
+			nodeCopy.args = { ...node.args };
+		}
+		if (node.body !== undefined) {
+			nodeCopy.body = cloneAst(node.body);
+		}
+		copy[i] = nodeCopy;
+	}
+	return copy;
 };
 
 /**
@@ -33,9 +134,83 @@ const normalizePath = (filename) => {
 export async function resolveModules(ast, context) {
 	const modules = new Map();
 	const filename = context.filename || "anonymous";
-	const absFilename = normalizePath(filename);
-	const baseDir = filename === "anonymous" ? absFilename : path.dirname(absFilename);
-	
+	const importAliases = context.instance.importAliases || {};
+	const absFilename = normalizePath(filename, importAliases);
+
+	// baseDir can be a local path
+	const baseDir = context.instance.baseDir || ((filename === "anonymous") ? absFilename : path.dirname(absFilename));
+
+	// 1. Helper: Trim AST to remove file-boundary whitespace and "ghost" newlines
+	const trimAst = (nodes) => {
+		if (!nodes) return [];
+
+		// 1. Filter out internal whitespace-only nodes that are adjacent to non-rendering nodes
+		// (Comments, Imports, etc. shouldn't leave "ghost" newlines)
+		const nonRenderingTypes = [COMMENT, IMPORT, USE_MODULE];
+		let res = nodes.filter((node, idx) => {
+			if (node.type !== TEXT || node.text.trim() !== "") return true;
+
+			const prev = nodes[idx - 1];
+			const next = nodes[idx + 1];
+			const isAdjacentToNonRendering =
+				(prev && nonRenderingTypes.includes(prev.type)) ||
+				(next && nonRenderingTypes.includes(next.type));
+
+			return !isAdjacentToNonRendering;
+		});
+
+		// 2. Final pass: trim leading/trailing newlines from the remaining boundary text nodes
+		if (res.length > 0 && res[0].type === TEXT) {
+			res[0].text = res[0].text.replace(/^[\r\n]+/, "");
+		}
+		if (res.length > 0 && res[res.length - 1].type === TEXT) {
+			res[res.length - 1].text = res[res.length - 1].text.replace(/[\r\n]+\s*$/, "");
+		}
+
+		// 3. Remove any nodes that became purely empty after trimming
+		return res.filter(node => node.type !== TEXT || node.text !== "");
+	};
+
+	// 2. Helper: Inject Slots with Indentation Propagation
+	const injectSlots = (nodes, callerBody) => {
+		const result = [];
+		for (let i = 0; i < nodes.length; i++) {
+			const child = nodes[i];
+			if (child.type === SLOT) {
+				if (callerBody && callerBody.length > 0) {
+					// Detect leading indentation from the preceding text node
+					let indentation = "";
+					const prev = result[result.length - 1];
+					if (prev && prev.type === TEXT) {
+						const lines = prev.text.split("\n");
+						const lastLine = lines[lines.length - 1];
+						if (lastLine.trim() === "" && lastLine.length > 0) {
+							indentation = lastLine;
+						}
+					}
+
+					// Clone and Indent caller body if needed
+					const indentedBody = callerBody.map(node => {
+						if (node.type === TEXT && indentation) {
+							return { ...node, text: node.text.split("\n").map((line, idx) => idx === 0 ? line : indentation + line).join("\n") };
+						}
+						return { ...node };
+					});
+
+					result.push(...indentedBody);
+				} else {
+					result.push(...child.body);
+				}
+			} else {
+				if (child.body && Array.isArray(child.body)) {
+					child.body = injectSlots(child.body, callerBody);
+				}
+				result.push(child);
+			}
+		}
+		return result;
+	};
+
 	let hasContentStarted = false;
 
 	const processNodes = async (nodes, currentBaseDir, isTopLevel = false) => {
@@ -50,32 +225,45 @@ export async function resolveModules(ast, context) {
 
 				const alias = Object.keys(node.args).find(k => isNaN(k));
 				let filePath = alias ? node.args[alias] : node.args[0];
-				
-				if (typeof filePath === "string") {
-					filePath = filePath.trim().replace(/^["']|["']$/g, "");
+				if (typeof filePath === "string") filePath = filePath.trim().replace(/^["']|["']$/g, "");
+
+				// 1a. Handle Aliases
+				let resolvedPath = filePath;
+				for (const [prefix, replacement] of Object.entries(importAliases)) {
+					if (filePath.startsWith(prefix)) {
+						resolvedPath = path.resolve(process.cwd(), filePath.replace(prefix, replacement));
+						break;
+					}
 				}
 
-				if (!filePath) {
-					runtimeError([`<$red:Module Path Error:$> Missing file path for alias <$magenta:${alias}$> at line <$yellow:${node.range.start.line + 1}$>`]);
-				}
+				// 1b. Resolve relative to current base (FS)
+				const absolutePath = resolveModulePath(resolvedPath, currentBaseDir);
 
-				const absolutePath = path.resolve(currentBaseDir, filePath);
-				
-				if (!fs.existsSync(absolutePath)) {
+				// Local Path Resolution with Auto-Extension
+				let localPath = absolutePath;
+				if (!fs.existsSync(localPath) && !localPath.endsWith(".smark")) {
+					const withSmark = localPath + ".smark";
+					if (fs.existsSync(withSmark)) localPath = withSmark;
+				}
+				if (!fs.existsSync(localPath)) {
 					runtimeError([`<$red:Module Path Error:$> File not found: <$magenta:${filePath}$> at line <$yellow:${node.range.start.line + 1}$>`]);
 				}
+				let mod = { path: absolutePath, localPath: localPath, type: "smark" };
 
-				const ext = path.extname(absolutePath).slice(1);
+				const ext = path.extname(mod.localPath).slice(1);
 				if (ext !== "smark") {
 					runtimeError([`<$red:Module Extension Error:$> Unsupported extension .${ext} for module <$magenta:${alias}$>. Only .smark files are supported.`]);
 				}
 
-				modules.set(alias, { path: absolutePath, type: ext, used: false, range: node.range });
-				
-				// Remove import node from AST
+				modules.set(alias, { ...mod, used: false, range: node.range });
 				nodes.splice(i, 1);
+				const next = nodes[i];
+				if (next && next.type === TEXT && next.text.startsWith("\n")) {
+					next.text = next.text.slice(1);
+					if (next.text === "") nodes.splice(i, 1);
+				}
 				i--;
-			} 
+			}
 			// 2. Handle Usage Node: [$use-module = alias]
 			else if (node.type === USE_MODULE) {
 				hasContentStarted = true;
@@ -86,57 +274,145 @@ export async function resolveModules(ast, context) {
 
 				const mod = modules.get(alias);
 				mod.used = true;
-				
-				if (mod.type === "smark") {
-					const stack = context.importStack || [];
-					if (stack.includes(mod.path)) {
-						const chain = [...stack, mod.path].map(p => path.basename(p)).join(" -> ");
-						runtimeError([
-							`{line}<$red:Circular Dependency Detected$>:`,
-							`<$yellow:The following import chain was found:$>`,
-							`<$magenta:${chain}$>{line}`
-						]);
-					}
 
-					// Recursive Parse for Smark files
-					const content = fs.readFileSync(mod.path, "utf-8");
+				const stack = context.importStack || [];
+				const maxDepth = context.instance.security?.maxDepth ?? 5;
+				if (stack.length >= maxDepth) {
+					runtimeError([`<$red:Security Error:$> Recursion Guard: Maximum Smark compilation depth exceeded (limit is ${maxDepth}).`]);
+				}
+				if (stack.includes(mod.path)) {
+					runtimeError([`<$red:Circular Dependency Detected$>: ${mod.path}`]);
+				}
+
+				const cached = context.instance.moduleCache.get(mod.localPath);
+				let expandedNodes;
+				if (cached) {
+					expandedNodes = trimAst(cloneAst(cached));
+				} else {
+					const content = fs.readFileSync(mod.localPath, "utf-8");
 					const SomMark = context.instance.constructor;
-					
 					const subSmark = new SomMark({
 						src: content,
 						format: context.format,
 						filename: mod.path,
+						baseDir: path.dirname(mod.localPath),
 						mapperFile: context.instance.mapperFile,
-						removeComments: context.instance.removeComments,
 						placeholders: context.instance.placeholders,
-						importStack: [...stack, absFilename]
+						variables: {},
+						importAliases: context.instance.importAliases,
+						customProps: context.instance.customProps,
+						fallbackTarget: context.instance.fallbackTarget,
+						removeComments: context.instance.removeComments,
+						security: context.instance.security,
+						showSpinner: context.instance.showSpinner,
+						importStack: [...stack, absFilename],
+						moduleIdentityToken: context.instance.moduleIdentityToken,
+						moduleCache: context.instance.moduleCache
 					});
-					
-					const subAst = await subSmark.parse();
-					
-					// Wrap the imported code in a virtual block to keep its identity.
-					const wrapperNode = {
-						type: "Block",
-						id: context.instance.moduleIdentityToken,
-						args: { filename: mod.path },
-						body: subAst,
-						depth: node.depth,
-						range: node.range
-					};
 
-					// Splice the wrapper into the current body
-					nodes.splice(i, 1, wrapperNode);
-					i += 0; // The wrapper is a single node now
-				} else {
-					runtimeError([`<$red:Module Extension Error:$> Unsupported extension .${mod.type} for module <$magenta:${alias}$>. Only .smark files are supported.`]);
+					const subAst = await subSmark.parse();
+					context.instance.moduleCache.set(mod.localPath, subAst);
+					expandedNodes = trimAst(subAst);
 				}
-			} 
-			// 3. Recurse into children
+
+				const boundaryNode = {
+					type: BLOCK,
+					id: context.instance.moduleIdentityToken,
+					args: { filename: mod.path },
+					body: expandedNodes
+				};
+				nodes.splice(i, 1, boundaryNode);
+				const next = nodes[i + 1];
+				if (next && next.type === TEXT && next.text.startsWith("\n")) {
+					next.text = next.text.slice(1);
+					if (next.text === "") nodes.splice(i + 1, 1);
+				}
+			}
+			// 3. Handle Component Usage: [Alias] ... [end]
+			else if (node.type === BLOCK && modules.has(node.id)) {
+				hasContentStarted = true;
+				const mod = modules.get(node.id);
+				mod.used = true;
+				const stack = context.importStack || [];
+				const maxDepth = context.instance.security?.maxDepth ?? 5;
+				if (stack.length >= maxDepth) {
+					runtimeError([`<$red:Security Error:$> Recursion Guard: Maximum Smark compilation depth exceeded (limit is ${maxDepth}).`]);
+				}
+				if (stack.includes(mod.path)) {
+					runtimeError([`<$red:Circular Dependency Detected$>: ${mod.path}`]);
+				}
+
+				const cached = context.instance.moduleCache.get(mod.localPath);
+				let subAst;
+				if (cached) {
+					subAst = cloneAst(cached);
+				} else {
+					const content = fs.readFileSync(mod.localPath, "utf-8");
+					const SomMark = context.instance.constructor;
+					const subSmark = new SomMark({
+						src: content,
+						format: context.format,
+						filename: mod.path,
+						baseDir: path.dirname(mod.localPath),
+						mapperFile: context.instance.mapperFile,
+						placeholders: context.instance.placeholders,
+						variables: {}, // Parse without variables to keep the cached AST pure
+						importAliases: context.instance.importAliases,
+						customProps: context.instance.customProps,
+						fallbackTarget: context.instance.fallbackTarget,
+						removeComments: context.instance.removeComments,
+						security: context.instance.security,
+						showSpinner: context.instance.showSpinner,
+						importStack: [...stack, absFilename],
+						moduleCache: context.instance.moduleCache
+					});
+
+					subAst = await subSmark.parse();
+					context.instance.moduleCache.set(mod.localPath, subAst);
+					subAst = cloneAst(subAst);
+				}
+
+				// Dynamically resolve variable placeholders inside the cloned AST
+				resolveAstVariables(subAst, node.args);
+
+				await processNodes(node.body, currentBaseDir, false);
+				const expandedNodes = injectSlots(trimAst(subAst), trimAst(node.body));
+				const rootTag = expandedNodes.find(n => n.type === BLOCK);
+				if (rootTag) {
+					const consumed = node.args.__consumed__ || new Set();
+
+					const publicArgs = Object.fromEntries(
+						Object.entries(node.args).filter(([key]) => {
+							if (key === "__consumed__") return false;
+							if (consumed.has(key)) return false; // THE FIX: Filter if hit by v{}
+							return true;
+						})
+					);
+					rootTag.args = { ...rootTag.args, ...publicArgs };
+				}
+
+				const boundaryNode = {
+					type: BLOCK,
+					id: context.instance.moduleIdentityToken,
+					args: { filename: mod.path },
+					body: expandedNodes
+				};
+				nodes.splice(i, 1, boundaryNode);
+			}
+			// 4. Handle Regular Blocks: Process body recursively for nested components and trim whitespace
+			else if (node.type === BLOCK) {
+				hasContentStarted = true;
+				if (node.body && Array.isArray(node.body)) {
+					node.body = trimAst(node.body);
+					await processNodes(node.body, currentBaseDir, false);
+				}
+			}
+
+			// 4. Recurse into children (Standard Blocks)
 			else {
 				if (node.type === TEXT && node.text.trim() === "") {
-					// Ignore structural whitespace between imports
+					// Structural whitespace
 				} else if (node.type !== COMMENT) {
-					// Any meaningful node that isn't an IMPORT or COMMENT is considered "Content"
 					hasContentStarted = true;
 				}
 
