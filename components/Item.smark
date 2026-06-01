@@ -1,0 +1,4 @@
+[div = class: "item"]
+  [h4] static ${ title }$ [end]
+  [span] Price: $static ${ price }$ [end]
+[end]
