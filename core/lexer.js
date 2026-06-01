@@ -27,9 +27,9 @@ function lexer(src, filename = "anonymous") {
 	let isInAtBlockBody = false;
 	let isInQuote = false;
 	let isInHeader = false; // Tracks if we are in a structural header context
+	let isInAtBlockHeader = false; // Specific for At-Block headers (@_ ... _@)
 	let isInInlineHead = false; // Specific for (key:val) after ->
 	let parenDepth = 0; // To track balanced parentheses in inlines
-	let delimiterStack = []; // To track block nesting for body mode
 
 	/**
 	 * Adds a token to the stream and updates the scanner's position tracking.
@@ -54,8 +54,7 @@ function lexer(src, filename = "anonymous") {
 			type,
 			value,
 			source: filename,
-			range: { start, end },
-			depth: delimiterStack.length
+			range: { start, end }
 		});
 
 		prev_type = type;
@@ -140,17 +139,18 @@ function lexer(src, filename = "anonymous") {
 					i += 2;
 					continue;
 				}
-				
+
 				// Support Prefix Layers inside quotes!
-				if ((src[i] === "j" && src[i+1] === "s" && src[i+2] === "{") || (src[i] === "p" && src[i+1] === "{")) {
+				if ((src[i] === "j" && src[i + 1] === "s" && src[i + 2] === "{") || (src[i] === "p" && src[i + 1] === "{") || (src[i] === "v" && src[i + 1] === "{")) {
 					const isJS = (src[i] === "j");
+					const isV = (src[i] === "v");
 					if (quoteValue.length > 0) {
 						addToken(TOKEN_TYPES.VALUE, quoteValue);
 						quoteValue = "";
 					}
-					
+
 					let braceDepth = 1;
-					let prefixValue = isJS ? "js{" : "p{";
+					let prefixValue = isJS ? "js{" : (isV ? "v{" : "p{");
 					i += isJS ? 3 : 2;
 
 					let internalString = null;
@@ -172,7 +172,8 @@ function lexer(src, filename = "anonymous") {
 						prefixValue += c;
 						i++;
 					}
-					addToken(isJS ? TOKEN_TYPES.PREFIX_JS : TOKEN_TYPES.PREFIX_P, prefixValue);
+					let tokenType = isJS ? TOKEN_TYPES.PREFIX_JS : (isV ? TOKEN_TYPES.PREFIX_V : TOKEN_TYPES.PREFIX_P);
+					addToken(tokenType, prefixValue);
 					continue;
 				}
 
@@ -197,7 +198,7 @@ function lexer(src, filename = "anonymous") {
 
 		// --- PHASE 3: STRUCTURAL PARSING ---
 		// Handles markers, whitespace, and structural symbols.
-		
+
 		// WHITESPACE
 		if (char === "\n") {
 			addToken(TOKEN_TYPES.WHITESPACE, char);
@@ -218,11 +219,31 @@ function lexer(src, filename = "anonymous") {
 		// COMMENTS
 		if (char === "#") {
 			let comm = "";
-			while (i < src.length && src[i] !== "\n") {
-				comm += src[i];
-				i++;
+			// Check for Multiline Comment ### (must have no spaces)
+			if (src[i + 1] === "#" && src[i + 2] === "#") {
+				const startPos = i;
+				comm = "###";
+				i += 3;
+				let closed = false;
+				while (i < src.length) {
+					if (src[i] === "#" && src[i + 1] === "#" && src[i + 2] === "#") {
+						comm += "###";
+						i += 3;
+						closed = true;
+						break;
+					}
+					comm += src[i];
+					i++;
+				}
+				addToken(TOKEN_TYPES.COMMENT_BLOCK, comm);
+			} else {
+				// Single line comment
+				while (i < src.length && src[i] !== "\n") {
+					comm += src[i];
+					i++;
+				}
+				addToken(TOKEN_TYPES.COMMENT, comm);
 			}
-			addToken(TOKEN_TYPES.COMMENT, comm);
 			continue;
 		}
 
@@ -234,23 +255,24 @@ function lexer(src, filename = "anonymous") {
 			continue;
 		}
 
-		// PREFIX LAYERS (js{...} or p{...})
-		if ((char === "j" && next === "s" && src[i+2] === "{") || (char === "p" && next === "{")) {
+		// PREFIX LAYERS (js{...} or p{...} or v{...})
+		if ((char === "j" && next === "s" && src[i + 2] === "{") || (char === "p" && next === "{") || (char === "v" && next === "{")) {
 			const isJS = (char === "j");
 			const isP = (char === "p");
-			
+			const isV = (char === "v");
+
 			// Context Check
-			const top = (delimiterStack.length > 0) ? delimiterStack[delimiterStack.length - 1] : null;
-			const isInBlockHeader = isInHeader && top === "[";
-			const isInNormalText = !isInHeader && !isInInlineHead && !isInAtBlockBody && parenDepth === 0;
-			
+			const isBlockHeader = isInHeader && !isInAtBlockHeader;
+			const isNormalText = !isInHeader && !isInInlineHead && !isInAtBlockBody && parenDepth === 0;
+
 			let allowed = false;
-			if (isJS && isInBlockHeader) allowed = true;
-			if (isP && (isInBlockHeader || isInNormalText)) allowed = true;
+			if (isJS && isBlockHeader) allowed = true;
+			if (isP && (isBlockHeader || isNormalText)) allowed = true;
+			if (isV && (isBlockHeader || isNormalText)) allowed = true;
 
 			if (allowed) {
 				let braceDepth = 1;
-				let prefixValue = isJS ? "js{" : "p{";
+				let prefixValue = isJS ? "js{" : (isV ? "v{" : "p{");
 				i += isJS ? 3 : 2;
 
 				let inString = null; // Track if we are inside " " or ' '
@@ -273,7 +295,8 @@ function lexer(src, filename = "anonymous") {
 					prefixValue += c;
 					i++;
 				}
-				addToken(isJS ? TOKEN_TYPES.PREFIX_JS : TOKEN_TYPES.PREFIX_P, prefixValue);
+				let tokenType = isJS ? TOKEN_TYPES.PREFIX_JS : (isV ? TOKEN_TYPES.PREFIX_V : TOKEN_TYPES.PREFIX_P);
+				addToken(tokenType, prefixValue);
 				continue;
 			}
 			// If not allowed, it will fall through to normal word scanning
@@ -283,8 +306,8 @@ function lexer(src, filename = "anonymous") {
 		if (char === "@" && next === "_") {
 			addToken(TOKEN_TYPES.OPEN_AT, "@_");
 			i += 2;
-			if (!isInAtBlockBody) delimiterStack.push("@");
 			isInHeader = true; // At-Blocks start with a header part
+			isInAtBlockHeader = true;
 			continue;
 		}
 		if (char === "-" && next === ">") {
@@ -299,13 +322,128 @@ function lexer(src, filename = "anonymous") {
 			continue;
 		}
 
+		// STATIC KEYWORD
+		if (char === "s" && src.slice(i, i + 6) === "static") {
+			const afterStatic = src.slice(i + 6);
+			const hasSpace = afterStatic.startsWith(" ");
+			const hasLogic = hasSpace ? afterStatic.slice(1).startsWith("${") : afterStatic.startsWith("${");
+
+			const isMainIdentifier = (
+				last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET ||
+				last_non_junk_type === TOKEN_TYPES.OPEN_AT ||
+				(last_non_junk_type === TOKEN_TYPES.OPEN_PAREN && isInInlineHead)
+			);
+
+			if ((hasLogic || isInHeader) && !isMainIdentifier) {
+				addToken(TOKEN_TYPES.STATIC_KEYWORD, hasSpace ? "static " : "static");
+				i += hasSpace ? 7 : 6;
+				continue;
+			}
+		}
+
+		// RUNTIME KEYWORD
+		if (char === "r" && src.slice(i, i + 7) === "runtime") {
+			const afterRuntime = src.slice(i + 7);
+			const hasSpace = afterRuntime.startsWith(" ");
+			const hasLogic = hasSpace ? afterRuntime.slice(1).startsWith("${") : afterRuntime.startsWith("${");
+
+			const isMainIdentifier = (
+				last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET ||
+				last_non_junk_type === TOKEN_TYPES.OPEN_AT ||
+				(last_non_junk_type === TOKEN_TYPES.OPEN_PAREN && isInInlineHead)
+			);
+
+			if ((hasLogic || isInHeader) && !isMainIdentifier) {
+				addToken(TOKEN_TYPES.RUNTIME_KEYWORD, hasSpace ? "runtime " : "runtime");
+				i += hasSpace ? 8 : 7;
+				continue;
+			}
+		}
+
+		// LOGIC BLOCKS (${ ... }$)
+		if (char === "$" && next === "{" && (last_non_junk_type === TOKEN_TYPES.STATIC_KEYWORD || last_non_junk_type === TOKEN_TYPES.RUNTIME_KEYWORD)) {
+			const startLine = line;
+			const startCharacter = character;
+			i += 2;
+			let logicCode = "";
+			let braceDepth = 1;
+			let internalString = null;
+			let foundClosing = false;
+
+			while (i < src.length) {
+				const c = src[i];
+				const n = src[i + 1];
+
+				// Stop condition: }$ (only if not inside a JS string and at top-level brace depth)
+				if (c === "}" && n === "$" && !internalString && braceDepth === 1) {
+					i += 2;
+					braceDepth = 0;
+					foundClosing = true;
+					break;
+				}
+
+				if (internalString) {
+					if (c === "\\" && (n === internalString || n === "\\")) {
+						logicCode += c + n;
+						i += 2;
+						continue;
+					}
+					if (c === internalString) internalString = null;
+				} else {
+					if (c === "/" && n === "/") {
+						logicCode += c + n;
+						i += 2;
+						while (i < src.length && src[i] !== "\n" && src[i] !== "\r") {
+							logicCode += src[i];
+							i++;
+						}
+						continue;
+					}
+					if (c === "/" && n === "*") {
+						logicCode += c + n;
+						i += 2;
+						while (i < src.length) {
+							if (src[i] === "*" && src[i + 1] === "/") {
+								logicCode += "*/";
+								i += 2;
+								break;
+							}
+							logicCode += src[i];
+							i++;
+						}
+						continue;
+					}
+
+					if (c === "\"" || c === "'" || c === "`") internalString = c;
+					else if (c === "{") braceDepth++;
+					else if (c === "}") braceDepth--;
+				}
+
+				logicCode += c;
+				i++;
+			}
+
+			if (!foundClosing) {
+				lexerError("Unclosed logic block. Expected '}$' to close the block starting with '${'.", {
+					src,
+					filename,
+					range: {
+						start: { line: startLine, character: startCharacter },
+						end: { line: startLine, character: startCharacter + 2 }
+					}
+				});
+			}
+
+			addToken(TOKEN_TYPES.LOGIC, logicCode);
+			continue;
+		}
+
 		// SINGLE-CHAR MARKERS
 		if (char === "[") {
 			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
 				addToken(TOKEN_TYPES.TEXT, "[");
 			} else {
 				addToken(TOKEN_TYPES.OPEN_BRACKET, "[");
-				delimiterStack.push("[");
 				isInHeader = true;
 			}
 			i++;
@@ -317,13 +455,11 @@ function lexer(src, filename = "anonymous") {
 			} else {
 				const lastRealType = last_non_junk_type;
 				addToken(TOKEN_TYPES.CLOSE_AT, "_@");
-				const top = delimiterStack[delimiterStack.length - 1];
-				if (top === "@") {
-					if (lastRealType === TOKEN_TYPES.END_KEYWORD) {
-						delimiterStack.pop();
-						isInAtBlockBody = false;
-						isInHeader = false;
-					}
+				// Removed delimiter stack check
+				if (lastRealType === TOKEN_TYPES.END_KEYWORD) {
+					isInAtBlockBody = false;
+					isInHeader = false;
+					isInAtBlockHeader = false;
 				}
 			}
 			i += 2;
@@ -359,7 +495,10 @@ function lexer(src, filename = "anonymous") {
 				parenDepth--;
 				if (parenDepth === 0) {
 					addToken(TOKEN_TYPES.CLOSE_PAREN, ")");
-					if (isInInlineHead) isInInlineHead = false;
+					if (isInInlineHead) {
+						isInInlineHead = false;
+						isInHeader = false;
+					}
 				} else {
 					addToken(TOKEN_TYPES.TEXT, ")");
 				}
@@ -373,7 +512,7 @@ function lexer(src, filename = "anonymous") {
 			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
 				addToken(TOKEN_TYPES.TEXT, ":");
 			} else {
-				const allowed = [TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.KEY, TOKEN_TYPES.CLOSE_AT, TOKEN_TYPES.VALUE, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.QUOTE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT];
+				const allowed = [TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.KEY, TOKEN_TYPES.CLOSE_AT, TOKEN_TYPES.VALUE, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.QUOTE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_V, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT, TOKEN_TYPES.LOGIC, TOKEN_TYPES.STATIC_KEYWORD, TOKEN_TYPES.RUNTIME_KEYWORD, TOKEN_TYPES.FOR_EACH];
 				if (allowed.includes(last_non_junk_type)) {
 					addToken(TOKEN_TYPES.COLON, ":");
 					isInHeader = true;
@@ -388,7 +527,7 @@ function lexer(src, filename = "anonymous") {
 			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
 				addToken(TOKEN_TYPES.TEXT, "=");
 			} else {
-				const allowed = [TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.KEY, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.QUOTE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT];
+				const allowed = [TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.KEY, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.QUOTE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_V, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT, TOKEN_TYPES.LOGIC, TOKEN_TYPES.STATIC_KEYWORD, TOKEN_TYPES.RUNTIME_KEYWORD, TOKEN_TYPES.FOR_EACH];
 				if (allowed.includes(last_non_junk_type)) {
 					addToken(TOKEN_TYPES.EQUAL, "=");
 				} else {
@@ -402,7 +541,7 @@ function lexer(src, filename = "anonymous") {
 			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
 				addToken(TOKEN_TYPES.TEXT, ",");
 			} else {
-				const allowed = [TOKEN_TYPES.VALUE, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.QUOTE, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT];
+				const allowed = [TOKEN_TYPES.VALUE, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.QUOTE, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_V, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT, TOKEN_TYPES.LOGIC, TOKEN_TYPES.STATIC_KEYWORD, TOKEN_TYPES.RUNTIME_KEYWORD, TOKEN_TYPES.FOR_EACH];
 				if (allowed.includes(last_non_junk_type)) {
 					addToken(TOKEN_TYPES.COMMA, ",");
 				} else {
@@ -416,16 +555,14 @@ function lexer(src, filename = "anonymous") {
 			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
 				addToken(TOKEN_TYPES.TEXT, ";");
 			} else {
-				const allowed = [TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.VALUE, TOKEN_TYPES.CLOSE_AT, TOKEN_TYPES.CLOSE_PAREN, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.QUOTE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT];
+				const allowed = [TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.VALUE, TOKEN_TYPES.CLOSE_AT, TOKEN_TYPES.CLOSE_PAREN, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.QUOTE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_V, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT, TOKEN_TYPES.LOGIC, TOKEN_TYPES.STATIC_KEYWORD, TOKEN_TYPES.RUNTIME_KEYWORD, TOKEN_TYPES.FOR_EACH];
 				if (allowed.includes(last_non_junk_type)) {
 					addToken(TOKEN_TYPES.SEMICOLON, ";");
-					isInHeader = false; // Semicolon ends the At-Block header
-					// Trigger body mode for At-Blocks
-					if (delimiterStack.length > 0) {
-						const top = delimiterStack[delimiterStack.length - 1];
-						if (top === "@") {
-							isInAtBlockBody = true;
-						}
+					// ONLY trigger body mode if we were actually in an At-Block header
+					if (isInAtBlockHeader) {
+						isInHeader = false;
+						isInAtBlockHeader = false;
+						isInAtBlockBody = true;
 					}
 				} else {
 					addToken(TOKEN_TYPES.TEXT, ";");
@@ -433,6 +570,13 @@ function lexer(src, filename = "anonymous") {
 			}
 			i++;
 			continue;
+		}
+		if (char === "!") {
+			if (isInHeader) {
+				addToken(TOKEN_TYPES.EXCLAMATION_MARK, "!");
+				i++;
+				continue;
+			}
 		}
 		if (char === "\"" || char === "'") {
 			const valTriggers = [TOKEN_TYPES.COLON, TOKEN_TYPES.EQUAL, TOKEN_TYPES.COMMA, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.OPEN_BRACKET, TOKEN_TYPES.OPEN_AT];
@@ -455,28 +599,40 @@ function lexer(src, filename = "anonymous") {
 		// At-Blocks (@_) and Inlines (->( )) do NOT allow ':' in the ID.
 		const isStartOfBlockId = (last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET);
 
-		let stopChars = "[](){}:=;,@_>\"'#\\ \t\n\r";
+		let stopChars = "[](){}:=;,@>\"'#\\ \t\n\r!";
 		if (isStartOfBlockId || (parenDepth > 0 && !isInInlineHead)) {
 			stopChars = stopChars.replace(":", "");
 		}
-		if (!isInHeader && !isInInlineHead) {
-			stopChars = "[]@_()\\#\n\r"; // In normal text, stop at markers, comments and newlines
+		const isInNormalText = !isInHeader && !isInInlineHead && !isInAtBlockBody;
+		if (isInNormalText) {
+			stopChars = "[]@()>_()\\#\n\r"; // In normal text, stop at markers, comments and newlines
 		}
 
-		while (i < src.length && !stopChars.includes(src[i])) { 
+		while (i < src.length && !stopChars.includes(src[i])) {
+			// Stop ONLY if $ is followed by { (Logic block start)
+			if (src[i] === "$" && src[i + 1] === "{") break;
+
+			// Lookahead for At-Block markers (_@ or @_)
+			if (src[i] === "_" && src[i + 1] === "@") break;
+			if (src[i] === "@" && src[i + 1] === "_") break;
+
+			// Lookahead for 'static ${' or 'runtime ${' (only if we're not at the very start of the word scanning)
+			if (word.length > 0) {
+				if (src[i] === "s" && src.slice(i, i + 7) === "static " && src[i + 7] === "$" && src[i + 8] === "{") break;
+				if (src[i] === "s" && src.slice(i, i + 6) === "static" && src[i + 6] === "$" && src[i + 7] === "{") break;
+				if (src[i] === "r" && src.slice(i, i + 8) === "runtime " && src[i + 8] === "$" && src[i + 9] === "{") break;
+				if (src[i] === "r" && src.slice(i, i + 7) === "runtime" && src[i + 7] === "$" && src[i + 8] === "{") break;
+			}
+
 			// Lookahead for -> marker in normal text
-			if (!isInHeader && src[i] === "-" && src[i+1] === ">") break;
+			if (!isInHeader && src[i] === "-" && src[i + 1] === ">") break;
 
 			// Stop if we hit an ALLOWED prefix trigger
-			if ((src[i] === "p" && src[i+1] === "{")) {
-				const top = (delimiterStack.length > 0) ? delimiterStack[delimiterStack.length - 1] : null;
-				const isInBlockHeader = isInHeader && top === "[";
-				const isInNormalText = !isInHeader && !isInInlineHead && !isInAtBlockBody && parenDepth === 0;
-				if (isInBlockHeader || isInNormalText) break;
+			if ((src[i] === "p" && src[i + 1] === "{") || (src[i] === "v" && src[i + 1] === "{")) {
+				if (isInHeader || isInNormalText) break;
 			}
-			if (src[i] === "j" && src[i+1] === "s" && src[i+2] === "{") {
-				const top = (delimiterStack.length > 0) ? delimiterStack[delimiterStack.length - 1] : null;
-				if (isInHeader && top === "[") break;
+			if (src[i] === "j" && src[i + 1] === "s" && src[i + 2] === "{") {
+				if (isInHeader) break;
 			}
 			word += src[i];
 			i++;
@@ -490,7 +646,7 @@ function lexer(src, filename = "anonymous") {
 			} else if (isInHeader || isInInlineHead) {
 				// Inside a structural header context
 				const isMainIdentifier = (
-					last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET || 
+					last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET ||
 					last_non_junk_type === TOKEN_TYPES.OPEN_AT ||
 					(last_non_junk_type === TOKEN_TYPES.OPEN_PAREN && isInInlineHead)
 				);
@@ -498,23 +654,34 @@ function lexer(src, filename = "anonymous") {
 				if (isMainIdentifier) {
 					if (word === end_keyword) {
 						addToken(TOKEN_TYPES.END_KEYWORD, word);
-						if (delimiterStack[delimiterStack.length - 1] === "[") delimiterStack.pop();
 					}
 					else if (word === "import") addToken(TOKEN_TYPES.IMPORT, word);
 					else if (word === "$use-module") addToken(TOKEN_TYPES.USE_MODULE, word);
+					else if (word === "slot") addToken(TOKEN_TYPES.SLOT_KEYWORD, word);
+					else if (word === "for-each") addToken(TOKEN_TYPES.FOR_EACH, word);
 					else addToken(TOKEN_TYPES.IDENTIFIER, word);
 				} else {
 					// Use lookahead to distinguish KEY from VALUE
 					const p = peekStructural(i);
 					if (p === ":") {
 						addToken(TOKEN_TYPES.KEY, word);
+					} else if (word === "static") {
+						addToken(TOKEN_TYPES.STATIC_KEYWORD, word);
+					} else if (word === "runtime") {
+						addToken(TOKEN_TYPES.RUNTIME_KEYWORD, word);
 					} else {
 						addToken(TOKEN_TYPES.VALUE, word);
 					}
 				}
 			} else {
 				// Normal text
-				addToken(TOKEN_TYPES.TEXT, word);
+				if (word.trim() === "static") {
+					addToken(TOKEN_TYPES.STATIC_KEYWORD, word);
+				} else if (word.trim() === "runtime") {
+					addToken(TOKEN_TYPES.RUNTIME_KEYWORD, word);
+				} else {
+					addToken(TOKEN_TYPES.TEXT, word);
+				}
 			}
 		} else {
 			// Fallback for any unhandled characters

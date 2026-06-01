@@ -18,18 +18,28 @@ EscapeChar     = "\", ? any character except WhiteSpace ?;
 
 (* "Junk" refers to whitespace and comments which the parser skips in headers *)
 Comment        = "#", { ? any character except "\n" ? }, "\n";
-Junk           = { WhiteSpace | Comment };
+CommentBlock   = "###", { ? any character ? }, "###";
+Junk           = { WhiteSpace | Comment | CommentBlock };
 
 (* Prefix Layers for Dynamic Data *)
 PrefixJS       = "js{", { ? any character ? }, "}";
 PrefixP        = "p{", { ? any character ? }, "}";
-PrefixLayer    = PrefixJS | PrefixP;
+PrefixV        = "v{", { ? any character ? }, "}";
+PrefixLayer    = PrefixJS | PrefixP | PrefixV;
+
+(* Static / Runtime Logic Blocks *)
+LogicBlock     = ( "static" | "runtime" ), [ " " ], "${", { ? any character ? }, "}$";
 
 (* ========================================== *)
 (* Block Syntax (Containers)                  *)
 (* ========================================== *)
 
-Block          = BlockOpen, BlockBody, BlockEnd;
+Block          = StandardBlock | SelfClosingBlock;
+
+StandardBlock  = BlockOpen, BlockBody, BlockEnd;
+
+(* Self-Closing Blocks end with an exclamation mark (!) *)
+SelfClosingBlock = "[", Junk, BlockID, Junk, [ "=", Junk, BlockArgs, Junk ], "!", Junk, "]";
 
 (* Flexible Header with Junk-Skipping. Blocks allow colons in ID. *)
 BlockOpen      = "[", Junk, BlockID, Junk, [ "=", Junk, BlockArgs, Junk ], "]";
@@ -41,7 +51,7 @@ BlockArgs      = BlockArg, { Junk, ",", Junk, BlockArg };
 BlockArg       = [ BlockKey, Junk, ":", Junk ], Value;
 
 BlockKey       = BlockID | QuotedString;
-Value          = QuotedString | PrefixLayer | RawValue;
+Value          = QuotedString | PrefixLayer | LogicBlock | RawValue;
 
 QuotedString   = ("'" | '"'), { ? any character ? | EscapeChar }, ("'" | '"');
 RawValue       = { ? any char except ",", Junk, "]" ? | EscapeChar };
@@ -50,15 +60,16 @@ RawValue       = { ? any char except ",", Junk, "]" ? | EscapeChar };
 (* Inline Statement Syntax                    *)
 (* ========================================== *)
 
-(* Inlines use SimpleID (NO COLONS allowed in ID) *)
+(* Inlines use SimpleID (NO COLONS allowed in ID unless key-value) *)
 InlineStatement = "(", InlineContent, ")", Junk, "->", Junk, "(", SimpleID, [ Junk, ":", Junk, InlineArgs ], ")";
 
 (* Content allows balanced parentheses and placeholders *)
-InlineContent   = { ? any char except ")" ? | BalancedParen | EscapeChar | PrefixP };
+InlineContent   = { ? any char except ")" ? | BalancedParen | EscapeChar | PrefixP | PrefixV };
 BalancedParen   = "(", InlineContent, ")";
 
-(* Inline Arguments: Positional Only *)
-InlineArgs      = Value, { Junk, ",", Junk, Value };
+(* Inline Arguments: Positional and Named support *)
+InlineArgs      = InlineArg, { Junk, ",", Junk, InlineArg };
+InlineArg       = [ SimpleID, Junk, ":", Junk ], Value;
 
 (* ========================================== *)
 (* At-Block Syntax (Raw Containers)           *)
@@ -83,4 +94,4 @@ AtBody         = { ? any character ? | EscapeChar };
 Document       = { Block | InlineStatement | AtBlock | TextContent | Comment | WhiteSpace };
 
 (* Text Content: Plain text with fallback behavior for symbols *)
-TextContent    = { ? any char except "[", "@_", "(", "#" ? | EscapeChar | PrefixP };
+TextContent    = { ? any char except "[", "@_", "(", "#" ? | EscapeChar | PrefixP | PrefixV | LogicBlock };

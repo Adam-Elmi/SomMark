@@ -11,6 +11,9 @@ import {
 	INLINE,
 	ATBLOCK,
 	COMMENT,
+	COMMENT_BLOCK,
+	STATIC_LOGIC,
+	RUNTIME_LOGIC,
 	IMPORT,
 	USE_MODULE,
 	block_id,
@@ -21,9 +24,16 @@ import {
 	at_id,
 	atblock_key,
 	at_value,
-	end_keyword
+	end_keyword,
+	SLOT,
+	slot_keyword,
+	FOR_EACH,
+	for_each_keyword
 } from "./labels.js";
-import { levenshtein } from "../helpers/utils.js";
+import { levenshtein, getPrefixValue } from "../helpers/utils.js";
+
+const MAX_ITERATIONS = 10000;
+
 
 // ========================================================================== //
 //  Helper Functions                                                         //
@@ -51,7 +61,7 @@ function skipJunk(tokens, i) {
 	while (i < tokens.length) {
 		const t = tokens[i];
 		const type = t.type;
-		if (type === TOKEN_TYPES.WHITESPACE || type === TOKEN_TYPES.COMMENT) {
+		if (type === TOKEN_TYPES.WHITESPACE || type === TOKEN_TYPES.COMMENT || type === TOKEN_TYPES.COMMENT_BLOCK) {
 			i++;
 		} else if (type === TOKEN_TYPES.TEXT && t.value.trim() === "") {
 			i++;
@@ -91,6 +101,7 @@ function validateName(
 function makeBlockNode() {
 	return {
 		type: BLOCK,
+		structure: "Block",
 		id: "",
 		args: {},
 		body: [],
@@ -105,6 +116,7 @@ function makeBlockNode() {
 function makeTextNode() {
 	return {
 		type: TEXT,
+		structure: "Text",
 		text: "",
 		depth: 0,
 		range: {
@@ -117,6 +129,7 @@ function makeTextNode() {
 function makeCommentNode() {
 	return {
 		type: COMMENT,
+		structure: "Comment",
 		text: "",
 		depth: 0,
 		range: {
@@ -129,6 +142,7 @@ function makeCommentNode() {
 function makeInlineNode() {
 	return {
 		type: INLINE,
+		structure: "Inline",
 		value: "",
 		id: "",
 		args: {},
@@ -147,9 +161,24 @@ function makeInlineNode() {
 function makeAtBlockNode() {
 	return {
 		type: ATBLOCK,
+		structure: "AtBlock",
 		id: "",
 		args: {},
 		content: "",
+		depth: 0,
+		range: {
+			start: { line: 0, character: 0 },
+			end: { line: 0, character: 0 }
+		}
+	};
+}
+
+/** Creates a new empty Logic node. */
+function makeLogicNode(type = RUNTIME_LOGIC) {
+	return {
+		type: type,
+		structure: "Block",
+		code: "",
 		depth: 0,
 		range: {
 			start: { line: 0, character: 0 },
@@ -162,6 +191,7 @@ function makeAtBlockNode() {
 //  Parser State and Error Tracking                                          //
 // ========================================================================== //
 
+let global_static_logic_count = 0;
 let end_stack = [];
 let tokens_stack = [];
 let range = {
@@ -258,7 +288,7 @@ function parseKey(tokens, i) {
 // ========================================================================== //
 //  Parse Value                                                               //
 // ========================================================================== //
-function parseValue(tokens, i, placeholders = {}) {
+function parseValue(tokens, i, placeholders = {}, variables = {}, allowLogic = true) {
 	let val = current_token(tokens, i).value;
 	// consume Value
 	if (current_token(tokens, i).type === TOKEN_TYPES.QUOTE) {
@@ -266,8 +296,8 @@ function parseValue(tokens, i, placeholders = {}) {
 		val = "";
 		while (i < tokens.length && current_token(tokens, i).type !== TOKEN_TYPES.QUOTE) {
 			const token = current_token(tokens, i);
-			if (token.type === TOKEN_TYPES.PREFIX_P || token.type === TOKEN_TYPES.PREFIX_JS) {
-				const [resolvedVal, nextI] = parseValue(tokens, i, placeholders);
+			if (token.type === TOKEN_TYPES.PREFIX_P || token.type === TOKEN_TYPES.PREFIX_JS || token.type === TOKEN_TYPES.PREFIX_V) {
+				const [resolvedVal, nextI] = parseValue(tokens, i, placeholders, variables, allowLogic);
 				val += resolvedVal;
 				i = nextI;
 			} else {
@@ -291,12 +321,61 @@ function parseValue(tokens, i, placeholders = {}) {
 		}
 		i++;
 		return [val, i, false];
+	} else if (current_token(tokens, i).type === TOKEN_TYPES.LOGIC || current_token(tokens, i).type === TOKEN_TYPES.STATIC_KEYWORD || current_token(tokens, i).type === TOKEN_TYPES.RUNTIME_KEYWORD) {
+		if (!allowLogic) {
+			parserError(errorMessage(tokens, i, "literal value", "", "Logic blocks are not allowed in this context."));
+		}
+		let isStatic = current_token(tokens, i).type === TOKEN_TYPES.STATIC_KEYWORD;
+		let isRuntimeKeyword = current_token(tokens, i).type === TOKEN_TYPES.RUNTIME_KEYWORD;
+		let nextI = i;
+
+		if (isStatic || isRuntimeKeyword) {
+			nextI = skipJunk(tokens, i + 1);
+			if (!current_token(tokens, nextI) || current_token(tokens, nextI).type !== TOKEN_TYPES.LOGIC) {
+				// Treat as literal text if keyword is not followed by a logic block
+				return [current_token(tokens, i).value, i + 1, false];
+			}
+			i = nextI;
+		}
+
+		const logicToken = current_token(tokens, i);
+		const node = makeLogicNode(isStatic ? STATIC_LOGIC : RUNTIME_LOGIC);
+		node.code = logicToken.value;
+		node.range = logicToken.range;
+
+		return [node, i + 1, false];
+	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_V) {
+		val = current_token(tokens, i).value;
+		// V4.1.0 VARIABLE: Strip v{ } and resolve from local variables
+		if (val.startsWith("v{") && val.endsWith("}")) {
+			const key = val.slice(2, -1).trim();
+			if (variables[key] !== undefined) {
+				val = variables[key];
+				if (!variables.__consumed__) {
+					Object.defineProperty(variables, "__consumed__", {
+						value: new Set(),
+						enumerable: false,
+						configurable: true
+					});
+				}
+				variables.__consumed__.add(key);
+			} else {
+				val = getPrefixValue('v', key);
+			}
+		}
+		i++;
+		return [val, i, false];
+	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_C) {
+		val = current_token(tokens, i).value;
+		// PREFIX_C is preserved for the resolveModules expansion phase
+		i++;
+		return [val, i, false];
 	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_P) {
 		val = current_token(tokens, i).value;
 		// V4 PLACEHOLDER: Strip p{ } and resolve from config
 		if (val.startsWith("p{") && val.endsWith("}")) {
 			const key = val.slice(2, -1).trim();
-			val = placeholders[key] !== undefined ? placeholders[key] : val;
+			val = placeholders[key] !== undefined ? placeholders[key] : getPrefixValue('p', key);
 		}
 		i++;
 		return [val, i, false];
@@ -312,6 +391,7 @@ function parseValue(tokens, i, placeholders = {}) {
 				token.type === TOKEN_TYPES.CLOSE_BRACKET ||
 				token.type === TOKEN_TYPES.COLON ||
 				token.type === TOKEN_TYPES.SEMICOLON ||
+				token.type === TOKEN_TYPES.EXCLAMATION_MARK ||
 				token.type === TOKEN_TYPES.CLOSE_PAREN) break;
 
 			if (token.type === TOKEN_TYPES.ESCAPE) {
@@ -403,8 +483,9 @@ function parseSemiColon(tokens, i, afterChar = "") {
  * @param {Object} placeholders - Dynamic public API data.
  * @returns {[Object, number]} The parsed Block node and new index.
  */
-function parseBlock(tokens, i, filename = null, placeholders = {}) {
+function parseBlock(tokens, i, filename = null, placeholders = {}, variables = {}, depth = 0) {
 	const blockNode = makeBlockNode();
+	blockNode.depth = depth;
 	const openBracketToken = current_token(tokens, i);
 	// ========================================================================== //
 	//  consume '['                                                               //
@@ -429,11 +510,18 @@ function parseBlock(tokens, i, filename = null, placeholders = {}) {
 		blockNode.type = IMPORT;
 	} else if (blockNode.id === "$use-module") {
 		blockNode.type = USE_MODULE;
+	} else if (idToken.type === TOKEN_TYPES.SLOT_KEYWORD) {
+		blockNode.type = SLOT;
+		// Prevent nested slots
+		if (end_stack.some(e => e.id === "slot")) {
+			parserError(errorMessage(tokens, i, "slot", "", "Nested slots are not allowed. A [slot] cannot be placed inside another [slot]."));
+		}
+	} else if (idToken.type === TOKEN_TYPES.FOR_EACH || blockNode.id === "for-each") {
+		blockNode.type = FOR_EACH;
 	}
 	validateName(blockNode.id, true);
-	blockNode.depth = idToken.depth;
 	blockNode.range.start = openBracketToken.range.start;
-	end_stack.push(id);
+	end_stack.push({ id, line: openBracketToken.range.start.line + 1, col: openBracketToken.range.start.character });
 	// ========================================================================== //
 	//  consume Block Identifier                                                  //
 	// ========================================================================== //
@@ -460,7 +548,11 @@ function parseBlock(tokens, i, filename = null, placeholders = {}) {
 				current_token(tokens, i).type !== TOKEN_TYPES.KEY &&
 				current_token(tokens, i).type !== TOKEN_TYPES.QUOTE &&
 				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_JS &&
-				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_P)
+				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_V &&
+				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_P &&
+				current_token(tokens, i).type !== TOKEN_TYPES.LOGIC &&
+				current_token(tokens, i).type !== TOKEN_TYPES.STATIC_KEYWORD &&
+				current_token(tokens, i).type !== TOKEN_TYPES.RUNTIME_KEYWORD)
 		) {
 			parserError(errorMessage(tokens, i, block_value, "="));
 		}
@@ -499,7 +591,7 @@ function parseBlock(tokens, i, filename = null, placeholders = {}) {
 			}
 
 			// Parse Value (handles both quoted, unquoted, and prefixes)
-			let [value, valueIndex, isQuoted] = parseValue(tokens, i, placeholders);
+			let [value, valueIndex, isQuoted] = parseValue(tokens, i, placeholders, variables);
 			v = value;
 			vIsQuoted = isQuoted;
 			i = valueIndex;
@@ -513,10 +605,19 @@ function parseBlock(tokens, i, filename = null, placeholders = {}) {
 			v = "";
 
 			i = skipJunk(tokens, i);
-			if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COMMA) {
-				i = parseComma(tokens, i, block_value);
+			const separatorToken = current_token(tokens, i);
+			if (separatorToken && (separatorToken.type === TOKEN_TYPES.COMMA || separatorToken.type === TOKEN_TYPES.COLON)) {
+				i++; // consume , or :
+				i = skipJunk(tokens, i);
+				updateData(tokens, i);
+
+				// Ensure next token is NOT the closing bracket (trailing separator)
+				const afterSeparator = current_token(tokens, i);
+				if (!afterSeparator || afterSeparator.type === TOKEN_TYPES.CLOSE_BRACKET) {
+					parserError(errorMessage(tokens, i, "value", "", "Unexpected trailing separator"));
+				}
 			} else {
-				// No comma, must be end of arguments or ]
+				// No separator, must be end of arguments or ]
 				break;
 			}
 		}
@@ -531,6 +632,13 @@ function parseBlock(tokens, i, filename = null, placeholders = {}) {
 	}
 
 	i = skipJunk(tokens, i);
+
+	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.EXCLAMATION_MARK) {
+		blockNode.isSelfClosing = true;
+		i++;
+		i = skipJunk(tokens, i);
+	}
+
 	// ========================================================================== //
 	//  Close Bracket                                                             //
 	// ========================================================================== //
@@ -542,6 +650,13 @@ function parseBlock(tokens, i, filename = null, placeholders = {}) {
 	// ========================================================================== //
 	i++;
 	updateData(tokens, i);
+
+	if (blockNode.isSelfClosing) {
+		end_stack.pop();
+		blockNode.range.end = current_token(tokens, i - 1).range.end;
+		return [blockNode, i];
+	}
+
 	tokens_stack.length = 0;
 	while (i < tokens.length) {
 		const nextIdx = skipJunk(tokens, i + 1);
@@ -553,11 +668,9 @@ function parseBlock(tokens, i, filename = null, placeholders = {}) {
 			nextToken.type !== TOKEN_TYPES.END_KEYWORD &&
 			nextToken.value.trim() !== end_keyword
 		) {
-			const [childNode, nextIndex] = parseBlock(tokens, i, filename, placeholders);
+			const [childNode, nextIndex] = parseBlock(tokens, i, filename, placeholders, variables, depth + 1);
+
 			blockNode.body.push(childNode);
-			// ========================================================================== //
-			//  consume child node                                                        //
-			// ========================================================================== //
 			i = nextIndex;
 		} else if (
 			current_token(tokens, i) &&
@@ -602,8 +715,15 @@ function parseBlock(tokens, i, filename = null, placeholders = {}) {
 			updateData(tokens, i);
 			blockNode.range.end = closeBracketToken.range.end;
 			break;
+		} else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.WHITESPACE) {
+			blockNode.body.push({
+				type: TEXT,
+				text: current_token(tokens, i).value,
+				range: current_token(tokens, i).range
+			});
+			i++;
 		} else {
-			const [childNode, nextIndex] = parseNode(tokens, i, filename, placeholders);
+			const [childNode, nextIndex] = parseNode(tokens, i, filename, placeholders, variables, depth + 1);
 			if (childNode) {
 				blockNode.body.push(childNode);
 				i = nextIndex;
@@ -623,8 +743,9 @@ function parseBlock(tokens, i, filename = null, placeholders = {}) {
  * @param {Object} placeholders - Dynamic public API data.
  * @returns {[Object, number]} The parsed Inline node and new index.
  */
-function parseInline(tokens, i, placeholders = {}) {
+function parseInline(tokens, i, placeholders = {}, depth = 0) {
 	const inlineNode = makeInlineNode();
+	inlineNode.depth = depth;
 	const openParenToken = current_token(tokens, i);
 	inlineNode.range.start = openParenToken.range.start;
 
@@ -639,7 +760,7 @@ function parseInline(tokens, i, placeholders = {}) {
 
 		if (token.type === TOKEN_TYPES.ESCAPE) {
 			inlineNode.value += token.value.slice(1);
-		} else {
+		} else if (token.type !== TOKEN_TYPES.COMMENT) {
 			inlineNode.value += token.value;
 		}
 		i++;
@@ -666,7 +787,15 @@ function parseInline(tokens, i, placeholders = {}) {
 	i++; // consume '('
 	i = skipJunk(tokens, i);
 	const idToken = current_token(tokens, i);
-	if (!idToken || (idToken.type !== TOKEN_TYPES.IDENTIFIER && idToken.type !== TOKEN_TYPES.KEY)) {
+	const allowedInlineIdTypes = new Set([
+		TOKEN_TYPES.IDENTIFIER,
+		TOKEN_TYPES.KEY,
+		TOKEN_TYPES.IMPORT,
+		TOKEN_TYPES.USE_MODULE,
+		TOKEN_TYPES.SLOT_KEYWORD,
+		TOKEN_TYPES.FOR_EACH
+	]);
+	if (!idToken || !allowedInlineIdTypes.has(idToken.type)) {
 		parserError(errorMessage(tokens, i, inline_id, "("));
 	}
 	inlineNode.id = idToken.value.trim();
@@ -675,14 +804,20 @@ function parseInline(tokens, i, placeholders = {}) {
 	i++; // consume ID
 	i = skipJunk(tokens, i);
 
-	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COLON) {
-		i++; // consume ':'
+	const hasArgsTrigger = current_token(tokens, i) && (
+		current_token(tokens, i).type === TOKEN_TYPES.COLON ||
+		current_token(tokens, i).type === TOKEN_TYPES.EQUAL
+	);
+
+	if (hasArgsTrigger) {
+		const separator = current_token(tokens, i).value;
+		i++; // consume ':' or '='
 		i = skipJunk(tokens, i);
 
-		// Ensure there is a value after the colon
+		// Ensure there is a value after the separator
 		const nextToken = current_token(tokens, i);
 		if (!nextToken || nextToken.type === TOKEN_TYPES.CLOSE_PAREN || nextToken.type === TOKEN_TYPES.COMMA) {
-			parserError(errorMessage(tokens, i, inline_value, ":", "Missing value after colon"));
+			parserError(errorMessage(tokens, i, inline_value, separator, `Missing value after ${separator === "=" ? "equals" : "colon"}`));
 		}
 
 		let k = "";
@@ -710,7 +845,7 @@ function parseInline(tokens, i, placeholders = {}) {
 				validateName(k);
 			}
 
-			let [value, valueIndex, isQuoted] = parseValue(tokens, i, placeholders);
+			let [value, valueIndex, isQuoted] = parseValue(tokens, i, placeholders, {}, false);
 			v = value;
 			i = valueIndex;
 
@@ -746,15 +881,16 @@ function parseInline(tokens, i, placeholders = {}) {
  * 
  * @param {Object[]} tokens - Token stream.
  * @param {number} i - Initial index.
- * @param {Object} placeholders - Dynamic public API data.
- * @param {Object} options - Formatting options.
+ * @param {Object} [placeholders={}] - Global data for p{keyword} resolution.
+ * @param {Object} [variables={}] - Local data for v{keyword} resolution.
+ * @param {Object} [options={}] - Formatting options.
  * @returns {[Object, number]} The Text node and new index.
  */
-function parseText(tokens, i, placeholders = {}, options = {}) {
+function parseText(tokens, i, placeholders = {}, variables = {}, depth = 0, options = {}) {
 	const textNode = makeTextNode();
+	textNode.depth = depth;
 	const startToken = current_token(tokens, i);
 	textNode.range.start = startToken.range.start;
-	textNode.depth = startToken.depth;
 	const { selectiveUnescape = false } = options;
 
 	while (i < tokens.length) {
@@ -762,6 +898,14 @@ function parseText(tokens, i, placeholders = {}, options = {}) {
 		if (!token) break;
 
 		if (token.type === TOKEN_TYPES.TEXT || token.type === TOKEN_TYPES.WHITESPACE || token.type === TOKEN_TYPES.VALUE) {
+			textNode.text += token.value;
+			i++;
+		} else if (token.type === TOKEN_TYPES.STATIC_KEYWORD || token.type === TOKEN_TYPES.RUNTIME_KEYWORD) {
+			const nextIdx = skipJunk(tokens, i + 1);
+			if (tokens[nextIdx] && tokens[nextIdx].type === TOKEN_TYPES.LOGIC) {
+				// Stop consuming text; this is the start of a logic block
+				break;
+			}
 			textNode.text += token.value;
 			i++;
 		} else if (token.type === TOKEN_TYPES.ESCAPE) {
@@ -779,8 +923,38 @@ function parseText(tokens, i, placeholders = {}, options = {}) {
 		} else if (token.type === TOKEN_TYPES.PREFIX_P) {
 			const val = token.value;
 			if (val.startsWith("p{") && val.endsWith("}")) {
+				const match = [val.slice(2, -1).trim(), val, 'p'];
+				const key = match[0];
+				const layer = match[2]; // 'p' or 'v'
+
+				if (placeholders[key] !== undefined) {
+					textNode.text += String(placeholders[key]);
+				} else {
+					// Use the unique 'Unresolved Envelope' format via helper
+					textNode.text += getPrefixValue(layer, key);
+				}
+			} else {
+				textNode.text += val;
+			}
+			i++;
+		} else if (token.type === TOKEN_TYPES.PREFIX_V) {
+			const val = token.value;
+			if (val.startsWith("v{") && val.endsWith("}")) {
 				const key = val.slice(2, -1).trim();
-				textNode.text += placeholders[key] !== undefined ? String(placeholders[key]) : val;
+				if (variables[key] !== undefined) {
+					textNode.text += String(variables[key]);
+					if (!variables.__consumed__) {
+						Object.defineProperty(variables, "__consumed__", {
+							value: new Set(),
+							enumerable: false,
+							configurable: true
+						});
+					}
+					variables.__consumed__.add(key);
+				} else {
+					// Use the unique 'Unresolved Envelope' format via helper
+					textNode.text += getPrefixValue('v', key);
+				}
 			} else {
 				textNode.text += val;
 			}
@@ -804,8 +978,9 @@ function parseText(tokens, i, placeholders = {}, options = {}) {
  * @param {Object} placeholders - Dynamic public API data.
  * @returns {[Object, number]} The At-Block node and new index.
  */
-function parseAtBlock(tokens, i, filename = null, placeholders = {}) {
+function parseAtBlock(tokens, i, filename = null, placeholders = {}, depth = 0) {
 	const atBlockNode = makeAtBlockNode();
+	atBlockNode.depth = depth;
 	const openAtToken = current_token(tokens, i);
 	atBlockNode.range.start = openAtToken.range.start;
 
@@ -826,7 +1001,6 @@ function parseAtBlock(tokens, i, filename = null, placeholders = {}) {
 
 	atBlockNode.id = id.trim();
 	validateName(atBlockNode.id);
-	atBlockNode.depth = idToken.depth;
 
 	// consume ID
 	i++;
@@ -882,7 +1056,7 @@ function parseAtBlock(tokens, i, filename = null, placeholders = {}) {
 				}
 			}
 
-			let [value, valueIndex, isQuoted] = parseValue(tokens, i, placeholders);
+			let [value, valueIndex, isQuoted] = parseValue(tokens, i, placeholders, {}, false);
 			v = value;
 			i = valueIndex;
 
@@ -923,7 +1097,14 @@ function parseAtBlock(tokens, i, filename = null, placeholders = {}) {
 	i = skipJunk(tokens, i);
 	const endToken = current_token(tokens, i);
 	if (!endToken || (endToken.type !== TOKEN_TYPES.END_KEYWORD && endToken.value.trim() !== end_keyword)) {
-		parserError(errorMessage(tokens, i, "end", "@_"));
+		let extraInfo = "";
+		if (endToken && endToken.value) {
+			const dist = levenshtein(endToken.value.trim().toLowerCase(), "end");
+			if (dist > 0 && dist <= 2) {
+				extraInfo = ` (Did you mean '@_end_@'?)`;
+			}
+		}
+		parserError(errorMessage(tokens, i, "end", "AtBlock Body", extraInfo));
 	}
 	i++; // consume 'end'
 	i = skipJunk(tokens, i);
@@ -939,12 +1120,18 @@ function parseAtBlock(tokens, i, filename = null, placeholders = {}) {
 // ========================================================================== //
 //  Parse Comments                                                            //
 // ========================================================================== //
-function parseCommentNode(tokens, i) {
+function parseCommentNode(tokens, i, depth = 0) {
 	const commentNode = makeCommentNode();
 	const token = current_token(tokens, i);
-	if (token && token.type === TOKEN_TYPES.COMMENT) {
-		commentNode.text = token.value;
-		commentNode.depth = token.depth;
+	if (token && (token.type === TOKEN_TYPES.COMMENT || token.type === TOKEN_TYPES.COMMENT_BLOCK)) {
+		commentNode.type = token.type === TOKEN_TYPES.COMMENT ? COMMENT : COMMENT_BLOCK;
+		// Clean the text here instead of the transpiler
+		const raw = token.value;
+		commentNode.text = token.type === TOKEN_TYPES.COMMENT
+			? raw.replace(/^#/, "").trim()
+			: raw.replace(/^###[\r\n]*/, "").replace(/[\r\n]*###$/, "").trim();
+
+		commentNode.depth = depth;
 		commentNode.range = token.range;
 	}
 	// ========================================================================== //
@@ -968,21 +1155,21 @@ function parseCommentNode(tokens, i) {
  * @param {Object} placeholders - Dynamic public API data.
  * @returns {[Object, number]} The parsed node and new index.
  */
-function parseNode(tokens, i, filename = null, placeholders = {}) {
+function parseNode(tokens, i, filename = null, placeholders = {}, variables = {}, depth = 0) {
 	if (!current_token(tokens, i) || (current_token(tokens, i) && !current_token(tokens, i).value)) {
 		return [null, i];
 	}
 	// ========================================================================== //
 	//  Comment                                                                   //
 	// ========================================================================== //
-	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COMMENT) {
-		return parseCommentNode(tokens, i);
+	if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.COMMENT || current_token(tokens, i).type === TOKEN_TYPES.COMMENT_BLOCK)) {
+		return parseCommentNode(tokens, i, depth);
 	}
 	// ========================================================================== //
 	//  Block or Reserved Keyword                                                 //
 	// ========================================================================== //
 	else if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.OPEN_BRACKET)) {
-		return parseBlock(tokens, i, filename, placeholders);
+		return parseBlock(tokens, i, filename, placeholders, variables, depth);
 	}
 	// ========================================================================== //
 	//  Inline Statement or Text                                                  //
@@ -1013,18 +1200,46 @@ function parseNode(tokens, i, filename = null, placeholders = {}) {
 		}
 
 		if (foundArrow) {
-			return parseInline(tokens, i, placeholders);
+			return parseInline(tokens, i, placeholders, depth);
 		}
 
 		// Treat as text if not an inline
 		const textNode = makeTextNode();
 		textNode.text = current_token(tokens, i).value;
+		textNode.depth = depth;
 		textNode.range = current_token(tokens, i).range;
 		return [textNode, i + 1];
 	}
 	// ========================================================================== //
-	//  Text or Placeholder                                                       //
+	//  Logic Block                                                               //
 	// ========================================================================== //
+	else if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.STATIC_KEYWORD || current_token(tokens, i).type === TOKEN_TYPES.RUNTIME_KEYWORD || current_token(tokens, i).type === TOKEN_TYPES.LOGIC)) {
+		let isStatic = current_token(tokens, i).type === TOKEN_TYPES.STATIC_KEYWORD;
+		let isRuntimeKeyword = current_token(tokens, i).type === TOKEN_TYPES.RUNTIME_KEYWORD;
+		let startRange = current_token(tokens, i).range;
+		let nextI = i;
+
+		if (isStatic || isRuntimeKeyword) {
+			if (isStatic) global_static_logic_count++;
+			nextI = skipJunk(tokens, i + 1);
+			if (!current_token(tokens, nextI) || current_token(tokens, nextI).type !== TOKEN_TYPES.LOGIC) {
+				// Treat as normal text if keyword is not followed by a logic block
+				return parseText(tokens, i, placeholders, variables, depth);
+			}
+			i = nextI;
+		}
+
+		const logicToken = current_token(tokens, i);
+		const node = makeLogicNode(isStatic ? STATIC_LOGIC : RUNTIME_LOGIC);
+		node.code = logicToken.value;
+		node.depth = depth;
+		node.range = {
+			start: (isStatic || isRuntimeKeyword) ? startRange.start : logicToken.range.start,
+			end: logicToken.range.end
+		};
+
+		return [node, i + 1];
+	}
 	// ========================================================================== //
 	//  Text or Placeholder                                                       //
 	// ========================================================================== //
@@ -1034,19 +1249,21 @@ function parseNode(tokens, i, filename = null, placeholders = {}) {
 			current_token(tokens, i).type === TOKEN_TYPES.WHITESPACE ||
 			current_token(tokens, i).type === TOKEN_TYPES.ESCAPE ||
 			current_token(tokens, i).type === TOKEN_TYPES.VALUE ||
+			current_token(tokens, i).type === TOKEN_TYPES.PREFIX_V ||
 			current_token(tokens, i).type === TOKEN_TYPES.PREFIX_P)
 	) {
-		return parseText(tokens, i, placeholders);
+		return parseText(tokens, i, placeholders, variables, depth);
 	}
 	// ========================================================================== //
 	//  Atblock                                                                   //
 	// ========================================================================== //
 	else if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.OPEN_AT)) {
-		return parseAtBlock(tokens, i, filename, placeholders);
+		return parseAtBlock(tokens, i, filename, placeholders, depth);
 	} else {
 		// FALLBACK: Treat any other token as TEXT to avoid infinite loops and allow literal content
 		const textNode = makeTextNode();
 		textNode.text = current_token(tokens, i).value;
+		textNode.depth = depth;
 		textNode.range = current_token(tokens, i).range;
 		return [textNode, i + 1];
 	}
@@ -1065,20 +1282,22 @@ function parseNode(tokens, i, filename = null, placeholders = {}) {
  * @param {Object[]} tokens - The stream of tokens from the Lexer.
  * @param {string|null} [filename=null] - Source filename for error context.
  * @param {Object} [placeholders={}] - Global data for p{keyword} resolution.
+ * @param {Object} [variables={}] - Local data for v{keyword} resolution.
  * @returns {Array<Object>} The final Abstract Syntax Tree.
  */
-function parser(tokens, filename = null, placeholders = {}) {
+function parser(tokens, filename = null, placeholders = {}, variables = {}) {
 	end_stack = [];
-	tokens_stack = [];
-	range = {
+	global_static_logic_count = 0;
+	let tokens_stack = [];
+	let range = {
 		start: { line: 0, character: 0 },
 		end: { line: 0, character: 0 }
 	};
-	value = "";
+	let value = "";
 	let ast = [];
 	let i = 0;
 	while (i < tokens.length) {
-		let [node, nextIndex] = parseNode(tokens, i, filename, placeholders);
+		let [node, nextIndex] = parseNode(tokens, i, filename, placeholders, variables, 1);
 		if (node) {
 			ast.push(node);
 			i = nextIndex;
@@ -1107,7 +1326,8 @@ function parser(tokens, filename = null, placeholders = {}) {
 			if (extraInfo) break;
 		}
 
-		parserError(errorMessage(tokens, tokens.length - 1, "[end]", "", extraInfo ? `Missing '[end]'${extraInfo}` : "Missing '[end]'", filename));
+		const lastOpen = end_stack[end_stack.length - 1];
+		parserError(errorMessage(tokens, tokens.length - 1, "[end]", "", extraInfo ? `Missing '[end]' for block '${lastOpen.id}' (opened at line ${lastOpen.line}, col ${lastOpen.col})${extraInfo}` : `Missing '[end]' for block '${lastOpen.id}' (opened at line ${lastOpen.line}, col ${lastOpen.col})`, filename));
 	}
 	return ast;
 }

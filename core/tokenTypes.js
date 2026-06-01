@@ -19,12 +19,15 @@
  * @property {string} COMMA - ',' char.
  * @property {string} SEMICOLON - ';' char (At-Block separator).
  * @property {string} COMMENT - '#' comments.
+ * @property {string} COMMENT_BLOCK - '###' comments.
  * @property {string} ESCAPE - '\' char. Used for literalizing structural chars like '\"' or '\['.
  * @property {string} QUOTE - '"' delimiter.
+ * @property {string} EXCLAMATION_MARK - '!' char.
  * @property {string} IMPORT - 'import' keyword.
  * @property {string} USE_MODULE - '$use-module' keyword.
  * @property {string} PREFIX_JS - 'js{}' prefix layer.
  * @property {string} PREFIX_P - 'p{}' placeholder layer.
+ * @property {string} PREFIX_V - 'v{}' local variable layer.
  * @property {string} EOF - End of File indicator.
  */
 const TOKEN_TYPES = {
@@ -39,6 +42,7 @@ const TOKEN_TYPES = {
   QUOTE: "QUOTE",
   PREFIX_JS: "PREFIX_JS",
   PREFIX_P: "PREFIX_P",
+  PREFIX_V: "PREFIX_V",
   TEXT: "TEXT",
   THIN_ARROW: "THIN_ARROW",
   OPEN_PAREN: "OPEN_PAREN",
@@ -49,9 +53,16 @@ const TOKEN_TYPES = {
   COMMA: "COMMA",
   SEMICOLON: "SEMICOLON",
   COMMENT: "COMMENT",
+  COMMENT_BLOCK: "COMMENT_BLOCK",
   ESCAPE: "ESCAPE",
+  EXCLAMATION_MARK: "EXCLAMATION_MARK",
+  SLOT_KEYWORD: "SLOT_KEYWORD",
   KEY: "KEY",
   WHITESPACE: "WHITESPACE",
+  STATIC_KEYWORD: "STATIC_KEYWORD",
+  RUNTIME_KEYWORD: "RUNTIME_KEYWORD",
+  LOGIC: "LOGIC",
+  FOR_EACH: "FOR_EACH",
   EOF: "EOF"
 };
 

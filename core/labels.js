@@ -7,8 +7,13 @@ export const BLOCK = "Block",
 	INLINE = "Inline",
 	ATBLOCK = "AtBlock",
 	COMMENT = "Comment",
+	COMMENT_BLOCK = "CommentBlock",
 	IMPORT = "Import",
-	USE_MODULE = "$use-module";
+	USE_MODULE = "$use-module",
+	SLOT = "Slot",
+	STATIC_LOGIC = "StaticLogic",
+	RUNTIME_LOGIC = "RuntimeLogic",
+	FOR_EACH = "ForEach";
 
 /**
  * Names for symbols used to separate parts of the code (like commas and colons).
@@ -36,4 +41,6 @@ export const block_id = "Block Identifier",
 	atblock_key = "AtBlock Key",
 	at_end = "Atblock End",
 	/** Reserved keyword for closing blocks */
-	end_keyword = "end";
+	end_keyword = "end",
+	slot_keyword = "slot",
+	for_each_keyword = "for-each";

@@ -1,84 +1,92 @@
 # Inline Statements
 
-**Inline Statements** are used specifically to **style or format** small parts of your text, like making a word bold, colored, or a link.
+Inline Statements are used to style, format, or apply functional behaviors to small spans of text inside paragraphs (such as making text bold, colored, or rendering links).
 
-Think of them as "Formatting Pieces" that live inside sentences. Because they are designed to flow perfectly with your text, the engine automatically **strips all newlines** and collapses them into a single space, ensuring your paragraph remains a single, unbroken block.
+---
 
-## 1. Core Syntax
+The core syntax is `(content)->(identifier = props)` or the alternative `(content)->(identifier: props)`. Because they are inline, the parser automatically collapses internal newlines and duplicate spaces into a single space.
 
-The basic structure of an inline statement is a pair of parentheses for **content**, followed by an arrow `->`, and another pair of parentheses for the **identifier**.
+> [!NOTE]
+> Supporting the `=` syntax provides visual clarity by explicitly differentiating the **identifier/tag name** from its **props**, avoiding colon confusion when keys inside the prop list also use colons. The old colon-based style (`:`) remains fully supported for backward compatibility.
 
+### Basic Styling
 ```ini
-This is (very important)->(bold).
+This is (very important)->(bold) text.
 ```
 
-### Flexible Formatting
-In SomMark V4, inline statements are **whitespace-agnostic**. You can spread them across multiple lines to improve readability without breaking the engine.
+### With Props (Positional & Named)
+```ini
+# Recommended (consistent with Block syntax)
+(Click here)->(link = "https://sommark.org", target: "_blank")
 
+# Alternative (Colon separator)
+(Click here)->(link: "https://sommark.org", target: "_blank")
+```
+
+### Multiline Inlines
+You can spread long inlines across multiple lines for better readability.
 ```ini
 (
   Visit our updated 
   project website
 ) 
 -> 
-(link: "https://sommark.org")
+(link = "https://sommark.org")
 ```
 
 ---
 
-## 2. Key Principles
+## 2. Rendering Outputs
 
-To maintain maximum performance and predictability, Inlines follow these three rules:
+### HTML Format
+* **Smark Input:**
+  ```ini
+  This is (important)->(bold).
+  ```
+* **Rendered Output:**
+  ```html
+  This is <strong>important</strong>.
+  ```
 
-### I. Raw Text Only
-Everything inside the content parentheses is treated as **literal text**. The parser does not look for other tags (Blocks, At-Blocks, or other Inlines) inside an inline.
+### MDX Format
+* **Smark Input:**
+  ```ini
+  (View Profile)->(Link: href: "/profile", class: "btn")
+  ```
+* **Rendered Output:**
+  ```jsx
+  <Link href="/profile" className="btn">View Profile</Link>
+  ```
 
+---
+
+## 3. Core Principles
+
+### I. Raw Text Only (No Rendered Nesting)
+Everything inside the content parentheses is treated as literal plain text. You cannot produce nested HTML tags using nested inline statements.
 > [!IMPORTANT]
-> Because inlines are "Raw Only", you cannot nest a bold tag inside a link tag using inline syntax. Use Blocks if you need hierarchical nesting.
+> Because inline content is treated as raw text, writing `((hello)->(bold))->(link)` will treat `(hello)->(bold)` as raw plain text inside the outer `link` tag rather than rendering a bold tag inside a link. If you need rich nested HTML elements, use [Blocks](block.md) instead.
 
-### II. Balanced Parentheses
-While you cannot nest other *tags*, you **can** include balanced parentheses within the content. This is perfect for code snippets.
-
+### II. Balanced Parentheses Support
+While you cannot nest other *tags*, you **can** include balanced parentheses in the content (great for code snippets).
 ```ini
-(console.log("Hello World"))->(code)
+(console.log("Hello"))->(code)
 ```
-*The parser intelligently tracks the depth to find the correct closing parenthesis.*
-
-### III. Automatic Whitespace Collapsing
-To ensure your document flows correctly, the engine automatically collapses all newlines and multiple spaces inside an inline into a **single space**.
-
----
-
-## 3. Arguments & Metadata
-
-Inlines support **positional arguments** passed via a colon `:` after the identifier.
-
-```ini
-(Click here)->(link: "https://google.com", "_blank")
-```
-
-> [!WARNING]
-> Unlike Blocks, Inline Statements **do not support named arguments** (e.g., `target: "_blank"`). Arguments must be passed in the order defined by the mapper.
 
 ---
 
 ## 4. Safety & Escaping
 
-### Fallback Behavior
-If the parser sees parentheses that do not follow the `(...) -> (...)` pattern, it safely falls back to treating them as normal text.
-
+### Parentheses Fallback
+Parentheses that do not match the `(...) -> (...)` pattern are treated as standard literal text without throwing errors.
 ```ini
-I wrote a note (this is just normal text, not an inline).
+I wrote a note (this is just normal text, not an inline tag).
 ```
 
 ### Escaping the Arrow
-If you need a literal `->` arrow inside your content, you should escape it with a backslash or ensure your parentheses are balanced.
-
+If you need a literal `->` arrow inside your content, escape it with a backslash (`\->`).
 ```ini
-(
-  The function uses the \-> operator.
-)->(code)
+(The function uses the \-> operator.)->(code)
 ```
 
----
 
