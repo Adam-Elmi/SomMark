@@ -82,6 +82,14 @@ export async function findAndLoadConfig(targetPath) {
 		removeComments: true,
 		placeholders: {},
 		customProps: [],
+		importAliases: {},
+		fallbackTarget: "style",
+		outputValidator: null,
+		baseDir: null,
+		showSpinner: false,
+		generateRuntimeOutput: false,
+		hideRuntimeOutput: false,
+		security: {},
 	};
 
 	if (configPath) {

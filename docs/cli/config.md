@@ -63,7 +63,7 @@ export default {
     outputDir: "./build",
     outputFile: "index",
 
-    // 2. Global Variables for your content
+    // 2. Global Placeholders for your content
     placeholders: {
         siteTitle: "SomMark Documentation",
         author: "Adam Elmi",

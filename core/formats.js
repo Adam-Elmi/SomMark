@@ -1,14 +1,22 @@
 /**
  * A list of supported output formats for SomMark.
  */
+export const textFormat = "text";
+export const htmlFormat = "html";
+export const markdownFormat = "markdown";
+export const mdxFormat = "mdx";
+export const jsonFormat = "json";
+export const jsoncFormat = "jsonc";
+export const xmlFormat = "xml";
+
 const formats = {
-	textFormat: "text",
-	htmlFormat: "html",
-	markdownFormat: "markdown",
-	mdxFormat: "mdx",
-	jsonFormat: "json",
-	xmlFormat: "xml"
+	textFormat,
+	htmlFormat,
+	markdownFormat,
+	mdxFormat,
+	jsonFormat,
+	jsoncFormat,
+	xmlFormat
 };
 
-export const { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat, xmlFormat } = formats;
 export default formats;

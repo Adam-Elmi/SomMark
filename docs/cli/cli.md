@@ -24,6 +24,7 @@ These commands convert your `.smark` files into different formats.
 | `--mdx` | JSX/React Markdown | `.mdx` |
 | `--xml` | Generic XML | `.xml` |
 | `--json` | AST/Data | `.json` |
+| `--jsonc` | Compact JSON | `.jsonc` |
 | `--text` | Plain Text | `.txt` |
 
 **Example:**
