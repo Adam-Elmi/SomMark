@@ -10,7 +10,7 @@ import { registerSharedOutputs } from "../shared/index.js";
  * @param {string} content - The rendered inner content of the tag.
  * @returns {string} The fully rendered XML tag string.
  */
-const renderXmlTag = function (id, args, content) {
+const renderXmlTag = function (id, args, content, isSelfClosing) {
     // XML is case-sensitive, so we use the exact id provided
     const element = this.tag(id);
 
@@ -27,7 +27,7 @@ const renderXmlTag = function (id, args, content) {
 
     const hasBody = typeof content === "string" && content.trim().length > 0;
 
-    if (!hasBody) {
+    if (isSelfClosing || !hasBody) {
         return element.selfClose();
     }
 
@@ -55,7 +55,7 @@ const XML = Mapper.define({
     getUnknownTag(node) {
         const id = node.id;
         return {
-            render: ({ args, content }) => renderXmlTag.call(this, id, args, content),
+            render: ({ args, content, isSelfClosing }) => renderXmlTag.call(this, id, args, content, isSelfClosing),
             options: {
                 type: "any"
             }
@@ -71,13 +71,13 @@ XML.register("xml", ({ args }) => {
     const version = args.version || "1.0";
     const encoding = args.encoding || "UTF-8";
     return `<?xml version="${version}" encoding="${encoding}"?>`;
-}, { type: "Block", rules: { is_self_closing: true } });
+}, { type: "Block", rules: { is_empty_body: true } });
 
 /**
  * Registers the DOCTYPE declaration.
  * Usage: [doctype = root: "note", system: "note.dtd"]
  */
-XML.register("doctype", ({ args }) => {
+XML.register(["DOCTYPE", "doctype"], ({ args }) => {
     const root = args.root || "root";
     const system = args.system;
     const pub = args.public || args.fpi;
@@ -88,7 +88,7 @@ XML.register("doctype", ({ args }) => {
         return `<!DOCTYPE ${root} SYSTEM "${system}">`;
     }
     return `<!DOCTYPE ${root}>`;
-}, { type: "Block", rules: { is_self_closing: true } });
+}, { type: "Block", rules: { is_empty_body: true } });
 
 /**
  * Registers the XML stylesheet processing instruction.

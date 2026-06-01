@@ -1,19 +1,14 @@
 import fs from "node:fs/promises";
-import SomMark from "./index.js";
+import SomMark, { transpile } from "./index.js";
 
-
-const buffer = await fs.readFile("./debug.smark");
-const file_content = buffer.toString();
+const file_content = await fs.readFile("./debug.smark", "utf-8");
 let smark = new SomMark({
     src: file_content,
-    format: "mdx",
-    // removeComments: false,
-    placeholders: {
-        id: "Card",
-    }
+    format: "html",
+    security: {
+        allowRaw: true
+    },
 });
 
-
-// console.log(JSON.stringify(await smark.parse(), null, 2));
-// console.log(await smark.lex());
-console.log(await smark.transpile());
+const out = await smark.transpile();
+console.log(out);

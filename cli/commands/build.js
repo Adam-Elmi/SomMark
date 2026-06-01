@@ -5,7 +5,9 @@ import HTML from "../../mappers/languages/html.js";
 import MARKDOWN from "../../mappers/languages/markdown.js";
 import MDX from "../../mappers/languages/mdx.js";
 import Json from "../../mappers/languages/json.js";
+import Jsonc from "../../mappers/languages/jsonc.js";
 import XML from "../../mappers/languages/xml.js";
+import TEXT from "../../mappers/languages/text.js";
 import { extensions } from "../constants.js";
 import { isExist, readContent, createFile } from "../helpers/file.js";
 import { loadConfig } from "../helpers/config.js";
@@ -78,7 +80,7 @@ export async function runBuild(format_option, sourcePath, outputFlag, outputFile
                 let mapperFile = config.mapperFile || config.mappingFile;
 
                 if (!mapperFile) {
-                    mapperFile = format === "html" ? HTML : format === "markdown" ? MARKDOWN : format === "mdx" ? MDX : format === "json" ? Json : format === "xml" ? XML : null;
+                    mapperFile = format === "html" ? HTML : format === "markdown" ? MARKDOWN : format === "mdx" ? MDX : format === "json" ? Json : format === "jsonc" ? Jsonc : format === "xml" ? XML : format === "text" ? TEXT : null;
                 }
 
                 // CLI Overrides

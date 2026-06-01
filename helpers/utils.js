@@ -168,3 +168,49 @@ export function levenshtein(a, b) {
         }
         return matrix[b.length][a.length];
 }
+
+// -- Unresolved Placeholder Helpers ---------------------------------------- //
+
+export const UNRESOLVED_PREFIX = "SOMMARK_UNRESOLVED";
+export const UNRESOLVED_SUFFIX = "SOMMARK";
+
+/**
+ * Official method to get the unique envelope for an unresolved prefix value.
+ * @param {string} prefix - The layer ('p' or 'v').
+ * @param {string} expectedValue - The placeholder key.
+ * @returns {string} - The unique envelope string.
+ */
+export function getPrefixValue(prefix, expectedValue) {
+	if (!prefix || (prefix !== "p" && prefix !== "v")) {
+		sommarkError([
+			`<$red:getPrefixValue Error:$> {N}`,
+			`<$yellow:prefix must be 'p' or 'v'. Received:$> <$cyan:'${prefix}'$>`
+		]);
+	}
+
+	if (!expectedValue || typeof expectedValue !== "string" || expectedValue.trim() === "") {
+		sommarkError([
+			`<$red:getPrefixValue Error:$> {N}`,
+			`<$yellow:expectedValue must be a non-empty string. Received:$> <$cyan:'${expectedValue}'$>`
+		]);
+	}
+
+	return `${UNRESOLVED_PREFIX}_${prefix}_${expectedValue}_${UNRESOLVED_SUFFIX}`;
+}
+
+/**
+ * Performs a final pass on a string to clean up any remaining unresolved envelopes.
+ * @param {string} content - The content to clean.
+ * @param {string|null} [fallback] - The format to use for missing keys (e.g., "$layer{$key}" or "").
+ * @returns {string} - The cleaned content.
+ */
+export function cleanUnresolved(content, fallback = null) {
+	const pattern = new RegExp(`${UNRESOLVED_PREFIX}_(p|v)_(.+?)_${UNRESOLVED_SUFFIX}`, "g");
+	return content.replace(pattern, (match, layer, key) => {
+		if (fallback !== null) {
+			return fallback.replace("$layer", layer).replace("$key", key);
+		}
+		// Default: Keep as is or restore classic
+		return `${layer}{${key}}`;
+	});
+}

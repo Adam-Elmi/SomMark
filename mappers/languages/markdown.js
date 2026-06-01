@@ -1,9 +1,68 @@
 import Mapper from "../mapper.js";
 import HTML from "./html.js";
 import { registerSharedOutputs } from "../shared/index.js";
-import { BLOCK, TEXT} from "../../core/labels.js";
-import transpiler from "../../core/transpiler.js";
+import { BLOCK, TEXT, INLINE, STATIC_LOGIC } from "../../core/labels.js";
 import { VOID_ELEMENTS } from "../../constants/void_elements.js";
+import evaluator from "../../core/evaluator.js";
+import { matchedValue } from "../../helpers/utils.js";
+
+/**
+ * Helper to manually render AST children inside handleAst blocks,
+ * avoiding the need to call the core transpiler recursively.
+ */
+async function renderNodeAst(astArray, mapperFile) {
+	if (!astArray || !Array.isArray(astArray)) return "";
+	let result = "";
+	for (const node of astArray) {
+		if (node.type === TEXT) {
+			const text = String(node.text || "");
+			result += mapperFile.text(text);
+		} else if (node.type === INLINE) {
+			let target = matchedValue(mapperFile.outputs, node.id) || mapperFile.getUnknownTag(node);
+			if (target) {
+				let inlineValue = String(node.value || "").trim();
+				inlineValue = mapperFile.inlineText(inlineValue, target.options);
+				result += await target.render.call(mapperFile, {
+					nodeType: node.type,
+					args: node.args || {},
+					content: inlineValue,
+					ast: node
+				});
+			} else {
+				result += mapperFile.inlineText(node.value || "", {});
+			}
+		} else if (node.type === STATIC_LOGIC) {
+			try {
+				const val = await evaluator.execute(node.code);
+				if (val !== undefined && typeof val !== "object") {
+					result += mapperFile.text(String(val));
+				}
+			} catch (e) {
+				console.error(`\x1b[31mLogic Error in Markdown mapper:\x1b[0m ${e.message}`);
+			}
+		} else if (node.type === BLOCK) {
+			let target = matchedValue(mapperFile.outputs, node.id) || mapperFile.getUnknownTag(node);
+			if (target) {
+				const isSelfClosing = node.isSelfClosing || false;
+				let content = "";
+				evaluator.pushScope();
+				if (!target.options?.handleAst && node.body) {
+					content = await renderNodeAst(node.body, mapperFile);
+				}
+				const output = await target.render.call(mapperFile, {
+					nodeType: node.type,
+					args: node.args || {},
+					content,
+					ast: node,
+					isSelfClosing
+				});
+				await evaluator.popScope();
+				result += output;
+			}
+		}
+	}
+	return result;
+}
 
 /**
  * The Markdown Mapper used for generating Markdown text.
@@ -62,11 +121,11 @@ const MARKDOWN = Mapper.define({
 
 		return {
 			render: async (ctx) => {
-				const { args, ast } = ctx;
+				const { args, ast, isSelfClosing } = ctx;
 				const body = ast && ast.body ? ast.body : [];
 				const meaningful = body.filter(c => c.type !== TEXT || c.text.trim());
 				const childCount = meaningful.length;
-				const element = this.tag(id).smartAttributes(args, this.customProps);
+				const element = this.tag(id).smartAttributes(args, this.customProps, this.options);
 
 				// Use the transpiler to format the children if any, otherwise use direct content
 				let rawContent;
@@ -77,10 +136,10 @@ const MARKDOWN = Mapper.define({
 					rawContent = node.value || "";
 					rawContent = this.inlineText(rawContent, ctx);
 				} else {
-					rawContent = (await transpiler({ ast: body, mapperFile: this })).trim();
+					rawContent = (await renderNodeAst(body, this)).trim();
 				}
 
-				if (VOID_ELEMENTS.has(id)) {
+				if (isSelfClosing || VOID_ELEMENTS.has(id)) {
 					return element.selfClose();
 				}
 
@@ -116,44 +175,19 @@ MARKDOWN.register("quote", ({ args, content }) => {
 }, { type: "Block", resolve: true });
 
 /**
- * Unified heading renderer for Markdown and MDX mappers.
- * @param {Object} options - Mapper context and args.
- * @param {string} defaultFormat - Default format ("markdown" or "html").
- * @returns {string} - Rendered heading.
- */
-export function renderHeading({ args, content, ast }, defaultFormat = "markdown") {
-	const heading = ast.id;
-	const format = safeArg({ args, index: 0, key: "format", type: "string", fallBack: defaultFormat });
-	const lvl = heading[1] && !isNaN(Number(heading[1])) ? Number(heading[1]) : 1;
-
-	// Remove formatting arguments before checking for attributes
-	const cleanArgs = { ...args };
-	delete cleanArgs.format;
-	delete cleanArgs["0"]; // Clean positional 'format'
-
-	const hasAttributes = Object.keys(cleanArgs).length > 0;
-
-	// Hybrid Dispatch: Switch to HTML if format is requested OR if attributes are present
-	if (format === "html" || hasAttributes) {
-		let htmlTarget = HTML.get(heading);
-		if (!htmlTarget) {
-			htmlTarget = HTML.getUnknownTag(ast);
-		}
-
-		if (htmlTarget) {
-			return htmlTarget.render.call(this, { args: cleanArgs, content, ast, nodeType: ast.type });
-		}
-	}
-
-	return md.heading(content, lvl);
-}
-
-/**
  * Headings - Renders H1-H6 block headings.
  */
 ["h1", "h2", "h3", "h4", "h5", "h6"].forEach(heading => {
-	MARKDOWN.register(heading, function (ctx) {
-		return renderHeading.call(this, ctx, "markdown");
+	MARKDOWN.register(heading, function ({ args, content, isSelfClosing }) {
+		const format = safeArg({ args, key: "format", type: "string", fallBack: "" });
+		const lvl = heading[1] && !isNaN(Number(heading[1])) ? Number(heading[1]) : 1;
+		if (format.toLowerCase() === "html") {
+			delete args.format;
+			const el = this.tag(heading).smartAttributes(args);
+			if (isSelfClosing) return el.selfClose();
+			return el.body(content);
+		}
+		return this.md.heading(content, lvl);
 	}, { type: "Block" });
 });
 
@@ -215,7 +249,7 @@ MARKDOWN.register(
 	},
 	{
 		type: ["Block", "Inline"],
-		rules: { is_self_closing: false }
+		rules: { is_empty_body: false }
 	}
 );
 
@@ -232,7 +266,7 @@ MARKDOWN.register(
 	},
 	{
 		type: "Block",
-		rules: { is_self_closing: true }
+		rules: { is_empty_body: true }
 	}
 );
 
@@ -247,7 +281,7 @@ MARKDOWN.register(
 	},
 	{
 		type: "Block",
-		rules: { is_self_closing: true }
+		rules: { is_empty_body: true }
 	}
 );
 
@@ -277,7 +311,7 @@ MARKDOWN.register(
 
 			for (const child of cellAst) {
 				if (child.type === BLOCK && (child.id.toLowerCase() === "cell" || child.id.toLowerCase() === "th" || child.id.toLowerCase() === "td")) {
-					const cellContent = await transpiler({ ast: child.body, mapperFile: this });
+					const cellContent = await renderNodeAst(child.body, this);
 					cells.push(cellContent.trim());
 				}
 			}
@@ -294,6 +328,8 @@ MARKDOWN.register(
 				if (rowNode.type === BLOCK && rowNode.id.toLowerCase() === "row") {
 					const rowData = await extractCells(rowNode);
 					if (rowData.length > 0) sectionRows.push(rowData);
+				} else if (rowNode.type === STATIC_LOGIC) {
+					try { await evaluator.execute(rowNode.code); } catch (e) { console.error(`Logic Error: ${e.message}`); }
 				}
 			}
 			return sectionRows;
@@ -303,6 +339,10 @@ MARKDOWN.register(
 			// Remove empty text blocks
 			const tableNodes = ast.body.filter(n => n.type !== TEXT || n.text.trim());
 			for (const node of tableNodes) {
+				if (node.type === STATIC_LOGIC) {
+					try { await evaluator.execute(node.code); } catch (e) { console.error(`Logic Error: ${e.message}`); }
+					continue;
+				}
 				if (node.type !== BLOCK) continue;
 
 				const id = node.id.toLowerCase();
@@ -361,12 +401,12 @@ MARKDOWN.register(["list", "List"], async function ({ ast, args }) {
 			// Trim spaces inside the list item
 			const itemBody = node.body.map(n => n.type === TEXT ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
 				.filter(n => n.type !== TEXT || n.text);
-			const itemContent = await transpiler({ ast: itemBody, mapperFile: this });
+			const itemContent = await renderNodeAst(itemBody, this);
 			items.push(itemContent.trim());
 		} else if (node.type === BLOCK && (id === "list")) {
 			// Add nested lists to the latest item
 			if (items.length > 0) {
-				const listContent = await transpiler({ ast: [node], mapperFile: this });
+				const listContent = await renderNodeAst([node], this);
 				items[items.length - 1] += "\n" + listContent;
 			}
 		}
@@ -386,7 +426,7 @@ MARKDOWN.register(["item", "Item"], async function ({ ast }) {
 	// Trim whitespace but keep line breaks
 	const bodyAst = ast.body.map(n => n.type === TEXT ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
 		.filter(n => n.type !== TEXT || n.text);
-	return await transpiler({ ast: bodyAst, mapperFile: this });
+	return await renderNodeAst(bodyAst, this);
 }, { type: "Block", handleAst: true, trimAndWrapBlocks: false });
 
 /**

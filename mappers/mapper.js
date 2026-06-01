@@ -32,7 +32,13 @@ class Mapper {
 	 * Registers a new tag rule. It needs a name and a function that says how to format it.
 	 * 
 	 * @param {string|Array<string>} id - The name of the tag (like 'Person' or ['p', 'para']).
-	 * @param {Function} renderOutput - The function that formats this tag.
+	 * @param {Function} renderOutput - The function that formats this tag. It receives:
+	 *    - `args`: Tag attributes.
+	 *    - `content`: Formatted inner content.
+	 *    - `textContent`: Raw inner text.
+	 *    - `nodeType`: Type of node (Block, Inline, etc.).
+	 *    - `isSelfClosing`: (Blocks only) True if marked with !.
+	 *    - `ast`: The full AST node.
 	 * @param {Object} [options={ escape: true }] - Settings for this tag.
 	 * @param {boolean} [options.escape=true] - If true, the content will be made safe for HTML automatically.
 	 */
@@ -48,12 +54,18 @@ class Mapper {
 		if (typeof renderOutput !== "function") {
 			throw new TypeError("argument 'renderOutput' expected to be a function");
 		}
-		
+
 		const render = renderOutput;
 
-		// Prevent duplicate IDs by removing any existing overlap before registering
+		// -- RESERVED KEYWORD PROTECTION --
+		// We protect core engine keywords that would cause syntax errors if used as tag names.
+		const RESERVED = new Set(["end", "import", "slot", "$use-module", "for-each"]);
 		const ids = Array.isArray(id) ? id : [id];
+
 		for (const singleId of ids) {
+			if (RESERVED.has(singleId.toLowerCase())) {
+				sommarkError(`<$red:Reserved Keyword Error:$> Cannot register mapper for <$yellow:${singleId}$>. This is a protected SomMark engine keyword.`);
+			}
 			this.removeOutput(singleId);
 		}
 
@@ -85,6 +97,10 @@ class Mapper {
 	 * @param {string} id - The output identifier to remove.
 	 */
 	removeOutput(id) {
+		if (typeof id !== "string") {
+			throw new TypeError("argument 'id' expected to be a string");
+		}
+
 		this.outputs = this.outputs
 			.map(output => {
 				if (Array.isArray(output.id)) {
@@ -121,6 +137,15 @@ class Mapper {
 	}
 
 	/**
+	 * Placeholder for block comment rendering. Should be overridden by specific mappers.
+	 * @param {string} text - The raw comment text.
+	 * @returns {string} - The formatted block comment string.
+	 */
+	commentBlock(text, indent = "") {
+		return this.comment(text);
+	}
+
+	/**
 	 * Formats a plain text node.
 	 * @param {string} text - The raw text content.
 	 * @param {Object} [options] - Target options like { escape: false }.
@@ -150,6 +175,13 @@ class Mapper {
 		return text;
 	}
 
+	/**
+	 * Formats runtime logic blocks natively.
+	 * By default, this returns an empty string to discard logic for formats like JSON/MDX.
+	 */
+	runtimeLogic(code, isGlobal) {
+		return "";
+	}
 
 	/**
 	 * Handles unknown tags. Should be overridden by specific mappers to provide fallback behavior.
@@ -245,7 +277,7 @@ class Mapper {
 		}));
 
 		newMapper.customProps = new Set(this.customProps);
-		
+
 		return newMapper;
 	}
 

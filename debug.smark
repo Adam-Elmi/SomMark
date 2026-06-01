@@ -1,5 +1,21 @@
-# Comment
-[Block] # Comment
-   # Comment
-    This is a block.
-[end] # Comment
+static ${
+    // The sandbox module loader loads local templates and exposes them as render functions
+    const { default: ItemLayout } = await import("./components/Item.smark");
+
+    SomMark.register("product-list", async ({ args }) => {
+        let listHtml = "";
+        const products = args.items || [];
+        
+        for (const prod of products) {
+            // Render the external sub-template passing parameters
+            listHtml += await ItemLayout({
+                title: prod.name,
+                price: prod.price
+            });
+        }
+        
+        return SomMark.tag("div").attributes({ class: "products" }).body(listHtml);
+    });
+}$
+
+[product-list = items: js{[ { name: "Pen", price: 1.50 }, { name: "Notebook", price: 4.99 } ]}][end]

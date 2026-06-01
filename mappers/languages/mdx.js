@@ -1,5 +1,5 @@
 import Mapper from "../mapper.js";
-import MARKDOWN, { renderHeading } from "./markdown.js";
+import MARKDOWN from "./markdown.js";
 import { VOID_ELEMENTS } from "../../constants/void_elements.js";
 
 /**
@@ -28,14 +28,14 @@ const MDX = Mapper.define({
 
 		return {
 			render: (ctx) => {
-				const { args, content } = ctx;
+				const { args, content, isSelfClosing } = ctx;
 				const element = this.tag(tagName).jsxProps(args);
-				return isVoid ? element.selfClose() : element.body(content);
+				return (isSelfClosing || isVoid) ? element.selfClose() : element.body(content);
 			},
 			options: {
 				type: isVoid ? "Block" : (isCodeStyleOrScript ? ["Block", "AtBlock"] : ["Block", "Inline", "AtBlock"]),
 				escape: !isCodeStyleOrScript,
-				rules: { is_self_closing: isVoid }
+				rules: { is_empty_body: isVoid }
 			}
 		};
 	},
@@ -48,14 +48,22 @@ const MDX = Mapper.define({
 	 * Formats a plain text node with Markdown escaping.
 	 */
 	text(text, options) {
-		return MARKDOWN.text.call(this, text, options);
+		let out = text;
+		if (options?.escape !== false) {
+			out = this.escapeHTML(out);
+		}
+		return out;
 	},
 
 	/**
 	 * Formats inline content before rendering, respecting explicit escape flags.
 	 */
 	inlineText(text, options) {
-		return MARKDOWN.inlineText.call(this, text, options);
+		let out = text;
+		if (options?.escape !== false) {
+			out = this.escapeHTML(out);
+		}
+		return out;
 	},
 
 	/**
@@ -66,9 +74,6 @@ const MDX = Mapper.define({
 		if (options?.escape !== false) {
 			out = this.escapeHTML(out);
 		}
-		if (out.includes('\n')) {
-			out = '\n' + out + '\n';
-		}
 		return out;
 	}
 });
@@ -76,13 +81,17 @@ const MDX = Mapper.define({
 const { tag } = MDX;
 
 MDX.inherit(MARKDOWN);
-MDX.md = MARKDOWN.md; // Provide the Markdown escaping tool
+MDX.md = MARKDOWN.md;
 
-// MDX defaults to HTML tags for headings to ensure high-fidelity JSX output
-["h1", "h2", "h3", "h4", "h5", "h6"].forEach(heading => {
-	MDX.register(heading, function (ctx) {
-		return renderHeading.call(this, ctx, "html");
-	}, { type: "Block" });
+["h1", "h2", "h3", "h4", "h5", "h6"].forEach(h => {
+	MDX.register(h, function ({ args, content }) {
+		const format = this.safeArg({ args, key: "format", fallBack: "" });
+		if (format === "md" || format === "markdown") {
+			return this.md.heading(content, h.slice(1) || 1);
+		}
+		delete args.format;
+		return tag(h).jsxProps(args).body(content);
+	});
 });
 
 /**
@@ -91,5 +100,31 @@ MDX.md = MARKDOWN.md; // Provide the Markdown escaping tool
 MDX.register("mdx", ({ content }) => {
 	return content;
 }, { escape: false, type: "AtBlock" });
+
+// Inline CSS tag (Moved from shared)
+MDX.register("css", ({ args, content }) => {
+	// Compile style from named arguments (keys that are not numeric digits)
+	const namedStyle = Object.keys(args)
+		.filter(k => isNaN(parseInt(k)))
+		.map(k => `${k}:${args[k]}`)
+		.join(";");
+
+	// Fetch positional style string (index 0) or "style" key if present
+	let positionalStyle = MDX.safeArg({ args, index: 0, key: "style", fallBack: "" });
+
+	// Filter out positional styles that are just duplicates of named arguments
+	const hasDuplicateNamed = Object.keys(args)
+		.filter(k => isNaN(parseInt(k)))
+		.some(k => args[k] === positionalStyle);
+
+	if (hasDuplicateNamed) {
+		positionalStyle = "";
+	}
+
+	// Combine both together
+	let style = [positionalStyle, namedStyle].filter(s => s.trim()).join(";");
+
+	return MDX.tag("span").jsxProps({ style }).body(content);
+}, { type: "Inline" });
 
 export default MDX;

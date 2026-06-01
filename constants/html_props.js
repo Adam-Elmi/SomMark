@@ -36,6 +36,7 @@ export const HTML_PROPS = new Set([
 	"decoding",
 	"crossorigin",
 	"charset",
+	"content",
 	"action",
 	"method",
 	"enctype",

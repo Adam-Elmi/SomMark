@@ -6,11 +6,13 @@ import HTML from "../../mappers/languages/html.js";
 import MARKDOWN from "../../mappers/languages/markdown.js";
 import MDX from "../../mappers/languages/mdx.js";
 import Json from "../../mappers/languages/json.js";
+import Jsonc from "../../mappers/languages/jsonc.js";
+import XML from "../../mappers/languages/xml.js";
 import { isExist } from "./file.js";
 import { loadConfig } from "./config.js";
-import { htmlFormat, markdownFormat, mdxFormat, jsonFormat, textFormat } from "../../core/formats.js";
+import { htmlFormat, markdownFormat, mdxFormat, jsonFormat, jsoncFormat, xmlFormat, textFormat } from "../../core/formats.js";
 
-const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json, [textFormat]: null };
+const default_mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json, [jsoncFormat]: Jsonc, [xmlFormat]: XML, [textFormat]: null };
 
 // ========================================================================== //
 //  Transpile Function                                                        //
@@ -50,6 +52,7 @@ export async function transpile({ src, format, filename = null, mapperFile = "",
         format,
         filename,
         mapperFile: finalMapper,
+        showSpinner: finalConfig.showSpinner !== false
     });
 
     return await smark.transpile();

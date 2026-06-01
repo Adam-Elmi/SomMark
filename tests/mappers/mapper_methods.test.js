@@ -1,10 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import Mapper from "../../mappers/mapper.js";
 import TagBuilder from "../../formatter/tag.js";
 
 describe("Mapper Class Methods", () => {
 
-	describe("Registration & Retrieval", () => {
+	describe("Tag Registration & Retrieval", () => {
 		it("should register and retrieve a single output", () => {
 			const mapper = new Mapper();
 			const render = () => "test";
@@ -24,6 +24,28 @@ describe("Mapper Class Methods", () => {
 			expect(mapper.get("b").render).toBe(render);
 		});
 
+		it("should throw error if expected arguments are not defined", () => {
+			const mapper = new Mapper();
+			expect(() => mapper.register(null, () => {})).toThrow("Expected arguments are not defined");
+			expect(() => mapper.register("a", null)).toThrow("Expected arguments are not defined");
+		});
+
+		it("should throw TypeError if id or renderOutput are invalid types", () => {
+			const mapper = new Mapper();
+			expect(() => mapper.register(123, () => {})).toThrow(TypeError);
+			expect(() => mapper.register("a", "not-a-func")).toThrow(TypeError);
+		});
+
+		it("should reject registration of engine reserved keywords", () => {
+			const mapper = new Mapper();
+			expect(() => mapper.register("end", () => {})).toThrow("Reserved Keyword Error");
+			expect(() => mapper.register("import", () => {})).toThrow("Reserved Keyword Error");
+			expect(() => mapper.register("slot", () => {})).toThrow("Reserved Keyword Error");
+			expect(() => mapper.register("$use-module", () => {})).toThrow("Reserved Keyword Error");
+			expect(() => mapper.register("for-each", () => {})).toThrow("Reserved Keyword Error");
+			expect(() => mapper.register(["div", "slot"], () => {})).toThrow("Reserved Keyword Error");
+		});
+
 		it("should remove existing overlaps when registering a new tag", () => {
 			const mapper = new Mapper();
 			mapper.register("a", () => "v1");
@@ -40,6 +62,11 @@ describe("Mapper Class Methods", () => {
 			expect(mapper.get("a")).toBeNull();
 		});
 
+		it("should throw TypeError if removeOutput receives non-string parameter", () => {
+			const mapper = new Mapper();
+			expect(() => mapper.removeOutput(123)).toThrow(TypeError);
+		});
+
 		it("should remove one ID from a shared registration array", () => {
 			const mapper = new Mapper();
 			mapper.register(["a", "b"], () => "shared");
@@ -50,7 +77,7 @@ describe("Mapper Class Methods", () => {
 			expect(mapper.get("b").id).toEqual(["b"]);
 		});
 
-		it("should clear all outputs", () => {
+		it("should clear all outputs using clear()", () => {
 			const mapper = new Mapper();
 			mapper.register("a", () => "a");
 			mapper.clear();
@@ -59,10 +86,15 @@ describe("Mapper Class Methods", () => {
 
 		it("should check if IDs are included using includesId", () => {
 			const mapper = new Mapper();
+			expect(mapper.includesId(null)).toBe(false);
+			expect(mapper.includesId([])).toBe(false);
+
 			mapper.register(["a", "b"], () => "test");
+			mapper.register("d", () => "single");
 			
 			expect(mapper.includesId(["a"])).toBe(true);
 			expect(mapper.includesId(["b"])).toBe(true);
+			expect(mapper.includesId(["d"])).toBe(true);
 			expect(mapper.includesId(["c"])).toBe(false);
 			expect(mapper.includesId(["a", "c"])).toBe(true);
 		});
@@ -94,7 +126,7 @@ describe("Mapper Class Methods", () => {
 		});
 	});
 
-	describe("Default Behavior (Specialized Content)", () => {
+	describe("Default Behavior & Formats", () => {
 		const mapper = new Mapper();
 
 		it("text() should return content as-is", () => {
@@ -113,13 +145,27 @@ describe("Mapper Class Methods", () => {
 			expect(mapper.comment("secret")).toBe("");
 		});
 
+		it("commentBlock() should default to comment() result", () => {
+			expect(mapper.commentBlock("secret")).toBe("");
+		});
+
+		it("commentBlock() should delegate to custom comment() implementation", () => {
+			const customMapper = Mapper.define({
+				comment: (t) => `# ${t}`
+			});
+			expect(customMapper.commentBlock("test")).toBe("# test");
+		});
+
+		it("runtimeLogic() should discard runtime blocks with empty string by default", () => {
+			expect(mapper.runtimeLogic("console.log(1)")).toBe("");
+		});
+
 		it("getUnknownTag() should return null", () => {
 			expect(mapper.getUnknownTag({})).toBeNull();
 		});
 	});
 
-
-	describe("Utilities", () => {
+	describe("Utilities & safeArg", () => {
 		const mapper = new Mapper();
 
 		it("tag() should return a TagBuilder instance", () => {
@@ -150,6 +196,7 @@ describe("Mapper Class Methods", () => {
 			const original = new Mapper();
 			original.register("a", () => "original");
 			original.options.test = true;
+			original.customProps.add("x");
 			
 			const replica = original.clone();
 			replica.register("a", () => "replica");
@@ -157,13 +204,25 @@ describe("Mapper Class Methods", () => {
 			
 			expect(original.get("a").render()).toBe("original");
 			expect(original.options.test).toBe(true);
+			expect(original.customProps.has("x")).toBe(true);
+
 			expect(replica.get("a").render()).toBe("replica");
 			expect(replica.options.test).toBe(false);
+			expect(replica.customProps.has("x")).toBe(true);
+		});
+
+		it("clone() should copy custom methods and preserve their 'this' binding", () => {
+			const original = Mapper.define({
+				myCustomVal: "yes",
+				customMethod() { return this.myCustomVal; }
+			});
+			const cloned = original.clone();
+			expect(cloned.customMethod()).toBe("yes");
 		});
 	});
 
 	describe("Static Factory", () => {
-		it("Mapper.define() should create a mapper with custom methods", () => {
+		it("Mapper.define() should create a mapper with custom overrides", () => {
 			const custom = Mapper.define({
 				text: (t) => t.toUpperCase(),
 				customVal: 123

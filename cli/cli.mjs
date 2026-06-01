@@ -70,7 +70,7 @@ async function main() {
 		runColor(args[1]);
 		return;
 	}
-	
+
 
 	// 6. Lex
 	if (command === "--lex") {

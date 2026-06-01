@@ -1,6 +1,7 @@
 import Mapper from "../mapper.js";
 import { VOID_ELEMENTS } from "../../constants/void_elements.js";
 import { registerSharedOutputs } from "../shared/index.js";
+import kebabize from "../../helpers/kebabize.js";
 
 /**
  * Helper to format an HTML tag with attributes and content.
@@ -10,17 +11,17 @@ import { registerSharedOutputs } from "../shared/index.js";
  * @param {string} content - The text or tags inside this tag.
  * @returns {string} - The finished HTML string.
  */
-const renderHtmlTag = function (id, args, content) {
+const renderHtmlTag = function (id, args, content, isSelfClosing) {
 	const element = this.tag(id);
 
-	element.smartAttributes(args, this.customProps);
+	element.smartAttributes(args, this.customProps, this.options);
 
 	let finalContent = content;
 	if (id.toLowerCase() === "script" && args.scoped === true) {
 		finalContent = `(function(){\n${content}\n})();`;
 	}
 
-	if (VOID_ELEMENTS.has(id.toLowerCase())) {
+	if (VOID_ELEMENTS.has(id.toLowerCase()) || isSelfClosing) {
 		return element.selfClose();
 	}
 
@@ -38,6 +39,22 @@ const HTML = Mapper.define({
 	 */
 	comment(text) {
 		return `<!-- ${text} -->`;
+	},
+
+	/**
+	 * Natively formats runtime logic for HTML.
+	 * Global logic is placed in a raw script tag.
+	 * Block-level logic is wrapped in a self-executing function to isolate scope and provide `self` reference.
+	 */
+	runtimeLogic(code, isGlobal, parentId) {
+		if (isGlobal) {
+			return this.tag("script").body(`\n${code.split("\n").filter(line => line.trim() !== "").join("\n")}\n`);
+		} else {
+			const selfDefinition = parentId
+				? `const self = document.querySelector('[data-sommark-id="${parentId}"]');`
+				: `const self = document.currentScript.parentElement;`;
+			return this.tag("script").body(`\n(async function(){${selfDefinition}\nif (self) {\n${code.split("\n").filter(line => line.trim() !== "").join("\n")}\n}\n})();\n`);
+		}
 	},
 
 	/**
@@ -66,9 +83,6 @@ const HTML = Mapper.define({
 		if (options?.escape !== false) {
 			out = this.escapeHTML(out);
 		}
-		if (out.includes('\n')) {
-			out = '\n' + out + '\n';
-		}
 		return out;
 	},
 
@@ -83,7 +97,7 @@ const HTML = Mapper.define({
 		const isCodeStyleOrScript = ["code", "style", "script"].includes(id);
 
 		return {
-			render: function ({ args, content }) { return renderHtmlTag.call(this, id, args, content); },
+			render: function ({ args, content, isSelfClosing }) { return renderHtmlTag.call(this, id, args, content, isSelfClosing); },
 			options: {
 				type: isCodeStyleOrScript ? ["Block", "AtBlock"] : ["Block", "Inline"],
 				escape: !isCodeStyleOrScript,
@@ -91,9 +105,9 @@ const HTML = Mapper.define({
 			}
 		};
 	},
-	
+
 	options: {
-		// trimAndWrapBlocks: false // Default to false for high-fidelity
+		trimAndWrapBlocks: true
 	}
 });
 
@@ -127,7 +141,34 @@ HTML.register(
 		type: "Block"
 	}
 );
+// Inline CSS tag (Moved from shared)
+HTML.register("css", ({ args, content }) => {
+	// Compile style from named arguments (keys that are not numeric digits)
+	const namedStyle = Object.keys(args)
+		.filter(k => isNaN(parseInt(k)))
+		.map(k => `${kebabize(k)}:${args[k]}`)
+		.join(";");
 
+	// Fetch positional style string (index 0) or "style" key if present
+	let positionalStyle = HTML.safeArg({ args, index: 0, key: "style", fallBack: "" });
+
+	// Filter out positional styles that are just duplicates of named arguments
+	const hasDuplicateNamed = Object.keys(args)
+		.filter(k => isNaN(parseInt(k)))
+		.some(k => args[k] === positionalStyle);
+
+	if (hasDuplicateNamed) {
+		positionalStyle = "";
+	}
+
+	// Combine both together
+	let style = [positionalStyle, namedStyle].filter(s => s.trim()).join(";");
+
+	style = style.split(";").filter(s => s.trim()).map(s => s.trim().split(":").map(s => s.trim()).join(":")).join(";");
+	return HTML.tag("span").attributes({ style }).body(content);
+}, {
+	type: "Inline"
+});
 registerSharedOutputs(HTML);
 
 export default HTML;

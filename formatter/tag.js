@@ -69,6 +69,8 @@ class TagBuilder {
 		const id = this.tagName.toLowerCase();
 		const isCodeStyleOrScript = ["style", "script"].includes(id);
 		let inline_style = "";
+		const useClassFallback = options.fallbackTarget === "class";
+		const classSet = new Set();
 
 		// 1. Initial CSS Variable/Style processing
 		if (!isCodeStyleOrScript && args.style) {
@@ -83,12 +85,20 @@ class TagBuilder {
 			}
 		}
 
-		// 2. Attribute Dispatching
+		// 2. Pre-collect native classes if using class fallback
+		if (useClassFallback) {
+			if (args.class) {
+				String(args.class).split(/\s+/).filter(Boolean).forEach(c => classSet.add(c));
+			}
+		}
+
+		// 3. Attribute Dispatching
 		const keys = Object.keys(args).filter(arg => isNaN(parseInt(arg)));
 		keys.forEach(key => {
 			if (!isNaN(parseInt(key))) return; // Skip numeric positional arguments
 			if (key === "style") return;
 			if (isCodeStyleOrScript && key === "scoped") return;
+			if (useClassFallback && key === "class") return;
 
 			const isDimensionAttributeSupported = ["img", "video", "svg", "canvas", "iframe", "object", "embed"].includes(id);
 			const isWidthOrHeight = key === "width" || key === "height";
@@ -99,20 +109,34 @@ class TagBuilder {
 
 			const k = isEvent ? key.toLowerCase() : (isNative || isCustom) ? key : kebabize(key);
 
-			if (isCodeStyleOrScript) {
-				// Specialized tags: only render standard attributes, no styling fallback
-				this.#attr.push(`${k}="${escapeHTML(String(args[key]))}"`);
+			if (isCodeStyleOrScript || options.fallbackTarget === false) {
+				// Specialized tags or fallback disabled: render standard attributes, no styling fallback
+				const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
+				this.#attr.push(`${k}="${escapeHTML(String(val))}"`);
 			} else {
-				// Standard elements: process smart styling fallbacks for non-native props
+				// Standard elements: process smart fallbacks
 				if (isEvent || ((isNative || isCustom) && (!isWidthOrHeight || isDimensionAttributeSupported)) || isDataOrAria) {
 					const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
 					this.#attr.push(`${k}="${escapeHTML(String(val))}"`);
 				} else {
-					const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
-					inline_style += `${k}:${val};`;
+					if (useClassFallback) {
+						const val = args[key];
+						if (val === true || val === "true") {
+							classSet.add(k);
+						} else if (val !== false && val !== "false" && val !== null && val !== undefined) {
+							classSet.add(`${k}-${val}`);
+						}
+					} else {
+						const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
+						inline_style += `${k}:${val};`;
+					}
 				}
 			}
 		});
+
+		if (useClassFallback && classSet.size > 0) {
+			this.#attr.push(`class="${escapeHTML([...classSet].join(" "))}"`);
+		}
 
 		if (inline_style) {
 			// V4 DYNAMIC CSS: Automatically wrap CSS variables in var()

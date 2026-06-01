@@ -149,4 +149,43 @@ describe('JSON Mapper (Blocks only)', () => {
             expect(output.trim()).toBe(expected);
         });
     });
+
+    describe('Step 6: Static Logic Blocks', () => {
+        it('should evaluate server-side static logic blocks correctly inside JSON primitive types', async () => {
+            const src = `
+[Object]
+	[string = key: "engine"]static \${ "Smark" + " " + "Engine" }\$[end]
+	[number = key: "code"]static \${ 12 * 12 }\$[end]
+	[bool = key: "active"]static \${ 10 > 5 }\$[end]
+[end]
+            `.trim();
+            const sm = new SomMark(smSettings(src));
+            const output = await sm.transpile();
+
+            const expected = `{
+  "engine": "Smark Engine",
+  "code": 144,
+  "active": true
+}`;
+            expect(output.trim()).toBe(expected);
+        });
+
+        it('should share declared variables across multiple static blocks inside JSON templates', async () => {
+            const src = `
+static \${ let prefix = "JSON"; let code = 200; }\$
+[Object]
+    [string = key: "status"]static \${ prefix + " OK" }\$[end]
+    [number = key: "code"]static \${ code }\$[end]
+[end]
+            `.trim();
+            const sm = new SomMark(smSettings(src));
+            const output = await sm.transpile();
+
+            const expected = `{
+  "status": "JSON OK",
+  "code": 200
+}`;
+            expect(output.trim()).toBe(expected);
+        });
+    });
 });

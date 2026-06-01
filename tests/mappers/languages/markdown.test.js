@@ -1,19 +1,19 @@
-import { describe, it, expect } from 'vitest';
-import SomMark from '../../../index.js';
-import { remark } from 'remark';
-import remarkGfm from 'remark-gfm';
-import remarkParse from 'remark-parse';
+import { describe, it, expect } from "vitest";
+import SomMark from "../../../index.js";
+import { remark } from "remark";
+import remarkGfm from "remark-gfm";
+import remarkParse from "remark-parse";
 
-/**
- * Markdown High-Fidelity Test Suite
- * Validates SomMark output against the official Remark parser with GFM support.
- * Format: [MARKDOWN] -> (using remark to ensure compatibility)
- */
-describe('Markdown Mapper (V4 High-Fidelity)', () => {
+const smSettings = (src, options = {}) => ({
+	src,
+	format: "markdown",
+	...options
+});
 
+describe("SomMark Markdown Mapper Comprehensive Test Suite", () => {
 	/**
-	 * Helper to validate that a string is valid Markdown syntax.
-	 * Attempts to parse the Markdown using remark-gfm; throws on syntax errors.
+	 * Helper to validate that a string is valid Markdown/GFM syntax.
+	 * Attempts to parse the Markdown using remark-gfm; throws on compatibility errors.
 	 */
 	const validateMarkdown = async (output) => {
 		try {
@@ -23,93 +23,116 @@ describe('Markdown Mapper (V4 High-Fidelity)', () => {
 				.process(output);
 			return true;
 		} catch (err) {
-			console.error('Markdown Compatibility Error:', err.message);
-			console.error('Offending Output:\n', output);
+			console.error("Markdown Compatibility Error:", err.message);
+			console.error("Offending Output:\n", output);
 			throw err;
 		}
 	};
 
-	const smSettings = (src) => ({
-		src,
-		format: 'markdown'
-	});
-
-	describe('Inline Formatting', () => {
-		it('Test Bold: should render [b]Bold[end] as **Bold**', async () => {
-			const sm = new SomMark(smSettings('[b]Bold[end]'));
+	describe("Step 1: Inline Formatting", () => {
+		it("renders bold templates correctly", async () => {
+			const sm = new SomMark(smSettings("[b]Bold text[end]"));
 			const output = await sm.transpile();
-			expect(output).toBe('**Bold**');
+			expect(output).toBe("**Bold text**");
 			await validateMarkdown(output);
 		});
 
-		it('Test Italic: should render [i]Italic[end] as *Italic*', async () => {
-			const sm = new SomMark(smSettings('[i]Italic[end]'));
+		it("renders italic templates correctly", async () => {
+			const sm = new SomMark(smSettings("[i]Italic text[end]"));
 			const output = await sm.transpile();
-			expect(output).toBe('*Italic*');
+			expect(output).toBe("*Italic text*");
 			await validateMarkdown(output);
 		});
 
-		it('Test Emphasis: should render [em]Emphasis[end] as ***Emphasis***', async () => {
-			const sm = new SomMark(smSettings('[em]Emphasis[end]'));
+		it("renders emphasis (bold-italic) templates correctly", async () => {
+			const sm = new SomMark(smSettings("[em]Emphasis text[end]"));
 			const output = await sm.transpile();
-			expect(output).toBe('***Emphasis***');
+			expect(output).toBe("***Emphasis text***");
 			await validateMarkdown(output);
 		});
 
-		it('Test Strike: should render [s]Strike[end] as ~~Strike~~', async () => {
-			const sm = new SomMark(smSettings('[s]Strike[end]'));
+		it("renders strike templates correctly", async () => {
+			const sm = new SomMark(smSettings("[s]Strike text[end]"));
 			const output = await sm.transpile();
-			expect(output).toBe('~~Strike~~');
+			expect(output).toBe("~~Strike text~~");
 			await validateMarkdown(output);
 		});
 
-		it('Test Code (Inline): should render (text)->(code) as `text`', async () => {
-			const sm = new SomMark(smSettings('Use (the method)->(code)'));
+		it("renders inline code statements correctly", async () => {
+			const sm = new SomMark(smSettings("Use (the code)->(code)"));
 			const output = await sm.transpile();
-			expect(output).toBe('Use `the method`');
+			expect(output).toBe("Use `the code`");
 			await validateMarkdown(output);
 		});
 	});
 
-	describe('Block Elements', () => {
-		it('Test Quote: should render [quote]Quote[end] as > Quote', async () => {
-			const sm = new SomMark(smSettings('[quote]Quote[end]'));
+	describe("Step 2: Block Elements & Headings", () => {
+		it("renders blockquotes cleanly in Markdown output", async () => {
+			const sm = new SomMark(smSettings("[quote]Quote text[end]"));
 			const output = await sm.transpile();
-			expect(output).toBe('> Quote');
+			expect(output).toBe("> Quote text");
 			await validateMarkdown(output);
 		});
 
-		it('Test Quote (Alert): should render [quote = type: "NOTE"]Note[end] as GitHub Alert', async () => {
-			const sm = new SomMark(smSettings('[quote = type: "NOTE"]Note[end]'));
+		it("renders GFM alerts with custom type metadata", async () => {
+			const sm = new SomMark(smSettings('[quote = type: "NOTE"]Alert note[end]'));
 			const output = await sm.transpile();
-			expect(output).toBe('> [!NOTE]\n> Note');
+			expect(output).toBe("> [!NOTE]\n> Alert note");
 			await validateMarkdown(output);
 		});
 
-		it('Test Horizontal rule: should render [hr][end] as ---', async () => {
-			const sm = new SomMark(smSettings('[hr][end]'));
+		it("renders thematic breaks hr correctly", async () => {
+			const smDefault = new SomMark(smSettings("[hr][end]"));
+			const smCustom = new SomMark(smSettings("[hr = '*'][end]"));
+
+			const outDefault = await smDefault.transpile();
+			const outCustom = await smCustom.transpile();
+
+			expect(outDefault).toBe("---");
+			expect(outCustom).toBe("***");
+
+			await validateMarkdown(outDefault);
+			await validateMarkdown(outCustom);
+		});
+
+		it("renders block headings H1-H6 in Markdown style", async () => {
+			const sm1 = new SomMark(smSettings("[h1]H1 Title[end]"));
+			const sm6 = new SomMark(smSettings("[h6]H6 Title[end]"));
+
+			const out1 = await sm1.transpile();
+			const out6 = await sm6.transpile();
+
+			expect(out1).toBe("# H1 Title");
+			expect(out6).toBe("###### H6 Title");
+
+			await validateMarkdown(out1);
+			await validateMarkdown(out6);
+		});
+
+		it("falls back to HTML formatted headings if format is html", async () => {
+			const sm = new SomMark(smSettings('[h1 = format: "html"]Title[end]'));
 			const output = await sm.transpile();
-			expect(output).toBe('---');
+			expect(output).toBe("<h1>Title</h1>");
 			await validateMarkdown(output);
 		});
 
-		it('Test Headings: should render [h1]H1[end] as # H1', async () => {
-			const sm = new SomMark(smSettings('[h1]H1[end]'));
+		it("renders explicitly closed HTML formatted headings correctly", async () => {
+			const sm = new SomMark(smSettings('[h1 = format: "html", class: "title" !]'));
 			const output = await sm.transpile();
-			expect(output).toBe('# H1');
+			expect(output).toBe('<h1 class="title" />');
 			await validateMarkdown(output);
 		});
 
-		it('Test Todo: should render [todo = status: "x"]Task[end] as task list item', async () => {
-			const sm = new SomMark(smSettings('[todo = status: "x"]Task[end]'));
+		it("renders todo status list items successfully", async () => {
+			const sm = new SomMark(smSettings('[todo = status: "x"]Complete task[end]'));
 			const output = await sm.transpile();
-			expect(output).toBe('- [x] Task');
+			expect(output).toBe("- [x] Complete task");
 			await validateMarkdown(output);
 		});
 	});
 
-	describe('Structural Components (Native AST)', () => {
-		it('Test Table: should render full Native AST table with 3-dash dividers', async () => {
+	describe("Step 3: AST-Based Structural Components", () => {
+		it("resolves full native AST tables cleanly", async () => {
 			const src = `
 [Table]
 	[header]
@@ -121,120 +144,159 @@ describe('Markdown Mapper (V4 High-Fidelity)', () => {
 	[body]
 		[row]
 			[cell]Adam[end]
-			[cell]Author[end]
+			[cell]Creator[end]
 		[end]
 	[end]
-[end]`;
-			const sm = new SomMark(smSettings(src.trim()));
+[end]
+			`.trim();
+
+			const sm = new SomMark(smSettings(src));
 			const output = await sm.transpile();
-			expect(output).toContain('| Name | Role |');
-			expect(output).toContain('| --- | --- |');
-			expect(output).toContain('| Adam | Author |');
+
+			expect(output).toContain("| Name | Role |");
+			expect(output).toContain("| --- | --- |");
+			expect(output).toContain("| Adam | Creator |");
 			await validateMarkdown(output);
 		});
 
-		it('Test List (Unordered): should render bulleted list', async () => {
+		it("resolves native AST unordered lists with custom bullets", async () => {
 			const src = `
 [list]
-	[item]One[end]
-	[item]Two[end]
-[end]`;
-			const sm = new SomMark(smSettings(src.trim()));
+	[item]Bullet One[end]
+	[item]Bullet Two[end]
+[end]
+			`.trim();
+
+			const sm = new SomMark(smSettings(src));
 			const output = await sm.transpile();
-			expect(output).toBe('- One\n- Two');
+			expect(output).toBe("- Bullet One\n- Bullet Two");
 			await validateMarkdown(output);
 		});
 
-		it('Test List (Ordered): should render numbered list', async () => {
+		it("resolves native AST ordered lists", async () => {
 			const src = `
 [list = type: "number"]
 	[item]First[end]
 	[item]Second[end]
-[end]`;
-			const sm = new SomMark(smSettings(src.trim()));
+[end]
+			`.trim();
+
+			const sm = new SomMark(smSettings(src));
 			const output = await sm.transpile();
-			expect(output).toBe('1. First\n2. Second');
+			expect(output).toBe("1. First\n2. Second");
+			await validateMarkdown(output);
+		});
+
+		it("handles nested lists recursively", async () => {
+			const src = `
+[list]
+	[item]Parent Item
+		[list]
+			[item]Child Item[end]
+		[end]
+	[end]
+[end]
+			`.trim();
+
+			const sm = new SomMark(smSettings(src));
+			const output = await sm.transpile();
+			expect(output).toBe("- Parent Item\n  \t\t- Child Item");
 			await validateMarkdown(output);
 		});
 	});
 
-	describe('Media & Navigation', () => {
-		it('Test Link: should render [link = src: "url"]text[end] as [text](url)', async () => {
-			const sm = new SomMark(smSettings('[link = src: "https://google.com"]Google[end]'));
+	describe("Step 4: Media & Navigation", () => {
+		it("renders link structures correctly", async () => {
+			const sm = new SomMark(smSettings('[link = src: "https://example.com", title: "Tip"]Link text[end]'));
 			const output = await sm.transpile();
-			expect(output).toBe('[Google](https://google.com)');
+			expect(output).toBe('[Link text](https://example.com "Tip")');
 			await validateMarkdown(output);
 		});
 
-		it('Test Image: should render [image = alt: "Alt", src: "img.png"][end] as ![Alt](img.png)', async () => {
-			const sm = new SomMark(smSettings('[image = alt: "Alt", src: "img.png"][end]'));
+		it("renders image structures cleanly", async () => {
+			const sm = new SomMark(smSettings('[image = alt: "Description", src: "image.png", title: "Tip"][end]'));
 			const output = await sm.transpile();
-			expect(output).toBe('![Alt](img.png)');
-			await validateMarkdown(output);
-		});
-	});
-
-	describe('Special Features & Formatting', () => {
-		it('Test Code (Block): should render [code = lang: "js"]const x = 1[end] as fenced block', async () => {
-			const sm = new SomMark(smSettings('@_code_@:lang: "js";const x = 1;@_end_@'));
-			const output = await sm.transpile();
-			expect(output).toBe('```js\nconst x = 1;\n```');
-			await validateMarkdown(output);
-		});
-
-		it('Test Html headings: should render [h1 = format: "html"]Title[end] as <h1>', async () => {
-			const sm = new SomMark(smSettings('[h1 = format: "html"]Title[end]'));
-			const output = await sm.transpile();
-			expect(output).toBe('<h1>Title</h1>');
-			await validateMarkdown(output);
-		});
-
-		it('Test Unknown/unregistered ids: should fallback to HTML tags (Compact vs multiline)', async () => {
-			// Single child -> compact
-			const sm1 = new SomMark(smSettings('[Unknown]Body[end]'));
-			const out1 = await sm1.transpile();
-			expect(out1).toBe('<unknown>Body</unknown>');
-
-			// Multi child -> multiline (Structural separation enforces \n\n for block-level children like <p>)
-			const sm2 = new SomMark(smSettings('[Unknown][p]Line 1[end][p]Line 2[end][end]'));
-			const out2 = await sm2.transpile();
-			expect(out2).toBe('<unknown>\n<p>Line 1</p><p>Line 2</p>\n</unknown>');
-		});
-
-		it('Test Shared outputs (raw, css): should support shared utilities with structural separation', async () => {
-			const sm = new SomMark(smSettings('@_raw_@;**Not Bold**@_end_@ and (text)->(css: "color:red")'));
-			const output = await sm.transpile();
-			expect(output).toBe('**Not Bold** and <span style="color:red">text</span>');
+			expect(output).toBe('![Description](image.png "Tip")');
 			await validateMarkdown(output);
 		});
 	});
 
-	describe('Auto-escape & Formatting', () => {
-		it('Test Auto-escape (Html): should escape < and > in standard text nodes', async () => {
-			const sm = new SomMark(smSettings('Special <characters> & strings'));
+	describe("Step 5: Special Features & Shared Mappers", () => {
+		it("renders fenced block code successfully", async () => {
+			const sm = new SomMark(smSettings('@_code_@:lang: "javascript";console.log("Smark");@_end_@'));
 			const output = await sm.transpile();
-			expect(output).toBe('Special &lt;characters&gt; &amp; strings');
+			expect(output).toBe('```javascript\nconsole.log("Smark");\n```');
 			await validateMarkdown(output);
 		});
 
-		it('Test Auto-escape (Markdown): should escape markdown markers in text while using valid Smark escaping', async () => {
-			const sm = new SomMark(smSettings('I like *stars*'));
+		it("falls back to compact HTML representation for single-child unknown tags", async () => {
+			const sm = new SomMark(smSettings("[CustomTag]Tag Content[end]"));
 			const output = await sm.transpile();
-			expect(output).toBe('I like \\*stars\\*');
+			expect(output).toBe("<customtag>Tag Content</customtag>");
 			await validateMarkdown(output);
 		});
 
-		it('Test Escape: should render [e]*[end] as \* explicitly without placeholder corruption', async () => {
-			const sm = new SomMark(smSettings('Literal [e]*[end]'));
+		it("falls back to multiline HTML representation for multi-child unknown tags", async () => {
+			const sm = new SomMark(smSettings("[CustomTag][p]First[end][p]Second[end][end]"));
 			const output = await sm.transpile();
-			expect(output).toBe('Literal \\*');
+			expect(output).toBe("<customtag>\n<p>First</p><p>Second</p>\n</customtag>");
 			await validateMarkdown(output);
 		});
 
-		it('Test Markdown Formatting: should ensure double newlines between block elements', async () => {
-			const sm = new SomMark(smSettings('[h1]Title[end]\n[p]Paragraph[end]'));
+		it("supports void unknown tags self-closing representation", async () => {
+			const sm = new SomMark(smSettings("[input = type: 'text' !]"));
 			const output = await sm.transpile();
-			expect(output).toBe('# Title\n<p>Paragraph</p>');
+			expect(output).toBe('<input type="text" />');
+			await validateMarkdown(output);
+		});
+
+		it("processes shared outputs raw code and css spans correctly", async () => {
+			const sm = new SomMark(smSettings("@_raw_@;<b>Raw HTML</b>@_end_@ (Colored)->(css: 'color:blue')"));
+			const output = await sm.transpile();
+			expect(output).toBe('<b>Raw HTML</b> <span style="color:blue">Colored</span>');
+			await validateMarkdown(output);
+		});
+	});
+
+	describe("Step 6: Escaping & Text Processing", () => {
+		it("escapes HTML special characters inside text nodes", async () => {
+			const sm = new SomMark(smSettings("Clean <escaping> & characters"));
+			const output = await sm.transpile();
+			expect(output).toBe("Clean &lt;escaping&gt; &amp; characters");
+			await validateMarkdown(output);
+		});
+
+		it("applies smart Markdown escaping to protect special markers", async () => {
+			const sm = new SomMark(smSettings("Protect *stars* and _underscores_"));
+			const output = await sm.transpile();
+			expect(output).toBe("Protect \\*stars\\* and \\_underscores\\_");
+			await validateMarkdown(output);
+		});
+
+		it("supports literal escapes via [e] tag to prevent markdown rendering", async () => {
+			const sm = new SomMark(smSettings("Literal [e]*[end] tag"));
+			const output = await sm.transpile();
+			expect(output).toBe("Literal \\* tag");
+			await validateMarkdown(output);
+		});
+	});
+
+	describe("Step 7: Static Logic Blocks", () => {
+		it("evaluates server-side static logic blocks correctly inside Markdown templates", async () => {
+			const sm = new SomMark(smSettings("static ${ 5 * 5 }$"));
+			const output = await sm.transpile();
+			expect(output).toBe("25");
+			await validateMarkdown(output);
+		});
+
+		it("shares declared variables across multiple static blocks inside the same Markdown template", async () => {
+			const src = `
+static \${ let title = "MD Section"; }\$
+[h1]static \${ title }\$[end]
+			`.trim();
+			const sm = new SomMark(smSettings(src));
+			const output = await sm.transpile();
+			expect(output).toContain("# MD Section");
 			await validateMarkdown(output);
 		});
 	});

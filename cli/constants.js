@@ -4,7 +4,7 @@
  */
 
 /** @type {Array<string>} List of recognized CLI flags and commands. */
-export const options = ["-v", "--version", "-h", "--help", "--html", "--markdown", "--mdx", "--json", "--text", "--xml", "--print", "-p", "--lex", "--parse", "list"];
+export const options = ["-v", "--version", "-h", "--help", "--html", "--markdown", "--mdx", "--json", "--jsonc", "--text", "--xml", "--print", "-p", "--lex", "--parse", "list"];
 
 /** @type {Object<string, string>} Map of output formats to their respective file extensions. */
 export const extensions = {
@@ -13,5 +13,6 @@ export const extensions = {
 	markdown: "md",
 	mdx: "mdx",
 	json: "json",
+	jsonc: "jsonc",
 	xml: "xml"
 };

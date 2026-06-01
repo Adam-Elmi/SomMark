@@ -93,4 +93,21 @@ This is a (flexible)->(italic) document.
 		expect(output).toContain('Line 1');
 		expect(output).toContain('Line 2');
 	});
+
+	it('should successfully execute nested static logic blocks', async () => {
+		const sm = new SomMark(smSettings('[div]Hello static ${ "World" }$[end]'));
+		const output = await sm.transpile();
+		expect(output).toBe('Hello World');
+	});
+
+	it('should extract text inside structural loops ([for-each])', async () => {
+		const src = `
+[for-each = static \${ ["A", "B", "C"] }$, as: "item"]
+  Item static \${ item }$
+[end]
+		`.trim();
+		const sm = new SomMark(smSettings(src));
+		const output = await sm.transpile();
+		expect(output).toBe('Item AItem BItem C');
+	});
 });

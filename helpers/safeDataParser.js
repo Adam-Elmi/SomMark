@@ -28,7 +28,7 @@ export function safeDataParse(str) {
         if (char === '{') return parseObject();
         if (char === '[') return parseArray();
         if (char === '"' || char === "'") return parseString();
-        
+
         // Primitives or Unquoted identifiers
         return parsePrimitiveOrIdentifier();
     }
@@ -97,12 +97,12 @@ export function safeDataParse(str) {
             index++;
         }
         const token = s.slice(start, index);
-        
+
         if (token === "true") return true;
         if (token === "false") return false;
         if (token === "null") return null;
         if (!isNaN(Number(token))) return Number(token);
-        
+
         return token; // Fallback to string if it looks like an identifier
     }
 

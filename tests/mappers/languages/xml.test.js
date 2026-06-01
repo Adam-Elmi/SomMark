@@ -31,7 +31,6 @@ describe('XML Mapper (V4 Strict)', () => {
             const sm = new SomMark(smSettings('[empty][end]'));
             const output = await sm.transpile();
             
-            // XMLParser might treat <empty /> as an empty object or string depending on config
             const obj = parser.parse(output);
             expect(obj).toHaveProperty('empty');
             expect(output.trim()).toBe('<empty />');
@@ -55,7 +54,6 @@ describe('XML Mapper (V4 Strict)', () => {
             
             const obj = parser.parse(output);
             expect(obj.note).toBe('Content');
-            // If obj.note is a string, it has no attributes in the parsed object
             expect(typeof obj.note).toBe('string');
         });
     });
@@ -97,7 +95,6 @@ describe('XML Mapper (V4 Strict)', () => {
             
             const obj = parser.parse(output);
             
-            // Recursively check nesting (outermost is lvl99)
             let current = obj;
             for (let i = 99; i >= 0; i--) {
                 expect(current).toHaveProperty(`lvl${i}`);
@@ -172,6 +169,27 @@ describe('XML Mapper (V4 Strict)', () => {
             const sm = new SomMark(smSettings('@_cdata_@;<b>Bold</b> and & Symbol@_end_@'));
             const output = await sm.transpile();
             expect(output.trim()).toBe('<![CDATA[<b>Bold</b> and & Symbol]]>');
+        });
+    });
+
+    describe('Step 8: Static Logic Blocks', () => {
+        it('should evaluate server-side static logic blocks correctly inside XML templates', async () => {
+            const sm = new SomMark(smSettings('static ${ 25 * 4 }$'));
+            const output = await sm.transpile();
+            expect(output.trim()).toBe('100');
+        });
+
+        it('should share declared variables across multiple static blocks inside XML templates', async () => {
+            const src = `
+static \${ let title = "XML Config"; }\$
+[root]static \${ title }\$[end]
+            `.trim();
+            const sm = new SomMark(smSettings(src));
+            const output = await sm.transpile();
+            
+            const obj = parser.parse(output);
+            expect(obj.root).toBe('XML Config');
+            expect(output.trim()).toBe('<root>XML Config</root>');
         });
     });
 });
