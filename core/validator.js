@@ -18,11 +18,40 @@ import { transpilerError } from "./errors.js";
 const runValidations = (node, target, instance) => {
 	if (!target || !target.options) return;
 	const rules = target.options.rules || {};
-	const id = (target.id) ? (Array.isArray(target.id) ? target.id.join(" | ") : target.id) : "Unknown";
-	const context = instance ? { src: instance.src, range: node.range, filename: instance.filename } : null;
+	const id = (target.id) ? (Array.isArray(target.id) ? target.id.join(" | ") : target.id) : (node.id || "Unknown");
+	const errorRange = node.range ? {
+		start: node.range.start,
+		end: {
+			line: node.range.start.line,
+			character: node.range.start.character + (node.id || "").length + 2
+		}
+	} : null;
+	const context = instance ? { src: instance.src, range: errorRange, filename: instance.filename } : null;
 
-	// -- Structural Integrity (Self-Closing) ------------------------------ //
-	if (rules.is_self_closing && node.type === "Block" && node.body) {
+	// -- Structural Integrity (Empty Body / Self-Closing) ----------------- //
+	const isEmptyBodyTarget = rules.is_empty_body || rules.is_self_closing;
+
+	// -- Node Type Validation --------------------------------------------- //
+	if (target.options.type) {
+		const allowedTypes = Array.isArray(target.options.type) ? target.options.type : [target.options.type];
+		const hasAny = allowedTypes.includes("any");
+		if (!hasAny && !allowedTypes.includes(node.structure)) {
+			const isReserved = ["import", "$use-module", "slot", "for-each"].includes(id.toLowerCase());
+			const msg = isReserved
+				? `<$yellow:Reserved keyword$> <$blue:'${id}'$> <$yellow:is strictly defined as a [${allowedTypes.join(", ")}] structure node, but was used as a [${node.structure}] structure node.$>`
+				: `<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is defined as type(s) [${allowedTypes.join(", ")}], but was used as a [${node.structure}] structure node.$>`;
+
+			transpilerError(
+				[
+					"{N}",
+					msg
+				],
+				context
+			);
+		}
+	}
+
+	if (isEmptyBodyTarget && node.type === "Block" && !node.isSelfClosing && node.body) {
 		const hasContent = node.body.some(child => {
 			if (child.type === "Text") {
 				return (child.text || "").trim().length > 0;
@@ -33,8 +62,32 @@ const runValidations = (node, target, instance) => {
 		if (hasContent) {
 			transpilerError(
 				[
-					"<$red:Validation Error:$> ",
-					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is self-closing and cannot have children (body).$>`
+					"{N}",
+					"<$red:[Validation Error]:$>{N}",
+					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is defined as an empty-body component and cannot have children.$>`
+				],
+				context
+			);
+		}
+	}
+
+	// -- Arguments Validation (Required Args) ----------------------------- //
+	const isStructural = node.type === "Block" || node.type === "AtBlock";
+	if (isStructural && rules.required_args && Array.isArray(rules.required_args)) {
+		const missingArgs = rules.required_args.filter(arg => {
+			// Check if the argument exists in named args or as a positional arg (if arg is a number)
+			if (typeof arg === "number") {
+				return node.args[arg] === undefined;
+			}
+			return node.args[arg] === undefined;
+		});
+
+		if (missingArgs.length > 0) {
+			transpilerError(
+				[
+					"{N}",
+					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is missing required arguments:$> <$red:${missingArgs.join(", ")}$>{N}`,
+					`<$blue:Please ensure these arguments are provided in the template usage.$>`
 				],
 				context
 			);
@@ -69,7 +122,17 @@ export function validateAST(ast, mapperFile, instance) {
 
 		// 1. Identify Target
 		if (node.id) {
-			const target = mapperFile.get(node.id) || (mapperFile.getUnknownTag ? mapperFile.getUnknownTag(node) : null);
+			let target = null;
+			const lowerId = node.id.toLowerCase();
+			if (["import", "$use-module", "slot", "for-each"].includes(lowerId)) {
+				target = {
+					id: lowerId,
+					options: { type: "Block" }
+				};
+			} else {
+				target = mapperFile.get(node.id) || (mapperFile.getUnknownTag ? mapperFile.getUnknownTag(node) : null);
+			}
+
 			if (target) {
 				runValidations(node, target, instance);
 			}

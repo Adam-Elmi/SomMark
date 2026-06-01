@@ -2,21 +2,24 @@ import lexer from "./core/lexer.js";
 import parser from "./core/parser.js";
 import transpiler from "./core/transpiler.js";
 import Mapper from "./mappers/mapper.js";
+import { registerSharedOutputs } from "./mappers/shared/index.js";
 import HTML from "./mappers/languages/html.js";
 import MARKDOWN from "./mappers/languages/markdown.js";
 import MDX from "./mappers/languages/mdx.js";
 import Json from "./mappers/languages/json.js";
+import Jsonc from "./mappers/languages/jsonc.js";
 import XML from "./mappers/languages/xml.js";
+import TEXT from "./mappers/languages/text.js";
 import { runtimeError } from "./core/errors.js";
-import FORMATS, { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat, xmlFormat } from "./core/formats.js";
+import FORMATS, { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat, jsoncFormat, xmlFormat } from "./core/formats.js";
 import TOKEN_TYPES from "./core/tokenTypes.js";
 import * as labels from "./core/labels.js";
 import { resolveModules } from "./core/modules.js";
-import { formatAST } from "./core/formatter.js";
 import { validateAST } from "./core/validator.js";
 import { enableColor } from "./helpers/colorize.js";
 import { safeArg } from "./helpers/utils.js";
-
+import { startSpinner, stopSpinner } from "./helpers/spinner.js";
+import { preprocessRuntimeLogic } from "./core/helpers/preprocessor.js";
 
 /**
  * The SomMark Core Engine.
@@ -33,28 +36,60 @@ class SomMark {
 	 * @param {Mapper|null} [options.mapperFile=null] - Custom rules for formatting.
 	 * @param {string} [options.filename="anonymous"] - The name of the file, used for errors and settings.
 	 * @param {boolean} [options.removeComments=true] - If true, comments will be removed from the final code.
-	 * @param {Object} [options.placeholders={}] - Values to use for {placeholders}.
+	 * @param {Object} [options.placeholders={}] - Values to use for p{placeholders}.
 	 * @param {Array<string>} [options.customProps=[]] - Allowed custom HTML attributes.
+	 * @param {Object} [options.importAliases={}] - Custom path aliases for modules.
 	 * @param {Array<string>} [options.importStack=[]] - Tracking for circular dependencies.
+	 * @param {string} [options.baseDir=null] - The base directory for resolving relative paths.
 	 */
-	constructor({ src, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], importStack = [] }) {
+	constructor(options = {}) {
+		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = "style", outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, generateRuntimeOutput = false, hideRuntimeOutput = false, moduleIdentityToken = null } = options;
+		this.rawSettings = options;
 		this.src = src;
+		this.ast = ast;
 		this.targetFormat = format;
 		this.mapperFile = mapperFile;
 		this.filename = filename;
 		this.removeComments = removeComments;
 		this.placeholders = placeholders;
 		this.customProps = customProps;
+		this.generateRuntimeOutput = generateRuntimeOutput;
+		this.hideRuntimeOutput = hideRuntimeOutput;
+
+		// Validate fallbackTarget
+		const VALID_FALLBACK_TARGETS = new Set(["style", "class", false]);
+		if (!VALID_FALLBACK_TARGETS.has(fallbackTarget)) {
+			runtimeError([
+				`{line}<$red:Invalid fallbackTarget$>: <$green:'${fallbackTarget}'$> <$yellow:is not a valid value.$>`,
+				`{N}<$yellow:Use$> <$green:'style'$><$yellow:,$> <$green:'class'$><$yellow:, or$> <$green:false$><$yellow:.$>{line}`
+			]);
+		}
+		this.fallbackTarget = fallbackTarget;
+		this.outputValidator = outputValidator;
+		this.importAliases = importAliases;
 		this.importStack = importStack;
+		this.baseDir = baseDir;
+		this.moduleCache = moduleCache || new Map();
+		this.showSpinner = showSpinner;
+		this.security = {
+			allowRaw: security?.allowRaw !== false,
+			maxDepth: security?.maxDepth ?? 5,
+			timeout: security?.timeout ?? 5000,
+			sanitize: typeof security?.sanitize === "function" ? security.sanitize : null,
+			allowFetch: security?.allowFetch !== false,
+			allowHttp: security?.allowHttp === true,
+			allowedOrigins: Array.isArray(security?.allowedOrigins) ? security.allowedOrigins.map(o => o.toLowerCase()) : null,
+			allowedExtensions: Array.isArray(security?.allowedExtensions) ? security.allowedExtensions.map(e => e.toLowerCase()) : null
+		};
 		this.warnings = [];
 		this._prepared = false;
 
 		// Create a random token to safely wrap data
-		this.moduleIdentityToken = `$_SM_MOD_${Math.random().toString(36).slice(2, 7)}_$`;
+		this.moduleIdentityToken = moduleIdentityToken || `$_SM_MOD_${Math.random().toString(36).slice(2, 7)}_$`;
 
 		this.Mapper = Mapper;
 
-		const mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json, [xmlFormat]: XML, [textFormat]: new Mapper() };
+		const mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json, [jsoncFormat]: Jsonc, [xmlFormat]: XML, [textFormat]: TEXT };
 
 		if (!this.mapperFile && this.targetFormat) {
 			const DefaultMapper = mapperFiles[this.targetFormat];
@@ -69,6 +104,9 @@ class SomMark {
 			this.mapperFile.options.removeComments = this.removeComments;
 			this.mapperFile.options.moduleIdentityToken = this.moduleIdentityToken;
 			this.mapperFile.options.filename = this.filename;
+
+			this.mapperFile.options.usePrivateAttributes = this.usePrivateAttributes;
+			this.mapperFile.options.fallbackTarget = this.fallbackTarget;
 
 			// Initialize custom props whitelist
 			if (this.customProps && this.customProps.length > 0) {
@@ -161,6 +199,13 @@ class SomMark {
 		return tokens;
 	}
 
+	lexSync(src = this.src) {
+		this._ensurePrepared();
+		if (src !== this.src) this.src = src;
+		let tokens = lexer(this.src, this.filename);
+		return tokens;
+	}
+
 	/**
 	 * Organizes the code into a tree structure.
 	 * Also handles modules and checks for errors.
@@ -170,7 +215,7 @@ class SomMark {
 	 */
 	async parse(src = this.src) {
 		const tokens = await this.lex(src);
-		let ast = parser(tokens, this.filename, this.placeholders);
+		let ast = parser(tokens, this.filename, this.placeholders, {});
 
 		ast = await resolveModules(ast, {
 			mapperFile: this.mapperFile,
@@ -191,7 +236,7 @@ class SomMark {
 		this._ensurePrepared();
 		if (src !== this.src) this.src = src;
 		const tokens = lexer(this.src, this.filename);
-		let ast = parser(tokens, this.filename, this.placeholders);
+		let ast = parser(tokens, this.filename, this.placeholders, {});
 
 		if (this.mapperFile) {
 			validateAST(ast, this.mapperFile, this);
@@ -210,24 +255,30 @@ class SomMark {
 		if (src !== this.src) this.src = src;
 		this._ensurePrepared();
 
-		const ast = await this.parse(src);
-		let result = await transpiler({ ast, format: this.targetFormat, mapperFile: this.mapperFile });
+		if (this.showSpinner) startSpinner();
+		try {
+			const ast = this.ast || await this.parse(src);
+			let result = await transpiler({
+				ast,
+				format: this.targetFormat,
+				mapperFile: this.mapperFile,
+				security: this.security,
+				settings: this.rawSettings,
+				generateRuntimeOutput: this.generateRuntimeOutput,
+				hideRuntimeOutput: this.hideRuntimeOutput
+			});
 
-		return result;
+			if (this.outputValidator && typeof this.outputValidator === "function") {
+				await this.outputValidator(result);
+			}
+
+			return result;
+		} finally {
+			if (this.showSpinner) stopSpinner();
+		}
 	}
 
 
-	async format(options = {}) {
-		const tokens = await this.lex();
-		const ast = parser(tokens, this.filename);
-		return formatAST(ast, options);
-	}
-
-	formatSync(options = {}) {
-		const tokens = lexer(this.src, this.filename);
-		const ast = parser(tokens, this.filename);
-		return formatAST(ast, options);
-	}
 }
 
 /**
@@ -239,7 +290,13 @@ class SomMark {
  * @returns {Promise<Array<Object>>} - The list of tokens.
  */
 const lex = async (src, filename = "anonymous") => {
-	return await new SomMark({ src, filename, format: htmlFormat }).lex();
+	if (src === undefined || src === null) {
+		runtimeError([`{line}<$red:Missing Source:$> <$yellow:The 'src' argument is required for tokenization.$>{line}`]);
+	}
+	if (typeof src !== "string") {
+		runtimeError([`{line}<$red:Invalid Source Type:$> <$yellow:The 'src' argument must be a string, received ${typeof src}.$>{line}`]);
+	}
+	return lexer(src, filename);
 };
 
 /**
@@ -251,14 +308,17 @@ const lex = async (src, filename = "anonymous") => {
  * @returns {Promise<Array<Object>>} - The final code tree.
  */
 async function parse(src, filename = "anonymous") {
-	if (!src) {
+	if (src === undefined || src === null) {
 		runtimeError([`{line}<$red:Missing Source:$> <$yellow:The 'src' argument is required for parsing.$>{line}`]);
 	}
-	return await new SomMark({ src, filename, format: htmlFormat }).parse();
+	if (typeof src !== "string") {
+		runtimeError([`{line}<$red:Invalid Source Type:$> <$yellow:The 'src' argument must be a string, received ${typeof src}.$>{line}`]);
+	}
+	return await new SomMark({ src, filename, format: textFormat }).parse();
 }
 
 /**
- * The easiest way to process SomMark code.
+ * Transpiles SomMark code to a target format.
  * 
  * @param {Object} options - Transpilation options.
  * @param {string} options.src - Raw source code.
@@ -268,14 +328,16 @@ async function parse(src, filename = "anonymous") {
  * @param {boolean} [options.removeComments=true] - Strip comments.
  * @param {Object} [options.placeholders={}] - Global placeholders.
  * @param {Array<string>} [options.customProps=[]] - Custom attribute whitelist.
+ * @param {Object} [options.importAliases={}] - Custom path aliases for modules.
  * @returns {Promise<string>} - Transpiled output.
  */
 async function transpile(options = {}) {
-	const { src, format = htmlFormat, filename = "anonymous", mapperFile = null, removeComments = true, placeholders = {}, customProps = [] } = options;
 	if (typeof options !== "object" || options === null) {
 		runtimeError([`{line}<$red:Invalid Options:$> <$yellow:The options argument must be a non-null object.$>{line}`]);
 	}
-	const knownProps = ["src", "format", "filename", "mapperFile", "removeComments", "placeholders", "customProps"];
+	const { src, ast, format } = options;
+
+	const knownProps = ["src", "ast", "format", "filename", "mapperFile", "removeComments", "placeholders", "customProps", "importAliases", "fallbackTarget", "usePrivateAttributes", "outputValidator", "showSpinner", "security"];
 	Object.keys(options).forEach(key => {
 		if (!knownProps.includes(key)) {
 			runtimeError([
@@ -283,11 +345,16 @@ async function transpile(options = {}) {
 			]);
 		}
 	});
-	if (!src) {
-		runtimeError([`{line}<$red:Missing Source:$> <$yellow:The 'src' argument is required for transpilation.$>{line}`]);
+
+	if (format === undefined || format === null) {
+		runtimeError([`{line}<$red:Missing Target Format:$> <$yellow:The 'format' parameter is required for transpilation (e.g. 'html', 'markdown', 'xml', 'mdx', 'json', etc.).$>{line}`]);
 	}
 
-	const sm = new SomMark({ src, format, filename, mapperFile, removeComments, placeholders, customProps });
+	if ((src === undefined || src === null) && (ast === undefined || ast === null)) {
+		runtimeError([`{line}<$red:Missing Input:$> <$yellow:Either 'src' or 'ast' must be provided for transpilation.$>{line}`]);
+	}
+
+	const sm = new SomMark(options);
 	return await sm.transpile();
 }
 
@@ -295,9 +362,18 @@ async function transpile(options = {}) {
  * A quick, synchronous way to get tokens.
  * 
  * @param {string} src - Raw source code.
+ * @param {string} [filename="anonymous"] - Filename for error context.
  * @returns {Array<Object>} - The list of tokens.
  */
-const lexSync = src => lexer(src);
+const lexSync = (src, filename = "anonymous") => {
+	if (src === undefined || src === null) {
+		runtimeError([`{line}<$red:Missing Source:$> <$yellow:The 'src' argument is required for tokenization.$>{line}`]);
+	}
+	if (typeof src !== "string") {
+		runtimeError([`{line}<$red:Invalid Source Type:$> <$yellow:The 'src' argument must be a string, received ${typeof src}.$>{line}`]);
+	}
+	return lexer(src, filename);
+};
 
 /**
  * A quick, synchronous way to get the code tree.
@@ -306,18 +382,28 @@ const lexSync = src => lexer(src);
  * @param {Object} [options={}] - Parsing options.
  * @returns {Array<Object>} - The code tree.
  */
-const parseSync = (src, options = {}) => {
-	const { format = htmlFormat, filename = "anonymous", mapperFile = null, removeComments = true, placeholders = {}, customProps = [] } = options;
-	return new SomMark({ src, format, filename, mapperFile, removeComments, placeholders, customProps }).parseSync();
+const parseSync = (src, filename = "anonymous") => {
+	if (src === undefined || src === null) {
+		runtimeError([`{line}<$red:Missing Source:$> <$yellow:The 'src' argument is required for parsing.$>{line}`]);
+	}
+	if (typeof src !== "string") {
+		runtimeError([`{line}<$red:Invalid Source Type:$> <$yellow:The 'src' argument must be a string, received ${typeof src}.$>{line}`]);
+	}
+	const tokens = lexer(src, filename);
+	return parser(tokens, filename);
 };
 
 import { findAndLoadConfig } from "./core/helpers/config-loader.js";
 
+import Evaluator from "./core/evaluator.js";
+
 export {
+	registerSharedOutputs,
 	HTML,
 	MARKDOWN,
 	MDX,
 	Json,
+	Jsonc,
 	XML,
 	Mapper,
 	FORMATS,
@@ -326,11 +412,12 @@ export {
 	transpile,
 	lexSync,
 	parseSync,
-	formatAST,
 	TOKEN_TYPES,
 	labels,
 	enableColor,
 	safeArg,
-	findAndLoadConfig
+	findAndLoadConfig,
+	Evaluator,
+	preprocessRuntimeLogic
 };
 export default SomMark;
