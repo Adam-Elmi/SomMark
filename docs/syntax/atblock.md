@@ -1,74 +1,95 @@
 # At-Blocks
 
-**At-Blocks** are used specifically for **raw, unparsed content** that you don't want the engine to touch.
+At-Blocks capture raw, unparsed content. Once the parser encounters an At-Block, it stops normal parsing and collects every character literally, making it ideal for rendering code snippets, raw HTML/XML, mathematical formulas, or configuration strings.
 
-Think of them as "Safe Containers". Once the engine enters an At-Block, it stops looking for formatting or tags and just captures everything literally. This makes them the perfect choice for **code snippets, raw HTML, or XML** where you want your text to stay exactly as you wrote it.
+---
 
-## 1. Core Syntax
+## 1. Syntax
 
-An At-Block consists of a structural header, an optional metadata section, and the raw body content terminated by `@_end_@`.
+An At-Block consists of a structural header `@_identifier_@`, an optional props list, a semicolon `;` acting as a structural delimiter, the literal body content, and a closing `@_end_@` marker.
 
-```r
-@_code_@: lang: "javascript";
-  const message = "This is raw content";
+### Standard At-Block
+```ini
+@_code_@;
+  const message = "Hello World";
   console.log(message);
 @_end_@
 ```
 
-### The Semicolon Rule
-The semicolon `;` is the most important part of an At-Block header. It acts as a **structural wall** that tells the engine exactly where the metadata ends and where the raw content begins.
+### With Metadata / Props
+```ini
+@_code_@: lang: "javascript", theme: "dark";
+  const x = 42;
+@_end_@
+```
 
-*   `@_identifier_@;` — No metadata, body starts immediately.
-*   `@_identifier_@: args;` — Metadata provided, body starts after `;`.
-
----
-
-## 2. Flexible Headers (V4)
-
-In SomMark V4, the header of an At-Block is **junk-aware**. You can spread your metadata across multiple lines and add comments without breaking the structure.
-
-```r
+### Multiline Headers
+For clean styling, At-Block headers can span multiple lines. Space and comments inside headers are treated as structural junk and ignored.
+```ini
 @_
   code
-_@: 
+_@:
   "language": "python",   # Quotes allowed for keys
-  theme: "monokai";       # Header ends here
+  theme = "monokai";      # Semicolon terminates the header
 def hello():
     print("Multi-line header!")
 @_end_@
 ```
 
-> [!TIP]
-> Just like standard Blocks, At-Blocks support **Quoted Keys** (e.g., `"my-key": "value"`), allowing you to use characters that would otherwise be interpreted as structural markers.
+---
+
+## 2. Rendering Outputs
+
+### HTML / Markdown Format
+* **Smark Input:**
+  ```ini
+  @_code_@: lang = "javascript";
+    console.log("Hello");
+  @_end_@
+  ```
+* **Rendered Output:**
+  ```markdown
+  ```javascript
+  console.log("Hello");
+  ```
+  ```
+
+### MDX Format
+* **Smark Input:**
+  ```ini
+  @_css_@;
+    .card { background: red; }
+  @_end_@
+  ```
+* **Rendered Output:**
+  ```jsx
+  <style>{`.card { background: red; }`}</style>
+  ```
 
 ---
 
-## 3. Key Principles
+## 3. Core Principles
 
 ### I. Raw Content Preservation
-Unlike standard Blocks, the engine **stops parsing** once it passes the header semicolon. Everything inside the body is treated as literal text.
-*   No nested Blocks.
-*   No Inline Statements.
-*   No structural interpretation.
+Standard tags (Blocks, Inlines, or At-Blocks) are not parsed inside At-Block bodies. Everything is captured 100% literally.
+* No nested Blocks.
+* No Inline Statements.
+* No structural interpretation.
 
-### II. Whitespace Integrity
-At-Blocks maintain 100% fidelity for whitespace and indentation. This makes them perfect for indentation-sensitive languages like Python, YAML, or literal code.
+### II. Whitespace & Indentation Integrity
+At-Blocks preserve all spaces, indentation offsets, and newlines exactly as written. This ensures syntax integrity for indentation-sensitive targets like Python, YAML, or raw text blocks.
 
-### III. Termination
-Every At-Block **must** be closed with `@_end_@`. If the closing tag is missing, the engine will safely capture everything until the end of the file.
+### III. Safe Termination
+Every At-Block must close with `@_end_@`. If a closing marker is missing, the engine will safely capture everything up to the end of the file.
 
 ---
 
 ## 4. Escaping Markers
 
-If your raw content actually contains the strings `@_` or `_@` (for example, in a tutorial about SomMark), you can escape them to prevent the parser from closing the block prematurely.
-
-```r
+If your raw body content must contain `@_` or `_@` sequences (such as when writing a tutorial about SomMark itself), escape them with a backslash to keep the block open.
+```ini
 @_tutorial_@;
   To start an At-Block, use \@_ followed by the ID.
   To end it, use \_@end\_@.
 @_end_@
 ```
-
----
-

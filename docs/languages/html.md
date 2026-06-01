@@ -76,32 +76,115 @@ const sm = new SomMark({
 **without customProps:**
 `<button style="variant: primary; theme: dark;" data-id="123">Click</button>`
 
+### Disabling the Style Fallback (`useStyleFallback`)
+If you want to completely disable the "Smart Attribute Engine" and ensure that **all** properties are rendered as standalone HTML attributes (like in MDX), you can use the `useStyleFallback` flag.
+
+**Developer Setup (`index.js`):**
+```javascript
+const sm = new SomMark({
+    src: source,
+    format: "html",
+    useStyleFallback: false // Disable the fallback
+});
+```
+
+**Result in SomMark:**
+```ini
+[button = variant: "primary", theme: "dark"] Click [end]
+```
+**Output:** `<button variant="primary" theme="dark">Click</button>`
+
 ---
 
-## 3. Shared Utility Outputs
+### 3. Registered Outputs & Layout Utilities
 
-The HTML mapper includes several shared utility tags that provide foundational functionality.
+The HTML mapper explicitly registers several specialized tags that provide foundational structure, global configurations, rich styling, and escaping overrides. Below is the complete, detailed list of these registered outputs with syntax guidelines and examples.
 
-### The `css` Inline
-The `css` tag allows you to apply inline styles to specific spans of text using positional arguments.
-*   **Syntax**: `(content)->(css: "style string")`
-*   **Output**: `<span style="...">content</span>`
+### 1. `[DOCTYPE]` / `[doctype]`
+- **Type**: Block
+- **Purpose**: Generates the standard HTML5 doctype declaration. This is a self-closing structural tag.
+- **Example**:
+  ```ini
+  [DOCTYPE][end]
+  ```
+  **Output HTML**:
+  ```html
+  <!DOCTYPE html>
+  ```
 
-**Example:**
-```ini
-Success is (guaranteed)->(css: "color: green; font-weight: bold") if you plan.
-```
+### 2. `[head]`
+- **Type**: Block (Unescaped)
+- **Purpose**: Formats the document's `<head>` tag. It automatically handles CSS Variable injection when variables are collected from the `[Root]` element, wrapping them in a `:root` style block inside the head.
+- **Example**:
+  ```ini
+  [head]
+    [title]My Dynamic Page[end]
+    [meta = charset: "utf-8"][end]
+  [end]
+  ```
+  **Output HTML**:
+  ```html
+  <head>
+    <style>:root { /* Any collected CSS variables appear here */ }</style>
+    <title>My Dynamic Page</title>
+    <meta charset="utf-8" />
+  </head>
+  ```
 
-### The `raw` At-Block
-Use the `raw` block to inject literal HTML that skips both the parser and the safety escaping layer.
-*   **Syntax**: `@_raw_@; <iframe>...</iframe> @_end_@`
+### 3. `[Root]` / `[root]`
+- **Type**: Block
+- **Purpose**: A metadata and global CSS variable collector. Any arguments starting with `--` are parsed as CSS variables and stored in the mapper instance. They will be automatically rendered as a `:root` styling block inside the `[head]` tag.
+- **Example**:
+  ```ini
+  [Root = 
+    --primary-color: "#007bff",
+    --bg-color: "#ffffff"
+  ][end]
+  ```
 
-**Example: Embedding a Video**
-```ini
-@_raw_@;
-  <iframe width="560" height="315" src="https://www.youtube.com/embed/..." frameborder="0"></iframe>
-@_end_@
-```
+### 4. `css` Span Inline
+- **Type**: Inline
+- **Purpose**: Applies rich inline style rules to a specific span of text. It compiles named arguments (like `color` or `fontSize`) as well as positional style strings.
+- **Example**:
+  ```ini
+  This is a (highly styled text span)->(css: "font-weight: bold", color: "red", fontSize: "16px").
+  ```
+  **Output HTML**:
+  ```html
+  This is a <span style="font-weight:bold;color:red;font-size:16px;">highly styled text span</span>.
+  ```
+
+### 5. `raw` AtBlock
+- **Type**: AtBlock (Unescaped)
+- **Purpose**: Bypasses the HTML escaping layer and parser entirely to output raw, unescaped HTML content. Excellent for third-party embeds, iframes, or custom widgets.
+- **Example**:
+  ```ini
+  @_raw_@;
+    <div class="custom-widget">Raw Embed</div>
+  @_end_@
+  ```
+  **Output HTML**:
+  ```html
+  <div class="custom-widget">Raw Embed</div>
+  ```
+
+### 6. `[script]` Block / AtBlock
+- **Type**: Block or AtBlock (Unescaped)
+- **Purpose**: Injects executable JavaScript. It natively supports a `scoped: true` option which automatically wraps the script in an IIFE to isolate it from the global window scope.
+- **Example**:
+  ```ini
+  [script = scoped: true]
+    const localVal = "scoped to this script block";
+    console.log(localVal);
+  [end]
+  ```
+  **Output HTML**:
+  ```html
+  <script>(function(){
+    const localVal = "scoped to this script block";
+    console.log(localVal);
+  })();</script>
+  ```
 
 ---
 
@@ -161,12 +244,27 @@ The HTML mapper supports a **Collector Pattern** for managing globally scoped CS
 ## 6. Security & Scoping
 
 ### Scoped Logic (IIFE)
-Adding `scoped: true` to a `@_script_@` block automatically wraps your JavaScript in an IIFE to prevent global scope contamination.
+Adding `scoped: true` to a `@_script_@` block or `[script]` block automatically wraps your JavaScript in an IIFE to prevent global scope contamination.
 ```ini
 @_script_@: scoped: true;
   const privateVar = 10;
 @_end_@
 ```
+
+### Advanced Element-Level Scoping (`self` Isolation)
+For dynamic client-side runtime logic (i.e. code that runs in the browser attached to specific UI blocks), SomMark automatically generates a secure, unique element tracking ID (`data-sommark-id`) and provides an isolated execution context.
+
+Within a block-level runtime script, a localized `self` constant is automatically declared and resolved using a standard query selector:
+```javascript
+(async function(){
+  const self = document.querySelector('[data-sommark-id="sommark-button-xxxxxx"]');
+  if (self) {
+    // Your block-specific interactive script goes here!
+    self.addEventListener('click', () => { ... });
+  }
+})();
+```
+This guarantees bulletproof component isolation without needing a modern heavy framework, preventing standard issues like browser-side table hoisting or module boundaries.
 
 ### Context-Aware Escaping (The Escape-Free Trinity)
 By default, all content is escaped to prevent XSS. However, the trinity of At-Blocks below explicitly **disables escaping** for their content to preserve code and style integrity while keeping the outer structure safe:
@@ -179,7 +277,9 @@ By default, all content is escaped to prevent XSS. However, the trinity of At-Bl
 
 ## 7. Core Advantages Over Raw HTML
 
-While you can write standard HTML5, SomMark provides two major architectural advantages that raw HTML lacks:
+While you can write standard HTML5, SomMark provides several major architectural advantages that raw HTML lacks:
 
 1.  **Built-in Module System**: SomMark supports native imports (`[import]`) and component usage (`[$use-module]`). This allows you to split your UI into reusable parts, creating a true component library without needing a heavy JavaScript framework.
 2.  **Direct Styling Engine**: You can use CSS properties (like `color`, `fontSize`, or `padding` or any other CSS property) as **global attributes** directly in the block header. SomMark merges these into the `style` property automatically, making it much cleaner and faster to write than a standard HTML `style="..."` string.
+3.  **Build-Time Static Logic & Sandboxing**: Execute sandboxed JavaScript at compile-time (using standard or asynchronous code) to dynamically compute variables, perform calculations, or fetch third-party API data, baking the results directly into clean, optimized static HTML before it reaches the client.
+4.  **Native Loop System (`[for-each]`)**: Render complex lists or iterative structures cleanly using `[for-each = items: [array], as: "item"]` at compile-time, eliminating the need to write redundant HTML markup or run costly client-side rendering code.

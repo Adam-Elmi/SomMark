@@ -1,5 +1,62 @@
 # Changelog
 
+## v4.1.0 (2026-06-01)
+
+This release introduces native components, compile-time/runtime sandboxed JavaScript, loop control flow, simplified inline tags syntax, support for JSONC, and an array of new configuration options.
+
+### 1. New Syntax & Elements
+
+*   **Self-closing Blocks**: Define empty blocks (like line breaks or images) cleanly using a trailing exclamation mark `!`, eliminating the need for `[end]`.
+    *   *Example*: `[br!]` or `[img = src: "logo.png" !]`
+    *   *Docs*: [Self-closing Blocks](docs/syntax/self-closing.md)
+*   **New Inline Element Syntax**: Enhanced inline tag assignments using `= props` instead of `: props`. This makes it clear and easy to differentiate tag names from props.
+    *   *Example*: `(Click here)->(a = href: "https://sommark.org", id: "link")`
+    *   *Docs*: [Inline Elements](docs/syntax/inline.md)
+*   **Static Logic (Compile-Time JS)**: Execute sandboxed JavaScript inside `static ${ ... }$` blocks at compile-time to compute dynamic properties or fetch endpoints.
+    *   *Example*: `Total: static ${ 10 + 20 }$` or `time: static ${ new Date().toISOString() }$`
+    *   *Docs*: [Static Logic](docs/syntax/js.md)
+*   **Runtime Logic (Client-Side JS)**: Embed client-side scripts inside `runtime ${ ... }$` blocks which are compiled directly into output wrappers (like HTML `<script>`).
+    *   *Example*: `runtime ${ console.log("Hello from browser"); }$`
+    *   *Docs*: [Runtime Logic](docs/syntax/js.md)
+*   **For-Each Loop**: Loop through collections dynamically to generate structural layouts.
+    *   *Example*: `[for-each = static ${ items }$, as: "item"] [p] v{item} [end] [end]`
+    *   *Docs*: [For-each Loop](docs/syntax/for-each.md)
+*   **Native Components**: Import Smark templates as reusable components using named tags while maintaining full support for `$use-module`.
+    *   *Example*: `[import = Card: "./Card.smark"][end] [Card = title: "Hello" !]`
+    *   *Docs*: [Native Components](docs/syntax/native-components.md)
+*   **JSONC Format Support**: Compiles Smark configurations into JSON with Comments (JSONC) format.
+    *   *Docs*: [JSON and JSONC](docs/languages/json.md)
+*   **Local Variables (`v{}`)**: Local property-binding hooks within loops or component scopes that keep components completely isolated.
+    *   *Example*: `[h1] v{title} [end]`
+    *   *Docs*: [Local Variables](docs/syntax/variables.md)
+*   **Comment Blocks**: Write clean multi-line comments anywhere in your source; stripped automatically at build-time.
+    *   *Example*: `### This is a \n multi-line comment ###`
+    *   *Docs*: [Comments](docs/syntax/comment.md)
+
+### 2. New Configuration Settings
+
+Customize and fine-tune Smark's execution pipeline using the new configuration properties:
+
+*   **`fallbackTarget`**: Customizes the automatic styling property fallback strategy (`style`, `class`, or `false`).
+    *   *Docs*: [Fallback Target API](docs/api/Core/fallbackTarget.md)
+*   **`outputValidator`**: Executes a custom validation function on the generated string before resolving transpilation.
+    *   *Docs*: [Output Validator API](docs/api/Core/outputValidator.md)
+*   **`importAliases`**: Configures virtual import paths and root path mappings.
+    *   *Docs*: [Import Aliases API](docs/api/Core/importAliases.md)
+*   **`security`**: Restricts raw HTML (`allowRaw`), script execution times (`timeout`), network accesses (`allowFetch`/`allowedOrigins`/`allowHttp`), whitelisted import paths (`allowedExtensions`), and compilation nesting scopes (`maxDepth`).
+    *   *Docs*: [Security Options API](docs/api/Core/security.md)
+*   **`generateRuntimeOutput`**: Generates and compiles client-side assets and logic.
+    *   *Docs*: [Generate Runtime API](docs/api/Core/generateRuntimeOutput.md)
+*   **`hideRuntimeOutput`**: Completely hides client-side logic blocks from the final output for SSR optimization.
+    *   *Docs*: [Hide Runtime API](docs/api/Core/hideRuntimeOutput.md)
+*   **`showSpinner`**: Toggles Smark's interactive CLI build spinner feedback.
+    *   *Docs*: [Show Spinner API](docs/api/Core/showSpinner.md)
+
+### 3. Core Engine Extensions
+
+*   **Sandbox APIs**: Exposes premium VM sandboxing capabilities (`Evaluator`), including recursive module caching, fetch isolation, and sandbox hooks.
+    *   *Docs*: [Sandbox Architecture](docs/core/evaluator.md)
+
 ## v4.0.3 (2026-05-02)
 
 *   **Improved**: Implemented **Strict Configuration Priority** (Target Directory > Current Working Directory). The CLI now correctly prioritizes `smark.config.js` found next to the source file.

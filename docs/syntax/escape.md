@@ -1,62 +1,59 @@
 # Escaping
 
-**Escaping** is the mechanism used to turn SomMark's structural symbols into literal text. By placing a backslash (`\`) before a character, you tell the engine to "ignore" its functional meaning.
+Escaping transforms functional, structural symbols in SomMark into literal text. Prepend a backslash (`\`) before a character to instruct the parser to ignore its functional meaning.
+
+---
 
 ## 1. Structural Symbol Map
 
-The following symbols must be escaped if you wish to use them as plain text:
+The following symbols must be escaped to render as plain text:
 
-| Category | Symbols | Escape |
+| Category | Structural Symbols | Escape Syntax |
 | :--- | :--- | :--- |
-| **Blocks** | `[` , `]` , `[end]` | `\[` , `\]` , `\[end]` |
-| **Inlines** | `(` , `)` , `->` | `\(` , `\)` , `\->` |
-| **At-Blocks** | `@_` , `_@` | `\@_` , `\_@` |
-| **Layers** | `p{` , `js{` | `\p{` , `\js{` |
+| **Blocks** | `[`, `]`, `[end]` | `\[`, `\]`, `\[end]` |
+| **Inlines** | `(`, `)`, `->` | `\(`, `\)`, `\->` |
+| **At-Blocks** | `@_`, `_@` | `\@_`, `\_@` |
+| **Layers** | `p{`, `v{`, `js{` | `\p{`, `\v{`, `\js{` |
+| **Logic Blocks** | `static ${`, `runtime ${` | `\static ${`, `\runtime ${` |
 | **Comments** | `#` | `\#` |
-| **Arguments** | `:` , `,` , `=` | `\:` , `\,` , `\=` |
+| **Arguments** | `:`, `,`, `=` | `\:`, `\,`, `\=` |
 
 > [!CAUTION]
-> **Do not escape keys.** Escaping a structural character inside a key name (e.g., `k\:ey: value`) will cause a **Parser Error**. If a key requires special characters, you must wrap the entire key in quotes instead: `"k:ey": value`.
+> **Do not escape unquoted keys.** Escaping a structural character inside an unquoted key name (e.g. `k\:ey: value`) triggers a **Parser Error**. If a key requires a colon or special symbol, wrap the key in quotes (e.g. `"k:ey": value`).
 
 ---
 
 ## 2. The Backslash Rule
 
-In SomMark V4, the backslash is a **Contextual Gatekeeper**. 
+Backslashes are parsed contextually according to these structural rules:
 
-*   **Valid Escapes**: A backslash followed by a non-whitespace character is valid.
-*   **Literal Backslash**: To produce a literal `\` in your output, you must use `\\`.
-*   **Invalid Escapes**: Using a backslash followed by whitespace or at the very end of a file will trigger a **Lexer Error**.
+* **Valid Escapes:** A backslash followed immediately by any non-whitespace character.
+* **Literal Backslash:** To render a literal `\` in your output, write `\\`.
+* **Invalid Escapes:** A backslash followed by a space, tab, newline, or placed at the very end of a file triggers a **Lexer Error**.
 
 > [!WARNING]
-> Do not use trailing backslashes at the end of a line; the engine expects a character immediately following the `\`.
+> Never use trailing backslashes at the end of a line; the engine expects an escaping target immediately after the backslash character.
 
 ---
 
-## 3. Escaping in Different Contexts
+## 3. Escaping in Context
 
 ### I. Inside Paragraphs (Body Text)
-The most common use of escaping is to prevent the engine from starting a new Block or Inline while you are writing.
-
-#### Smart Parentheses
-In SomMark V4, you **do not** need to escape a lone parenthesis `(`. The lexer only treats `(` as a structural symbol if it is followed by a matching `)` and a `->` arrow.
-
+Escaping prevents the parser from executing blocks or inlines inside standard prose.
 ```ini
-This (is safe) and does not need escaping.
-However, \(this)->(link) must be escaped to remain literal text.
+This (is safe) and does not need escaping since it lacks a trailing arrow.
+However, \(this)->(link) must be escaped to prevent compiling as an inline.
 ```
 
 ### II. Inside Argument Headers
-When passing unquoted values, you must escape the separators that help the parser define keys and values.
-
+When passing unquoted argument values, escape any active separators to prevent incorrect argument parsing.
 ```ini
-# The colon here would normally split the argument
+# The colon inside the ratio must be escaped to avoid splitting key-value pairs
 [tag = ratio: 16\:9, color: "blue"][end]
 ```
 
 ### III. Inside At-Block Bodies
-At-Blocks are designed for raw content, but if your content contains the string `_@` (which ends the block), you must escape it to keep the block open.
-
+At-Block bodies are raw, but if they contain the `_@` closing sequence, you must escape it to prevent premature closing of the block.
 ```ini
 @_tutorial_@;
   The closing tag for an At-Block is \_@end\_@.
@@ -65,13 +62,12 @@ At-Blocks are designed for raw content, but if your content contains the string 
 
 ---
 
-## 4. When is Escaping NOT needed?
+## 4. Avoiding Escapes
 
-You can avoid manual escaping using two methods:
+You can avoid manual escaping using these native mechanisms:
 
-1.  **Quoted Keys & Values (Header Only)**: Within headers, wrapping either a **Key** or a **Value** in `" "` or `' '` protects structural symbols (like `:` or `,`) from being parsed. In the body text, quotes provide no protection.
-2.  **At-Blocks**: For large snippets of code or configuration, wrapping the entire block in `@_code_@; ... @_end_@` is faster and cleaner than escaping every symbol.
+1. **Quoted Keys & Values (Headers only):** Wrapping arguments inside `" "` or `' '` protects colons, commas, and spaces from being parsed as separators.
+2. **At-Blocks:** For large blocks of code or config files, use At-Blocks (`@_code_@; ... @_end_@`) to disable parser scanning inside the block completely.
 
----
 
 

@@ -1,28 +1,28 @@
 # Blocks
 
-**Blocks** are used to **group and organize** your content into logical sections. Think of them as the "Big Pieces" of your document that hold everything else together.
+Blocks are the primary containers in SomMark, used to group, style, and organize structural content.
 
-Unlike Inlines (for styling words) and At-Blocks (for raw code), Blocks are **containers**. This means you can put any other element inside a block—including more blocks!
+---
 
-## 1. Core Syntax
+## 1. Syntax
 
-A standard block is defined by an opening tag `[identifier]` and a closing tag `[end]`.
+A block starts with `[identifier]` and closes with a matching `[end]` or self-closing `!` if the block does not have any content, for example `[br!]` or `[img = src: "logo.png" !]`. 
 
+### Standard Block
 ```ini
 [section]
-  This is content inside a structural block.
+  This is content inside a block container.
 [end]
 ```
 
-### Flexible Headers (V4)
-SomMark V4 allows you to format your block headers across multiple lines with comments and extra whitespace. The parser will intelligently "skip the junk" to find your metadata.
-
+### Multiline Block Headers
+For clean formatting, block headers can span multiple lines. Whitespace and comments inside headers are treated as structural junk and ignored.
 ```ini
 [
-  div                   # The identifier
-  =                     # Start of arguments
-  class: "container",   # Named argument
-  "main-layout"         # Positional argument
+  div                   # The tag name
+  =                     # Start of props
+  class: "container",   # Named prop
+  "main-layout"         # Positional prop
 ]
   Block body content...
 [end]
@@ -30,48 +30,62 @@ SomMark V4 allows you to format your block headers across multiple lines with co
 
 ---
 
-## 2. Key Principles
+## 2. Rendering Outputs
+
+### HTML Format
+* **Smark Input:**
+  ```ini
+  [div = class: "card"]
+    Hello World
+  [end]
+  ```
+* **Rendered Output:**
+  ```html
+  <div class="card">
+    Hello World
+  </div>
+  ```
+
+### MDX Format
+* **Smark Input:**
+  ```ini
+  [Card = title: "Welcome"]
+    Hello World
+  [end]
+  ```
+* **Rendered Output:**
+  ```jsx
+  <Card title="Welcome">
+    Hello World
+  </Card>
+  ```
+
+---
+
+## 3. Block Guidelines
 
 ### I. Infinite Nesting
-Blocks can be nested inside each other without any depth limit. The parser maintains a strict hierarchy to ensure your document structure (AST) is always perfectly organized.
-
+Blocks can be nested inside each other without any depth limit.
 ```ini
 [article]
   [h1]Title[end]
   [div = class: "content"]
-    [p]Paragraph within a div, within an article.[end]
+    [p]Paragraph within a div.[end]
   [end]
 [end]
 ```
 
-### II. Strict Whitespace Preservation
-The body of a block follows a **"What You Write Is What You Get"** standard. Every newline, space, and indentation inside the block (between the header and the `[end]`) is preserved exactly as provided.
-
-### III. Optional Metadata
-Blocks accept both **Positional** and **Named** arguments after the `=` sign. 
-*   **Positional**: `[tag = "value"]`
-*   **Named**: `[tag = key: "value"]`
-*   **Quoted keys**: `[tag = "my-key": "value"]` (Useful for characters like `-` or `:`)
-
----
-
----
-
-## 3. Strict Closing Rule
-
-**Every Block must be explicitly closed** using the `[end]` keyword. If you forget to close a block, the parser will trigger an error.
-
+### II. Self-Closing Blocks
+For elements that don't need a body (like line breaks or images), append `!` inside the header to omit the `[end]` tag. See [Self-Closing Blocks](self-closing.md) for details.
 ```ini
-[hr][end]
-[p]This must be closed.[end]
+[br!]
+[img = src: "logo.png" !]
 ```
 
-## 4. Safety & Reserved Keywords
+### III. Reserved Keywords
+`end`, `import`, `slot`, `for-each`, and `$use-module` are strictly reserved core keywords. You cannot use them as custom block identifiers.
+```ini
+# Triggers Parser Error
+[end !]
+```
 
-### The "End" Restriction
-To prevent parser confusion and AST corruption, the word `end` is a **strictly reserved keyword**. You cannot name a block `[end]`.
-
-> [!WARNING]
-> Attempting to define `[end]` as a block identifier will trigger a **Parser Error**.
-
----
