@@ -61,7 +61,7 @@ RawValue       = { ? any char except ",", Junk, "]" ? | EscapeChar };
 (* ========================================== *)
 
 (* Inlines use SimpleID (NO COLONS allowed in ID unless key-value) *)
-InlineStatement = "(", InlineContent, ")", Junk, "->", Junk, "(", SimpleID, [ Junk, ":", Junk, InlineArgs ], ")";
+InlineStatement = "(", InlineContent, ")", Junk, "->", Junk, "(", SimpleID, [ Junk, ( "=" | ":" ), Junk, InlineArgs ], ")";
 
 (* Content allows balanced parentheses and placeholders *)
 InlineContent   = { ? any char except ")" ? | BalancedParen | EscapeChar | PrefixP | PrefixV };
