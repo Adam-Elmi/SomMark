@@ -24,7 +24,7 @@ transpile({ src, format, fallbackTarget })
 import { transpile } from "sommark";
 
 const output = await transpile({
-  src: '[div spacing: 20]Box[end]',
+  src: '[div = spacing: 20]Box[end]',
   format: "html",
   fallbackTarget: "style"
 });
@@ -41,7 +41,7 @@ Changing `fallbackTarget` controls the exact representation of custom properties
 ```javascript
 import { transpile } from "sommark";
 
-const source = '[div primary: true, size: "large"]Content[end]';
+const source = '[div = primary: true, size: "large"]Content[end]';
 
 // 1. fallbackTarget: "style" (Default)
 console.log(await transpile({ src: source, format: "html", fallbackTarget: "style" }));
