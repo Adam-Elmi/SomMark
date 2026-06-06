@@ -9,7 +9,11 @@ let originalStderrWrite = null;
 let redrawTimeout = null;
 
 export function startSpinner() {
-	if (process.stdout.isTTY && !activeSpinner) {
+	if (typeof process === "undefined" || !process.stdout?.isTTY) {
+		spinnerDepth++;
+		return;
+	}
+	if (!activeSpinner) {
 		// Hide terminal cursor for a clean premium visual feel
 		process.stdout.write("\x1b[?25l");
 
@@ -84,8 +88,10 @@ export function stopSpinner() {
 				originalStderrWrite = null;
 			}
 
+		if (typeof process !== "undefined" && process.stdout) {
 			// Clear the spinner line and restore the terminal cursor
 			process.stdout.write("\r\x1b[K\x1b[?25h");
+		}
 		}
 	}
 }
