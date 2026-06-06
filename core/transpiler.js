@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT, COMMENT_BLOCK, STATIC_LOGIC, RUNTIME_LOGIC, FOR_EACH } from "./labels.js";
 import { transpilerError } from "./errors.js";
 import evaluator from "./evaluator.js";
@@ -7,13 +6,13 @@ import { dedentBy } from "../helpers/dedent.js";
 import { preprocessRuntimeLogic } from "./helpers/preprocessor.js";
 import { wrapRuntimeLogic } from "./helpers/runtimeOutput.js";
 
-/**
- * SomMark Transpiler
- * This engine converts the AST into its final text format (like HTML or Markdown)
- * using rules provided by a mapper.
- */
+const randomBytesHex = (size) => {
+	const arr = new Uint8Array(size);
+	globalThis.crypto.getRandomValues(arr);
+	return Array.from(arr).map(b => b.toString(16).padStart(2, "0")).join("");
+};
 
-const BODY_PLACEHOLDER = `SOMMARKBODYPLACEHOLDER${crypto.randomBytes(8).toString("hex")}SOMMARK`;
+const BODY_PLACEHOLDER = `SOMMARKBODYPLACEHOLDER${randomBytesHex(8)}SOMMARK`;
 
 /** 
  * Extracts all plain text from a node and its children.
@@ -46,7 +45,7 @@ function getNodeText(node) {
  * @param {Object} mapper_file - The rules for how to convert each node.
  * @returns {Promise<string>} - The final text for this node.
  */
-async function generateOutput(ast, i, format, mapper_file, security = {}, parentId = null, generateRuntimeOutput = false, hideRuntimeOutput = false) {
+async function generateOutput(ast, i, format, mapper_file, security = {}, parentId = null, generateRuntimeOutput = false, hideRuntimeOutput = false, instance = null) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	if (!node) return "";
 
@@ -61,7 +60,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 		if (node.body) {
 			evaluator.pushScope();
 			for (let j = 0; j < node.body.length; j++) {
-				bodyOutput += await generateOutput(node.body, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput);
+				bodyOutput += await generateOutput(node.body, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance);
 			}
 			await evaluator.popScope();
 		}
@@ -86,7 +85,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 	}
 
 	if (node.type === RUNTIME_LOGIC) {
-		const preprocessed = await preprocessRuntimeLogic(node.code, mapper_file?.options?.filename, security);
+		const preprocessed = await preprocessRuntimeLogic(node.code, mapper_file?.options?.filename, security, instance);
 		if (hideRuntimeOutput) {
 			return "";
 		}
@@ -169,7 +168,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			});
 
 			for (let j = 0; j < cleanedBody.length; j++) {
-				output += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput);
+				output += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance);
 			}
 
 			await evaluator.popScope();
@@ -192,7 +191,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 		const hasRuntime = node.body?.some(child => child.type === RUNTIME_LOGIC);
 		if (hasRuntime) {
-			secretId = `sommark-${node.id.toLowerCase()}-${crypto.randomBytes(4).toString("hex")}`;
+			secretId = `sommark-${node.id.toLowerCase()}-${randomBytesHex(4)}`;
 		}
 	}
 
@@ -248,7 +247,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			let resolvedBody = "";
 			evaluator.pushScope();
 			for (let j = 0; j < node.body.length; j++) {
-				resolvedBody += await generateOutput(node.body, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput);
+				resolvedBody += await generateOutput(node.body, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance);
 			}
 			await evaluator.popScope();
 			content = dedentBy(resolvedBody, node.range?.start?.character || 0);
@@ -258,7 +257,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			let childrenOutput = "";
 			if (node.body) {
 				for (let j = 0; j < node.body.length; j++) {
-					childrenOutput += await generateOutput(node.body, j, format, mapper_file, security, secretId || parentId, generateRuntimeOutput, hideRuntimeOutput);
+					childrenOutput += await generateOutput(node.body, j, format, mapper_file, security, secretId || parentId, generateRuntimeOutput, hideRuntimeOutput, instance);
 				}
 			}
 			return childrenOutput;
@@ -370,11 +369,11 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 					case FOR_EACH:
 					case BLOCK:
-						bodyOutput = await generateOutput(body_node, 0, format, mapper_file, security, secretId || parentId, generateRuntimeOutput, hideRuntimeOutput);
+						bodyOutput = await generateOutput(body_node, 0, format, mapper_file, security, secretId || parentId, generateRuntimeOutput, hideRuntimeOutput, instance);
 						break;
 
 					case RUNTIME_LOGIC:
-						const preprocessedBody = await preprocessRuntimeLogic(body_node.code, mapper_file?.options?.filename, security);
+						const preprocessedBody = await preprocessRuntimeLogic(body_node.code, mapper_file?.options?.filename, security, instance);
 						if (hideRuntimeOutput) {
 							bodyOutput = "";
 						} else {
@@ -483,6 +482,11 @@ export async function transpiler(optionsOrAst, format, mapperFile) {
 	if (!body || !Array.isArray(body)) return "";
 
 	const settings = optionsOrAst?.settings || { format: targetFormat || "html" };
+	const instance = optionsOrAst?.instance;
+	if (instance) {
+		settings.instance = instance;
+		settings.fs = instance.fs;
+	}
 
 	// Initialize Logic Sandbox
 	await evaluator.init(null, security, settings, targetMapper);
@@ -500,7 +504,7 @@ export async function transpiler(optionsOrAst, format, mapperFile) {
 	try {
 		for (let i = 0; i < body.length; i++) {
 			const node = body[i];
-			const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, generateRuntimeOutput, hideRuntimeOutput);
+			const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, generateRuntimeOutput, hideRuntimeOutput, instance);
 
 			let finalBlockOutput = blockOutput;
 			if (prev_was_silent && node.type === TEXT) {

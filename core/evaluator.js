@@ -1,11 +1,17 @@
-import { quickJS } from "@sebastianwessel/quickjs";
-import fs from "node:fs";
-import path from "node:path";
+import { getQuickJS } from "quickjs-emscripten";
+import path from "pathe";
 import * as acorn from "acorn";
 import SomMark, { registerHostCompile, registerHostSettings } from "./helpers/lib.js";
+import { formatMessage } from "./errors.js";
 
 // Global tracker to ensure deep recursive Smark compilation never exceeds safe boundaries
 let globalCompilationDepth = 0;
+
+let compilerClass = null;
+
+export function setCompilerClass(cls) {
+    compilerClass = cls;
+}
 
 // Pure, top-level stateless adapters to avoid circular references and closures over EvaluatorState
 const customFetchAdapter = async (input, init, security = {}) => {
@@ -104,9 +110,10 @@ const customCompileAdapter = async (src, options, parentSecurity = {}) => {
 
     globalCompilationDepth++;
     try {
-        // Securely isolate and deep-clone options to strip parent VM proxies
         const cleanOptions = JSON.parse(JSON.stringify(options || {}));
-        const { default: SomMarkCompiler } = await import("../index.js");
+        if (!compilerClass) {
+            throw new Error("Compiler class is not registered in the evaluator.");
+        }
         const compilerOptions = {
             src,
             format: cleanOptions.format || "html",
@@ -114,7 +121,7 @@ const customCompileAdapter = async (src, options, parentSecurity = {}) => {
             formatOption: cleanOptions.formatOption || {},
             security: parentSecurity
         };
-        const sm = new SomMarkCompiler(compilerOptions);
+        const sm = new compilerClass(compilerOptions);
         return await sm.transpile();
     } finally {
         globalCompilationDepth--;
@@ -124,25 +131,124 @@ const customCompileAdapter = async (src, options, parentSecurity = {}) => {
 // Register statically once at module loading
 registerHostCompile(customCompileAdapter);
 
-/**
- * EvaluatorState
- * 
- * Houses the actual state, scopes, and QuickJS VM instance for a single transpilation lifecycle.
- */
+let defaultFs = null;
+let quickJSInstance = null;
+async function getQuickJSModule() {
+    if (!quickJSInstance) {
+        quickJSInstance = await getQuickJS();
+    }
+    return quickJSInstance;
+}
+
+function objectToHandle(context, obj) {
+    if (obj === undefined) {
+        return context.undefined;
+    }
+    const jsonStr = JSON.stringify(obj);
+    const stringHandle = context.newString(jsonStr);
+    const jsonHandle = context.getProp(context.global, "JSON");
+    const parseHandle = context.getProp(jsonHandle, "parse");
+    const result = context.callFunction(parseHandle, jsonHandle, stringHandle);
+    stringHandle.dispose();
+    parseHandle.dispose();
+    jsonHandle.dispose();
+    return result.unwrap();
+}
+
+function expose(context, vars, pendingDeferreds) {
+    for (const [key, value] of Object.entries(vars)) {
+        let handle;
+        if (typeof value === "function") {
+            handle = context.newFunction(key, (...args) => {
+                try {
+                    const jsArgs = args.map(arg => context.dump(arg));
+                    const res = value(...jsArgs);
+                    if (res instanceof Promise || (res && typeof res === "object" && typeof res.then === "function")) {
+                        const deferred = context.newPromise();
+                        if (pendingDeferreds) {
+                            pendingDeferreds.add(deferred);
+                        }
+                        res.then(
+                            (resolvedVal) => {
+                                try {
+                                    if (!context.alive) return;
+                                    if (resolvedVal === undefined) {
+                                        deferred.resolve();
+                                    } else {
+                                        const valHandle = objectToHandle(context, resolvedVal);
+                                        deferred.resolve(valHandle);
+                                        valHandle.dispose();
+                                    }
+                                } catch (e) {
+                                    if (context.alive) {
+                                        const errHandle = context.newError(e.message || String(e));
+                                        deferred.reject(errHandle);
+                                        errHandle.dispose();
+                                    }
+                                } finally {
+                                    if (pendingDeferreds) {
+                                        pendingDeferreds.delete(deferred);
+                                    }
+                                    if (context.alive) {
+                                        deferred.dispose();
+                                    }
+                                }
+                            },
+                            (rejectedErr) => {
+                                try {
+                                    if (!context.alive) return;
+                                    const errHandle = context.newError(rejectedErr.message || String(rejectedErr));
+                                    deferred.reject(errHandle);
+                                    errHandle.dispose();
+                                } catch (e) {
+                                    // ignore
+                                } finally {
+                                    if (pendingDeferreds) {
+                                        pendingDeferreds.delete(deferred);
+                                    }
+                                    if (context.alive) {
+                                        deferred.dispose();
+                                    }
+                                }
+                            }
+                        );
+                        return deferred.handle.dup();
+                    } else if (res === undefined) {
+                        return;
+                    } else {
+                        return objectToHandle(context, res);
+                    }
+                } catch (err) {
+                    throw context.newError(err.message || String(err));
+                }
+            });
+        } else {
+            handle = objectToHandle(context, value);
+        }
+        context.setProp(context.global, key, handle);
+        handle.dispose();
+    }
+}
+
 class EvaluatorState {
     constructor() {
         this.runtime = null;
-        this.baseDir = process.cwd();
+        this.context = null;
+        this.baseDir = "/";
         this.scopes = [{}];
         this.dynamicTagsStack = [new Map()];
         this.deadline = 0;
+        this.pendingDeferreds = new Set();
     }
 
-    /**
-     * Initializes the QuickJS VM.
-     */
     async init(baseDir = null, security = {}, settings = {}, mapperFile = null) {
-        if (baseDir) this.baseDir = baseDir;
+        if (baseDir) {
+            this.baseDir = baseDir;
+        } else if (settings?.instance?.cwd) {
+            this.baseDir = settings.instance.cwd;
+        } else {
+            this.baseDir = "/";
+        }
         this.scopes = [{}];
         this.dynamicTagsStack = [new Map()];
         this.security = security;
@@ -150,37 +256,38 @@ class EvaluatorState {
         this.mapperFile = mapperFile;
         registerHostSettings(settings);
 
-        if (this.runtime) {
-            this.runtime.vm.expose({
+        this.nodeFs = defaultFs;
+
+        if (this.context) {
+            this.expose({
                 __allowRaw: this.security.allowRaw !== false
             });
             return;
         }
 
-        const { createRuntime } = await quickJS();
-
-        this.runtime = await createRuntime({
-            allowFetch: true,
-            fetchAdapter: async (input, init) => {
-                return await customFetchAdapter(input, init, this.security);
-            },
-            allowFs: true,
-            env: {}
-        });
+        const QuickJS = await getQuickJSModule();
+        this.runtime = QuickJS.newRuntime();
+        this.context = this.runtime.newContext();
 
         this.deadline = 0;
-        if (this.runtime?.vm?.context?.runtime?.setInterruptHandler) {
-            this.runtime.vm.context.runtime.setInterruptHandler(() => {
-                return this.deadline > 0 && Date.now() > this.deadline;
-            });
-        }
+        this.runtime.setInterruptHandler(() => {
+            return this.deadline > 0 && Date.now() > this.deadline;
+        });
 
-        // Expose standard library version & compile adapter, then construct the frozen global namespace inside the VM
-        this.runtime.vm.expose({
+        this.expose({
             __hostSomMarkVersion: SomMark.version,
-            __hostSomMarkSettings: () => JSON.stringify(SomMark.settings),
+            __hostSomMarkSettings: () => {
+                const clean = { ...SomMark.settings };
+                delete clean.instance;
+                delete clean.fs;
+                return JSON.stringify(clean);
+            }, 
             __hostCompile: async (src, options) => {
                 return await customCompileAdapter(src, options, this.security);
+            },
+            __hostFetch: async (input, initStr) => {
+                const init = initStr ? JSON.parse(initStr) : undefined;
+                return await customFetchAdapter(input, init, this.security);
             },
             __hostRegisterDynamicTag: (id, options) => {
                 this.registerDynamicTag(id, options);
@@ -207,7 +314,8 @@ class EvaluatorState {
             __allowRaw: this.security.allowRaw !== false
         });
 
-        await this.runtime.vm.evalCode(`
+        // Setup standard library and namespace
+        const setupRes = this.context.evalCode(`
             const __nativeFetch = globalThis.fetch;
             class TagBuilder {
                 constructor(tagName) {
@@ -321,7 +429,7 @@ class EvaluatorState {
                     return Object.freeze(parsed);
                 },
                 fetch: async (input, init) => {
-                    const plainRes = await __nativeFetch(input, init);
+                    const plainRes = await __hostFetch(input.toString(), init ? JSON.stringify(init) : "");
                     return {
                         status: plainRes.status,
                         ok: plainRes.ok,
@@ -381,41 +489,49 @@ class EvaluatorState {
                 }
             };
 
-            // Deep freeze the SomMark standard library to make it completely immutable
             Object.freeze(SomMark);
 
-            // Establish the global SomMark constant (non-writable, non-configurable)
             Object.defineProperty(globalThis, "SomMark", {
                 value: SomMark,
                 writable: false,
                 configurable: false
             });
 
-            // Prevent direct/un-namespaced global fetch usage to enforce standard library architecture
             delete globalThis.fetch;
             delete globalThis.process;
         `);
 
-        // Configure host-based module loader to support local imports perfectly
-        this.runtime.vm.context.runtime.setModuleLoader((moduleName) => {
+        if (setupRes.error) {
+            const err = this.context.dump(setupRes.error);
+            setupRes.error.dispose();
+            throw new Error("VM initialization failed: " + JSON.stringify(err));
+        }
+        setupRes.value.dispose();
+
+        // Configure module loader using virtual FS implementation
+        this.runtime.setModuleLoader((moduleName) => {
             try {
                 const isRaw = moduleName.endsWith("?raw");
                 const cleanModuleName = isRaw ? moduleName.slice(0, -4) : moduleName;
                 const resolvedPath = path.resolve(this.baseDir, cleanModuleName);
-                if (fs.existsSync(resolvedPath)) {
-                    let source = fs.readFileSync(resolvedPath, "utf8");
+                
+                const fsImpl = this.settings?.fs || this.settings?.instance?.fs || this.nodeFs;
+                if (!fsImpl) {
+                    throw new Error("No filesystem implementation available.");
+                }
+
+                if (fsImpl.existsSync(resolvedPath)) {
+                    let source = fsImpl.readFileSync(resolvedPath, "utf8");
 
                     if (isRaw) {
                         const escapedSource = source.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\${/g, "\\${");
                         return `export default \`${escapedSource}\`;`;
                     }
 
-                    // Support JSON files
                     if (resolvedPath.endsWith(".json")) {
                         source = `export default ${source};`;
                     }
 
-                    // Support Smark files
                     if (resolvedPath.endsWith(".smark")) {
                         const escapedSource = source.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\${/g, "\\${");
                         source = `
@@ -425,7 +541,7 @@ class EvaluatorState {
                         `;
                     }
 
-                    return source; // MUST BE A STRING
+                    return source;
                 }
                 throw new Error(`Module not found: ${moduleName}`);
             } catch (err) {
@@ -434,37 +550,37 @@ class EvaluatorState {
         });
     }
 
-    /**
-     * Pushes a new block scope level.
-     */
+    expose(vars) {
+        if (!this.context) return;
+        expose(this.context, vars, this.pendingDeferreds);
+    }
+
     pushScope() {
         this.scopes.push({});
         this.dynamicTagsStack.push(new Map());
     }
 
-    /**
-     * Pops the current block scope level, cleaning up VM globals and restoring parent scope variables.
-     */
     async popScope() {
         if (this.scopes.length > 1) {
             const popped = this.scopes.pop();
             this.dynamicTagsStack.pop();
             const keysToDelete = Object.keys(popped);
-            if (keysToDelete.length > 0 && this.runtime) {
+            if (keysToDelete.length > 0 && this.context) {
                 try {
                     const deleteCode = keysToDelete.map(k => `delete globalThis['${k}'];`).join(" ");
-                    await this.runtime.vm.evalCode(deleteCode, "cleanup.js");
+                    const deleteRes = this.context.evalCode(deleteCode, "cleanup.js");
+                    if (deleteRes.value) deleteRes.value.dispose();
+                    if (deleteRes.error) deleteRes.error.dispose();
                 } catch (e) {
                     // ignore
                 }
             }
-            // Restore parent scopes
-            if (this.runtime) {
+            if (this.context) {
                 const merged = {};
                 for (const scope of this.scopes) {
                     Object.assign(merged, scope);
                 }
-                this.runtime.vm.expose(merged);
+                this.expose(merged);
             }
         }
     }
@@ -490,8 +606,8 @@ class EvaluatorState {
     }
 
     async executeDynamicTag(id, payload) {
-        if (!this.runtime) throw new Error("EvaluatorState not initialized");
-        this.runtime.vm.expose({
+        if (!this.context) throw new Error("EvaluatorState not initialized");
+        this.expose({
             __activeTagPayload: () => JSON.stringify(payload)
         });
         const code = `
@@ -509,18 +625,43 @@ class EvaluatorState {
                 return res;
             })()
         `;
-        let result = await this.runtime.vm.evalCode(code, "render_tag.js");
-        if (result instanceof Promise || (result && typeof result === "object" && typeof result.then === "function")) {
-            result = await result;
+        const evalRes = this.context.evalCode(code, "render_tag.js");
+        if (evalRes.error) {
+            const err = this.context.dump(evalRes.error);
+            evalRes.error.dispose();
+            throw err;
         }
+
+        let resultHandle = evalRes.unwrap();
+        const state = this.context.getPromiseState(resultHandle);
+        if (state && state.type === "pending") {
+            while (true) {
+                this.runtime.executePendingJobs();
+                const curState = this.context.getPromiseState(resultHandle);
+                if (curState.type !== "pending") {
+                    if (curState.type === "fulfilled") {
+                        resultHandle.dispose();
+                        resultHandle = curState.value;
+                    } else {
+                        const errHandle = curState.error;
+                        const err = this.context.dump(errHandle);
+                        errHandle.dispose();
+                        resultHandle.dispose();
+                        throw err;
+                    }
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 1));
+            }
+        }
+
+        const result = this.context.dump(resultHandle);
+        resultHandle.dispose();
         return result;
     }
 
-    /**
-     * Synchronizes changed VM global variables back to the scope stack.
-     */
-    async _syncScopes() {
-        if (!this.runtime) return;
+    _syncScopes() {
+        if (!this.context) return;
         const allKeysSet = new Set();
         for (const scope of this.scopes) {
             for (const key of Object.keys(scope)) {
@@ -531,17 +672,23 @@ class EvaluatorState {
         if (allKeys.length > 0) {
             try {
                 const getValuesCode = `export default { ${allKeys.map(k => `${JSON.stringify(k)}: globalThis['${k}']`).join(", ")} };`;
-                const valuesRes = await this.runtime.vm.evalCode(getValuesCode, "sync.js", { type: 'module' });
-                if (valuesRes && typeof valuesRes === 'object' && 'default' in valuesRes) {
-                    const syncedValues = valuesRes.default;
-                    for (const [key, val] of Object.entries(syncedValues)) {
-                        for (let s = this.scopes.length - 1; s >= 0; s--) {
-                            if (key in this.scopes[s]) {
-                                this.scopes[s][key] = val;
-                                break;
+                const valuesRes = this.context.evalCode(getValuesCode, "sync.js", { type: 'module' });
+                if (valuesRes.value) {
+                    const syncedValuesObj = this.context.dump(valuesRes.value);
+                    valuesRes.value.dispose();
+                    if (syncedValuesObj && typeof syncedValuesObj === 'object' && 'default' in syncedValuesObj) {
+                        const syncedValues = syncedValuesObj.default;
+                        for (const [key, val] of Object.entries(syncedValues)) {
+                            for (let s = this.scopes.length - 1; s >= 0; s--) {
+                                if (key in this.scopes[s]) {
+                                    this.scopes[s][key] = val;
+                                    break;
+                                }
                             }
                         }
                     }
+                } else if (valuesRes.error) {
+                    valuesRes.error.dispose();
                 }
             } catch (err) {
                 // ignore
@@ -549,36 +696,28 @@ class EvaluatorState {
         }
     }
 
-    /**
-     * Injects variables safely into the sandbox.
-     */
     inject(vars) {
-        if (!this.runtime) return;
+        if (!this.context) return;
         const currentScope = this.scopes[this.scopes.length - 1];
         Object.assign(currentScope, vars);
-        this.runtime.vm.expose(vars);
+        this.expose(vars);
     }
 
-    /**
-     * Executes code asynchronously and returns resolved result.
-     */
     async execute(code) {
-        if (!this.runtime) throw new Error("Evaluator not initialized");
+        if (!this.context) throw new Error("Evaluator not initialized");
 
         const timeout = this.security?.timeout ?? 5000;
-        this.deadline = Date.now() + timeout; // Dynamic timeout safety safeguard
+        this.deadline = Date.now() + timeout;
 
-        // Keep QuickJS event loop alive in the background during execution
         const interval = setInterval(() => {
             try {
-                this.runtime.vm.context.runtime.executePendingJobs();
+                this.runtime.executePendingJobs();
             } catch (err) {
                 // ignore
             }
         }, 1);
 
         try {
-            // Detect top-level declarations for Auto-Export
             let autoExportedNames = [];
             let hasExplicitExports = false;
             try {
@@ -605,7 +744,7 @@ class EvaluatorState {
                     }
                 }
             } catch (e) {
-                // If it fails to parse as module, it might be a simple expression, ignore
+                // Ignore parsing errors for simple expression fragments
             }
 
             const hasImportExport = hasExplicitExports || /\bimport\b/.test(code);
@@ -613,7 +752,6 @@ class EvaluatorState {
 
             let finalCode = code;
 
-            // Rewrite the last expression statement to be export default so we automatically return its value
             try {
                 const ast = acorn.parse(code, { ecmaVersion: 'latest', sourceType: 'module', allowReturnOutsideFunction: true });
                 const lastNode = ast.body[ast.body.length - 1];
@@ -641,27 +779,108 @@ class EvaluatorState {
 
             let result;
             if (isModule) {
-                // Evaluate as module using Arena
-                const evalPromise = this.runtime.vm.evalCode(finalCode, "main.js", {
-                    strict: true,
-                    strip: true,
-                    backtraceBarrier: true,
-                    type: 'module'
-                });
+                const evalRes = this.context.evalCode(finalCode, "main.js", { type: 'module' });
+                if (evalRes.error) {
+                    const err = this.context.dump(evalRes.error);
+                    evalRes.error.dispose();
+                    throw err;
+                }
 
-                const res = await evalPromise;
+                let resultHandle = evalRes.unwrap();
+                const state = this.context.getPromiseState(resultHandle);
+                if (state && state.type === "pending") {
+                    while (true) {
+                        this.runtime.executePendingJobs();
+                        const curState = this.context.getPromiseState(resultHandle);
+                        if (curState.type !== "pending") {
+                            if (curState.type === "fulfilled") {
+                                resultHandle.dispose();
+                                resultHandle = curState.value;
+                            } else {
+                                const errHandle = curState.error;
+                                const err = this.context.dump(errHandle);
+                                errHandle.dispose();
+                                resultHandle.dispose();
+                                throw err;
+                            }
+                            break;
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 1));
+                    }
+                }
 
-                // Move exports directly to global scope in the VM
+                let defaultHandle = this.context.getProp(resultHandle, "default");
+                let resolvedDefaultHandle = defaultHandle;
+                let isPromise = false;
+
+                const defaultState = this.context.getPromiseState(defaultHandle);
+                if (defaultState && !defaultState.notAPromise) {
+                    isPromise = true;
+                    if (defaultState.type === "pending") {
+                        while (true) {
+                            this.runtime.executePendingJobs();
+                            const curState = this.context.getPromiseState(defaultHandle);
+                            if (curState.type !== "pending") {
+                                if (curState.type === "fulfilled") {
+                                    resolvedDefaultHandle = curState.value;
+                                } else {
+                                    const errHandle = curState.error;
+                                    const err = this.context.dump(errHandle);
+                                    errHandle.dispose();
+                                    defaultHandle.dispose();
+                                    resultHandle.dispose();
+                                    throw err;
+                                }
+                                break;
+                            }
+                            await new Promise(resolve => setTimeout(resolve, 1));
+                        }
+                    } else if (defaultState.type === "fulfilled") {
+                        resolvedDefaultHandle = defaultState.value;
+                    } else if (defaultState.type === "rejected") {
+                        const errHandle = defaultState.error;
+                        const err = this.context.dump(errHandle);
+                        errHandle.dispose();
+                        defaultHandle.dispose();
+                        resultHandle.dispose();
+                        throw err;
+                    }
+                }
+
+                const defaultValue = this.context.dump(resolvedDefaultHandle);
+                
+                if (isPromise) {
+                    resolvedDefaultHandle.dispose();
+                }
+                defaultHandle.dispose();
+
+                const res = this.context.dump(resultHandle);
+
+                this.context.setProp(this.context.global, "__tempModule", resultHandle);
+                const copyRes = this.context.evalCode(`
+                    for (const key of Object.keys(__tempModule)) {
+                        if (key !== "default") {
+                            globalThis[key] = __tempModule[key];
+                        }
+                    }
+                    delete globalThis.__tempModule;
+                `);
+                if (copyRes.error) {
+                    copyRes.error.dispose();
+                } else {
+                    copyRes.value.dispose();
+                }
+                resultHandle.dispose();
+
                 if (res && typeof res === 'object') {
                     const currentScope = this.scopes[this.scopes.length - 1];
                     for (const [key, val] of Object.entries(res)) {
                         if (key !== 'default') {
                             currentScope[key] = val;
-                            this.runtime.vm.expose({ [key]: val });
                         }
                     }
                     if ('default' in res) {
-                        result = res.default;
+                        result = defaultValue;
                     } else {
                         result = undefined;
                     }
@@ -669,17 +888,41 @@ class EvaluatorState {
                     result = res;
                 }
             } else {
-                result = await this.runtime.vm.evalCode(code, "main.js");
-            }
-
-            if (result instanceof Promise || (result && typeof result === "object" && typeof result.then === "function")) {
-                result = await result;
+                const evalRes = this.context.evalCode(code, "main.js");
+                if (evalRes.error) {
+                    const err = this.context.dump(evalRes.error);
+                    evalRes.error.dispose();
+                    throw err;
+                }
+                let resultHandle = evalRes.unwrap();
+                const state = this.context.getPromiseState(resultHandle);
+                if (state && state.type === "pending") {
+                    while (true) {
+                        this.runtime.executePendingJobs();
+                        const curState = this.context.getPromiseState(resultHandle);
+                        if (curState.type !== "pending") {
+                            if (curState.type === "fulfilled") {
+                                resultHandle.dispose();
+                                resultHandle = curState.value;
+                            } else {
+                                const errHandle = curState.error;
+                                const err = this.context.dump(errHandle);
+                                errHandle.dispose();
+                                resultHandle.dispose();
+                                throw err;
+                            }
+                            break;
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 1));
+                    }
+                }
+                result = this.context.dump(resultHandle);
+                resultHandle.dispose();
             }
 
             await this._syncScopes();
             return result;
         } catch (error) {
-            // Try to extract line/col from stack trace
             const stack = error.stack || "";
             const match = stack.match(/main\.js:(\d+):(\d+)/) || stack.match(/:(\d+):(\d+)/);
 
@@ -695,44 +938,46 @@ class EvaluatorState {
         }
     }
 
-    /**
-     * Disposal.
-     */
     destroy() {
         if (this.runtime) {
-            try {
-                // Execute any lingering jobs & trigger the QuickJS garbage collector
-                if (this.runtime.vm?.context?.runtime) {
-                    this.runtime.vm.context.runtime.executePendingJobs();
-                    this.runtime.vm.context.runtime.gc();
+            if (this.pendingDeferreds) {
+                for (const deferred of this.pendingDeferreds) {
+                    try {
+                        if (deferred.alive) {
+                            deferred.dispose();
+                        }
+                    } catch (e) {}
                 }
-            } catch (e) { }
+                this.pendingDeferreds.clear();
+            }
 
             try {
+                this.runtime.executePendingJobs();
+            } catch (e) {}
+
+            try {
+                if (this.context) {
+                    this.context.dispose();
+                }
                 this.runtime.dispose();
             } catch (e) {
-                // Graceful logging for minor Emscripten reference delays
-                console.warn("<$yellow:Warning:$> Safe context disposal warning: " + e.message);
+                console.warn(formatMessage("<$yellow:Warning:$> Safe context disposal warning: " + e.message));
             }
             this.runtime = null;
+            this.context = null;
         }
     }
 }
 
-/**
- * Evaluator
- * 
- * Acts as a router/proxy singleton that routes VM calls to a stack of active isolated runtimes.
- * This guarantees concurrent and recursive safety across all compiler runs.
- */
 class Evaluator {
     constructor() {
         this.instances = [];
     }
 
-    /**
-     * Get the active logic engine state instance at the top of the stack.
-     */
+    setDefaultFs(fs) {
+        defaultFs = fs;
+    }
+
     get active() {
         if (this.instances.length === 0) {
             throw new Error("No active EvaluatorState instance. Did you call init()?");

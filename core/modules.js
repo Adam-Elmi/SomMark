@@ -1,6 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import path from "pathe";
+import { fileURLToPath } from "./helpers/url.js";
 import { runtimeError } from "./errors.js";
 import { IMPORT, USE_MODULE, TEXT, BLOCK, COMMENT, SLOT } from "./labels.js";
 
@@ -18,13 +17,13 @@ const resolveModulePath = (filePath, currentBaseDir) => {
  * @param {Object} [aliases={}] - Custom path aliases for modules.
  * @returns {string} - The corrected absolute path.
  */
-const normalizePath = (filename, aliases = {}) => {
-	if (!filename || filename === "anonymous") return process.cwd();
+const normalizePath = (filename, aliases = {}, cwd = "/") => {
+	if (!filename || filename === "anonymous") return cwd;
 
 	// Handle Aliases (like @/components)
 	for (const [prefix, replacement] of Object.entries(aliases)) {
 		if (filename.startsWith(prefix)) {
-			const resolvedPath = path.resolve(process.cwd(), filename.replace(prefix, replacement));
+			const resolvedPath = path.resolve(cwd, filename.replace(prefix, replacement));
 			return resolvedPath;
 		}
 	}
@@ -37,7 +36,7 @@ const normalizePath = (filename, aliases = {}) => {
 		}
 	}
 
-	return path.resolve(process.cwd(), filename);
+	return path.resolve(cwd, filename);
 };
 
 const VAR_PATTERN = /SOMMARK_UNRESOLVED_v_(.+?)_SOMMARK/g;
@@ -135,7 +134,7 @@ export async function resolveModules(ast, context) {
 	const modules = new Map();
 	const filename = context.filename || "anonymous";
 	const importAliases = context.instance.importAliases || {};
-	const absFilename = normalizePath(filename, importAliases);
+	const absFilename = normalizePath(filename, importAliases, context.instance.cwd || "/");
 
 	// baseDir can be a local path
 	const baseDir = context.instance.baseDir || ((filename === "anonymous") ? absFilename : path.dirname(absFilename));
@@ -231,7 +230,7 @@ export async function resolveModules(ast, context) {
 				let resolvedPath = filePath;
 				for (const [prefix, replacement] of Object.entries(importAliases)) {
 					if (filePath.startsWith(prefix)) {
-						resolvedPath = path.resolve(process.cwd(), filePath.replace(prefix, replacement));
+						resolvedPath = path.resolve(context.instance.cwd || "/", filePath.replace(prefix, replacement));
 						break;
 					}
 				}
@@ -241,11 +240,11 @@ export async function resolveModules(ast, context) {
 
 				// Local Path Resolution with Auto-Extension
 				let localPath = absolutePath;
-				if (!fs.existsSync(localPath) && !localPath.endsWith(".smark")) {
+				if (!context.instance.fs.existsSync(localPath) && !localPath.endsWith(".smark")) {
 					const withSmark = localPath + ".smark";
-					if (fs.existsSync(withSmark)) localPath = withSmark;
+					if (context.instance.fs.existsSync(withSmark)) localPath = withSmark;
 				}
-				if (!fs.existsSync(localPath)) {
+				if (!context.instance.fs.existsSync(localPath)) {
 					runtimeError([`<$red:Module Path Error:$> File not found: <$magenta:${filePath}$> at line <$yellow:${node.range.start.line + 1}$>`]);
 				}
 				let mod = { path: absolutePath, localPath: localPath, type: "smark" };
@@ -289,7 +288,7 @@ export async function resolveModules(ast, context) {
 				if (cached) {
 					expandedNodes = trimAst(cloneAst(cached));
 				} else {
-					const content = fs.readFileSync(mod.localPath, "utf-8");
+					const content = context.instance.fs.readFileSync(mod.localPath, "utf-8");
 					const SomMark = context.instance.constructor;
 					const subSmark = new SomMark({
 						src: content,
@@ -347,7 +346,7 @@ export async function resolveModules(ast, context) {
 				if (cached) {
 					subAst = cloneAst(cached);
 				} else {
-					const content = fs.readFileSync(mod.localPath, "utf-8");
+					const content = context.instance.fs.readFileSync(mod.localPath, "utf-8");
 					const SomMark = context.instance.constructor;
 					const subSmark = new SomMark({
 						src: content,
