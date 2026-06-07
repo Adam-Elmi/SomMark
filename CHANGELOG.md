@@ -1,8 +1,22 @@
 # Changelog
 
+## v4.2.0 (Pending)
+
+This release adds browser support and resolves QuickJS engine crashes when running async code.
+
+### 1. Browser Support
+*   Separated browser entry point (`index.browser.js`) and Node entry point (`index.js`).
+*   Removed all Node-specific imports (e.g., `node:fs`, config loaders) from the browser build to prevent bundler errors.
+
+### 2. QuickJS Crash & Warning Fixes
+*   Fixed engine crashes and unhandled promise rejections when `await` is omitted in static blocks.
+*   Fixed C-level assertion aborts (`Assertion failed: list_empty(&rt->gc_obj_list)`) by cleaning up pending promises before context disposal.
+*   Formatted evaluator warnings using `formatMessage` to hide raw color tags outside the terminal.
+
 ## v4.1.0 (2026-06-01)
 
 This release introduces native components, compile-time/runtime sandboxed JavaScript, loop control flow, simplified inline tags syntax, support for JSONC, and an array of new configuration options.
+
 
 ### 1. New Syntax & Elements
 
