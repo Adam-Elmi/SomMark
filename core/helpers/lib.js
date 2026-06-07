@@ -18,10 +18,7 @@ export function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const manualVersion = "4.1.0";
-const version = await import(new URL("../../package.json", import.meta.url), { with: { type: "json" } })
-    .then(pkg => pkg.default.version || manualVersion)
-    .catch(() => manualVersion);
+const version = "4.2.0";
 
 const SomMark = {
     version,
