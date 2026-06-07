@@ -1,4 +1,4 @@
-import path from "node:path";
+import path from "pathe";
 import fs from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
@@ -40,7 +40,7 @@ export async function findAndLoadConfig(targetPath) {
 		try {
 			const absoluteTarget = path.resolve(cwd, targetPath);
 			const stats = await fs.stat(absoluteTarget);
-			
+
 			// If target is a .js file, it might be an explicit config (legacy/internal support)
 			if (stats.isFile() && absoluteTarget.endsWith(".js") && !absoluteTarget.endsWith("smark.config.js")) {
 				configPath = absoluteTarget;
@@ -74,7 +74,7 @@ export async function findAndLoadConfig(targetPath) {
 			// No config found in CWD
 		}
 	}
-	
+
 	const defaultConfig = {
 		outputFile: "output",
 		outputDir: startDir,
@@ -97,12 +97,12 @@ export async function findAndLoadConfig(targetPath) {
 		if (loadedConfig) {
 			// Support both mapperFile and mappingFile (backwards compatibility)
 			const finalMapper = loadedConfig.mapperFile || loadedConfig.mappingFile || defaultConfig.mapperFile;
-			
-			const finalConfig = { 
-				...defaultConfig, 
-				...loadedConfig, 
+
+			const finalConfig = {
+				...defaultConfig,
+				...loadedConfig,
 				mapperFile: finalMapper,
-				resolvedConfigPath: configPath 
+				resolvedConfigPath: configPath
 			};
 			if (loadedConfig.outputDir) {
 				const configDir = path.dirname(configPath);
