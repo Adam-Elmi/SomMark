@@ -1,17 +1,46 @@
 # Changelog
 
-## v4.2.0 (Pending)
+## v4.2.0 (2026-06-09)
 
-This release adds browser support and resolves QuickJS engine crashes when running async code.
+Adds full browser support, fixes bugs, and expands tests and docs.
 
-### 1. Browser Support
-*   Separated browser entry point (`index.browser.js`) and Node entry point (`index.js`).
-*   Removed all Node-specific imports (e.g., `node:fs`, config loaders) from the browser build to prevent bundler errors.
+### Browser Support
 
-### 2. QuickJS Crash & Warning Fixes
-*   Fixed engine crashes and unhandled promise rejections when `await` is omitted in static blocks.
-*   Fixed C-level assertion aborts (`Assertion failed: list_empty(&rt->gc_obj_list)`) by cleaning up pending promises before context disposal.
-*   Formatted evaluator warnings using `formatMessage` to hide raw color tags outside the terminal.
+*   **`FetchFS`**: Fetches `[import = ...]` module files using the browser `fetch` API. Each file is cached so it is only fetched once per compilation.
+*   **`VirtualFS` async interface**: Added async `exists()` and `readFile()` methods so `VirtualFS` and `FetchFS` work the same way.
+*   **`core/modules.js`**: All file reads are now async. URL paths are resolved with `new URL()` instead of `pathe.resolve` to avoid broken paths.
+*   **`core/helpers/preprocessor.js`**: Reads module files through `instance.fs`. Falls back to `node:fs` when called without an instance (e.g. in tests).
+*   **`index.js`**: Wraps Node `fs` with async `exists` and `readFile`, then registers it via `setDefaultFs`. Sets the working directory on load.
+*   **`index.shared.js`**: Automatically creates a `FetchFS` instance when `baseDir` is an `http(s)://` URL. Removed the `process` environment check.
+*   **`index.browser.js`**: New browser entry point. Exports two helpers:
+    *   `resolveBaseDir(path)` — turns a relative path into a full URL using `document.baseURI`. Use this as the `baseDir` option.
+    *   `renderCompiledHTML(container, html)` — writes compiled HTML into a container and runs any `<script>` tags (which `innerHTML` would block).
+*   **`package.json`**: Added `"sommark/browser"` export. Removed the `memfs` dependency.
+
+### Bug Fixes
+
+*   **Static block URL imports**: `pathe.resolve` was corrupting `http://` URLs when resolving imports inside static blocks. Fixed to use `new URL()`.
+*   **`prefetchImports`**: Module imports inside static blocks are now fetched before QuickJS runs so the sync `readFileSync` calls find them in the cache.
+*   **`SomMark.compile()` options**: The internal compile adapter only passed `format` and `variables` to sub-compilations. It now passes all options. `security` is always inherited from the parent and cannot be overridden.
+*   **Inline space loss**: `dedentBy` was removing spaces between words on single-line text nodes (e.g. `"2026 edition."` became `"2026edition."`). It now skips text nodes that have no newline.
+*   **`knownProps` validation**: Removed the `knownProps` list and its validation check from `transpile()`. Unknown options are now ignored instead of throwing.
+*   **QuickJS crashes**: Fixed crashes and unhandled promise rejections when `await` is missing in a static block. Fixed a GC abort by cleaning up pending promises before the context is destroyed.
+
+### Tests
+
+*   `tests/helpers/virtual-fs.test.js` — VirtualFS: constructor, sync and async read and exists.
+*   `tests/helpers/fetch-fs.test.js` — FetchFS: constructor, path resolution, caching, sync fallbacks.
+*   `tests/core/browser-dom.test.js` — `resolveBaseDir` and `renderCompiledHTML` in a jsdom environment.
+*   `tests/core/browser.test.js` — VirtualFS imports, `instance.fs` reads, non-browser error for `resolveBaseDir`.
+
+### API Docs
+
+*   **New**: `Browser/resolveBaseDir.md`, `Browser/renderCompiledHTML.md`, `Core/baseDir.md`, `Core/files.md`.
+*   **Updated**: `Core/filename.md`, `Core/transpile.md`, `Sandbox/compile.md`, `Sandbox/raw.md`, `Sandbox/static.md`.
+
+### Bundler Compatibility (`browser-test/`)
+
+A test project that verifies SomMark works with Vite, Webpack, Rollup, and esbuild across dev, build, and preview modes.
 
 ## v4.1.0 (2026-06-01)
 
