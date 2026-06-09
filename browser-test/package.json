@@ -1,0 +1,34 @@
+{
+    "name": "browser-test",
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "dev:webpack": "webpack serve --config webpack.config.cjs",
+        "dev:rollup": "rm -rf dist-rollup && rollup -c --watch",
+        "build:vite": "NODE_ENV=production vite build",
+        "build:webpack": "NODE_ENV=production webpack --config webpack.config.cjs && cp -r public/. dist-webpack/",
+        "build:rollup": "rm -rf dist-rollup && rollup -c rollup.config.js && cp -r templates dist-rollup/ && cp -r public/. dist-rollup/",
+        "build:esbuild": "rm -rf dist-esbuild && node esbuild.config.mjs",
+        "dev:esbuild": "rm -rf dist-esbuild && node esbuild.config.mjs --watch",
+        "preview": "vite preview",
+        "preview:webpack": "vite preview --outDir dist-webpack --port 4174",
+        "preview:rollup": "vite preview --outDir dist-rollup --port 4175",
+        "preview:esbuild": "vite preview --outDir dist-esbuild --port 4176"
+    },
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^29.0.3",
+        "@rollup/plugin-node-resolve": "^16.0.3",
+        "html-webpack-plugin": "^5.6.7",
+        "rollup": "^4.61.1",
+        "rollup-plugin-livereload": "^2.0.5",
+        "rollup-plugin-serve": "^3.0.0",
+        "vite": "^6.0.0",
+        "webpack": "^5.107.2",
+        "webpack-cli": "^7.0.3",
+        "webpack-dev-server": "^5.2.4"
+    },
+    "allowScripts": {
+        "esbuild@0.25.12": true
+    }
+}

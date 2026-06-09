@@ -1,0 +1,34 @@
+[import = Card: "./components/Card.smark"][end]
+
+[div = class: "container"]
+  [h1]Hello from SomMark[end]
+  [p]This page was compiled in the browser![end]
+
+  [Card = title: "Browser Test"]
+    Module system works in browser.
+  [end]
+
+  [Card = title: "Static Logic"]
+    static ${ new Date().getFullYear() }$ edition.
+  [end]
+
+  [Card = title: "Runtime Logic"]
+    [div]
+        runtime ${
+        self.textContent = "Manipulating element via runtime block";
+        }$
+    [end]
+  [end]
+
+   [Card = title: "SomMark Version"]
+    Lastest version is static ${ SomMark.version }$.
+   [end]
+
+   [Card = title: "Add Function - import"]
+   Sum of \[1, 2, 3, 4, 5\] is 
+    static ${ 
+    import { add } from "../add.js";
+    return add(1, 2, 3, 4, 5); 
+    }$.
+   [end]
+[end]
