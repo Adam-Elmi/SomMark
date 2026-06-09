@@ -8,6 +8,13 @@ Securely compiles SomMark source dynamically inside the sandboxed environment.
 await SomMark.compile(src, options);
 ```
 
+`SomMark.compile()` accepts all the same options as the `SomMark` class constructor — `format`, `variables`, `placeholders`, `mapperFile`, `filename`, `baseDir`, `files`, `importAliases`, `removeComments`, `customProps`, `fallbackTarget`, and more.
+
+The one exception is `security`: it is always **inherited** from the parent compilation and cannot be overridden from inside the sandbox.
+
+> [!NOTE]
+> `SomMark.compile()` runs inside the QuickJS sandbox. It inherits the `security` settings (e.g. `timeout`, `maxDepth`) from the parent compilation automatically — you cannot override them from inside the sandbox.
+
 **Usage:**
 ```js
 static ${ 
@@ -44,13 +51,13 @@ static ${
 
 ### Example: Recursive File Import and Compilation
 
-Import raw `.smark` templates dynamically and compile them while injecting local placeholders:
+Import raw `.smark` templates dynamically and compile them while injecting variables into the sub-template's static blocks:
 
 **Input:**
 - `userCard.smark`:
 ```ini
 [div = class: "card"]
-  [h3]Hello p{username}![end]
+  [h3]Hello static ${ username }$![end]
 [end]
 ```
 - `template.smark`:
@@ -60,7 +67,7 @@ static ${
     
     const output = await SomMark.compile(cardSrc, {
         format: "html",
-        placeholders: { username: "Adam" }
+        variables: { username: "Adam" }
     });
     return SomMark.raw(output);
 }$
@@ -72,6 +79,9 @@ static ${
   <h3>Hello Adam!</h3>
 </div>
 ```
+
+> [!NOTE]
+> Use `variables` (not `placeholders`) when passing data into sub-templates via `SomMark.compile()`. `variables` are injected as global JavaScript variables accessible inside `static ${ }$` blocks. `placeholders` (`p{key}` syntax) are a parser-level feature and are not forwarded to `SomMark.compile()`.
 
 ---
 
