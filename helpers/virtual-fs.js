@@ -23,4 +23,7 @@ export class VirtualFS {
         }
         throw new Error(`File not found: ${p}`);
     }
+
+    async exists(p) { return this.existsSync(p); }
+    async readFile(p, encoding) { return this.readFileSync(p, encoding); }
 }
