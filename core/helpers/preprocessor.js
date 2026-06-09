@@ -1,8 +1,23 @@
-import path from "node:path";
-import fs from "node:fs";
+import path from "pathe";
 import * as acorn from "acorn";
 import evaluator from "../evaluator.js";
 import { transpilerError } from "../errors.js";
+
+let _nodeFsCache;
+async function getNodeFs() {
+	if (_nodeFsCache !== undefined) return _nodeFsCache;
+	try {
+		const m = await import("node:fs");
+		const raw = m.default || m;
+		_nodeFsCache = {
+			exists: (p) => raw.promises.access(p).then(() => true).catch(() => false),
+			readFile: (p, enc) => raw.promises.readFile(p, enc),
+		};
+	} catch {
+		_nodeFsCache = null;
+	}
+	return _nodeFsCache;
+}
 
 /**
  * Preprocesses a runtime JS block, parsing it with Acorn to locate
@@ -14,7 +29,7 @@ import { transpilerError } from "../errors.js";
  * @param {Object} security - Security restrictions from the engine configuration.
  * @returns {Promise<string>} - The preprocessed code.
  */
-export async function preprocessRuntimeLogic(code, filename = null, security = {}) {
+export async function preprocessRuntimeLogic(code, filename = null, security = {}, instance = null) {
 	let ast;
 	try {
 		ast = acorn.parse(code, { ecmaVersion: "latest", sourceType: "module" });
@@ -121,14 +136,16 @@ export async function preprocessRuntimeLogic(code, filename = null, security = {
 				}
 
 				// Resolve the file path relative to the template's base directory
-				let baseDir = process.cwd();
+				let baseDir = instance?.cwd || "/";
 				if (filename && filename !== "anonymous") {
 					baseDir = path.dirname(path.resolve(filename));
 				}
 				const resolvedPath = path.resolve(baseDir, argValue);
 
+				const fsImpl = instance?.fs || await getNodeFs();
+
 				// File presence validation
-				if (!fs.existsSync(resolvedPath)) {
+				if (!fsImpl || !await fsImpl.exists(resolvedPath)) {
 					transpilerError([
 						`<$red:SomMark.import File Error:$> File not found: <$magenta:${argValue}$>{line}`,
 						`<$yellow:Resolved Path:$> <$blue:${resolvedPath}$>{line}`
@@ -145,7 +162,7 @@ export async function preprocessRuntimeLogic(code, filename = null, security = {
 				}
 
 				let serialized = "";
-				const content = fs.readFileSync(resolvedPath, "utf-8");
+				const content = await fsImpl.readFile(resolvedPath, "utf-8");
 
 				if (ext === ".json") {
 					// Validate JSON structure
