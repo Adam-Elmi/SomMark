@@ -1,10 +1,44 @@
 # SomMark in the Browser
 
-SomMark can compile templates directly in the browser. No Node.js is needed. It works with any bundler — Vite, Webpack, Rollup, and esbuild.
+SomMark can compile templates directly in the browser. No Node.js is needed. It works with any bundler — Vite, Webpack, Rollup, and esbuild — or directly from a CDN with no build step.
 
 ---
 
-## Install
+## CDN (no build step)
+
+Load SomMark directly in any HTML page using a `<script type="module">` tag:
+
+```html
+<script type="module">
+  import SomMark, { resolveBaseDir, renderCompiledHTML }
+    from "https://cdn.jsdelivr.net/npm/sommark@4.3.0/dist/sommark.browser.js";
+
+  const src = await fetch("./main.smark").then(r => r.text());
+
+  const engine = new SomMark({
+    src,
+    format: "html",
+    baseDir: resolveBaseDir("./templates/"),
+  });
+
+  renderCompiledHTML(document.getElementById("output"), await engine.transpile());
+</script>
+```
+
+**CDN URLs**
+
+| Provider  | URL |
+|-----------|-----|
+| jsDelivr  | `https://cdn.jsdelivr.net/npm/sommark@4.3.0/dist/sommark.browser.js` |
+| unpkg     | `https://unpkg.com/sommark@4.3.0/dist/sommark.browser.js` |
+
+> Replace `4.2.0` with the version you want. The `dist/sommark.browser.js` file is the pre-bundled build — all dependencies are included. WASM files are served from the same `dist/` directory automatically via `import.meta.url`.
+>
+> The `index.browser.js` entry is for use with a bundler (Vite, Webpack, etc.) and will not work directly in a browser.
+
+---
+
+## Install (with a bundler)
 
 ```bash
 npm install sommark
