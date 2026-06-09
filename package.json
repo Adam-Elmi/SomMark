@@ -73,7 +73,6 @@
 	},
 	"dependencies": {
 		"acorn": "^8.15.0",
-		"memfs": "^4.57.6",
 		"pathe": "^2.0.3",
 		"quickjs-emscripten": "^0.32.0"
 	}
