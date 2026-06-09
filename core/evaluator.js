@@ -7,6 +7,33 @@ import { formatMessage } from "./errors.js";
 // Global tracker to ensure deep recursive Smark compilation never exceeds safe boundaries
 let globalCompilationDepth = 0;
 
+async function prefetchImports(code, baseDir, fsImpl) {
+    if (!fsImpl?.readFile) return;
+    let ast;
+    try { ast = acorn.parse(code, { ecmaVersion: "latest", sourceType: "module" }); }
+    catch { return; }
+
+    for (const node of ast.body) {
+        if (node.type !== "ImportDeclaration") continue;
+        const importPath = node.source.value;
+        const resolved = /^https?:\/\//.test(baseDir)
+            ? new URL(importPath, baseDir.endsWith("/") ? baseDir : baseDir + "/").href
+            : path.resolve(baseDir, importPath);
+
+        if (fsImpl.existsSync(resolved)) continue; // already cached
+
+        try {
+            const content = await fsImpl.readFile(resolved);
+            if (resolved.endsWith(".js")) {
+                const nextBase = /^https?:\/\//.test(resolved)
+                    ? resolved.slice(0, resolved.lastIndexOf("/") + 1)
+                    : path.dirname(resolved);
+                await prefetchImports(content, nextBase, fsImpl);
+            }
+        } catch { /* let QuickJS surface the error */ }
+    }
+}
+
 let compilerClass = null;
 
 export function setCompilerClass(cls) {
@@ -115,10 +142,9 @@ const customCompileAdapter = async (src, options, parentSecurity = {}) => {
             throw new Error("Compiler class is not registered in the evaluator.");
         }
         const compilerOptions = {
+            ...cleanOptions,
             src,
             format: cleanOptions.format || "html",
-            variables: cleanOptions.variables || {},
-            formatOption: cleanOptions.formatOption || {},
             security: parentSecurity
         };
         const sm = new compilerClass(compilerOptions);
@@ -513,7 +539,9 @@ class EvaluatorState {
             try {
                 const isRaw = moduleName.endsWith("?raw");
                 const cleanModuleName = isRaw ? moduleName.slice(0, -4) : moduleName;
-                const resolvedPath = path.resolve(this.baseDir, cleanModuleName);
+                const resolvedPath = /^https?:\/\//.test(this.baseDir)
+                    ? new URL(cleanModuleName, this.baseDir.endsWith("/") ? this.baseDir : this.baseDir + "/").href
+                    : path.resolve(this.baseDir, cleanModuleName);
                 
                 const fsImpl = this.settings?.fs || this.settings?.instance?.fs || this.nodeFs;
                 if (!fsImpl) {
@@ -776,6 +804,9 @@ class EvaluatorState {
             }
 
             const isModule = hasImportExport || hasAwait || autoExportedNames.length > 0 || finalCode.includes("export default");
+
+            const fsImpl = this.settings?.fs || this.settings?.instance?.fs || this.nodeFs;
+            if (isModule) await prefetchImports(finalCode, this.baseDir, fsImpl);
 
             let result;
             if (isModule) {
