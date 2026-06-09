@@ -45,5 +45,33 @@ try {
 }
 ```
 
+---
+
+### filename and Module Resolution
+
+`filename` also drives automatic `baseDir` derivation. When you provide a `filename`, the engine sets the module resolution root to `path.dirname(filename)` — so all `[import = ...]` paths inside the template resolve relative to the template's own directory without needing to set `baseDir` explicitly.
+
+```js
+import SomMark from "sommark";
+import { readFileSync } from "node:fs";
+
+// Template at: src/pages/index.smark
+// It imports:  [import = card: "./components/Card.smark"][end]
+const engine = new SomMark({
+    src: readFileSync("./src/pages/index.smark", "utf-8"),
+    format: "html",
+    filename: "./src/pages/index.smark"
+    // Imports resolve from ./src/pages/ automatically
+    // No baseDir needed
+});
+```
+
+If neither `filename` nor `baseDir` is provided, imports resolve from `process.cwd()` in Node.js and `"/"` in the browser.
+
+---
+
 [Read src.md for source input details](src.md)
+
+[Read baseDir.md for explicit base directory override](baseDir.md)
+
 [Read transpile.md for compiling templates](transpile.md)

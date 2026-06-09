@@ -100,10 +100,13 @@ try {
 | `format` | `string` | **Required** | Target format (`html`, `markdown`, `mdx`, `json`, `xml`, etc.). |
 | `mapperFile` | `Mapper` | `null` | A custom Mapper instance containing tag definitions. |
 | `filename` | `string` | `"anonymous"` | File path identifier used in error contexts. |
+| `baseDir` | `string` | `null` | Root path (or URL) for resolving `[import = ...]` module paths. See [baseDir.md](baseDir.md). |
+| `files` | `object` | `null` | In-memory file map used instead of disk/fetch. See [files.md](files.md). |
 | `placeholders` | `object` | `{}` | Global data injected for `p{key}` placeholders. |
 | `fallbackTarget` | `string\|false` | `"style"` | Styling fallbacks target (`"style"`, `"class"`, or `false`). |
 | `removeComments` | `boolean` | `true` | Strips comments and blocks from the output. |
 | `customProps` | `Array<string>` | `[]` | Whitelisted attributes allowed to pass untouched. |
+| `importAliases` | `object` | `{}` | Custom path aliases for module imports. See [importAliases.md](importAliases.md). |
 | `security` | `object` | `{}` | Execution sandbox rules (e.g. `allowRaw`, `maxDepth`, `timeout`). |
 
 </details>
@@ -111,4 +114,5 @@ try {
 ---
 
 [Read parse.md for information on AST generation](parse.md)
+
 [Read lex.md for details on tokenization](lex.md)
