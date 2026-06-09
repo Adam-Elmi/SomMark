@@ -7,6 +7,9 @@ import { IMPORT, USE_MODULE, TEXT, BLOCK, COMMENT, SLOT } from "./labels.js";
  * Resolves a module path relative to a base directory.
  */
 const resolveModulePath = (filePath, currentBaseDir) => {
+	if (/^https?:\/\//.test(currentBaseDir)) {
+		return new URL(filePath, currentBaseDir.endsWith("/") ? currentBaseDir : currentBaseDir + "/").href;
+	}
 	return path.resolve(currentBaseDir, filePath);
 };
 
@@ -240,11 +243,11 @@ export async function resolveModules(ast, context) {
 
 				// Local Path Resolution with Auto-Extension
 				let localPath = absolutePath;
-				if (!context.instance.fs.existsSync(localPath) && !localPath.endsWith(".smark")) {
+				if (!await context.instance.fs.exists(localPath) && !localPath.endsWith(".smark")) {
 					const withSmark = localPath + ".smark";
-					if (context.instance.fs.existsSync(withSmark)) localPath = withSmark;
+					if (await context.instance.fs.exists(withSmark)) localPath = withSmark;
 				}
-				if (!context.instance.fs.existsSync(localPath)) {
+				if (!await context.instance.fs.exists(localPath)) {
 					runtimeError([`<$red:Module Path Error:$> File not found: <$magenta:${filePath}$> at line <$yellow:${node.range.start.line + 1}$>`]);
 				}
 				let mod = { path: absolutePath, localPath: localPath, type: "smark" };
@@ -288,7 +291,7 @@ export async function resolveModules(ast, context) {
 				if (cached) {
 					expandedNodes = trimAst(cloneAst(cached));
 				} else {
-					const content = context.instance.fs.readFileSync(mod.localPath, "utf-8");
+					const content = await context.instance.fs.readFile(mod.localPath, "utf-8");
 					const SomMark = context.instance.constructor;
 					const subSmark = new SomMark({
 						src: content,
@@ -346,7 +349,7 @@ export async function resolveModules(ast, context) {
 				if (cached) {
 					subAst = cloneAst(cached);
 				} else {
-					const content = context.instance.fs.readFileSync(mod.localPath, "utf-8");
+					const content = await context.instance.fs.readFile(mod.localPath, "utf-8");
 					const SomMark = context.instance.constructor;
 					const subSmark = new SomMark({
 						src: content,
