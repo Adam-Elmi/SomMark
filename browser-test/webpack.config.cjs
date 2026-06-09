@@ -1,4 +1,5 @@
 const path = require("path");
+const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 module.exports = {
@@ -13,8 +14,18 @@ module.exports = {
         asyncWebAssembly: true,
         topLevelAwait: true,
     },
+    resolve: {
+        fallback: {
+            fs: false,
+        },
+    },
     plugins: [
         new HtmlWebpackPlugin({ template: "./index.html" }),
+        // Webpack does not understand the node: URI scheme.
+        // Strip the prefix so resolve.fallback.fs can stub it out.
+        new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+            resource.request = resource.request.replace(/^node:/, "");
+        }),
     ],
     module: {
         rules: [
