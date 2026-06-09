@@ -1,5 +1,22 @@
 # Changelog
 
+## v4.3.0 (2026-06-09)
+
+Adds a pre-built browser bundle for CDN and no-bundler use.
+
+### Added
+
+*   **`dist/sommark.browser.js`**: Pre-built ESM bundle with all dependencies included. Works directly in a `<script type="module">` tag — no bundler needed.
+*   **`docs/SomMark-Browser.md`**: New guide covering CDN usage, bundler setup, module imports, and in-memory files.
+
+
+### CDN URLs
+
+```
+https://cdn.jsdelivr.net/npm/sommark@4.3.0/dist/sommark.browser.js
+https://unpkg.com/sommark@4.3.0/dist/sommark.browser.js
+```
+
 ## v4.2.0 (2026-06-09)
 
 Adds full browser support, fixes bugs, and expands tests and docs.
