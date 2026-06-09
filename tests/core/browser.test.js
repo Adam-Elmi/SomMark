@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import SomMark from "../../index.browser.js";
+import SomMark, { resolveBaseDir } from "../../index.browser.js";
 
 describe("SomMark Browser Entrypoint Isomorphic Tests", () => {
     it("compiles standard templates correctly in the simulated browser environment", async () => {
@@ -46,5 +46,40 @@ describe("SomMark Browser Entrypoint Isomorphic Tests", () => {
         });
         const res = await sm.transpile();
         expect(res.trim()).toBe("Adam-Elmi");
+    });
+
+    it("resolves [import = ...] smark modules from the virtual filesystem", async () => {
+        const sm = new SomMark({
+            src: `
+[import = card: "/components/Card.smark"][end]
+[$use-module = card][end]
+            `.trim(),
+            format: "html",
+            files: {
+                "/components/Card.smark": "[div = class: \"card\"]VFS module[end]"
+            }
+        });
+        const res = await sm.transpile();
+        expect(res).toBe('<div class="card">VFS module</div>');
+    });
+
+    it("preprocesses SomMark.import with instance fs reading from the virtual filesystem", async () => {
+        const sm = new SomMark({
+            src: `
+runtime \${
+const data = SomMark.import("./data.json");
+}\$
+            `.trim(),
+            format: "html",
+            files: {
+                "/data.json": '{"hello":"world"}'
+            }
+        });
+        const res = await sm.transpile();
+        expect(res).toContain('const data = {"hello":"world"}');
+    });
+
+    it("resolveBaseDir throws when called outside a browser environment", () => {
+        expect(() => resolveBaseDir("./templates/")).toThrow(/browser environment/);
     });
 });
