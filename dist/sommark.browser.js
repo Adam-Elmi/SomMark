@@ -9184,7 +9184,7 @@ function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const version = "4.3.0";
+const version = "4.2.0";
 
 const SomMark$1 = {
     version,
