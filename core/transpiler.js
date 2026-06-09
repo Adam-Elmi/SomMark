@@ -305,8 +305,8 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 				switch (body_node.type) {
 					case TEXT:
 						const text = String(body_node.text || "");
-						// Dedent text relative to the parent block's indentation
-						const localDedentedText = dedentBy(text, node.range?.start?.character || 0);
+						// Only dedent multi-line text — inline spaces (no newlines) are separators, not indentation
+						const localDedentedText = text.includes("\n") ? dedentBy(text, node.range?.start?.character || 0) : text;
 						let bodyTextVal = mapper_file ? mapper_file.text(localDedentedText, { ...target?.options, escape: parentEscape }) : localDedentedText;
 						if (parentEscape === false && security?.sanitize && typeof security.sanitize === "function") {
 							bodyTextVal = security.sanitize(bodyTextVal);
