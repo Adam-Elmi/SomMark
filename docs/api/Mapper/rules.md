@@ -85,4 +85,5 @@ console.log(output);
 ```
 
 [Read register() for more info](register.md)
+
 [Read tag() for more info](tag.md)

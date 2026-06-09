@@ -49,4 +49,5 @@ console.log(output);
 ```
 
 [Read TOKEN_TYPES.md for PREFIX_P token definition](TOKEN_TYPES.md)
+
 [Read parse.md for parser resolution steps](parse.md)

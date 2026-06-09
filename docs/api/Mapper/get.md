@@ -68,4 +68,5 @@ console.log(divTag); // null
 ```
 
 [Read includesId.md to check if a tag is registered without returning the object](includesId.md)
+
 [Read getUnknownTag.md to understand fallback tags](getUnknownTag.md)

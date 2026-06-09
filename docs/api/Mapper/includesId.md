@@ -69,4 +69,5 @@ if (customMapper.includesId(["card"])) {
 ```
 
 [Read get.md to retrieve the actual tag object](get.md)
+
 [Read clear.md to see how clearing tags affects includesId](clear.md)

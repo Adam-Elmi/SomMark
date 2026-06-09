@@ -59,4 +59,5 @@ await transpile({
 ```
 
 [Read format.md for format configurations](format.md)
+
 [Read transpile.md for pipelines settings](transpile.md)

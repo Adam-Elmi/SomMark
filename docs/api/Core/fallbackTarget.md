@@ -57,4 +57,5 @@ console.log(await transpile({ src: source, format: "html", fallbackTarget: false
 ```
 
 [Read customProps.md for whitelisting attributes](customProps.md)
+
 [Read transpile.md for compilation pipelines](transpile.md)

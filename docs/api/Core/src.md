@@ -68,4 +68,5 @@ console.log(output);
 ```
 
 [Read TOKEN_TYPES.md for how src is tokenized](TOKEN_TYPES.md)
+
 [Read transpile.md for parsing templates](transpile.md)

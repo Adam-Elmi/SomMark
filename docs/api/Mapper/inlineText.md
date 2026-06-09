@@ -107,4 +107,5 @@ mapper.register("reverse", function({ content }) {
 * **Base Mapper Fallback:** The base `Mapper` class returns the text exactly as-is: `inlineText(text) { return text; }`.
 
 [Read Inline Statements Syntax for more info](../../syntax/inline.md)
+
 [Read escapeHtml() for more info](escapeHtml.md)

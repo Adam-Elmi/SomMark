@@ -156,4 +156,5 @@ mapper.register("Section", function({ content }) {
 ---
 
 [Read tag() for more info](tag.md)
+
 [Read trimAndWrapBlocks() for more info](trimAndWrapBlocks.md)

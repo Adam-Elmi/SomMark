@@ -13,6 +13,7 @@ You can initialize and execute the compiler in two ways:
 ### Engine Class Instantiation
 Creates a persistent compiler instance for step-by-step tag registration, inheritance pipelines, and translation execution:
 ```javascript
+// nodejs
 import SomMark from "sommark";
 
 // Initialize the compiler instance
@@ -28,6 +29,7 @@ const output = await compiler.transpile();
 ### Standalone transpile Helper
 The high-level wrapper to immediately compile Smark templates in a single call:
 ```javascript
+// nodejs
 import { transpile } from "sommark";
 
 const output = await transpile({

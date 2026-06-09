@@ -209,4 +209,5 @@ const output = await transpile({
 ```
 
 [Read transpile.md for pipeline settings](transpile.md)
+
 [Read format.md for formats mapping](format.md)

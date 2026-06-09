@@ -54,4 +54,5 @@ console.log(await SomMark.transpile({
 ```
 
 [Read mapperFile.outputs for more info](outputs.md)
+
 [Read getUnknownTag.md for more info](getUnknownTag.md)

@@ -108,4 +108,5 @@ This has badword.
 * **Base Mapper Fallback:** The base `Mapper` class returns the text exactly as-is: `text(text) { return text; }`.
 
 [Read inlineText() for more info](inlineText.md)
+
 [Read atBlockBody() for more info](atBlockBody.md)

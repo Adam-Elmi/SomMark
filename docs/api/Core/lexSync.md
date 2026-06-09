@@ -63,4 +63,5 @@ try {
 ```
 
 [Read lex.md for the asynchronous version](lex.md)
+
 [Read parseSync.md for more info on synchronous parsing](parseSync.md)

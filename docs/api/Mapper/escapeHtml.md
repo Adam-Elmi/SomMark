@@ -64,4 +64,5 @@ console.log(await SomMark.transpile({
 ```
 
 [Read getUnknownTag.md to understand fallback rendering](getUnknownTag.md)
+
 [Read includesId.md to check if a tag is registered](includesId.md)

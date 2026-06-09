@@ -56,4 +56,5 @@ mapper.register("Card", function({ args, content }) {
 ---
 
 [Read tag() for more info](tag.md)
+
 [Read register() for more info](register.md)

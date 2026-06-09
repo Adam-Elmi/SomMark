@@ -52,7 +52,11 @@ runtime ${
 ---
 
 [Read settings.md for global configuration access](settings.md)
+
 [Read compile.md for recursive template generation](compile.md)
+
 [Read raw.md for output bypassing and escaping rules](raw.md)
+
 [Read fetch.md for secure HTTP requests](fetch.md)
+
 [Read static.md for compile-time macros inside client scripts](static.md)

@@ -53,4 +53,5 @@ console.log(output);
 ```
 
 [Read clear.md for cleaning custom mappers](../Mapper/clear.md)
+
 [Read register.md for registering new tags](../Mapper/register.md)

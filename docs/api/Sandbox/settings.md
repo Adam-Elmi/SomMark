@@ -35,16 +35,18 @@ Here is some content for the MDX template.
 static ${
     import htmlDoc from "./htmlDoc.smark?raw";
     import mdxDoc from "./mdxDoc.smark?raw";
-    
+
+    let output = "";
     if (SomMark.settings.format === "html") {
-        const out = await SomMark.compile(htmlDoc, { format: "html" });
-        SomMark.raw(out);
+        output = await SomMark.compile(htmlDoc, { format: "html" });
+        output = SomMark.raw(output);
     } else if (SomMark.settings.format === "mdx") {
-        const out = await SomMark.compile(mdxDoc, { format: "mdx" });
-        SomMark.raw(out);
+        output = await SomMark.compile(mdxDoc, { format: "mdx" });
+        output = SomMark.raw(output);
     } else {
         throw new Error(`This template is not meant to be used for the ${SomMark.settings.format} format.`);
     }
+    return output;
 }$
 ```
 

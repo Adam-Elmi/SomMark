@@ -95,5 +95,7 @@ mapper.register("CustomBlock", function({ content }) {
 ---
 
 [Read rules() for more info](rules.md)
+
 [Read resolve() for more info](resolve.md)
+
 [Read tag() for more info](tag.md)

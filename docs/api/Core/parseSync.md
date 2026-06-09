@@ -69,4 +69,5 @@ try {
 ```
 
 [Read parse.md for the asynchronous modular version](parse.md)
+
 [Read lexSync.md for synchronous tokenization](lexSync.md)

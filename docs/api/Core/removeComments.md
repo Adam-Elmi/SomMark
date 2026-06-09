@@ -61,4 +61,5 @@ console.log(preserved);
 ```
 
 [Read format.md for formats support](format.md)
+
 [Read TOKEN_TYPES.md for comment token structures](TOKEN_TYPES.md)

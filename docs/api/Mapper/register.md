@@ -330,7 +330,11 @@ mapper.register("unordered-list", function({ ast }) {
 ---
 
 [Read rules() for more info](rules.md)
+
 [Read resolve() for more info](resolve.md)
+
 [Read handleAst() for more info](handleAst.md)
+
 [Read escapeHtml() for more info](escapeHtml.md)
+
 [Read trimAndWrapBlocks() for more info](trimAndWrapBlocks.md)

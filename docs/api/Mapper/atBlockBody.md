@@ -139,4 +139,5 @@ Hello World</div>
 * **Base Mapper Fallback:** The base `Mapper` class returns the text exactly as-is: `atBlockBody(text) { return text; }`.
 
 [Read At-Blocks Syntax for more info](../../syntax/atblock.md)
+
 [Read escapeHtml() for more info](escapeHtml.md)
