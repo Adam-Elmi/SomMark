@@ -1,4 +1,5 @@
 import { VirtualFS } from "./helpers/virtual-fs.js";
+import { FetchFS } from "./helpers/fetch-fs.js";
 import lexer from "./core/lexer.js";
 import parser from "./core/parser.js";
 import transpiler from "./core/transpiler.js";
@@ -23,7 +24,14 @@ import { startSpinner, stopSpinner } from "./helpers/spinner.js";
 import { preprocessRuntimeLogic } from "./core/helpers/preprocessor.js";
 
 let defaultFs = null;
+let defaultCwd = "/";
 let defaultFindAndLoadConfig = async () => ({});
+
+const isURL = (s) => typeof s === "string" && /^https?:\/\//.test(s);
+
+export function setDefaultCwd(cwd) {
+	defaultCwd = cwd;
+}
 
 export function setDefaultFs(fs) {
 	defaultFs = fs;
@@ -68,8 +76,10 @@ class SomMark {
 		this.customProps = customProps;
 		this.generateRuntimeOutput = generateRuntimeOutput;
 		this.hideRuntimeOutput = hideRuntimeOutput;
-		this.fs = options.fs || (options.files ? new VirtualFS(options.files) : defaultFs);
-		this.cwd = options.baseDir || (options.files ? "/" : (typeof process !== "undefined" && process.cwd ? process.cwd() : "/"));
+		this.cwd = options.baseDir || (options.files ? "/" : defaultCwd);
+		this.fs = options.fs
+			|| (options.files ? new VirtualFS(options.files) : null)
+			|| (isURL(options.baseDir) ? new FetchFS(options.baseDir) : defaultFs);
 
 		// Validate fallbackTarget
 		const VALID_FALLBACK_TARGETS = new Set(["style", "class", false]);
@@ -352,15 +362,6 @@ async function transpile(options = {}) {
 		runtimeError([`{line}<$red:Invalid Options:$> <$yellow:The options argument must be a non-null object.$>{line}`]);
 	}
 	const { src, ast, format } = options;
-
-	const knownProps = ["src", "ast", "format", "filename", "mapperFile", "removeComments", "placeholders", "customProps", "importAliases", "fallbackTarget", "usePrivateAttributes", "outputValidator", "showSpinner", "security"];
-	Object.keys(options).forEach(key => {
-		if (!knownProps.includes(key)) {
-			runtimeError([
-				`{line}<$red:Unknown Property:$> <$yellow:The property $> <$green:'${key}'$> <$yellow:is not recognized.$>{line}`
-			]);
-		}
-	});
 
 	if (format === undefined || format === null) {
 		runtimeError([`{line}<$red:Missing Target Format:$> <$yellow:The 'format' parameter is required for transpilation (e.g. 'html', 'markdown', 'xml', 'mdx', 'json', etc.).$>{line}`]);
