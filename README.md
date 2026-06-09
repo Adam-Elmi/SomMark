@@ -1,11 +1,15 @@
 # SomMark <img src="assets/smark.logo.png" width="80" align="right">
 
 [![npm version](https://img.shields.io/npm/v/sommark.svg)](https://www.npmjs.com/package/sommark)
+[![Browser Support](https://img.shields.io/badge/browser-supported-brightgreen)](https://www.npmjs.com/package/sommark)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 [![license](https://img.shields.io/npm/l/sommark.svg)](https://github.com/Adam-Elmi/SomMark/blob/master/LICENSE)
 
 SomMark is a high-performance markup language designed for structured content. It acts as an extensible source language that can be transformed into multiple formats like HTML, JSON, MDX, XML, and Markdown.
 
 SomMark uses explicit structural boundaries to ensure your document remains stable and predictable. It enables infinite nesting and provides total control over your contents.
+
+> **v4.2.0 — Browser Support**: SomMark now compiles templates directly in the browser with no Node.js dependencies. Use the `sommark/browser` entry point with any bundler (Vite, Webpack, Rollup, esbuild). See [Browser API docs](docs/api/Browser/) for `resolveBaseDir` and `renderCompiledHTML`.
 
 ---
 
@@ -79,19 +83,28 @@ Pass metadata (called **Props**, similar to component properties in React/Vue) t
 * **Inline Elements**: Passed after `=` or `:` inside the identifier parenthesis (e.g., `(text)->(link = "url")`).
 * **At-Blocks**: Passed after `:` and terminated with `;` (e.g., `@_code: lang: "js";`).
 
+**Blocks** — props come after `=`, separated by commas. Positional args have no key; named args use `key: value`.
 ```ini
-# Blocks (using '=')
 [div = "container", class: "flex"][end]
+#      ↑ positional   ↑ named
+```
 
-# Inline Elements (using '=' or ':')
+**Inline Elements** — same prop syntax, after `=` or `:` inside the identifier.
+```ini
 (Visit Website)->(link = "https://sommark.org", target: "_blank")
+#                       ↑ positional url         ↑ named prop
+```
 
-# At-Blocks (using ':' and terminated with ';')
+**At-Blocks** — props follow `:` on the opening line and are terminated with `;`. The body is captured as raw text.
+```ini
 @_code: lang: "js", active: js{true}, user: v{userId};
+#               ↑ string   ↑ native JS value  ↑ local variable
   console.log("Hello World");
 @_end_@
+```
 
-# Passing static logic to props
+**Static logic as a prop value** — any prop value can be a compile-time expression.
+```ini
 [Date = year: static ${ new Date().getFullYear() }$][end]
 ```
 
@@ -225,6 +238,7 @@ sommark -h                             Show help
 
 ## Programmatic Usage
 
+**Node.js**
 ```js
 import SomMark from "sommark";
 
@@ -235,6 +249,21 @@ const engine = new SomMark({
 
 const output = await engine.transpile();
 // <h1>Hello World</h1>
+```
+
+**Browser** (v4.2.0+)
+```js
+import SomMark, { resolveBaseDir, renderCompiledHTML } from "sommark/browser";
+
+const src = await fetch("./main.smark").then(r => r.text());
+
+const engine = new SomMark({
+  src,
+  format: "html",
+  baseDir: resolveBaseDir("./templates/"), // resolves imports via fetch
+});
+
+renderCompiledHTML(document.getElementById("output"), await engine.transpile());
 ```
 
 ---
@@ -322,6 +351,7 @@ Full reference in [`docs/api/Mapper`](docs/api/Mapper).
 |------------------|-----------------------------------------------|
 | Syntax Reference | [`docs/syntax/`](docs/syntax)                 |
 | Core API         | [`docs/api/Core/`](docs/api/Core)             |
+| Browser API      | [`docs/api/Browser/`](docs/api/Browser)       |
 | Mapper API       | [`docs/api/Mapper/`](docs/api/Mapper)         |
 | Sandbox API      | [`docs/api/Sandbox/`](docs/api/Sandbox)       |
 | Output Formats   | [`docs/languages/`](docs/languages)           |
