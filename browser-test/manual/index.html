@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SomMark Browser Test</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        #status { color: gray; font-style: italic; }
+        #output { margin-top: 1rem; border: 1px solid #ddd; padding: 1rem; border-radius: 4px; }
+        .card { border: 1px solid #aaa; padding: 1rem; border-radius: 6px; margin-top: 1rem; }
+        .card-body { margin-top: 0.5rem; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>SomMark Browser Test</h1>
+    <p id="status">Compiling...</p>
+    <div id="output"></div>
+    <script type="module">
+  import SomMark, { resolveBaseDir, renderCompiledHTML }
+    from "../../dist/sommark.browser.js";
+
+  const src = await fetch("./main.smark").then(r => r.text());
+  const engine = new SomMark({
+    src,
+    format: "html",
+    baseDir: resolveBaseDir("./"),
+  });
+    const status = document.getElementById("status");
+    status.textContent = "Compiled successfully ✓";
+    status.style.color = "green";
+
+  renderCompiledHTML(document.getElementById("output"), await engine.transpile());
+</script>
+</body>
+</html>
