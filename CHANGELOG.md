@@ -1,5 +1,23 @@
 # Changelog
 
+## v4.4.0 (2026-06-12)
+
+Adds the `sommark bundle` CLI command and three new partial browser bundles.
+
+### New Features - For cli
+- **`sommark bundle [dir path]`** — copies the full browser bundle (`dist/` folder, JS + WASM) into your project directory. Run once, then serve via HTTP.
+- **`sommark bundle [dir path] --lite`** — copies a single-file lite bundle with no WASM. Static and runtime blocks are disabled; everything else works.
+- **`sommark bundle [dir path] --only-lexer`** — copies `sommark.lexer.js` (32 KB). Exports `lexSync`, `lex`, `TOKEN_TYPES`, and `labels`.
+- **`sommark bundle [dir path] --only-parser`** — copies `sommark.parser.js` (83 KB). Exports everything in the lexer bundle plus `parseSync` and `parse`.
+
+### Info:
+- **`dist/sommark.browser.lite.js`** — lite bundle build output.
+- **`dist/sommark.lexer.js`** — lexer-only bundle build output.
+- **`dist/sommark.parser.js`** — parser bundle build output.
+
+### Docs
+- **`docs/SomMark-Browser.md`** — updated with local bundle setup, bundle comparison table, and use cases for each partial bundle.
+
 ## v4.3.0 (2026-06-09)
 
 Adds a pre-built browser bundle for CDN and no-bundler use.
