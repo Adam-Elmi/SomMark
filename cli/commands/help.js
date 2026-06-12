@@ -22,6 +22,10 @@ export function getHelp(unknown_option = true) {
 		"{N}  <$green:show config [file]$>    <$cyan: Display the configuration data (for a specific file or CWD)$>",
 		"{N}  <$green:show --path-config [file]$>    <$cyan: Display the absolute path to the active config file$>",
 		"{N}  <$green:color on|off$>   <$cyan: Help on enabling colors via Environment Variables$>",
+		"{N}  <$green:bundle [dir]$>                  <$cyan: Copy the full browser bundle (JS + WASM) to a directory$>",
+		"{N}  <$green:bundle [dir] --lite$>           <$cyan: Lite bundle — no WASM, static/runtime blocks disabled$>",
+		"{N}  <$green:bundle [dir] --only-lexer$>     <$cyan: Lexer only — lexSync, lex, TOKEN_TYPES, labels$>",
+		"{N}  <$green:bundle [dir] --only-parser$>    <$cyan: Parser only — lexSync, parseSync and above$>",
 
 		"{N}{N}<$yellow:Transpilation Options:$>",
 		"{N}<$yellow:Usage:$> <$blue:sommark [option] [targetFile] [option] [outputFile] [outputDir]$>",

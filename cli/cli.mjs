@@ -12,6 +12,7 @@ import { printOutput, printLex, printParse } from "./commands/print.js";
 import { runInit } from "./commands/init.js";
 import { runShow } from "./commands/show.js";
 import { runColor } from "./commands/color.js";
+import { runBundle } from "./commands/bundle.js";
 import { extensions } from "./constants.js";
 
 // ========================================================================== //
@@ -54,6 +55,14 @@ async function main() {
 	// 4. Init (Always Local)
 	if (command === "init") {
 		await runInit();
+		return;
+	}
+
+	// 4.5. Bundle
+	if (command === "bundle") {
+		const targetDir = args.find(a => !a.startsWith("--") && a !== "bundle");
+		const flags     = args.filter(a => a.startsWith("--"));
+		await runBundle(targetDir, flags);
 		return;
 	}
 
