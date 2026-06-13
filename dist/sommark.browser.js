@@ -9184,7 +9184,7 @@ function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const version = "4.5.0";
+const version = "4.5.1";
 
 const SomMark$1 = {
     version,
@@ -13818,6 +13818,7 @@ async function resolveModules(ast, context) {
 						security: context.instance.security,
 						showSpinner: context.instance.showSpinner,
 						importStack: [...stack, absFilename],
+						moduleIdentityToken: context.instance.moduleIdentityToken,
 						moduleCache: context.instance.moduleCache
 					});
 
