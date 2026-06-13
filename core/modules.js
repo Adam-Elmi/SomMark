@@ -366,6 +366,7 @@ export async function resolveModules(ast, context) {
 						security: context.instance.security,
 						showSpinner: context.instance.showSpinner,
 						importStack: [...stack, absFilename],
+						moduleIdentityToken: context.instance.moduleIdentityToken,
 						moduleCache: context.instance.moduleCache
 					});
 

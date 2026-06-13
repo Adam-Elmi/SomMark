@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.5.1 (2026-06-13)
+
+### Fixed
+
+- **Crash when a component imports other modules** — If a component used via `[Alias = ...]` had its own `[$use-module]` inside, SomMark threw a transpiler error. Now works correctly.
+
 ## v4.5.0 (2026-06-13)
 
 Adds `dualOutput` for producing matching HTML and JS from one compilation, and warnings for conflicting output flags.
