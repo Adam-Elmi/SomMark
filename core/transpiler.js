@@ -5,6 +5,7 @@ import { matchedValue } from "../helpers/utils.js";
 import { dedentBy } from "../helpers/dedent.js";
 import { preprocessRuntimeLogic } from "./helpers/preprocessor.js";
 import { wrapRuntimeLogic } from "./helpers/runtimeOutput.js";
+import path from "pathe";
 
 const randomBytesHex = (size) => {
 	const arr = new Uint8Array(size);
@@ -493,6 +494,14 @@ export async function transpiler(optionsOrAst, format, mapperFile) {
 		settings.fs = instance.fs;
 	}
 
+	const fileBaseDir = (() => {
+		const filename = instance?.filename;
+		const cwd = instance?.cwd || "/";
+		if (!filename || filename === "anonymous") return cwd;
+		const abs = /^(\/|[a-zA-Z]:\\|https?:\/\/)/.test(filename) ? filename : path.resolve(cwd, filename);
+		return path.dirname(abs);
+	})();
+
 	const generateRuntimeOutput = optionsOrAst?.generateRuntimeOutput || false;
 	const hideRuntimeOutput = optionsOrAst?.hideRuntimeOutput || false;
 	const dualOutput = optionsOrAst?.dualOutput || false;
@@ -519,7 +528,7 @@ export async function transpiler(optionsOrAst, format, mapperFile) {
 	}
 
 	// Initialize Logic Sandbox
-	await evaluator.init(null, security, settings, targetMapper);
+	await evaluator.init(fileBaseDir, security, settings, targetMapper);
 	// Inject global data
 	const placeholders = optionsOrAst?.placeholders || settings?.placeholders || {};
 	const variables = optionsOrAst?.variables || settings?.variables || {};
@@ -561,7 +570,7 @@ export async function transpiler(optionsOrAst, format, mapperFile) {
 		idState.idx = 0;
 		prev_was_silent = false;
 
-		await evaluator.init(null, security, settings, targetMapper);
+		await evaluator.init(fileBaseDir, security, settings, targetMapper);
 		evaluator.inject(placeholders);
 		evaluator.inject(variables);
 

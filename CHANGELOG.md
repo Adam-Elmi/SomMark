@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.5.2 (2026-06-14)
+
+### Fixed
+
+- **Relative imports inside `static ${}$` blocks didn't work** — Writing `import { data } from "../constants/data.js"` inside a static block always failed with "Module not found", even when the file existed. The import path was being resolved from the project root instead of the current `.smark` file's directory. Now resolves correctly.
+
 ## v4.5.1 (2026-06-13)
 
 ### Fixed

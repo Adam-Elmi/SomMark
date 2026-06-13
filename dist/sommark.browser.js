@@ -9184,7 +9184,7 @@ function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const version = "4.5.1";
+const version = "4.5.2";
 
 const SomMark$1 = {
     version,
@@ -11024,6 +11024,14 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 		settings.fs = instance.fs;
 	}
 
+	const fileBaseDir = (() => {
+		const filename = instance?.filename;
+		const cwd = instance?.cwd || "/";
+		if (!filename || filename === "anonymous") return cwd;
+		const abs = /^(\/|[a-zA-Z]:\\|https?:\/\/)/.test(filename) ? filename : posix.resolve(cwd, filename);
+		return posix.dirname(abs);
+	})();
+
 	const generateRuntimeOutput = optionsOrAst?.generateRuntimeOutput || false;
 	const hideRuntimeOutput = optionsOrAst?.hideRuntimeOutput || false;
 	const dualOutput = optionsOrAst?.dualOutput || false;
@@ -11050,7 +11058,7 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 	}
 
 	// Initialize Logic Sandbox
-	await Evaluator$1.init(null, security, settings, targetMapper);
+	await Evaluator$1.init(fileBaseDir, security, settings, targetMapper);
 	// Inject global data
 	const placeholders = optionsOrAst?.placeholders || settings?.placeholders || {};
 	const variables = optionsOrAst?.variables || settings?.variables || {};
@@ -11092,7 +11100,7 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 		idState.idx = 0;
 		prev_was_silent = false;
 
-		await Evaluator$1.init(null, security, settings, targetMapper);
+		await Evaluator$1.init(fileBaseDir, security, settings, targetMapper);
 		Evaluator$1.inject(placeholders);
 		Evaluator$1.inject(variables);
 
