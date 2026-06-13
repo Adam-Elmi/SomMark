@@ -1,5 +1,30 @@
 # Changelog
 
+## v4.5.0 (2026-06-13)
+
+Adds `dualOutput` for producing matching HTML and JS from one compilation, and warnings for conflicting output flags.
+
+### New Features
+
+- **`dualOutput: true`** — returns `[html, js]` from a single `transpile()` call.
+
+  Each compilation generates random `data-sommark-id` values to link elements to their scripts. Two separate compilations produce different IDs, so the JS `querySelector` never finds the element:
+
+  ```js
+  // ✗ IDs will never match — two compilations, two different random IDs
+  const html = await transpile({ src, format: "html", hideRuntimeOutput: true });
+  const js   = await transpile({ src, format: "html", generateRuntimeOutput: true });
+  ```
+
+  `dualOutput` fixes this by running both passes inside one call and sharing the IDs:
+
+  ```js
+  // ✓ One compilation — IDs always match
+  const [html, js] = await new SomMark({ src, format: "html", dualOutput: true }).transpile();
+  ```
+
+  See [`docs/api/Core/dualOutput.md`](docs/api/Core/dualOutput.md) for full details.
+
 ## v4.4.0 (2026-06-12)
 
 Adds the `sommark bundle` CLI command and three new partial browser bundles.

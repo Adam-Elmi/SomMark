@@ -1,6 +1,7 @@
 # generateRuntimeOutput
 
-Instructs the transpiler to compile only the runtime scripts directly into a clean, bundled `.js` string.
+Instructs the transpiler to output only the runtime JS bundle. All static HTML is suppressed and only `runtime ${ }$` blocks are emitted.
+
 ---
 
 **Syntax:**
@@ -8,58 +9,89 @@ Instructs the transpiler to compile only the runtime scripts directly into a cle
 // 1. In engine options
 new SomMark({ src, format, generateRuntimeOutput })
 
-// 2. In transpile options
+// 2. In transpile function
 transpile({ src, format, generateRuntimeOutput })
 ```
 
 **Default Value:** `false`
 
+---
+
 **Usage:**
 ```js
 import { transpile } from "sommark";
 
-const jsBundle = await transpile({
-  src: '[div]Text[end]\nruntime ${ console.log("running"); }$',
+const js = await transpile({
+  src: `[div]Text[end]
+runtime \${ console.log("running"); }\$`,
   format: "html",
   generateRuntimeOutput: true
 });
-console.log(jsBundle);
+
+console.log(js);
 // Output:
 // console.log("running");
 ```
 
 ---
 
-### Example: Scope-Wrapped Block Scripts
+### Scope-Wrapped Block Scripts
 
-If a runtime block script is placed inside an element that is mapped, the bundle generates a unique selector scope to wrap the execution:
+When a `runtime ${ }$` block is placed inside a mapped element, the transpiler wraps the script in an async IIFE scoped to that element. The element is found at runtime using a unique `data-sommark-id` attribute:
 
-```javascript
+```js
 import { transpile } from "sommark";
 
-const template = `
-[div]
+const js = await transpile({
+  src: `[div]
   [p]Scoped element[end]
   runtime \${ self.textContent = "hello"; }\$
-[end]
-`;
-
-const output = await transpile({
-  src: template,
+[end]`,
   format: "html",
   generateRuntimeOutput: true
 });
-console.log(output);
+
+console.log(js);
 /*
-Output:
 (async function(){const self = document.querySelector('[data-sommark-id="sommark-div-8a7f92b3"]');
 if (self) {
-self.textContent = "hello";
+  self.textContent = "hello";
 }
 })();
 */
 ```
 
-[Read hideRuntimeOutput.md for stripping scripts from layouts](hideRuntimeOutput.md)
+The `data-sommark-id` value is randomly generated at compile time. This means **two separate compilations of the same source will produce different IDs** — the HTML and JS will not match. To get both outputs with guaranteed matching IDs, use `dualOutput: true` instead:
+
+```js
+const [html, js] = await new SomMark({
+  src,
+  format: "html",
+  dualOutput: true
+}).transpile();
+```
+
+---
+
+### Conflict: `generateRuntimeOutput` and `hideRuntimeOutput` both true
+
+Setting both flags at the same time produces an empty string — they cancel each other out. `generateRuntimeOutput: true` suppresses HTML, and `hideRuntimeOutput: true` suppresses JS, so nothing is left. SomMark logs a warning when this happens:
+
+```js
+const result = await transpile({
+  src,
+  format: "html",
+  generateRuntimeOutput: true,
+  hideRuntimeOutput: true
+});
+// [SomMark] ⚠ Conflicting options — output will be empty
+// result === ""
+```
+
+---
+
+[Read dualOutput.md for getting both outputs in one call](dualOutput.md)
+
+[Read hideRuntimeOutput.md for stripping scripts from HTML output](hideRuntimeOutput.md)
 
 [Read transpile.md for compilation pipelines](transpile.md)

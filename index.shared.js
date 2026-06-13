@@ -64,7 +64,7 @@ class SomMark {
 	 * @param {string} [options.baseDir=null] - The base directory for resolving relative paths.
 	 */
 	constructor(options = {}) {
-		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = "style", outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, generateRuntimeOutput = false, hideRuntimeOutput = false, moduleIdentityToken = null } = options;
+		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = "style", outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, generateRuntimeOutput = false, hideRuntimeOutput = false, dualOutput = false, moduleIdentityToken = null } = options;
 		this.rawSettings = options;
 		this.src = src;
 		this.ast = ast;
@@ -76,6 +76,7 @@ class SomMark {
 		this.customProps = customProps;
 		this.generateRuntimeOutput = generateRuntimeOutput;
 		this.hideRuntimeOutput = hideRuntimeOutput;
+		this.dualOutput = dualOutput;
 		this.cwd = options.baseDir || (options.files ? "/" : defaultCwd);
 		this.fs = options.fs
 			|| (options.files ? new VirtualFS(options.files) : null)
@@ -291,6 +292,7 @@ class SomMark {
 				settings: this.rawSettings,
 				generateRuntimeOutput: this.generateRuntimeOutput,
 				hideRuntimeOutput: this.hideRuntimeOutput,
+				dualOutput: this.dualOutput,
 				instance: this
 			});
 

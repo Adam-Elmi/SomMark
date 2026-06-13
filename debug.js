@@ -5,9 +5,7 @@ const file_content = await fs.readFile("./debug.smark", "utf-8");
 let smark = new SomMark({
     src: file_content,
     format: "html",
-    security: {
-        allowRaw: true
-    },
+    dualOutput: true,
 });
 
 const out = await smark.transpile();

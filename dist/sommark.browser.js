@@ -9184,7 +9184,7 @@ function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const version = "4.4.0";
+const version = "4.5.0";
 
 const SomMark$1 = {
     version,
@@ -10577,7 +10577,7 @@ function getNodeText$1(node) {
  * @param {Object} mapper_file - The rules for how to convert each node.
  * @returns {Promise<string>} - The final text for this node.
  */
-async function generateOutput(ast, i, format, mapper_file, security = {}, parentId = null, generateRuntimeOutput = false, hideRuntimeOutput = false, instance = null) {
+async function generateOutput(ast, i, format, mapper_file, security = {}, parentId = null, generateRuntimeOutput = false, hideRuntimeOutput = false, instance = null, idState = null) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	if (!node) return "";
 
@@ -10592,7 +10592,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 		if (node.body) {
 			Evaluator$1.pushScope();
 			for (let j = 0; j < node.body.length; j++) {
-				bodyOutput += await generateOutput(node.body, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance);
+				bodyOutput += await generateOutput(node.body, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState);
 			}
 			await Evaluator$1.popScope();
 		}
@@ -10700,7 +10700,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			});
 
 			for (let j = 0; j < cleanedBody.length; j++) {
-				output += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance);
+				output += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState);
 			}
 
 			await Evaluator$1.popScope();
@@ -10723,7 +10723,12 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 		const hasRuntime = node.body?.some(child => child.type === RUNTIME_LOGIC);
 		if (hasRuntime) {
-			secretId = `sommark-${node.id.toLowerCase()}-${randomBytesHex(4)}`;
+			if (idState?.mode === 'replay') {
+				secretId = idState.ids[idState.idx++] ?? `sommark-${node.id.toLowerCase()}-${randomBytesHex(4)}`;
+			} else {
+				secretId = `sommark-${node.id.toLowerCase()}-${randomBytesHex(4)}`;
+				if (idState?.mode === 'record') idState.ids.push(secretId);
+			}
 		}
 	}
 
@@ -10779,7 +10784,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			let resolvedBody = "";
 			Evaluator$1.pushScope();
 			for (let j = 0; j < node.body.length; j++) {
-				resolvedBody += await generateOutput(node.body, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance);
+				resolvedBody += await generateOutput(node.body, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState);
 			}
 			await Evaluator$1.popScope();
 			content = dedentBy(resolvedBody, node.range?.start?.character || 0);
@@ -10789,7 +10794,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			let childrenOutput = "";
 			if (node.body) {
 				for (let j = 0; j < node.body.length; j++) {
-					childrenOutput += await generateOutput(node.body, j, format, mapper_file, security, secretId || parentId, generateRuntimeOutput, hideRuntimeOutput, instance);
+					childrenOutput += await generateOutput(node.body, j, format, mapper_file, security, secretId || parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState);
 				}
 			}
 			return childrenOutput;
@@ -10900,7 +10905,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 					case FOR_EACH:
 					case BLOCK:
-						bodyOutput = await generateOutput(body_node, 0, format, mapper_file, security, secretId || parentId, generateRuntimeOutput, hideRuntimeOutput, instance);
+						bodyOutput = await generateOutput(body_node, 0, format, mapper_file, security, secretId || parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState);
 						break;
 
 					case RUNTIME_LOGIC:
@@ -11019,6 +11024,31 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 		settings.fs = instance.fs;
 	}
 
+	const generateRuntimeOutput = optionsOrAst?.generateRuntimeOutput || false;
+	const hideRuntimeOutput = optionsOrAst?.hideRuntimeOutput || false;
+	const dualOutput = optionsOrAst?.dualOutput || false;
+
+	if (dualOutput && (generateRuntimeOutput || hideRuntimeOutput)) {
+		const flags = [
+			generateRuntimeOutput && "\x1b[36mgenerateRuntimeOutput\x1b[0m",
+			hideRuntimeOutput     && "\x1b[36mhideRuntimeOutput\x1b[0m"
+		].filter(Boolean).join(" and ");
+		console.warn(
+			`\n[SomMark] \x1b[33m⚠ Ignored options when dualOutput is true\x1b[0m\n` +
+			`  ${flags} ${generateRuntimeOutput && hideRuntimeOutput ? "are" : "is"} ignored when \x1b[32mdualOutput: true\x1b[0m is set.\n` +
+			`  \x1b[2mdualOutput manages both HTML and JS passes internally — no need to set those flags.\x1b[0m\n`
+		);
+	} else if (generateRuntimeOutput && hideRuntimeOutput) {
+		console.warn(
+			"\n[SomMark] \x1b[33m⚠ Conflicting options — output will be empty\x1b[0m\n" +
+			"  \x1b[36mgenerateRuntimeOutput: true\x1b[0m  →  outputs only JS, suppresses all HTML\n" +
+			"  \x1b[36mhideRuntimeOutput: true\x1b[0m      →  suppresses all JS output\n" +
+			"  Together they cancel each other out and produce nothing.\n" +
+			"  \x1b[2mHint: use one at a time, or \x1b[0m\x1b[32mdualOutput: true\x1b[0m\x1b[2m to get [html, js] in one call.\x1b[0m\n"
+		);
+		return "";
+	}
+
 	// Initialize Logic Sandbox
 	await Evaluator$1.init(null, security, settings, targetMapper);
 	// Inject global data
@@ -11030,8 +11060,63 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 	let output = "";
 	let prev_body_node = null;
 	let prev_was_silent = false;
-	const generateRuntimeOutput = optionsOrAst?.generateRuntimeOutput || false;
-	const hideRuntimeOutput = optionsOrAst?.hideRuntimeOutput || false;
+
+	if (dualOutput) {
+		const idState = { mode: 'record', ids: [], idx: 0 };
+
+		// HTML pass — generate HTML, record element IDs for runtime blocks
+		let htmlOutput = "";
+		try {
+			for (let i = 0; i < body.length; i++) {
+				const node = body[i];
+				const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, true, instance, idState);
+				let finalBlockOutput = blockOutput;
+				if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+				if (finalBlockOutput) {
+					htmlOutput += finalBlockOutput;
+					prev_was_silent = false;
+				} else {
+					prev_was_silent = true;
+					if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
+						const nextNode = body[i + 1];
+						if (nextNode && nextNode.type === TEXT$1 && (nextNode.text === "\n" || nextNode.text === "\r\n")) i++;
+					}
+				}
+			}
+		} finally {
+			Evaluator$1.destroy();
+		}
+
+		// JS pass — replay the same IDs so querySelector targets match HTML
+		idState.mode = 'replay';
+		idState.idx = 0;
+		prev_was_silent = false;
+
+		await Evaluator$1.init(null, security, settings, targetMapper);
+		Evaluator$1.inject(placeholders);
+		Evaluator$1.inject(variables);
+
+		let jsOutput = "";
+		try {
+			for (let i = 0; i < body.length; i++) {
+				const node = body[i];
+				const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, true, false, instance, idState);
+				let finalBlockOutput = blockOutput;
+				if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+				if (finalBlockOutput) {
+					jsOutput += finalBlockOutput;
+					prev_was_silent = false;
+				} else {
+					prev_was_silent = true;
+				}
+			}
+		} finally {
+			Evaluator$1.destroy();
+		}
+
+		return [htmlOutput.trim(), jsOutput.trim()];
+	}
+
 	try {
 		for (let i = 0; i < body.length; i++) {
 			const node = body[i];
@@ -14095,7 +14180,7 @@ class SomMark {
 	 * @param {string} [options.baseDir=null] - The base directory for resolving relative paths.
 	 */
 	constructor(options = {}) {
-		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = "style", outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, generateRuntimeOutput = false, hideRuntimeOutput = false, moduleIdentityToken = null } = options;
+		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = "style", outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, generateRuntimeOutput = false, hideRuntimeOutput = false, dualOutput = false, moduleIdentityToken = null } = options;
 		this.rawSettings = options;
 		this.src = src;
 		this.ast = ast;
@@ -14107,6 +14192,7 @@ class SomMark {
 		this.customProps = customProps;
 		this.generateRuntimeOutput = generateRuntimeOutput;
 		this.hideRuntimeOutput = hideRuntimeOutput;
+		this.dualOutput = dualOutput;
 		this.cwd = options.baseDir || (options.files ? "/" : defaultCwd);
 		this.fs = options.fs
 			|| (options.files ? new VirtualFS(options.files) : null)
@@ -14322,6 +14408,7 @@ class SomMark {
 				settings: this.rawSettings,
 				generateRuntimeOutput: this.generateRuntimeOutput,
 				hideRuntimeOutput: this.hideRuntimeOutput,
+				dualOutput: this.dualOutput,
 				instance: this
 			});
 
