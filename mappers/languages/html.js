@@ -1,5 +1,6 @@
 import Mapper from "../mapper.js";
 import { VOID_ELEMENTS } from "../../constants/void_elements.js";
+import { SVG_ELEMENTS } from "../../constants/svg_elements.js";
 import { registerSharedOutputs } from "../shared/index.js";
 import kebabize from "../../helpers/kebabize.js";
 
@@ -13,15 +14,20 @@ import kebabize from "../../helpers/kebabize.js";
  */
 const renderHtmlTag = function (id, args, content, isSelfClosing) {
 	const element = this.tag(id);
+	const idLower = id.toLowerCase();
 
-	element.smartAttributes(args, this.customProps, this.options);
+	if (SVG_ELEMENTS.has(idLower)) {
+		element.attributes(args);
+	} else {
+		element.smartAttributes(args, this.customProps, this.options);
+	}
 
 	let finalContent = content;
-	if (id.toLowerCase() === "script" && args.scoped === true) {
+	if (idLower === "script" && args.scoped === true) {
 		finalContent = `(function(){\n${content}\n})();`;
 	}
 
-	if (VOID_ELEMENTS.has(id.toLowerCase()) || isSelfClosing) {
+	if (VOID_ELEMENTS.has(idLower) || isSelfClosing) {
 		return element.selfClose();
 	}
 
@@ -92,12 +98,12 @@ const HTML = Mapper.define({
 	 * @returns {Object} - A virtual id registration for fallback rendering.
 	 */
 	getUnknownTag(node) {
-		const id = node.id.toLowerCase();
-		const isVoid = VOID_ELEMENTS.has(id);
-		const isCodeStyleOrScript = ["code", "style", "script"].includes(id);
+		const idLower = node.id.toLowerCase();
+		const isVoid = VOID_ELEMENTS.has(idLower);
+		const isCodeStyleOrScript = ["code", "style", "script"].includes(idLower);
 
 		return {
-			render: function ({ args, content, isSelfClosing }) { return renderHtmlTag.call(this, id, args, content, isSelfClosing); },
+			render: function ({ args, content, isSelfClosing }) { return renderHtmlTag.call(this, node.id, args, content, isSelfClosing); },
 			options: {
 				type: isCodeStyleOrScript ? ["Block", "AtBlock"] : ["Block", "Inline"],
 				escape: !isCodeStyleOrScript,

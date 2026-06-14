@@ -28,15 +28,6 @@ describe("SomMark HTML Mapper Comprehensive Test Suite", () => {
 			expect(dom.window.document.querySelector("p").textContent).toBe("Content");
 		});
 
-		it("falls back to lowercase tag representations when encountering unknown identifiers", async () => {
-			const sm = new SomMark(smSettings("[MyCustomTag]Content[end]"));
-			const output = await sm.transpile();
-			expect(output).toBe("<mycustomtag>Content</mycustomtag>");
-
-			const dom = validateHtml(output);
-			expect(dom.window.document.querySelector("mycustomtag").textContent).toBe("Content");
-		});
-
 		it("processes deeply nested block structures recursively without stack overflow", async () => {
 			let src = "Content";
 			for (let i = 0; i < 100; i++) {

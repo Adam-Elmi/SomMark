@@ -9184,7 +9184,7 @@ function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const version = "4.5.2";
+const version = "4.5.3";
 
 const SomMark$1 = {
     version,
@@ -11320,7 +11320,72 @@ const HTML_PROPS = new Set([
 	"referrerpolicy",
 	"sizes",
 	"srcset",
-	"virtualkeyboardpolicy"
+	"virtualkeyboardpolicy",
+
+	// Links & navigation
+	"hreflang",
+	"ping",
+	"accept-charset",
+
+	// Forms
+	"accept",
+	"novalidate",
+	"dirname",
+
+	// Tables
+	"colspan",
+	"rowspan",
+	"scope",
+	"headers",
+	"span",
+
+	// Lists
+	"reversed",
+	"start",
+
+	// Interactive / structural
+	"open",
+	"size",
+	"cite",
+	"datetime",
+
+	// Media & track
+	"default",
+	"kind",
+	"label",
+	"srcdoc",
+	"srclang",
+
+	// Images
+	"ismap",
+	"usemap",
+
+	// Resource hints
+	"as",
+	"fetchpriority",
+
+	// Meta
+	"http-equiv",
+
+	// Meter
+	"high",
+	"low",
+	"optimum",
+
+	// Deprecated (still valid)
+	"align",
+	"bgcolor",
+	"border",
+	"color",
+	"coords",
+	"shape",
+	"summary",
+
+	// Experimental
+	"elementtiming",
+	"colorspace",
+	"alpha",
+	"csp",
 ]);
 
 const VOID_ELEMENTS = new Set([
@@ -12268,6 +12333,38 @@ function registerSharedOutputs(mapper) {
 
 }
 
+const SVG_ELEMENTS = new Set([
+	// Basic shapes
+	"circle", "ellipse", "line", "path", "polygon", "polyline", "rect",
+	// Containers
+	"svg", "g", "defs", "symbol", "use", "marker", "mask", "pattern", "switch",
+	// Text
+	"text", "tspan", "textpath", "tref",
+	// Image
+	"image",
+	// Gradients
+	"lineargradient", "radialgradient", "stop", "solidcolor",
+	"meshgradient", "meshrow", "meshpatch",
+	// Hatch (SVG 2)
+	"hatch", "hatchpath",
+	// Filter container
+	"filter",
+	// Filter primitives
+	"feblend", "fecolormatrix", "fecomponenttransfer", "fecomposite",
+	"feconvolvematrix", "fediffuselighting", "fedisplacementmap", "fedropshadow",
+	"feflood", "fefunca", "fefuncb", "fefuncg", "fefuncr",
+	"fegaussianblur", "feimage", "femerge", "femergenode",
+	"femorphology", "feoffset", "fespecularlighting", "fetile", "feturbulence",
+	// Light sources
+	"fedistantlight", "fepointlight", "fespotlight",
+	// Animation
+	"animate", "animatemotion", "animatetransform", "set", "mpath", "discard",
+	// Descriptive
+	"desc", "title", "metadata",
+	// Other
+	"clippath", "foreignobject", "view", "cursor",
+]);
+
 /**
  * Helper to format an HTML tag with attributes and content.
  * 
@@ -12278,15 +12375,20 @@ function registerSharedOutputs(mapper) {
  */
 const renderHtmlTag = function (id, args, content, isSelfClosing) {
 	const element = this.tag(id);
+	const idLower = id.toLowerCase();
 
-	element.smartAttributes(args, this.customProps, this.options);
+	if (SVG_ELEMENTS.has(idLower)) {
+		element.attributes(args);
+	} else {
+		element.smartAttributes(args, this.customProps, this.options);
+	}
 
 	let finalContent = content;
-	if (id.toLowerCase() === "script" && args.scoped === true) {
+	if (idLower === "script" && args.scoped === true) {
 		finalContent = `(function(){\n${content}\n})();`;
 	}
 
-	if (VOID_ELEMENTS.has(id.toLowerCase()) || isSelfClosing) {
+	if (VOID_ELEMENTS.has(idLower) || isSelfClosing) {
 		return element.selfClose();
 	}
 
@@ -12357,12 +12459,12 @@ const HTML = Mapper.define({
 	 * @returns {Object} - A virtual id registration for fallback rendering.
 	 */
 	getUnknownTag(node) {
-		const id = node.id.toLowerCase();
-		const isVoid = VOID_ELEMENTS.has(id);
-		const isCodeStyleOrScript = ["code", "style", "script"].includes(id);
+		const idLower = node.id.toLowerCase();
+		const isVoid = VOID_ELEMENTS.has(idLower);
+		const isCodeStyleOrScript = ["code", "style", "script"].includes(idLower);
 
 		return {
-			render: function ({ args, content, isSelfClosing }) { return renderHtmlTag.call(this, id, args, content, isSelfClosing); },
+			render: function ({ args, content, isSelfClosing }) { return renderHtmlTag.call(this, node.id, args, content, isSelfClosing); },
 			options: {
 				type: isCodeStyleOrScript ? ["Block", "AtBlock"] : ["Block", "Inline"],
 				escape: !isCodeStyleOrScript,

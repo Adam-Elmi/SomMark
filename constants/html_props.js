@@ -97,5 +97,70 @@ export const HTML_PROPS = new Set([
 	"referrerpolicy",
 	"sizes",
 	"srcset",
-	"virtualkeyboardpolicy"
+	"virtualkeyboardpolicy",
+
+	// Links & navigation
+	"hreflang",
+	"ping",
+	"accept-charset",
+
+	// Forms
+	"accept",
+	"novalidate",
+	"dirname",
+
+	// Tables
+	"colspan",
+	"rowspan",
+	"scope",
+	"headers",
+	"span",
+
+	// Lists
+	"reversed",
+	"start",
+
+	// Interactive / structural
+	"open",
+	"size",
+	"cite",
+	"datetime",
+
+	// Media & track
+	"default",
+	"kind",
+	"label",
+	"srcdoc",
+	"srclang",
+
+	// Images
+	"ismap",
+	"usemap",
+
+	// Resource hints
+	"as",
+	"fetchpriority",
+
+	// Meta
+	"http-equiv",
+
+	// Meter
+	"high",
+	"low",
+	"optimum",
+
+	// Deprecated (still valid)
+	"align",
+	"bgcolor",
+	"border",
+	"color",
+	"coords",
+	"shape",
+	"summary",
+
+	// Experimental
+	"elementtiming",
+	"colorspace",
+	"alpha",
+	"csp",
 ]);

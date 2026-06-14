@@ -1,5 +1,19 @@
 # Changelog
 
+## v4.5.3 (2026-06-14)
+
+### Fixed
+
+- **SVG attributes rendered as inline styles** — The HTML mapper uses a method called `smartAttributes` to process element props. For any prop that is not a known HTML attribute, `smartAttributes` falls back to putting it in a `style="..."` attribute. SVG attributes like `fill`, `d`, `clip-path`, and `viewBox` are not HTML attributes, so they were all ending up as `style="fill:red;d:...;"` instead of `fill="red" d="..."`. SVG elements now skip `smartAttributes` entirely and render their props as plain HTML attributes.
+
+- **SVG camelCase tag names were lowercased in output** — The HTML mapper was lowercasing all unknown tag names before rendering. This turned `[clipPath]` into `<clippath>` and `[linearGradient]` into `<lineargradient>`. Inside `<svg>`, browsers are case-sensitive — `<clippath>` is not the same as `<clipPath>` and will be ignored, breaking things like clip masks. Tag names are now preserved exactly as written.
+
+### Added
+
+- **`constants/svg_elements.js`** — A new constant file listing all standard SVG elements. The HTML mapper checks this list to decide whether to skip `smartAttributes` for an element. To add support for a new SVG element, just add its name to this file — no logic changes needed.
+
+- **33 missing HTML attributes in `html_props.js`** — `smartAttributes` uses a list called `HTML_PROPS` to decide which props are real HTML attributes. Any prop not in that list was falling back to `style`. Many common attributes were missing — `accept`, `hreflang`, `ping`, `colspan`, `rowspan`, `novalidate`, `open`, `datetime`, `fetchpriority`, `as`, `srcdoc`, `http-equiv`, and more. All are now in the list and will render as proper HTML attributes.
+
 ## v4.5.2 (2026-06-14)
 
 ### Fixed
