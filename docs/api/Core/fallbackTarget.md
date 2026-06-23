@@ -6,18 +6,15 @@ Controls how unrecognized block attributes are rendered when they are not in `cu
 
 **Syntax:**
 ```js
-// In engine options
 new SomMark({ src, format, fallbackTarget })
-
-// In transpile options
-transpile({ src, format, fallbackTarget })
 ```
 
 **Supported values:**
 
 | Value | Behavior |
 | :--- | :--- |
-| `"style"` *(default)* | Unknown attributes are compiled into the `style` attribute as inline CSS. |
+| `true` *(default)* | Unknown attributes are compiled into the `style` attribute as inline CSS. |
+| `"style"` | Alias for `true` — accepted for backward compatibility. |
 | `false` | No fallback. Unknown attributes are rendered as standard HTML attributes. |
 
 ---
@@ -27,9 +24,9 @@ transpile({ src, format, fallbackTarget })
 import { transpile } from "sommark";
 
 const output = await transpile({
-  src: '[div = spacing: 20]Box[end:div]',
+  src: '[div = spacing: 20]Box[end]',
   format: "html",
-  fallbackTarget: "style"
+  fallbackTarget: true
 });
 console.log(output);
 // <div style="spacing:20;">Box</div>
@@ -40,12 +37,12 @@ console.log(output);
 ### Comparing the two modes
 
 ```ini
-[div = primary: true, size: "large"]Content[end:div]
+[div = primary: true, size: "large"]Content[end]
 ```
 
 ```js
-// fallbackTarget: "style" (default)
-await transpile({ src, format: "html", fallbackTarget: "style" });
+// fallbackTarget: true (default)
+await transpile({ src, format: "html", fallbackTarget: true });
 // <div style="primary:true;size:large;">Content</div>
 
 // fallbackTarget: false
