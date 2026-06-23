@@ -51,7 +51,7 @@ describe("SomMark Config Loader Integration Tests", () => {
 			expect(config.placeholders).toEqual({});
 			expect(config.customProps).toEqual([]);
 			expect(config.importAliases).toEqual({});
-			expect(config.fallbackTarget).toBe("style");
+			expect(config.fallbackTarget).toBe(true);
 			expect(config.outputValidator).toBeNull();
 			expect(config.baseDir).toBeNull();
 			expect(config.showSpinner).toBe(true);
@@ -121,7 +121,7 @@ export default {
 			const customConfigContent = `
 export default {
 	outputFile: "my_explicit_output",
-	fallbackTarget: "markdown"
+	fallbackTarget: false
 };
 			`;
 			fs.writeFileSync(path.join(customDir, "custom_smark_config.js"), customConfigContent, "utf-8");
@@ -129,7 +129,7 @@ export default {
 			const config = await findAndLoadConfig("./tests/core/temp_configs/custom/custom_smark_config.js");
 
 			expect(config.outputFile).toBe("my_explicit_output");
-			expect(config.fallbackTarget).toBe("markdown");
+			expect(config.fallbackTarget).toBe(false);
 			expect(config.resolvedConfigPath).toBe(path.resolve(customDir, "custom_smark_config.js"));
 		});
 	});
