@@ -156,32 +156,18 @@ describe("SomMark HTML Mapper Comprehensive Test Suite", () => {
 	});
 
 	describe("Step 5: fallbackTarget Compiler Configurations", () => {
-		it("maps unrecognized properties to style by default or when fallbackTarget is style", async () => {
+		it("maps unrecognized properties to inline style when fallbackTarget is true (default)", async () => {
 			const smDefault = new SomMark(smSettings('[div = theme: "dark"]Content[end]'));
-			const smStyle = new SomMark(smSettings('[div = theme: "dark"]Content[end]', { fallbackTarget: "style" }));
+			const smTrue = new SomMark(smSettings('[div = theme: "dark"]Content[end]', { fallbackTarget: true }));
 
 			const outDefault = await smDefault.transpile();
-			const outStyle = await smStyle.transpile();
+			const outTrue = await smTrue.transpile();
 
 			expect(outDefault).toBe('<div style="theme:dark;">Content</div>');
-			expect(outStyle).toBe('<div style="theme:dark;">Content</div>');
+			expect(outTrue).toBe('<div style="theme:dark;">Content</div>');
 
 			const dom1 = validateHtml(outDefault);
 			expect(dom1.window.document.querySelector("div").getAttribute("style")).toBe("theme:dark;");
-		});
-
-		it("falls back to style when an unsupported fallbackTarget value is passed", async () => {
-			// "class" is no longer a supported fallbackTarget — unknown values behave like "style"
-			const sm = new SomMark(smSettings('[div = theme: "dark", bold: true, class: "card"]Content[end]', {
-				fallbackTarget: "class"
-			}));
-			const output = await sm.transpile();
-			expect(output).toBe('<div class="card" style="theme:dark;bold:true;">Content</div>');
-
-			const dom = validateHtml(output);
-			const el = dom.window.document.querySelector("div");
-			expect(el.getAttribute("class")).toBe("card");
-			expect(el.getAttribute("style")).toBe("theme:dark;bold:true;");
 		});
 
 		it("renders unrecognized properties literally on the HTML element when fallbackTarget is false", async () => {
