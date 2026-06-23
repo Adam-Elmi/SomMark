@@ -418,7 +418,7 @@ export default {
   removeComments: true,
   placeholders: {},
   importAliases: { "@": "./" },
-  fallbackTarget: "style",
+  fallbackTarget: true,
   outputValidator: null,
   baseDir: null,
   showSpinner: true,
