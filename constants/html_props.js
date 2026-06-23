@@ -150,10 +150,6 @@ export const HTML_PROPS = new Set([
 	"optimum",
 
 	// Deprecated (still valid)
-	"align",
-	"bgcolor",
-	"border",
-	"color",
 	"coords",
 	"shape",
 	"summary",
@@ -161,6 +157,5 @@ export const HTML_PROPS = new Set([
 	// Experimental
 	"elementtiming",
 	"colorspace",
-	"alpha",
 	"csp",
 ]);
