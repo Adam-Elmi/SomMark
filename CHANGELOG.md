@@ -1,5 +1,21 @@
 # Changelog
 
+## v5.0.1 (2026-06-23)
+
+### Changed
+
+- **`fallbackTarget` simplified to boolean** — use `true` (inline style fallback, default) or `false` (render unrecognized props as plain HTML attributes). `"style"` is still accepted as an alias for `true` for backward compatibility. `"class"` has been removed — it was never implemented.
+
+### Fixed
+
+- **`color` removed from `HTML_PROPS`** — `color` is a deprecated HTML4 attribute (`<font color="">`, `<hr color="">`). In modern HTML it is always a CSS property, so having it in the attribute list caused `[h2 = color: "red"]` to produce `color="red"` instead of `style="color:red;"`.
+
+- **`align`, `bgcolor`, `border` removed from `HTML_PROPS`** — all three are deprecated HTML4 attributes. In any modern context they are CSS properties (`text-align`, `background-color`, `border`), so keeping them in the list silently swallowed the user's CSS intent and rendered them as invalid HTML attributes.
+
+- **`alpha` removed from `HTML_PROPS`** — `alpha` is not an HTML element attribute. It is a JavaScript canvas context option (`getContext('2d', { alpha: false })`). It should never have been in the list.
+
+---
+
 ## v5.0.0 — Official Stable Release (2026-06-23)
 
 This is the last major version of SomMark. The main goal has been reached: a single consistent block syntax that compiles to any output format. Future releases will be minor updates or patches.
