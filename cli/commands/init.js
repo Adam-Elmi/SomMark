@@ -26,7 +26,7 @@ export default {
     importAliases: {            // Custom path aliases for modules (e.g. { "@": "./src/components" })
         "@": "./"
     },
-    fallbackTarget: "style",    // Where unrecognized attributes go: "style", "class", or false to disable
+    fallbackTarget: true,       // Enable style fallback for unrecognized attributes (true or false)
     outputValidator: null,      // Custom callback function: async (transpiledOutput) => { ... }
     baseDir: null,              // Base directory for resolving relative module imports
     showSpinner: true,          // Display a dynamic spinner in the terminal during transpilation
