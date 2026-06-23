@@ -1,5 +1,53 @@
 # Changelog
 
+## v5.0.0 — Official Stable Release (2026-06-23)
+
+This is the last major version of SomMark. The main goal has been reached: a single consistent block syntax that compiles to any output format. Future releases will be minor updates or patches.
+
+### Added
+
+- **YAML mapper** — typed scalars (`[str]`, `[int]`, `[float]`, `[number]`, `[bool]`, `[null]`), sequences (`[seq]`), mappings (`[mapping]`, `[map-item]`), multi-line scalars (`[literal]`, `[folded]`), document markers (`[doc-start]`, `[doc-end]`), and `getUnknownTag` shorthand (tag name becomes the YAML key, type inferred automatically).
+
+- **TOML mapper** — same typed scalars as YAML with `[int]`/`[float]`/`[number]` build-time validation, tables (`[table]`, `[array-of-tables]`), arrays (`[array]`), multi-line strings (`[ml-string]`), and `getUnknownTag` shorthand.
+
+- **CSV mapper** — `[row]`, `[cell]`, `[header]` blocks with configurable delimiter.
+
+- **`smark-raw: true` prop** — add this to any block header and the lexer stops parsing the body, collecting everything until `[end]` as a single raw text node. The renderer receives the body exactly as written — brackets, comments, and SomMark syntax are all treated as plain text. Escape a literal `[` with `\[`.
+
+- **`renderChild` custom props** — `renderChild(child, { ...props })` now forwards any extra properties to the child renderer as named parameters. The transpiler delivers them transparently — the child just declares the parameter by name. This is how structural parent blocks (like `[mapping]` or `[seq]`) pass context such as `depth`, `inSeq`, or `inMapItem` to their children without the engine needing to know the property names.
+
+- **Mapper creation guides** — `docs/guides/html-mapper.md` (11 steps, when NOT to use `handleAst`) and `docs/guides/yaml-mapper.md` (11 steps, why `handleAst: true` is needed everywhere in YAML).
+
+- **`docs/glossary.md`** — SomMark terminology reference.
+
+- **Language docs** — `docs/languages/yaml.md`, `docs/languages/toml.md`, `docs/languages/csv.md`.
+
+- **`docs/api/Mapper/renderChild.md`** — step-by-step guide with ASCII flow diagrams.
+
+- **`docs/syntax/smark-raw.md`** — full reference for the raw body prop.
+
+### Removed
+
+- **`js{}` prefix layer** — superseded by `static ${ }$` expressions. Use `static ${ value }$` anywhere you previously used `js{}`.
+
+- **`generateRuntimeOutput` and `hideRuntimeOutput` options** — runtime output handling has been simplified. Use `dualOutput: true` if you need both HTML and JS from one compilation.
+
+- **`atBlockBody` mapper method** — at-block syntax (`@_..._@`) removed from the engine. Use `smark-raw: true` for raw body content.
+
+- **`inlineText` mapper method** — inline element syntax `(text)->(tag)` removed from the engine.
+
+- **`[raw]` shared output registration** — removed from `mappers/shared/index.js`. Blocks that need raw output should use `smark-raw: true` or register their own renderer. Each format's `getUnknownTag` now handles `[raw]` naturally.
+
+- **Docs for removed APIs** — `generateRuntimeOutput.md`, `hideRuntimeOutput.md`, `atBlockBody.md`, `inlineText.md`, `atblock.md`, `inline.md`, `js.md`.
+
+### Fixed
+
+- **`showSpinner` defaults to `true`** — was missing from `defaultConfig`, which caused it to return `undefined`. Spinner is on unless you explicitly set `showSpinner: false`.
+
+- **`sommark color on|off`** — was async with file I/O, causing the log message to not appear when called synchronously in tests. Now synchronous and prints `SOMMARK_COLOR=true` / `SOMMARK_COLOR=false` env var instructions directly to the terminal. Color preference is set via environment variable, not a config file.
+
+---
+
 ## v4.5.3 (2026-06-14)
 
 ### Fixed
