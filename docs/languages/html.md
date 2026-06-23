@@ -1,285 +1,254 @@
-# HTML Mapping Guide
+# HTML Mapper
 
-SomMark is a powerful HTML5 transpilation engine. It converts your structural blocks into accurate, type-safe HTML with automatic styling optimizations, semantic validation, and built-in security.
+The HTML Mapper converts SomMark blocks into valid HTML5. Any block name that is not registered is output as an HTML element with that name — so `[div]`, `[section]`, `[article]`, and all other HTML elements work without any setup.
 
 ---
 
-## 1. Native HTML Support 
+## Advantages over Raw HTML
 
-You can use **any standard HTML5 tag** in SomMark without registration. If a tag is not explicitly registered in the mapper, SomMark automatically treats it as a standard HTML element.
+| Feature | SomMark | Raw HTML |
+| :--- | :--- | :--- |
+| **Module system** | `[import]` splits files into reusable parts | No file includes |
+| **Component system** | `[slot]` + `[import]` = reusable layouts where you choose what content goes inside | No components |
+| **Placeholder blocks** | `p{key}` injects data at build time | No variables |
+| **Component props** | `v{key}` passes different values into imported components | Every component always outputs the same thing |
+| **Compile-time logic** | `${}$` runs JS at build time in a safe separate environment (`static` keyword is optional) | No build-time logic |
+| **Runtime JS scoping** | `runtime ${}$` scopes scripts to their parent element | Manual DOM queries |
+| **Looping** | `[for-each]` generates repeated content at build time | No looping |
+| **Consistent syntax** | Every block follows the same `[name = props]body[end]` pattern | Different rules per element |
 
-**Example: Using Unregistered Tags**
+---
+
+## 1. Native HTML Elements
+
+Any block name that is not registered is output as an HTML element with that name. You never need to register standard elements.
+
 ```ini
 [section = padding: "20px"]
   [article]
-    [header] [h1]Article Title[end] [end]
-    [p]This is a standard HTML5 article structure.[end]
-  [end]
-[end]
+    [header][h1]Article Title[end][end:header]
+    [p]Standard HTML5 article structure.[end]
+  [end:article]
+[end:section]
 ```
 
 ---
 
-## 2. Smart Attribute Engine
+## 2. Props to Attributes
 
-The HTML Mapper uses a comprehensive **Smart Attribute** system that decides how every argument in your SomMark header should be rendered.
+The HTML Mapper looks at each prop and decides whether it goes in the HTML attribute list or in the `style` attribute.
 
-### The "Style Fallback" Rule
-If you pass an argument that is not a standard HTML property (like `id`, `class`, or `href`), SomMark automatically moves it into the `style` attribute.
+### Unknown Props Go to Style
 
-**Authoring Flexibility**: You can use **camelCase** (e.g., `backgroundColor`, `dataId`, `onClick`) throughout your document. SomMark automatically normalizes **all attributes** to their standard kebab-case or lowercase counterparts (e.g., `background-color`, `data-id`, `onclick`).
+If a prop is not a known HTML attribute (like `color`, `fontSize`, or `padding`), SomMark moves it into `style` automatically.
 
-**Important: Style Merging**
-If you provide a manual `style` prop AND unknown properties, SomMark **merges** them together seamlessly.
+Props can be written in **camelCase** — SomMark converts them to the correct HTML/CSS form (`backgroundColor` → `background-color`, `onClick` → `onclick`, `dataId` → `data-id`).
+
+If you pass both a `style` prop and extra CSS props, SomMark combines them:
+
 ```ini
 [div = style: "opacity: 0.5", color: "red", margin: "10px"] ... [end]
 ```
-**Resulting HTML:**
+
 ```html
 <div style="opacity: 0.5;color:red;margin:10px;"> ... </div>
 ```
 
-**Advanced Style Merging Example:**
 ```ini
-[button = 
-  style: "transition: 0.3s", 
-  backgroundColor: "green", 
-  color: "white", 
-  border: "none", 
+[button =
+  style: "transition: 0.3s",
+  backgroundColor: "green",
+  color: "white",
+  border: "none",
   padding: "10px 20px"
-] Click Me [end]
+]Click Me[end:button]
 ```
-**Result:** `<button style="transition: 0.3s;background-color:green;color:white;border:none;padding:10px 20px;">Click Me</button>`
 
-### Custom Properties (`customProps`)
-You can whitelist non-standard attributes (like framework-specific props or custom system flags) to ensure they are rendered as literal HTML attributes instead of being moved to the `style` fallback. 
+```html
+<button style="transition: 0.3s;background-color:green;color:white;border:none;padding:10px 20px;">Click Me</button>
+```
 
-> [!NOTE]
-> Standard HTML5 attributes including **`data-*`**, **`on*`**, and **`aria-*`** are natively supported and do not need to be whitelisted.
+### Custom Props (`customProps`)
 
-**Developer Setup (`index.js`):**
+Props that are not standard HTML attributes land in `style` by default. If you want them output as real HTML attributes, list them in `customProps`.
+
+> Standard `data-*`, `on*`, and `aria-*` attributes always work as attributes — no setup needed.
+
 ```javascript
 const sm = new SomMark({
-    src: source,
-    format: "html",
-    customProps: ["variant", "theme"] // Whitelist these
+  src: source,
+  format: "html",
+  customProps: ["variant", "theme"]
 });
 ```
 
-**Result in SomMark:**
 ```ini
-# This stays as an attribute because it is whitelisted
-[button = variant: "primary", theme: "dark", data-id: "123"] Click [end]
+[button = variant: "primary", theme: "dark", data-id: "123"]Click[end]
 ```
-**Output:** `<button variant="primary" theme="dark" data-id="123">Click</button>`
 
-**without customProps:**
-`<button style="variant: primary; theme: dark;" data-id="123">Click</button>`
+```html
+<button variant="primary" theme="dark" data-id="123">Click</button>
+```
 
-### Disabling the Style Fallback (`useStyleFallback`)
-If you want to completely disable the "Smart Attribute Engine" and ensure that **all** properties are rendered as standalone HTML attributes (like in MDX), you can use the `useStyleFallback` flag.
+Without `customProps`, `variant` and `theme` would land in `style`.
 
-**Developer Setup (`index.js`):**
+### Turn Off Style Fallback (`fallbackTarget: false`)
+
+To output all props as plain HTML attributes with no style fallback, set `fallbackTarget: false`:
+
 ```javascript
 const sm = new SomMark({
-    src: source,
-    format: "html",
-    useStyleFallback: false // Disable the fallback
+  src: source,
+  format: "html",
+  fallbackTarget: false
 });
 ```
 
-**Result in SomMark:**
 ```ini
-[button = variant: "primary", theme: "dark"] Click [end]
+[button = variant: "primary", theme: "dark"]Click[end]
 ```
-**Output:** `<button variant="primary" theme="dark">Click</button>`
 
----
-
-### 3. Registered Outputs & Layout Utilities
-
-The HTML mapper explicitly registers several specialized tags that provide foundational structure, global configurations, rich styling, and escaping overrides. Below is the complete, detailed list of these registered outputs with syntax guidelines and examples.
-
-### 1. `[DOCTYPE]` / `[doctype]`
-- **Type**: Block
-- **Purpose**: Generates the standard HTML5 doctype declaration. This is a self-closing structural tag.
-- **Example**:
-  ```ini
-  [DOCTYPE][end]
-  ```
-  **Output HTML**:
-  ```html
-  <!DOCTYPE html>
-  ```
-
-### 2. `[head]`
-- **Type**: Block (Unescaped)
-- **Purpose**: Formats the document's `<head>` tag. It automatically handles CSS Variable injection when variables are collected from the `[Root]` element, wrapping them in a `:root` style block inside the head.
-- **Example**:
-  ```ini
-  [head]
-    [title]My Dynamic Page[end]
-    [meta = charset: "utf-8"][end]
-  [end]
-  ```
-  **Output HTML**:
-  ```html
-  <head>
-    <style>:root { /* Any collected CSS variables appear here */ }</style>
-    <title>My Dynamic Page</title>
-    <meta charset="utf-8" />
-  </head>
-  ```
-
-### 3. `[Root]` / `[root]`
-- **Type**: Block
-- **Purpose**: A metadata and global CSS variable collector. Any arguments starting with `--` are parsed as CSS variables and stored in the mapper instance. They will be automatically rendered as a `:root` styling block inside the `[head]` tag.
-- **Example**:
-  ```ini
-  [Root = 
-    --primary-color: "#007bff",
-    --bg-color: "#ffffff"
-  ][end]
-  ```
-
-### 4. `css` Span Inline
-- **Type**: Inline
-- **Purpose**: Applies rich inline style rules to a specific span of text. It compiles named arguments (like `color` or `fontSize`) as well as positional style strings.
-- **Example**:
-  ```ini
-  This is a (highly styled text span)->(css: "font-weight: bold", color: "red", fontSize: "16px").
-  ```
-  **Output HTML**:
-  ```html
-  This is a <span style="font-weight:bold;color:red;font-size:16px;">highly styled text span</span>.
-  ```
-
-### 5. `raw` AtBlock
-- **Type**: AtBlock (Unescaped)
-- **Purpose**: Bypasses the HTML escaping layer and parser entirely to output raw, unescaped HTML content. Excellent for third-party embeds, iframes, or custom widgets.
-- **Example**:
-  ```ini
-  @_raw_@;
-    <div class="custom-widget">Raw Embed</div>
-  @_end_@
-  ```
-  **Output HTML**:
-  ```html
-  <div class="custom-widget">Raw Embed</div>
-  ```
-
-### 6. `[script]` Block / AtBlock
-- **Type**: Block or AtBlock (Unescaped)
-- **Purpose**: Injects executable JavaScript. It natively supports a `scoped: true` option which automatically wraps the script in an IIFE to isolate it from the global window scope.
-- **Example**:
-  ```ini
-  [script = scoped: true]
-    const localVal = "scoped to this script block";
-    console.log(localVal);
-  [end]
-  ```
-  **Output HTML**:
-  ```html
-  <script>(function(){
-    const localVal = "scoped to this script block";
-    console.log(localVal);
-  })();</script>
-  ```
-
----
-
-## 4. Validation
-
-SomMark uses the `validator.js` engine to enforce semantic rules during the transpilation stage.
-
-### Self-Closing (Void) Elements
-Standard HTML void elements (like `img`, `br`, `hr`, `meta`, and `link`) are automatically detected and strictly enforced as **Block** types.
-
-1.  **Rendering**: They are rendered as self-closing tags (`<img />`).
-2.  **Strict Enforcement**: The validator **forbids** these tags from having an internal body. Adding content inside an `[img]` block will trigger a **Validation Error**.
-
-```r
-# VALID: Empty body
-[img = src: "photo.jpg"][end]
-
-# INVALID: Triggers Validation Error
-[img = src: "photo.jpg"]This is not allowed![end]
+```html
+<button variant="primary" theme="dark">Click</button>
 ```
 
 ---
 
-## 5. Global CSS Variables & Head Injection
+## 3. Built-in Blocks
 
-The HTML mapper supports a **Collector Pattern** for managing globally scoped CSS variables.
+These special blocks come built-in with the HTML Mapper.
 
-1.  **Collect**: Use the `[Root]` block to define properties starting with `--`.
-2.  **Inject**: Use the `[head]` block. The mapper will automatically inject a `:root` style tag containing all collected variables.
+### `[DOCTYPE]` / `[doctype]`
 
-**Example: Theming a Page**
+Outputs the HTML5 doctype line.
+
 ```ini
-[Root = 
-  --bg-color: "#f0f0f0", 
-  --main-text: "#333", 
+[DOCTYPE !]
+```
+
+```html
+<!DOCTYPE html>
+```
+
+### `[head]`
+
+Outputs the `<head>` element. Any CSS variables you define in `[Root]` are added automatically as a `:root` style block.
+
+```ini
+[head]
+  [title]My Page[end]
+  [meta = charset: "utf-8" !]
+[end:head]
+```
+
+```html
+<head>
+  <style>:root { /* collected CSS variables */ }</style>
+  <title>My Page</title>
+  <meta charset="utf-8" />
+</head>
+```
+
+### `[Root]` / `[root]`
+
+Gathers any props whose name starts with `--` (these are CSS variables) and adds them into `[head]` as a `:root` style block.
+
+```ini
+[Root =
+  --primary: "#007bff",
+  --bg: "#ffffff"
+!]
+```
+
+### `[script]`
+
+Outputs a `<script>` block. Set `scoped: true` to wrap the code in a self-calling function so its variables don't leak into the page.
+
+```ini
+[script = scoped: true]
+  const x = "isolated";
+  console.log(x);
+[end:script]
+```
+
+```html
+<script>
+(function(){
+  const x = "isolated";
+  console.log(x);
+})();
+</script>
+```
+
+---
+
+## 4. Self-Closing HTML Elements
+
+HTML void elements (`img`, `br`, `hr`, `meta`, `link`, etc.) are handled automatically:
+
+- They are output as self-closing (`<img />`).
+- Putting body content inside one throws an error.
+
+```ini
+# Valid
+[img = src: "photo.jpg" !]
+
+# Invalid — throws an error
+[img = src: "photo.jpg"]Content not allowed[end]
+```
+
+---
+
+## 5. CSS Variables
+
+Use `[Root]` to define CSS variables, then `[head]` picks them up and adds them as a `:root` block.
+
+```ini
+[Root =
+  --bg: "#f0f0f0",
+  --text: "#333",
   --accent: "orange"
-][end]
+!]
 
 [head]
   [title]Themed Page[end]
-[end]
+[end:head]
 
-[body = backgroundColor: --bg-color, color: --main-text]
-  [h1 = borderBottom: "2px solid" + --accent] Header [end]
-[end]
+[body = backgroundColor: --bg, color: --text]
+  [h1 = borderBottom: "2px solid" + --accent]Header[end]
+[end:body]
 ```
-**Output Highlights:**
+
 ```html
 <head>
-  <style>:root { --bg-color:#f0f0f0;--main-text:#333;--accent:orange; }</style>
+  <style>:root { --bg:#f0f0f0;--text:#333;--accent:orange; }</style>
   <title>Themed Page</title>
 </head>
 ```
 
 ---
 
-## 6. Security & Scoping
+## 6. Runtime Scripts
 
-### Scoped Logic (IIFE)
-Adding `scoped: true` to a `@_script_@` block or `[script]` block automatically wraps your JavaScript in an IIFE to prevent global scope contamination.
-```ini
-@_script_@: scoped: true;
-  const privateVar = 10;
-@_end_@
-```
+### Isolated Script Scope
 
-### Advanced Element-Level Scoping (`self` Isolation)
-For dynamic client-side runtime logic (i.e. code that runs in the browser attached to specific UI blocks), SomMark automatically generates a secure, unique element tracking ID (`data-sommark-id`) and provides an isolated execution context.
+`scoped: true` wraps the script in a self-calling function so its variables don't leak into the page.
 
-Within a block-level runtime script, a localized `self` constant is automatically declared and resolved using a standard query selector:
+### Scoped Runtime Scripts (`runtime ${}$`)
+
+When you put a `runtime ${}$` block inside a SomMark block, SomMark adds a unique `data-sommark-id` to the parent element and gives you a `self` variable pointing to it:
+
 ```javascript
 (async function(){
   const self = document.querySelector('[data-sommark-id="sommark-button-xxxxxx"]');
   if (self) {
-    // Your block-specific interactive script goes here!
     self.addEventListener('click', () => { ... });
   }
 })();
 ```
-This guarantees bulletproof component isolation without needing a modern heavy framework, preventing standard issues like browser-side table hoisting or module boundaries.
 
-### Context-Aware Escaping (The Escape-Free Trinity)
-By default, all content is escaped to prevent XSS. However, the trinity of At-Blocks below explicitly **disables escaping** for their content to preserve code and style integrity while keeping the outer structure safe:
+Each block gets its own piece of the page — no framework needed.
 
-1.  **`@_style_@`**: Injects raw CSS.
-2.  **`@_script_@`**: Injects raw JavaScript.
-3.  **`@_raw_@`**: Injects raw HTML markup.
+### HTML Escaping
 
----
-
-## 7. Core Advantages Over Raw HTML
-
-While you can write standard HTML5, SomMark provides several major architectural advantages that raw HTML lacks:
-
-1.  **Built-in Module System**: SomMark supports native imports (`[import]`) and component usage (`[$use-module]`). This allows you to split your UI into reusable parts, creating a true component library without needing a heavy JavaScript framework.
-2.  **Direct Styling Engine**: You can use CSS properties (like `color`, `fontSize`, or `padding` or any other CSS property) as **global attributes** directly in the block header. SomMark merges these into the `style` property automatically, making it much cleaner and faster to write than a standard HTML `style="..."` string.
-3.  **Build-Time Static Logic & Sandboxing**: Execute sandboxed JavaScript at compile-time (using standard or asynchronous code) to dynamically compute variables, perform calculations, or fetch third-party API data, baking the results directly into clean, optimized static HTML before it reaches the client.
-4.  **Native Loop System (`[for-each]`)**: Render complex lists or iterative structures cleanly using `[for-each = items: [array], as: "item"]` at compile-time, eliminating the need to write redundant HTML markup or run costly client-side rendering code.
+All block body content is HTML-escaped by default.

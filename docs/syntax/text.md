@@ -1,6 +1,6 @@
 # Plain Text
 
-SomMark treats all content that isn't a structural marker (Block, At-Block, Inline, or Comment) as **Plain Text**. This data is captured as tokens and organized by the Parser into cohesive AST nodes.
+SomMark treats all content that isn't a structural marker (Block or Comment) as **Plain Text**. This is captured as tokens and organized by the parser into text nodes.
 
 ---
 
@@ -9,7 +9,7 @@ SomMark treats all content that isn't a structural marker (Block, At-Block, Inli
 Unlike many parsing engines, SomMark does not possess a specific "Paragraph" node type in its AST. Instead, all text is represented by a single node type: **`TEXT`**.
 
 * **Continuous Consumption**: The parser gathers all contiguous text, whitespace, newlines (both single and double newlines), and resolved placeholders into one continuous `TEXT` node.
-* **Termination Boundaries**: Text consumption only stops when the parser encounters a structural token, such as an opening bracket `[`, opening parenthesis `(`, at-block `@`, or logic block (`static`/`runtime`).
+* **Termination Boundaries**: Text consumption only stops when the parser encounters a structural token, such as an opening bracket `[` or a logic block (`${}` / `runtime ${}`).
 * **Multi-Line Text**: A single `TEXT` node can span multiple lines and paragraphs, preserving all layout details exactly as written in the template.
 
 ```ini
@@ -50,7 +50,7 @@ During transpilation:
   [div]
     Line one.
     Line two.
-  [end]
+  [end:div]
 ```
 
 * The parent `[div]` starts at column `2` (`parentBlock.range.start.character = 2`).
@@ -73,29 +73,26 @@ SomMark handles whitespace differently depending on the context:
 ### I. Body Context (Text)
 In the body of a document or within a block's children, SomMark practices **Strict Preservation**. Every space and every single newline is preserved exactly as written (before relative dedenting is applied).
 
-### II. Header Context (Tag Definitions)
-Inside the `[...]` or `(...)` of a tag, whitespace is treated as **Structural Junk**. It is completely ignored by the parser. This allows developers to format tag headers across multiple lines for better readability without affecting the output.
+### II. Header Context (Block Definitions)
+Inside the `[...]` of a block header, whitespace is completely ignored. This lets you spread a block header across multiple lines for readability without affecting the output.
 
 ```ini
 [
-  div = 
+  div =
   class: "flex"
 ]
   Content...
-[end]
+[end:div]
 ```
 
 ---
 
 ## 5. Escaping Special Characters
 
-Characters with structural roles in SomMark (`[`, `(`, `@`, `#`) must be escaped with a backslash `\` to be treated as literal plain text.
+Characters that have a structural role in SomMark (`[`, `#`) must be escaped with a backslash `\` to be treated as literal text.
 
-* **Standard Unescaping**: By default, the parser automatically unescapes all backslash-prefaced characters by slicing off the backslash before appending it to the `TEXT` node's value.
-* **Selective Unescaping**: In specific parsing modes (such as when processing variables or specific inline boundaries), the parser operates with a selective unescape mode that only unescapes `@` and `_`, leaving other backslashes intact.
-* **Non-Logic Keywords**: If keyword identifiers like `static` or `runtime` are not followed by a logic block `$...$`, the parser automatically treats them as normal literal text.
+* **Standard Unescaping**: The parser removes the backslash and keeps the character that follows it as literal text.
+* **Non-Logic Keywords**: If `static` or `runtime` appear in text but are not followed by `${ ... }$`, the parser treats them as normal text — no escaping needed.
 
 * `\[` → `[`
-* `\(` → `(`
-* `\@_` → `@_`
 * `\#` → `#`

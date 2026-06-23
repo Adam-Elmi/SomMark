@@ -55,27 +55,6 @@ describe("SomMark Prefix Layers (Context Logic)", () => {
 			expect(output).toBe('<a href="https://SomMark.org">Link</a>');
 		});
 
-		it("preserves p{} placeholders literally inside At-Block headers", async () => {
-			const src = "@_code_@: lang: p{site}; content @_end_@";
-			const sm = new SomMark({ ...options, src });
-			const output = await sm.transpile();
-			expect(output).toContain("p{site}");
-		});
-
-		it("preserves p{} placeholders literally inside At-Block bodies", async () => {
-			const src = "@_raw_@; literal p{site} code @_end_@";
-			const sm = new SomMark({ ...options, src });
-			const output = await sm.transpile();
-			expect(output).toContain("p{site}");
-		});
-
-		it("preserves p{} placeholders literally inside inline statement headers", async () => {
-			const src = "(My p{site} code)->(span)";
-			const sm = new SomMark({ ...options, src });
-			const output = await sm.transpile();
-			expect(output).toBe("<span>My p{site} code</span>");
-		});
-
 		it("supports native numbers and booleans safety resolution without crashing", async () => {
 			const src = "[div = style: p{width}]p{msg}: p{active}[end]";
 			const sm = new SomMark({
@@ -99,72 +78,7 @@ describe("SomMark Prefix Layers (Context Logic)", () => {
 		});
 	});
 
-	describe("2. js{} JavaScript Layers", () => {
-		it("resolves native JavaScript objects inside block header arguments", async () => {
-			const src = "[div = config: js{{ theme: 'dark', border: true }}]Content[end]";
-			const sm = new SomMark({ ...options, src });
-			sm.register("div", function({ args, content }) {
-				const theme = args.config ? args.config.theme : "light";
-				const border = args.config?.border ? "b-true" : "b-false";
-				return this.tag("div").attributes({ class: `${theme} ${border}` }).body(content);
-			});
-			const output = await sm.transpile();
-			expect(output).toBe('<div class="dark b-true">Content</div>');
-		});
-
-		it("resolves native JavaScript arrays inside block header arguments", async () => {
-			const src = "[div = list: js{['A', 'B']}]Content[end]";
-			const sm = new SomMark({ ...options, src });
-			sm.register("div", function({ args, content }) {
-				const joined = args.list ? args.list.join("-") : "";
-				return this.tag("div").attributes({ class: joined }).body(content);
-			});
-			const output = await sm.transpile();
-			expect(output).toBe('<div class="A-B">Content</div>');
-		});
-
-		it("resolves JavaScript primitives cleanly into exact native values", async () => {
-			const src = "[div = active: js{true}, count: js{42}, value: js{null}]Content[end]";
-			const sm = new SomMark({ ...options, src });
-			sm.register("div", function({ args, content }) {
-				const activeType = typeof args.active;
-				const countType = typeof args.count;
-				const isNull = args.value === null ? "null" : "not-null";
-				return this.tag("div")
-					.attributes({ "data-active": activeType, "data-count": countType, "data-val": isNull })
-					.body(content);
-			});
-			const output = await sm.transpile();
-			expect(output).toBe('<div data-active="boolean" data-count="number" data-val="null">Content</div>');
-		});
-
-		it("resolves curly braces inside quoted string literals correctly to guard prefix boundaries", async () => {
-			const src = "[div = data: js{{ a: '}' }}]Content[end]";
-			const sm = new SomMark({ ...options, src });
-			sm.register("div", function({ args, content }) {
-				const val = args.data ? args.data.a : "";
-				return this.tag("div").attributes({ "data-val": val }).body(content);
-			});
-			const output = await sm.transpile();
-			expect(output).toBe('<div data-val="}">Content</div>');
-		});
-
-		it("preserves js{} literally at the top-level text structure", async () => {
-			const src = "Plain js{ {a: 1} } text";
-			const sm = new SomMark({ ...options, src });
-			const output = await sm.transpile();
-			expect(output).toBe("Plain js{ {a: 1} } text");
-		});
-
-		it("preserves js{} literally inside block bodies", async () => {
-			const src = "[div]Inner js{{a: 1}}[end]";
-			const sm = new SomMark({ ...options, src });
-			const output = await sm.transpile();
-			expect(output).toBe("<div>Inner js{{a: 1}}</div>");
-		});
-	});
-
-	describe("3. v{} Variable Layer & Modules Scoping Privacy", () => {
+	describe("2. v{} Variable Layer & Modules Scoping Privacy", () => {
 		it("resolves local component variables inside imported modular layouts", async () => {
 			const src = `
 			[import = Title: "./Title.smark"][end]

@@ -40,23 +40,23 @@ console.log(safe);
 
 ---
 
-### Example: Escaping Inside a Custom Tag
+### Example: Escaping Inside a Custom Block
 
-Use `.escapeHTML()` inside your custom tag renderers to safely handle user-supplied content:
+Use `.escapeHTML()` inside your custom block renderers to safely handle user-supplied content:
 
 ```javascript
 import SomMark, { HTML } from "sommark";
 
 const customMapper = HTML.clone();
 
-// Register a span tag that manually escapes its content
+// Register a span block that manually escapes its content
 customMapper.register("safe-span", function({ content }) {
   const cleanContent = this.escapeHTML(content);
   return this.tag("span").body(cleanContent);
 }, { escape: false }); // Disable automatic engine escaping to handle it manually
 
 console.log(await SomMark.transpile({
-  src: '[safe-span]To create a heading in HTML, use the <h1> tag.[end]',
+  src: '[safe-span]To create a heading in HTML, use the <h1> tag.[end:safe-span]',
   format: "html",
   mapperFile: customMapper
 }));
@@ -65,4 +65,4 @@ console.log(await SomMark.transpile({
 
 [Read getUnknownTag.md to understand fallback rendering](getUnknownTag.md)
 
-[Read includesId.md to check if a tag is registered](includesId.md)
+[Read includesId.md to check if a block is registered](includesId.md)

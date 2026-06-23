@@ -42,15 +42,15 @@ SomMark's `runtime ${ }$` blocks compile to `<script>` tags. If you use `innerHT
 <div id="output"></div>
 ```
 
-```smark
+```ini
 [div = class: "card"]
-    [h2]Runtime Logic[end]
+    [h2]Runtime Logic[end:h2]
     [div]
         runtime ${
             self.textContent = "Injected by runtime block";
         }$
-    [end]
-[end]
+    [end:div]
+[end:div]
 ```
 
 ```js

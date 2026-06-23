@@ -6,19 +6,19 @@ import { registerSharedOutputs } from "../shared/index.js";
  * Ensures strict attribute quoting and handles self-closing tags for empty bodies.
  * 
  * @param {string} id - The XML tag identifier (case-sensitive).
- * @param {Object} args - Key-value pairs to be rendered as XML attributes.
+ * @param {Object} props - Key-value pairs to be rendered as XML attributes.
  * @param {string} content - The rendered inner content of the tag.
  * @returns {string} The fully rendered XML tag string.
  */
-const renderXmlTag = function (id, args, content, isSelfClosing) {
+const renderXmlTag = function (id, props, content, isSelfClosing) {
     // XML is case-sensitive, so we use the exact id provided
     const element = this.tag(id);
 
     // Filter out positional indices (numeric keys) for XML attributes
     const namedArgs = {};
-    Object.keys(args).forEach(key => {
+    Object.keys(props).forEach(key => {
         if (isNaN(parseInt(key))) {
-            namedArgs[key] = args[key];
+            namedArgs[key] = props[key];
         }
     });
 
@@ -55,10 +55,8 @@ const XML = Mapper.define({
     getUnknownTag(node) {
         const id = node.id;
         return {
-            render: ({ args, content, isSelfClosing }) => renderXmlTag.call(this, id, args, content, isSelfClosing),
-            options: {
-                type: "any"
-            }
+            render: ({ props, content, isSelfClosing }) => renderXmlTag.call(this, id, props, content, isSelfClosing),
+            options: {}
         };
     }
 });
@@ -67,20 +65,20 @@ const XML = Mapper.define({
  * Registers the XML declaration as a self-closing block.
  * Usage: [xml = version: "1.0", encoding: "UTF-8"]
  */
-XML.register("xml", ({ args }) => {
-    const version = args.version || "1.0";
-    const encoding = args.encoding || "UTF-8";
+XML.register("xml", ({ props }) => {
+    const version = props.version || "1.0";
+    const encoding = props.encoding || "UTF-8";
     return `<?xml version="${version}" encoding="${encoding}"?>`;
-}, { type: "Block", rules: { is_empty_body: true } });
+}, { rules: { is_empty_body: true } });
 
 /**
  * Registers the DOCTYPE declaration.
  * Usage: [doctype = root: "note", system: "note.dtd"]
  */
-XML.register(["DOCTYPE", "doctype"], ({ args }) => {
-    const root = args.root || "root";
-    const system = args.system;
-    const pub = args.public || args.fpi;
+XML.register(["DOCTYPE", "doctype"], ({ props }) => {
+    const root = props.root || "root";
+    const system = props.system;
+    const pub = props.public || props.fpi;
 
     if (pub && system) {
         return `<!DOCTYPE ${root} PUBLIC "${pub}" "${system}">`;
@@ -88,26 +86,28 @@ XML.register(["DOCTYPE", "doctype"], ({ args }) => {
         return `<!DOCTYPE ${root} SYSTEM "${system}">`;
     }
     return `<!DOCTYPE ${root}>`;
-}, { type: "Block", rules: { is_empty_body: true } });
+}, { rules: { is_empty_body: true } });
 
 /**
  * Registers the XML stylesheet processing instruction.
  * Usage: [xml-stylesheet = href: "style.xsl"]
  */
-XML.register("xml-stylesheet", ({ args }) => {
-    const type = args.type || "text/xsl";
-    const href = args.href;
+XML.register("xml-stylesheet", ({ props }) => {
+    const type = props.type || "text/xsl";
+    const href = props.href;
     if (!href) return "";
     return `<?xml-stylesheet type="${type}" href="${href}"?>`;
-}, { type: "Block", rules: { is_self_closing: true } });
+}, { rules: { is_empty_body: true } });
 
 /**
  * Registers CDATA sections.
- * Usage: @_cdata_@: ; raw content @_end_@
+ * Body form:    [cdata]raw content[end]
+ * Self-closing: [cdata = "raw content" !] or [cdata = text: "raw content" !]
  */
-XML.register("cdata", ({ content }) => {
-    return `<![CDATA[${content}]]>`;
-}, { type: "AtBlock" });
+XML.register("cdata", ({ props, content, isSelfClosing }) => {
+    const text = isSelfClosing ? (props[0] ?? props.text ?? "") : content;
+    return `<![CDATA[${text}]]>`;
+});
 
 registerSharedOutputs(XML);
 

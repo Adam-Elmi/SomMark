@@ -1,6 +1,6 @@
 # removeOutput()
 
-Unregisters a dynamic tag, removing it from the output mappings.
+Unregisters a dynamic block, removing it from the output mappings.
 ---
 
 **Syntax:**
@@ -11,7 +11,7 @@ SomMark.removeOutput(id);
 **Usage:**
 ```javascript
 static ${
-  // Unregisters the dynamic [alert] tag
+  // Unregisters the dynamic [alert] block
   SomMark.removeOutput("alert");
 }$
 ```

@@ -46,7 +46,7 @@ const smarkSource = `
     Verify styling on mobile views.
   ###
   Hero Section Content
-[end]
+[end:div]
 `;
 
 const output = await transpile({

@@ -54,7 +54,7 @@ The main reason `SomMark.raw` exists is to inject the output of `SomMark.compile
 
 ```js
 static ${
-  const card = "[div = class: 'card']Adam[end]";
+  const card = "[div = class: 'card']Adam[end:div]";
   const output = await SomMark.compile(card, { format: "html" });
   // output = '<div class="card">Adam</div>'
 

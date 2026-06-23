@@ -1,31 +1,53 @@
 import { formatMessage } from "../../core/errors.js";
+import fs from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+
+const SOMMARK_CONFIG_DIR = path.join(os.homedir(), ".sommark");
+const SOMMARK_CONFIG_FILE = path.join(SOMMARK_CONFIG_DIR, "config.json");
 
 /**
- * Checks if colors are turned on in your settings.
- * @returns {Promise<boolean>}
+ * Reads the user-level SomMark config from ~/.sommark/config.json.
+ * @returns {Promise<Object>}
  */
-export async function isColorEnabled() {
-    return process.env.SOMMARK_COLOR === "true";
+async function readUserConfig() {
+    try {
+        const raw = await fs.readFile(SOMMARK_CONFIG_FILE, "utf-8");
+        return JSON.parse(raw);
+    } catch {
+        return {};
+    }
 }
 
 /**
- * Shows the user how to turn colors on or off.
+ * Writes a key/value pair to ~/.sommark/config.json.
+ */
+async function writeUserConfig(data) {
+    await fs.mkdir(SOMMARK_CONFIG_DIR, { recursive: true });
+    const existing = await readUserConfig();
+    await fs.writeFile(SOMMARK_CONFIG_FILE, JSON.stringify({ ...existing, ...data }, null, 2));
+}
+
+/**
+ * Checks if colors are enabled — reads from user config or SOMMARK_COLOR env var.
+ * @returns {Promise<boolean>}
+ */
+export async function isColorEnabled() {
+    if (process.env.SOMMARK_COLOR === "true") return true;
+    if (process.env.SOMMARK_COLOR === "false") return false;
+    const config = await readUserConfig();
+    return config.color === true;
+}
+
+/**
+ * Instructs the user how to enable or disable color output via the environment variable.
  * @param {string} action - 'on' or 'off'.
  */
 export function runColor(action) {
     if (action === "on") {
-        console.log(formatMessage([
-            `{line}<$yellow:SomMark uses Environment Variables for colors:$>{line}`,
-            `<$blue:Set this in your current shell:$>`,
-            `  <$cyan:export SOMMARK_COLOR=true$>{line}`,
-            `<$blue:Add it to your .bashrc or .zshrc for permanent effect.$>{line}`
-        ].join("")));
+        console.log(formatMessage(`Set <$cyan:SOMMARK_COLOR=true$> in your shell environment to enable colors.`));
     } else if (action === "off") {
-        console.log(formatMessage([
-            `{line}<$yellow:To disable colors, run:$>{line}`,
-            `  <$cyan:export SOMMARK_COLOR=false$>{line}`,
-            `<$blue:(Or remove the SOMMARK_COLOR variable from your shell config)$>{line}`
-        ].join("")));
+        console.log(formatMessage(`Set <$cyan:SOMMARK_COLOR=false$> in your shell environment to disable colors.`));
     } else {
         console.log(formatMessage(`Usage: <$blue:sommark color on|off$>`));
     }

@@ -36,6 +36,9 @@ export function getHelp(unknown_option = true) {
 		"{N}  <$green:--json$>         <$cyan: Transpile to JSON$>",
 		"{N}  <$green:--jsonc$>        <$cyan: Transpile to JSON with Comments (JSONC)$>",
 		"{N}  <$green:--text$>         <$cyan: Transpile to plain text$>",
+		"{N}  <$green:--csv$>          <$cyan: Transpile to CSV$>",
+		"{N}  <$green:--toml$>         <$cyan: Transpile to TOML$>",
+		"{N}  <$green:--yaml$>         <$cyan: Transpile to YAML$>",
 		"{N}  <$green:--lex$>          <$cyan: Print lexer tokens to console$>",
 		"{N}  <$green:--parse$>        <$cyan: Print parser AST to console$>",
 

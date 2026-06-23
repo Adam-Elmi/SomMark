@@ -21,7 +21,7 @@ parse(src, filename?)
 import { transpile } from "sommark";
 
 const output = await transpile({
-  src: "[h1]Hello World[end]",
+  src: "[h1]Hello World[end:h1]",
   format: "html"
 });
 ```

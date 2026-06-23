@@ -20,17 +20,18 @@ import colorize from "../helpers/colorize.js";
  * @returns {string} - The final formatted and colored string.
  */
 function formatMessage(text) {
-	const horizontal_rule = "\n----------------------------------------------------------------------------------------------\n";
+	const horizontal_rule = "\n" + colorize("blue", "-".repeat(90)) + "\n";
 	const pattern = /<\$([^:]+):([\s\S]*?)\$>/g;
 
 	if (Array.isArray(text)) {
 		text = text.join("");
 	}
 
+	// Apply {line} before color tags so the rule is never nested inside a color wrapper.
+	text = text.replaceAll("{line}", horizontal_rule);
 	text = text.replace(pattern, (match, color, content) => {
 		return colorize(color, content.trim());
 	});
-	text = text.replaceAll("{line}", horizontal_rule);
 	text = text.replaceAll("{N}", "\n");
 
 	text = text
@@ -68,11 +69,11 @@ function formatErrorWithContext(src, range, filename, message, typeName) {
 			: `from line <$yellow:${range.start.line + 1}$>, column <$yellow:${range.start.character}$> to line <$yellow:${range.end.line + 1}$>, column <$yellow:${range.end.character}$>`;
 
 	const formattedMessage = [
-		`<$blue:{line}$><$red:Here where error occurred${sourceLabel}:$>{N}${lineContent}{N}${pointerPadding}<$yellow:^$>{N}{N}`,
+		`{line}<$red:Here where error occurred${sourceLabel}:$>{N}${lineContent}{N}${pointerPadding}<$yellow:^$>{N}`,
 		`<$red:${typeName} Error:$> `,
 		...(Array.isArray(message) ? message : [message]),
 		`{N}at line <$yellow:${range.start.line + 1}$>, ${rangeInfo}{N}`,
-		"<$blue:{line}$>"
+		`{line}`
 	];
 
 	return formattedMessage;

@@ -56,7 +56,7 @@ import SomMark from "sommark";
 import { readFileSync } from "node:fs";
 
 // Template at: src/pages/index.smark
-// It imports:  [import = card: "./components/Card.smark"][end]
+// It imports:  [import = card: "./components/Card.smark" !]
 const engine = new SomMark({
     src: readFileSync("./src/pages/index.smark", "utf-8"),
     format: "html",

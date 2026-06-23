@@ -86,9 +86,7 @@ export async function findAndLoadConfig(targetPath) {
 		fallbackTarget: "style",
 		outputValidator: null,
 		baseDir: null,
-		showSpinner: false,
-		generateRuntimeOutput: false,
-		hideRuntimeOutput: false,
+		showSpinner: true,
 		security: {},
 	};
 

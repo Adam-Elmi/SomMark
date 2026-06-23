@@ -29,11 +29,11 @@ import SomMark, { MARKDOWN } from "sommark";
 const customMapper = MARKDOWN.clone();
 /*
 Markdown Mapper:
-Input: [h1]Hello[end]
+Input: [h1]Hello[end:h1]
 Output: # Hello
 */
 console.log(await SomMark.transpile({
-  src: "[h1]Hello[end]",
+  src: "[h1]Hello[end:h1]",
   format: "markdown",
   mapperFile: customMapper
 }));
@@ -43,10 +43,10 @@ customMapper.clear(); // Clears outputs array
 // console.log(customMapper.outputs) // TO SEE WHAT IT LOOKS AFTER CLEARING
 
 /*
-[h1] is a registered output in Markown mapper, so when clear method is used, it clears the mapping of [h1], so it will use getUnknownTag method as fallback. In Markdown mapper, getUnknownTag method returns unknown tags/ids as html elements.
+[h1] is a registered output in the Markdown mapper, so when clear is called, it removes the mapping of [h1], so it falls back to getUnknownTag. In the Markdown mapper, getUnknownTag returns unknown blocks as HTML elements.
 */
 console.log(await SomMark.transpile({
-  src: "[h1]Hello[end]",
+  src: "[h1]Hello[end:h1]",
   format: "markdown",
   mapperFile: customMapper
 })); 

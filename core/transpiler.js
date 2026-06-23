@@ -1,4 +1,4 @@
-import { BLOCK, TEXT, INLINE, ATBLOCK, COMMENT, COMMENT_BLOCK, STATIC_LOGIC, RUNTIME_LOGIC, FOR_EACH } from "./labels.js";
+import { BLOCK, TEXT, COMMENT, COMMENT_BLOCK, STATIC_LOGIC, RUNTIME_LOGIC, FOR_EACH } from "./labels.js";
 import { transpilerError } from "./errors.js";
 import evaluator from "./evaluator.js";
 import { matchedValue } from "../helpers/utils.js";
@@ -6,6 +6,22 @@ import { dedentBy } from "../helpers/dedent.js";
 import { preprocessRuntimeLogic } from "./helpers/preprocessor.js";
 import { wrapRuntimeLogic } from "./helpers/runtimeOutput.js";
 import path from "pathe";
+
+function warnDroppedVariables(variables) {
+	for (const [key, value] of Object.entries(variables)) {
+		if (value === undefined) {
+			console.warn(`[SomMark] variables.${key} is undefined and will be ignored.`);
+		} else if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+			for (const [nestedKey, nestedVal] of Object.entries(value)) {
+				if (typeof nestedVal === "function") {
+					console.warn(`[SomMark] variables.${key}.${nestedKey} is a function nested inside an object and will be ignored. Move it to the top level: variables.${nestedKey}`);
+				} else if (nestedVal === undefined) {
+					console.warn(`[SomMark] variables.${key}.${nestedKey} is undefined and will be ignored.`);
+				}
+			}
+		}
+	}
+}
 
 const randomBytesHex = (size) => {
 	const arr = new Uint8Array(size);
@@ -22,14 +38,11 @@ const BODY_PLACEHOLDER = `SOMMARKBODYPLACEHOLDER${randomBytesHex(8)}SOMMARK`;
  * @returns {string} - The extracted text.
  */
 function getNodeText(node) {
-	if (!node?.body && !node?.content) return "";
-	if (node.type === ATBLOCK) return node.content || "";
+	if (!node?.body) return "";
 	let text = "";
 	if (node.body) {
 		for (const child of node.body) {
 			if (child.type === TEXT) text += child.text || "";
-			else if (child.type === INLINE) text += child.value || "";
-			else if (child.type === ATBLOCK) text += child.content || "";
 			else if (child.type === BLOCK || child.type === FOR_EACH) text += getNodeText(child);
 		}
 	}
@@ -46,7 +59,7 @@ function getNodeText(node) {
  * @param {Object} mapper_file - The rules for how to convert each node.
  * @returns {Promise<string>} - The final text for this node.
  */
-async function generateOutput(ast, i, format, mapper_file, security = {}, parentId = null, generateRuntimeOutput = false, hideRuntimeOutput = false, instance = null, idState = null) {
+async function generateOutput(ast, i, format, mapper_file, security = {}, parentId = null, generateRuntimeOutput = false, hideRuntimeOutput = false, instance = null, idState = null, extraCtx = {}) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	if (!node) return "";
 
@@ -56,7 +69,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	if (node.id === mapper_file?.options?.moduleIdentityToken) {
 		const oldFilename = mapper_file.options.filename;
-		mapper_file.options.filename = node.args?.filename || oldFilename;
+		mapper_file.options.filename = node.props?.filename || oldFilename;
 		let bodyOutput = "";
 		if (node.body) {
 			evaluator.pushScope();
@@ -87,12 +100,8 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	if (node.type === RUNTIME_LOGIC) {
 		const preprocessed = await preprocessRuntimeLogic(node.code, mapper_file?.options?.filename, security, instance);
-		if (hideRuntimeOutput) {
-			return "";
-		}
-		if (generateRuntimeOutput) {
-			return wrapRuntimeLogic(preprocessed, format, parentId, node.depth === 1);
-		}
+		if (hideRuntimeOutput) return "";
+		if (generateRuntimeOutput) return wrapRuntimeLogic(preprocessed, format, parentId, node.depth === 1);
 		return mapper_file ? mapper_file.runtimeLogic(preprocessed, node.depth === 1, parentId) : "";
 	}
 
@@ -119,8 +128,8 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 	}
 
 	if (node.type === FOR_EACH) {
-		const transpiledArgs = await transpileArgs(node.args);
-		const items = mapper_file ? mapper_file.safeArg({ args: transpiledArgs, index: 0, key: "items", fallBack: [] }) : [];
+		const transpiledArgs = await transpileArgs(node.props);
+		const items = mapper_file ? mapper_file.safeArg({ props: transpiledArgs, index: 0, key: "items", fallBack: [] }) : [];
 
 		if (!Array.isArray(items)) {
 			const line = node.range?.start?.line + 1 || 1;
@@ -132,8 +141,16 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			return "";
 		}
 
-		const asVar = transpiledArgs.as || "item";
-		const indexVar = `${asVar}_index`;
+		const asVar = transpiledArgs.as || "value";
+		if (asVar === "i") {
+			const line = node.range?.start?.line + 1 || 1;
+			transpilerError([
+				`<$red:Reserved Variable Error in [for-each]:$>{line}`,
+				`'i' is a reserved variable name for the loop index.{N}Use a different name for the 'as' prop, e.g. as: "item"{line}`,
+				`at line <$yellow:${line}$>{line}`
+			]);
+			return "";
+		}
 
 		// Trim structural whitespace/newlines at start and end of loop body for formatting clean output
 		let cleanedBody = [];
@@ -165,11 +182,11 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			evaluator.pushScope();
 			evaluator.inject({
 				[asVar]: item,
-				[indexVar]: idx++
+				i: idx++
 			});
 
 			for (let j = 0; j < cleanedBody.length; j++) {
-				output += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState);
+				output += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState, extraCtx);
 			}
 
 			await evaluator.popScope();
@@ -179,8 +196,8 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	let secretId = null;
 	if (node.type === BLOCK) {
-		if (node.args) {
-			for (const key of Object.keys(node.args)) {
+		if (node.props) {
+			for (const key of Object.keys(node.props)) {
 				if (key.toLowerCase().startsWith("data-sommark")) {
 					transpilerError([
 						`<$red:Reserved Attribute Error:$> The attribute name '<$yellow:${key}$>' is reserved for SomMark's internal runtime compiler logic.{line}`,
@@ -199,6 +216,29 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 				if (idState?.mode === 'record') idState.ids.push(secretId);
 			}
 		}
+	}
+
+	// smark-raw block — body collected verbatim by lexer, bypasses normal body processing pipeline
+	if (node.type === BLOCK && (node.props?.["smark-raw"] === "true" || node.props?.["smark-raw"] === true)) {
+		const rawContent = node.body?.map(n => String(n.text || "")).join("") || "";
+		const { "smark-raw": _, ...cleanArgs } = node.props;
+		const transpiledArgs = await transpileArgs(cleanArgs);
+		if (evaluator.active?.hasDynamicTag?.(node.id)) {
+			return await evaluator.active.executeDynamicTag(node.id, { props: transpiledArgs, content: rawContent, textContent: rawContent });
+		}
+		let rawTarget = mapper_file ? matchedValue(mapper_file.outputs, node.id) : null;
+		if (!rawTarget && mapper_file) rawTarget = mapper_file.getUnknownTag(node);
+		if (rawTarget) {
+			const isManualMode = !!rawTarget.options?.handleAst;
+			return await rawTarget.render.call(mapper_file, {
+				props: transpiledArgs,
+				content: rawContent,
+				textContent: rawContent,
+				ast: isManualMode ? node : undefined,
+				isSelfClosing: node.isSelfClosing || false
+			});
+		}
+		return rawContent;
 	}
 
 	let target = null;
@@ -221,20 +261,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 		const shouldResolveImmediate = target.options?.resolve === true;
 		const textContent = getNodeText(node);
 
-		let content = (node.body?.length === 0) ? "" :
-			(node.type === ATBLOCK ? dedentBy(node.content || "", node.range?.start?.character || 0).trim() :
-				(node.type === INLINE ? (node.value || "") : BODY_PLACEHOLDER));
-
-		// Apply pipelines to format literal values
-		if (node.type === INLINE) {
-			content = String(content || "");
-			content = mapper_file ? mapper_file.inlineText(content, target.options) : content;
-		}
-
-		if (node.type === ATBLOCK) {
-			content = String(content || "");
-			content = mapper_file ? mapper_file.atBlockBody(content, target.options) : content;
-		}
+		let content = (node.body?.length === 0) ? "" : BODY_PLACEHOLDER;
 
 		// 1. Determine if this is a parent block that needs newline wrapping (Trim-and-Wrap)
 		// Priority: Target options > Mapper global options
@@ -271,16 +298,72 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 		const isManualMode = target.options?.handleAst === true;
 
-		const transpiledArgs = await transpileArgs(node.args);
+		if (isManualMode) {
+			const cleanBody = [];
+			let richText = "";
+
+			evaluator.pushScope();
+			try {
+				for (const child of (node.body || [])) {
+					if (child.type === BLOCK || child.type === TEXT || child.type === FOR_EACH) {
+						cleanBody.push(child);
+						if (child.type === TEXT) {
+							richText += mapper_file ? mapper_file.text(String(child.text || ""), target.options) : String(child.text || "");
+						}
+					} else if (child.type === STATIC_LOGIC) {
+						try {
+							const val = await evaluator.execute(child.code);
+							if (val !== undefined && typeof val !== "object") richText += String(val);
+						} catch (err) {
+							transpilerError([
+								`<$red:Logic Error:$> ${err.message}{line}`,
+								`<$yellow:Code:$> <$blue:${child.code}$>{line}`
+							]);
+						}
+					} else if (child.type === COMMENT) {
+						if (!mapper_file?.options?.removeComments) richText += mapper_file?.comment(child.text) || "";
+					} else if (child.type === COMMENT_BLOCK) {
+						if (!mapper_file?.options?.removeComments) richText += mapper_file?.commentBlock(child.text) || "";
+					} else if (child.type === RUNTIME_LOGIC) {
+						if (!hideRuntimeOutput) {
+							const preprocessed = await preprocessRuntimeLogic(child.code, mapper_file?.options?.filename, security, instance);
+							richText += mapper_file ? mapper_file.runtimeLogic(preprocessed, child.depth === 1, secretId || parentId) : "";
+						}
+					}
+					// FOR_EACH → silently ignored
+				}
+
+				const cleanAst = { ...node, body: cleanBody };
+				const transpiledArgs = await transpileArgs(node.props);
+				if (secretId) transpiledArgs["data-sommark-id"] = secretId;
+
+				const renderChild = async (childNode, extra = {}) => {
+					return await generateOutput(childNode, 0, format, mapper_file, security, secretId || parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState, extra);
+				};
+
+				return await target.render.call(mapper_file, {
+					props: transpiledArgs,
+					content: "",
+					textContent: richText || textContent,
+					ast: cleanAst,
+					isSelfClosing: node.isSelfClosing || false,
+					...extraCtx,
+					renderChild
+				}) ?? "";
+			} finally {
+				await evaluator.popScope();
+			}
+		}
+
+		const transpiledArgs = await transpileArgs(node.props);
 		if (secretId) {
 			transpiledArgs["data-sommark-id"] = secretId;
 		}
 		result += await target.render.call(mapper_file, {
-			nodeType: node.type,
-			args: transpiledArgs,
+			props: transpiledArgs,
 			content,
 			textContent,
-			ast: isManualMode ? node : new Proxy({}, {
+			ast: new Proxy({}, {
 				get(target, prop) {
 					if (prop === "then" || prop === "toJSON" || typeof prop === "symbol" || prop === "constructor" || prop === "inspect" || prop === "valueOf" || prop === "toString") {
 						return undefined;
@@ -291,7 +374,8 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 					]);
 				}
 			}),
-			isSelfClosing: node.type === BLOCK ? (node.isSelfClosing || false) : undefined
+			isSelfClosing: node.isSelfClosing || false,
+			...extraCtx
 		});
 		// if (isParentBlock) result = "\n" + result;
 
@@ -318,49 +402,6 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 							bodyTextVal = security.sanitize(bodyTextVal);
 						}
 						bodyOutput = bodyTextVal;
-						break;
-
-					case INLINE:
-						let inlineTarget = matchedValue(mapper_file.outputs, body_node.id);
-						if (!inlineTarget) {
-							inlineTarget = mapper_file.getUnknownTag(body_node);
-						}
-
-						if (inlineTarget) {
-							let inlineValue = String(body_node.value || "").trim();
-							if (mapper_file) inlineValue = mapper_file.inlineText(inlineValue, inlineTarget.options);
-
-							const hasArgs = body_node.args && typeof body_node.args === "object" && Object.keys(body_node.args).length > 0;
-							bodyOutput = await inlineTarget.render.call(mapper_file, {
-								nodeType: body_node.type,
-								args: hasArgs ? body_node.args : {},
-								content: inlineValue,
-								ast: body_node
-							});
-						} else {
-							let fallback = body_node.value || "";
-							if (mapper_file) fallback = mapper_file.inlineText(fallback, {});
-							bodyOutput = fallback;
-						}
-						break;
-
-					case ATBLOCK:
-						let atTarget = matchedValue(mapper_file.outputs, body_node.id);
-						if (!atTarget) {
-							atTarget = mapper_file.getUnknownTag(body_node);
-						}
-
-						// AtBlocks handle their own absolute dedenting
-						let atContent = dedentBy(body_node.content || "", body_node.range?.start?.character || 0).trim();
-						if (mapper_file) {
-							atContent = mapper_file.atBlockBody(atContent, atTarget?.options || {});
-						}
-
-						// Removed multiline injection since atBlockBody handles formatting
-						const transpiledAtArgs = await transpileArgs(body_node.args);
-						bodyOutput = atTarget
-							? await atTarget.render.call(mapper_file, { nodeType: body_node.type, args: transpiledAtArgs, content: atContent, ast: body_node })
-							: atContent;
 						break;
 
 					case COMMENT:
@@ -502,36 +543,14 @@ export async function transpiler(optionsOrAst, format, mapperFile) {
 		return path.dirname(abs);
 	})();
 
-	const generateRuntimeOutput = optionsOrAst?.generateRuntimeOutput || false;
-	const hideRuntimeOutput = optionsOrAst?.hideRuntimeOutput || false;
 	const dualOutput = optionsOrAst?.dualOutput || false;
-
-	if (dualOutput && (generateRuntimeOutput || hideRuntimeOutput)) {
-		const flags = [
-			generateRuntimeOutput && "\x1b[36mgenerateRuntimeOutput\x1b[0m",
-			hideRuntimeOutput     && "\x1b[36mhideRuntimeOutput\x1b[0m"
-		].filter(Boolean).join(" and ");
-		console.warn(
-			`\n[SomMark] \x1b[33m⚠ Ignored options when dualOutput is true\x1b[0m\n` +
-			`  ${flags} ${generateRuntimeOutput && hideRuntimeOutput ? "are" : "is"} ignored when \x1b[32mdualOutput: true\x1b[0m is set.\n` +
-			`  \x1b[2mdualOutput manages both HTML and JS passes internally — no need to set those flags.\x1b[0m\n`
-		);
-	} else if (generateRuntimeOutput && hideRuntimeOutput) {
-		console.warn(
-			"\n[SomMark] \x1b[33m⚠ Conflicting options — output will be empty\x1b[0m\n" +
-			"  \x1b[36mgenerateRuntimeOutput: true\x1b[0m  →  outputs only JS, suppresses all HTML\n" +
-			"  \x1b[36mhideRuntimeOutput: true\x1b[0m      →  suppresses all JS output\n" +
-			"  Together they cancel each other out and produce nothing.\n" +
-			"  \x1b[2mHint: use one at a time, or \x1b[0m\x1b[32mdualOutput: true\x1b[0m\x1b[2m to get [html, js] in one call.\x1b[0m\n"
-		);
-		return "";
-	}
 
 	// Initialize Logic Sandbox
 	await evaluator.init(fileBaseDir, security, settings, targetMapper);
 	// Inject global data
 	const placeholders = optionsOrAst?.placeholders || settings?.placeholders || {};
 	const variables = optionsOrAst?.variables || settings?.variables || {};
+	warnDroppedVariables(variables);
 	evaluator.inject(placeholders);
 	evaluator.inject(variables);
 
@@ -598,7 +617,7 @@ export async function transpiler(optionsOrAst, format, mapperFile) {
 	try {
 		for (let i = 0; i < body.length; i++) {
 			const node = body[i];
-			const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, generateRuntimeOutput, hideRuntimeOutput, instance);
+			const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, false, instance);
 
 			let finalBlockOutput = blockOutput;
 			if (prev_was_silent && node.type === TEXT) {
@@ -633,11 +652,11 @@ export async function transpiler(optionsOrAst, format, mapperFile) {
 /**
  * Transpiles block arguments, resolving logic or variables.
  */
-async function transpileArgs(args) {
+async function transpileArgs(props) {
 	const result = {};
-	if (!args) return result;
+	if (!props) return result;
 
-	for (const [key, value] of Object.entries(args)) {
+	for (const [key, value] of Object.entries(props)) {
 		if (key.toLowerCase().startsWith("data-sommark") && key.toLowerCase() !== "data-sommark-id") {
 			transpilerError([
 				`<$red:Reserved Attribute Error:$> The attribute name '<$yellow:${key}$>' is reserved for SomMark's internal runtime compiler logic.{line}`,

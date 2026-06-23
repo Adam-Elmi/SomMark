@@ -12,13 +12,10 @@ In SomMark, metadata passed to a block is called a **Prop** (Property).
 
 # Conceptually maps to a JS component call:
 render({
-  args: { title: "Welcome", theme: "dark" }, // Passed under 'args' in the current major version
+  props: { title: "Welcome", theme: "dark" },
   content: "Hello"
 })
 ```
-
-> [!NOTE]
-> **Compatibility**: To preserve backward compatibility with the current major version of SomMark, the core engine passes these properties under the **`args`** key in your custom JavaScript `render` functions. This property will be renamed from `args` to `props` in the next major version.
 
 ---
 
@@ -51,11 +48,11 @@ Props always follow an `=` sign in a block header and are separated by commas.
 Every prop (whether named or positional) is assigned a **Numerical Index** based on its position in the list.
 
 ```ini
-[tag = "A", key: "B", "C"]
+[id = "A", key: "B", "C"]
 ```
-*   `args["0"]` → `"A"`
-*   `args["1"]` → `"B"`
-*   `args["2"]` → `"C"`
+*   `props["0"]` → `"A"`
+*   `props["1"]` → `"B"`
+*   `props["2"]` → `"C"`
 
 ---
 
@@ -72,13 +69,13 @@ Standard, unquoted keys are strictly validated and can **only** contain:
 > Colons (`:`) are **forbidden** inside unquoted keys. Because the colon acts as the key-value separator, writing an unquoted key with a colon (like `theme:color`) will cause the parser to treat the first part (`theme`) as the key and the second part (`color`) as the value.
 
 ```ini
-[tag = my-class: "main", id$101: "active"][end]
+[id = my-class: "main", id$101: "active"][end]
 ```
 
 ### Quoted Keys
 If your key needs characters outside the allowed unquoted set (such as spaces, brackets, or commas), you **must** wrap it in single or double quotes.
 ```ini
-[tag = "data type": "user", "border,color": "red"][end]
+[id = "data type": "user", "border,color": "red"][end]
 ```
 
 ---
@@ -89,14 +86,14 @@ Values can be passed as quoted strings (recommended) or unquoted strings (for ba
 
 ### Unquoted Values (Allowed Characters)
 Unquoted values are read as literal strings up to the first structural delimiter or whitespace. They can contain any character **except**:
-* **Brackets & Braces:** `[`, `]`, `(`, `)`, `{`, `}`
+* **Brackets & Braces:** `[`, `]`, `{`, `}`
 * **Structural Delimiters:** `:`, `=`, `,`, `;`, `!`
-* **Quotes & Comments:** `"`, `'`, `#`, `@`
+* **Quotes & Comments:** `"`, `'`, `#`
 * **Whitespace:** Spaces, tabs, and newlines
 * **Escapes:** Backslash `\`
 
 ```ini
-[tag = active, path: /usr/local/bin, ratio: 50% !]
+[id = active, path: /usr/local/bin, ratio: 50% !]
 ```
 > [!WARNING]
 > Because spaces and commas act as structural separators, values containing these symbols **must** be quoted (e.g. `name: "Adam Elmi"`).
@@ -109,25 +106,14 @@ Text wrapped in `"` or `'`. Quotes are the **gold standard** for SomMark props. 
 
 ---
 
-## 5. Element Support
+## 5. Advanced Injection
 
-| Element Type | Prop Support |
-| :--- | :--- |
-| **Blocks** `[ ]` | Full support (Positional & Named) |
-| **At-Blocks** `@_ _@` | Full support (Positional & Named) |
-| **Inlines** `( )->( )` | Full support (Positional & Named) |
+Props can carry dynamic data using these special value types:
 
----
-
-## 6. Advanced Injection
-
-Props can resolve dynamic data using **Prefix Layers**:
-
-- **`v{variable}`**: Local component props.
-- **`p{placeholder}`**: Global configuration values.
-- **`js{data}`**: Native JavaScript Objects, Arrays, and Numbers.
-- **`static ${/* js code */}$`**: Compile-time JavaScript code.
+- **`v{variable}`**: A value from the current component or loop.
+- **`p{placeholder}`**: A value from the global compile config.
+- **`${ js code }$`**: Runs JavaScript at build time and uses the result. The `static` keyword is optional.
 
 ```ini
-[Profile = id: v{userId}, roles: js{["admin", "editor"]}, theme: p{theme}, year: static${new Date().getFullYear()}$ !]
+[Profile = id: v{userId}, theme: p{theme}, year: ${ new Date().getFullYear() }$ !]
 ```

@@ -1,26 +1,26 @@
-# SomMark Syntax Reference Guide (v4.1.0)
+# SomMark Syntax Reference Guide (v5)
 
-SomMark is a structured, block-based markup language. The grammar is parsed using a clean, robust, and highly predictable token vocabulary. Below is the factual reference for every syntax construct supported in SomMark.
+SomMark is a structured, block-based markup language. Below is the reference for every syntax construct in SomMark.
 
 ---
 
 ## 1. Blocks `[ ]`
 
-Blocks are the primary structural building blocks of SomMark templates.
+Blocks are the main building blocks of SomMark templates.
 
 ### Standard Blocks
-Standard blocks must always have a matching `[end]` block. They can contain nested text nodes, comments, variables, and child blocks.
-* **Syntax**: `[tag] body [end]`
+Standard blocks have a matching `[end:name]`. They can contain text, comments, variables, and other blocks.
+* **Syntax**: `[name] body [end:name]`
 * **Example**:
   ```ini
   [div]
-    [h1]Hello World[end]
-  [end]
+    [h1]Hello World[end:h1]
+  [end:div]
   ```
 
 ### Self-Closing Blocks `!`
-Self-closing blocks close immediately. They cannot contain body content or a matching `[end]`.
-* **Syntax**: `[tag!]` or `[tag = props!]`
+Self-closing blocks have no body and no `[end]`.
+* **Syntax**: `[name!]` or `[name = props!]`
 * **Example**:
   ```ini
   [br!]
@@ -32,86 +32,55 @@ Self-closing blocks close immediately. They cannot contain body content or a mat
 
 ## 2. Block Props `=`
 
-Props are passed to blocks following an `=` sign. Multiple props are separated by commas.
+Props are values passed into a block after the `=` sign. Multiple props are separated by commas.
 
-### Prop Resolution Formats:
-* **Positional**: Bare values parsed in sequential order:
+### Prop Formats:
+* **Positional**: Values listed in order:
   ```ini
-  [div = "container", "fluid"][end]
+  [div = "container", "fluid"][end:div]
   ```
-* **Named**: Expressed as `key: value` pairs:
+* **Named**: `key: value` pairs:
   ```ini
-  [button = color: "blue", size: "large"][end]
+  [button = color: "blue", size: "large"][end:button]
   ```
-* **Mixed**: Combining positional and named props together:
+* **Mixed**: Positional and named together:
   ```ini
-  [card = "shadow", title: "Product Features"][end]
+  [card = "shadow", title: "Product Features"][end:card]
   ```
 
 ### Prop Value Types:
-* **Quoted Strings**: Traditional text parameters: `[tag = name: "Value"][end]`
-* **Native JavaScript Data (`js{}`)**: Safely parsed arrays, numbers, booleans, and objects:
+* **Quoted Strings**: Plain text values in quotes:
   ```ini
-  [chart = data: js{[10, 20, 30]}, responsive: js{true}][end]
+  [id = name: "Value"][end:id]
   ```
-* **Public Placeholders (`p{}`)**: Dynamically resolved from the global compilation config:
+* **Public Placeholders (`p{}`)**: Values from the global compile config:
   ```ini
-  [user = name: p{currentUsername}][end]
+  [user = name: p{currentUsername}][end:user]
   ```
-* **Local Variables (`v{}`)**: Resolved from variables bound directly to components or local scopes:
+* **Local Variables (`v{}`)**: Values from the current component or loop:
   ```ini
-  [details = id: v{userId}][end]
+  [details = id: v{userId}][end:details]
   ```
-* **Static Evaluation Blocks (`static ${}`)**: Run JavaScript inside the VM sandbox at compilation-time and binds the evaluated return value:
+* **Compile-Time Blocks (`${}`)**: Run JavaScript at build time and use the result as a prop value. The `static` keyword is optional — `${ expr }$` and `static ${ expr }$` are the same:
   ```ini
-  [div = year: static ${ new Date().getFullYear() }$][end]
+  [div = year: ${ new Date().getFullYear() }$][end:div]
   ```
-* **Runtime Blocks (`runtime ${}`)**: Evaluates runtime logic scripts or hooks preserved in the target output:
+* **Runtime Blocks (`runtime ${}`)**: Keep JavaScript in the output, to run in the browser:
   ```ini
-  [button = onClick: runtime ${ alert("Clicked!") }$][end]
-  ```
-
----
-
-## 3. Inline Elements `( )->( )`
-
-Inlines are used for formatting text spans directly inside a paragraph block. Inlines do not support nested block syntax inside their body brackets.
-* **Syntax**: `(text)->(id)` or `(text)->(id = props)`
-* **Example**:
-  ```ini
-  This is (bold text)->(bold).
-  Visit (our website)->(link = "https://sommark.org").
+  [button = onClick: runtime ${ alert("Clicked!") }$][end:button]
   ```
 
 ---
 
-## 4. At-Blocks `@_id_@: props; ... @_end_@`
+## 3. Comments `#`
 
-At-Blocks capture raw, un-parsed text content. Brackets, comment indicators, and tags inside At-Blocks are treated as literal text and will not be parsed by the compiler.
-* **Syntax**:
-  ```ini
-  @_id_@;
-    literal body text
-  @_end_@
-  ```
-* **Syntax with Props**:
-  ```ini
-  @_code_@: lang: "javascript";
-    const message = "Literal [brackets] are ignored here!";
-  @_end_@
-  ```
+Comments are removed at build time and never appear in the output.
 
----
-
-## 5. Comments `#`
-
-Comments are completely removed by the compiler during parsing and never appear in the compiled output (unless comment removal is explicitly disabled).
-
-* **Single-line Comments**: Start with `#` and run until the end of the line:
+* **Single-line Comments**: Start with `#` and end at the end of the line:
   ```ini
   # This is a single-line comment
   ```
-* **Multiline Comments**: Wrapped in matching `###` blocks (no leading spaces allowed around the start/end markers):
+* **Multiline Comments**: Wrapped in matching `###` blocks:
   ```ini
   ###
     This is a multiline comment.
@@ -121,121 +90,135 @@ Comments are completely removed by the compiler during parsing and never appear 
 
 ---
 
-## 6. Logic Blocks `static ${...}$` and `runtime ${...}$`
+## 4. Compile-Time and Runtime Blocks
 
-Logic blocks execute JavaScript inside the sandboxed virtual machine or target environment.
+### Compile-Time Block `${ ... }$`
+Runs JavaScript on the server during the build and puts the result inline in the output. The `static` keyword is optional — `${ expr }$` and `static ${ expr }$` are exactly the same:
+* **Syntax**:
+  ```js
+  ${ /* JS expression or statement */ }$
+  ```
+* **Usage**:
+  ```ini
+  Built on: ${ new Date().toISOString() }$
+  ```
+* **Reference**: See the [Compile-Time Blocks Guide](static-block.md) for full details.
 
-### Static Blocks
-Evaluates JavaScript on the server during template compilation and replaces the block inline with the evaluated result.
-*   **Syntax**:
-    ```js
-    static ${ /* JS expression or script */ }$
-    ```
-*   **Usage**:
-    ```mdx
-    Get SomMark version: static ${ SomMark.version }$
-    ```
-*   **Reference**: Read the [Static Blocks Guide](static-block.md) for complete details.
-
-### Runtime Blocks
-*   **Definition**: Preserves client-side JavaScript logic intact inside the compiled output document to be executed in the target runtime environment.
-*   **Syntax**:
-    ```js
-    runtime ${ /* JS code */ }$
-    ```
-*   **Usage**:
-    ```mdx
-    [button]
-      runtime ${ 
-        self.addEventListener("click", () => alert("Hello")) 
-      }$
-      Click Me
-    [end]
-    ```
-*   **Reference**: Read the [Runtime Blocks Guide](runtime-block.md) for complete details.
+### Runtime Block `runtime ${ ... }$`
+Keeps the JavaScript in the final output to run in the browser:
+* **Syntax**:
+  ```js
+  runtime ${ /* JS code */ }$
+  ```
+* **Usage**:
+  ```ini
+  [button]
+    runtime ${
+      self.addEventListener("click", () => alert("Hello"))
+    }$
+    Click Me
+  [end:button]
+  ```
+* **Reference**: See the [Runtime Blocks Guide](runtime-block.md) for full details.
 
 ---
 
-## 7. Structural Loop Block (`[for-each]`)
+## 5. Raw Body Blocks `smark-raw`
 
-Loops through an array of items and renders the inner body block repeatedly:
-* **Syntax**: `[for-each = static ${ itemsArray }$, as: "alias"] body [end]`
-* **Loop Context Variables**:
-  * `static ${ alias }$`: Holds the active item object or property (e.g. `static ${ alias.name }$`).
-  * `static ${ alias_index }$`: Holds the 0-indexed count of the current loop iteration.
+The `smark-raw` prop tells SomMark to skip parsing the block's body. Everything between the opening and closing tag is passed to the render function as `content`, exactly as written.
+
+* **Syntax**: `[name = smark-raw: true] raw body [end:name]`
+* **Use cases**: embedding literal markup, fenced code blocks, CDATA, or any content that contains `[` characters that should not be treated as SomMark.
 * **Example**:
   ```ini
-  [for-each = static ${ [ { name: "A", id: 1 }, { name: "B", id: 2 } ] }$, as: "user"]
-    [span]Name: static ${ user.name }$, ID: static ${ user.id }$, Index: static ${ user_index }$ [end]
+  [code = lang: "js", smark-raw: true]
+  const nums = [1, 2, 3];
   [end]
+  ```
+* Use `\[` to write a literal `[` that would otherwise be read as `[end]`.
+* The `smark-raw` prop is stripped before reaching the render function. All other props are passed through normally.
+* **Reference**: See the [smark-raw Guide](smark-raw.md) for full details.
+
+---
+
+## 6. For-Each Loop `[for-each]`
+
+Loops through an array and renders the body once for each item. The `static` keyword is optional on the array expression:
+
+* **Syntax**: `[for-each = ${ itemsArray }$, as: "alias"] body [end:for-each]`
+* **Loop Variables**:
+  * `${ alias }$`: The current item (e.g. `${ alias.name }$`). Defaults to `value` if no `as:` is set.
+  * `${ i }$`: The 0-based position of the current item. Always `i` — not customizable.
+* **Example**:
+  ```ini
+  [for-each = ${ [ { name: "A", id: 1 }, { name: "B", id: 2 } ] }$, as: "user"]
+    [span]Name: ${ user.name }$, ID: ${ user.id }$, Index: ${ i }$[end:span]
+  [end:for-each]
   ```
 
 ---
 
-## 8. Module Declaration & Component Blocks
+## 7. Module System
 
-The Smark module system splits large pages into small reusable blocks:
+The SomMark module system lets you split large templates into smaller, reusable files:
 
-* **Import Declaration**: Must reside at the absolute top of the file:
+* **Import Declaration**: Must be at the very top of the file, before any content:
   ```ini
-  [import = Card: "./components/Card.smark"][end]
+  [import = Card: "./components/Card.smark" !]
   ```
-* **Static Injection**:
+* **Static Injection** — insert a module as-is, no props:
   ```ini
-  [$use-module = Card][end]
+  [$use-module = Card !]
   ```
-* **Component Block Injection**: Invokes the sub-module as a block, passing props and custom layout body content:
+* **Component Block** — pass props and body content into the module:
   ```ini
   [Card = title: "Featured Product"]
-    This is the card layout inner body.
-  [end]
+    This is the card body content.
+  [end:Card]
   ```
-* **Dynamic Slot Injection (`[slot]`)**: Inside the component file (e.g. `Card.smark`), defines where nested body content will inject:
+* **Slot** — inside a component file, marks where the caller's body content goes:
   ```ini
   [div = class: "card"]
-    [h2]v{title}[end]
+    [h2]v{title}[end:h2]
     [div = class: "card-body"]
-      [slot][end]
-    [end]
-  [end]
+      [slot][end:slot]
+    [end:div]
+  [end:div]
   ```
 
 ---
 
-## 9. Comprehensive Example
+## 8. Complete Example
 
 ```ini
-[import = Card: "./components/Card.smark"][end]
+[import = Card: "./components/Card.smark" !]
+
+${
+  const colors = [
+    { name: "Red", hex: "#F00" },
+    { name: "Green", hex: "#0F0" },
+    { name: "Blue", hex: "#00F" }
+  ];
+}$
 
 [div = class: "container"]
-  [h1]SomMark Engine v4.1.0[end]
-  
-  # Structural Page Section
+  [h1]SomMark v5[end:h1]
+
+  # Page section with a loop
   [section = id: "intro"]
-    ### 
-      This section executes a loop to output a list 
-      of cards with localized index variables.
     ###
-    
-    [for-each = 
-    static ${ 
-        [ { name: "Red", hex: "#F00" },
-          { name: "Green", hex: "#0F0" },
-          { name: "Blue", hex: "#00F" }
-        ] }$, 
-        as: "color"]
-      [Card = title: static ${ color.name }$]
-        Color hex code: static ${ color.hex }$
-        Current Position: static ${ color_index }$
-      [end]
-    [end]
-    [end]
-  
+      This section loops through colors
+      and renders a card for each one.
+    ###
+
+    [for-each = ${ colors }$, as: "color"]
+      [Card = title: ${ color.name }$]
+        Color hex code: ${ color.hex }$
+        Position: ${ i }$
+      [end:Card]
+    [end:for-each]
+  [end:section]
+
   [hr!]
-  
-  # This is a raw code block, not a SomMark block, output as raw text: [div !] \# This is self-closing 
-  @_code_@: lang: "smark";
-    [div!] # This is self-closing
-  @_end_@
-[end]
+[end:div]
 ```

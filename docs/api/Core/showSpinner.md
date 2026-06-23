@@ -25,7 +25,7 @@ In automated environments (like CI/CD pipelines, logging servers, or non-TTY she
 import { transpile } from "sommark";
 
 const output = await transpile({
-  src: "[p]Hello World[end]",
+  src: "[p]Hello World[end:p]",
   format: "html",
   showSpinner: false // Disables the interactive CLI spinner
 });

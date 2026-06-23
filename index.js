@@ -1,4 +1,4 @@
-import SomMark, { setDefaultFs, setDefaultCwd, setDefaultFindAndLoadConfig } from "./index.shared.js";
+import SomMark, { setDefaultFs, setDefaultCwd, setDefaultFindAndLoadConfig, setDefaultResolvePath } from "./index.shared.js";
 export * from "./index.shared.js";
 
 // Node-specific filesystem import
@@ -13,6 +13,14 @@ if (typeof process !== "undefined" && process.versions?.node) {
 }
 setDefaultFs(nodeFs);
 if (typeof process !== "undefined" && process.cwd) setDefaultCwd(process.cwd());
+
+// Resolve filenames to absolute paths for clear error messages
+if (typeof process !== "undefined" && process.versions?.node) {
+	try {
+		const nodePath = await import("node:path");
+		setDefaultResolvePath(nodePath.resolve.bind(nodePath));
+	} catch (e) {}
+}
 
 // Node-specific config-loader import
 let findAndLoadConfigFn = async () => ({});

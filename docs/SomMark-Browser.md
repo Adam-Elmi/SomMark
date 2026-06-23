@@ -134,7 +134,7 @@ sommark bundle ./public/sommark --only-lexer
 <script type="module">
   import { lexSync, TOKEN_TYPES } from "./public/sommark/sommark.lexer.js";
 
-  const tokens = lexSync("[h1]Hello[end]");
+  const tokens = lexSync("[h1]Hello[end:h1]");
   console.log(tokens);
 </script>
 ```
@@ -153,7 +153,7 @@ sommark bundle ./public/sommark --only-parser
 <script type="module">
   import { parseSync } from "./public/sommark/sommark.parser.js";
 
-  const ast = parseSync("[h1]Hello[end]");
+  const ast = parseSync("[h1]Hello[end:h1]");
   console.log(ast);
 </script>
 ```
@@ -272,7 +272,7 @@ When `baseDir` is an `http(s)://` URL, SomMark automatically uses `FetchFS` to l
 
 ```js
 // templates/page.smark
-[import = Card: "./Card.smark"][end]
+[import = Card: "./Card.smark" !]
 [Card = title: "Hello" !]
 ```
 
@@ -294,10 +294,10 @@ Use the `files` option to provide module content directly, without any network r
 
 ```js
 new SomMark({
-  src: '[import = Card: "/Card.smark"][end]\n[Card = title: "Hello" !]',
+  src: '[import = Card: "/Card.smark" !]\n[Card = title: "Hello" !]',
   format: "html",
   files: {
-    "/Card.smark": "[div = class: 'card'][h2]v{title}[end][end]",
+    "/Card.smark": "[div = class: 'card'][h2]v{title}[end:h2][end:div]",
   },
 });
 ```

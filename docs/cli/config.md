@@ -1,87 +1,104 @@
 # Configuration Guide
 
-The `smark.config.js` file is the central place to store your project settings. It ensures that SomMark behaves exactly how you want across your entire workspace.
+The `smark.config.js` file is the central place to store your project settings. SomMark reads it automatically whenever you run a command.
 
 ## 1. Quick Setup
 
-To create a fresh configuration file, simply run:
+Run this to create a fresh config file in your current folder:
 
 ```bash
 sommark init
 ```
 
-This creates a `smark.config.js` file in your current folder. SomMark will automatically find and use this file whenever you run a command in this directory.
-
 ---
 
 ## 2. Available Options
 
-Inside the file, you export a simple JavaScript object. Here are the most common settings:
-
-| Option | Type | Example | Purpose |
+| Option | Type | Default | Purpose |
 | :--- | :---: | :--- | :--- |
-| `outputDir` | `string` | `"./dist"` | Where to save the finished files. |
-| `outputFile` | `string` | `"index"` | The default name for your converted files. |
-| `removeComments` | `boolean` | `true` | Whether to delete `#` notes from the output. |
-| `placeholders` | `object` | `{ user: "Adam" }` | Data for your `p{user}` tags. |
-| `customProps` | `array` | `["data-test"]` | Allows extra HTML attributes. |
+| `format` | `string` | `"html"` | Target output format (`html`, `markdown`, `mdx`, `json`, `xml`, `jsonc`, `text`) |
+| `outputDir` | `string` | `"./"` | Where to save the converted files |
+| `outputFile` | `string` | `"output"` | Default name for converted files (without extension) |
+| `removeComments` | `boolean` | `true` | Remove `#` comment blocks from the output |
+| `placeholders` | `object` | `{}` | Global values for `p{key}` placeholders |
+| `importAliases` | `object` | `{ "@": "./" }` | Short path aliases for module imports (e.g. `@/Button` → `./Button`) |
+| `customProps` | `array` | `[]` | Extra HTML attributes to allow on blocks |
+| `fallbackTarget` | `string\|false` | `"style"` | Where unrecognized block attributes go: `"style"` (inline CSS) or `false` to disable |
+| `baseDir` | `string\|null` | `null` | Base folder for resolving relative module imports |
+| `mapperFile` | `Mapper\|null` | `null` | Custom Mapper instance to use instead of the built-in one |
+| `outputValidator` | `function\|null` | `null` | Callback to validate or post-process the output: `async (output) => { ... }` |
+| `showSpinner` | `boolean` | `true` | Show a spinner in the terminal while compiling |
+| `security` | `object` | *(see below)* | Sandbox and network safety settings |
+
+### Security Sub-Options (`security`)
+
+| Option | Type | Default | Purpose |
+| :--- | :---: | :--- | :--- |
+| `timeout` | `number` | `5000` | Kill scripts that run longer than this (in milliseconds) |
+| `maxDepth` | `number` | `5` | Maximum allowed import nesting depth |
+| `allowRaw` | `boolean` | `true` | Allow `SomMark.raw()` inside static blocks |
+| `allowFetch` | `boolean` | `true` | Allow `SomMark.fetch()` inside static blocks |
+| `allowHttp` | `boolean` | `false` | Allow plain HTTP requests (keep `false` unless you have a reason) |
+| `allowedOrigins` | `array` | `[]` | Only allow fetch requests to these domains |
+| `allowedExtensions` | `array` | `[]` | Only allow fetching files with these extensions |
+| `sanitize` | `function\|null` | `null` | Clean raw HTML before it is written to output: `(html) => { ... }` |
 
 ---
 
-## 3. How Priorities Work
+## 3. How Priority Works
 
-SomMark uses a "Smart Discovery" system to find your settings. If you have configuration files in multiple locations, it follows this strict priority order to determine which settings "win":
+When multiple config files exist or CLI flags are passed, SomMark follows this order (highest wins):
 
-1.  **CLI Flags**: Settings typed directly into the terminal (like `-o` or `--json`) **always** have the highest priority.
-2.  **Target File Directory**: SomMark first looks for `smark.config.js` in the **same folder** as the file you are converting. This allows you to have project-specific settings that follow your source files.
-3.  **Current Working Directory (CWD)**: If no config is found next to the source file, it falls back to the `smark.config.js` in the folder where you are currently running the command.
+1. **CLI flags** — anything typed in the terminal (e.g. `-o`, `--html`) always overrides everything
+2. **Source file's folder** — SomMark looks for `smark.config.js` in the same folder as the file you are converting
+3. **Current working directory** — if no config is found next to the file, it falls back to `smark.config.js` in whatever folder you are running the command from
 
-### Example: Which one wins?
-Imagine you are inside a root folder, but you are converting a file in a sub-project:
-- `./smark.config.js` (Root)
-- `./sub-project/smark.config.js` (Local)
+**Example:** If you run `sommark --html sub-project/main.smark`, the config in `sub-project/` is used — not the one in the root.
 
-If you run `sommark --html sub-project/main.smark`, the settings from **`./sub-project/`** will be used. This ensures your sub-projects always use their intended mappers and options without interference from global settings.
-
-### Verifying your config
-If you are unsure which configuration is being applied to a specific file, use the diagnostic command:
+To see which config is being used for a specific file:
 ```bash
 sommark show config path/to/your/file.smark
 ```
 
 ---
 
-## 4. Real-World Configuration Example
+## 4. Full Config Example
 
-Here is a typical `smark.config.js` for a modern web project:
+This is the exact file that `sommark init` creates:
 
 ```javascript
 /* smark.config.js */
-
 export default {
-    // 1. Where to save output
-    outputDir: "./build",
-    outputFile: "index",
-
-    // 2. Global Placeholders for your content
-    placeholders: {
-        siteTitle: "SomMark Documentation",
-        author: "Adam Elmi",
-        v: "4.0.0"
+    format: "html",              // Target output format (html, markdown, mdx, json, xml, jsonc, text)
+    removeComments: true,        // Strip SomMark comments from the final output
+    customProps: [],             // Whitelisted HTML attributes
+    placeholders: {},            // Global p{key} placeholders for content injection
+    importAliases: {             // Custom path aliases for modules (e.g. { "@": "./src/components" })
+        "@": "./"
     },
-
-    // 3. Keep comments in the output for debugging
-    removeComments: false,
-
-    // 4. Allow specific data attributes
-    customProps: ["data-site-id", "data-tracking-enabled"]
+    fallbackTarget: "style",     // Where unrecognized attributes go: "style" (inline CSS) or false to disable
+    outputValidator: null,       // Custom callback: async (transpiledOutput) => { ... }
+    baseDir: null,               // Base directory for resolving relative module imports
+    showSpinner: true,           // Display a spinner in the terminal during transpilation
+    security: {
+        allowRaw: true,          // Permit SomMark.raw() inside static blocks
+        maxDepth: 5,             // Maximum allowed import nesting depth
+        timeout: 5000,           // Kill scripts after this many milliseconds
+        allowFetch: true,        // Allow SomMark.fetch() inside static blocks
+        allowHttp: false,        // Block plain HTTP requests (recommended)
+        allowedOrigins: [],      // Whitelisted domains for fetch (e.g. ["api.github.com"])
+        allowedExtensions: [],   // Whitelisted file extensions for imports
+        sanitize: null,          // Custom HTML sanitizer: (html) => { ... }
+    },
+    outputDir: "./",             // Where to save the transpiled files
+    outputFile: "output",        // Default output filename (without extension)
 };
 ```
 
 ---
 
-## 5. Helpful Tips
+## 5. Tips
 
-1.  **Use ESM Syntax**: Always use `export default { ... }`. SomMark V4 is built on modern JavaScript.
-2.  **Verify Your Path**: Not sure if your config is loading? Run `sommark show config` to see the exact resulting settings.
-3.  **Directory Check**: Run `sommark show --path-config` to see the absolute path of the config file currently being used.
+- Use `export default { ... }` — SomMark uses modern ESM syntax.
+- Run `sommark show config` to see the exact settings being applied in your current folder.
+- Run `sommark show --path-config` to see the absolute path of the config file being loaded.

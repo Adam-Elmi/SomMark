@@ -76,7 +76,7 @@ async function main() {
 
 	// 5.5. Color
 	if (command === "color") {
-		runColor(args[1]);
+		await runColor(args[1]);
 		return;
 	}
 

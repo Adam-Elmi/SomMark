@@ -7,7 +7,7 @@ Quotes protect data within block headers, ensuring props containing spaces, comm
 ## 1. Scope: Props Only
 
 > [!IMPORTANT]
-> Quotes act as structural delimiters **only** inside block headers (`[ ]`), inline headers `( )->( )`, and At-blocks `@_ _@`.
+> Quotes act as structural delimiters **only** inside block headers (`[ ]`).
 > In standard body text, quotes are treated as normal literal characters.
 
 ---

@@ -32,7 +32,7 @@ Ensure that compiled HTML outputs never exceed tag safety or contain invalid fra
 import { transpile } from "sommark";
 
 await transpile({
-  src: "[div]Hello World[end]",
+  src: "[div]Hello World[end:div]",
   format: "html",
   outputValidator: (html) => {
     if (!html.startsWith("<div>") || !html.endsWith("</div>")) {

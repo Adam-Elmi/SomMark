@@ -70,11 +70,11 @@ const resolveAstVariables = (nodes, variables) => {
 			}
 		} else if (node.type === BLOCK) {
 			// Resolve any unresolved variables in block arguments
-			for (const [argKey, argVal] of Object.entries(node.args)) {
+			for (const [argKey, argVal] of Object.entries(node.props)) {
 				if (typeof argVal === "string" && argVal.startsWith(VAR_PREFIX) && argVal.endsWith(VAR_SUFFIX)) {
 					const varKey = argVal.slice(VAR_PREFIX.length, -VAR_SUFFIX.length);
 					if (variables[varKey] !== undefined) {
-						node.args[argKey] = variables[varKey];
+						node.props[argKey] = variables[varKey];
 						if (!variables.__consumed__) {
 							Object.defineProperty(variables, "__consumed__", {
 								value: new Set(),
@@ -114,8 +114,8 @@ const cloneAst = (nodes) => {
 		if (node.id !== undefined) nodeCopy.id = node.id;
 		if (node.code !== undefined) nodeCopy.code = node.code;
 		if (node.isSelfClosing !== undefined) nodeCopy.isSelfClosing = node.isSelfClosing;
-		if (node.args !== undefined) {
-			nodeCopy.args = { ...node.args };
+		if (node.props !== undefined) {
+			nodeCopy.props = { ...node.props };
 		}
 		if (node.body !== undefined) {
 			nodeCopy.body = cloneAst(node.body);
@@ -225,8 +225,8 @@ export async function resolveModules(ast, context) {
 					runtimeError([`<$red:Module Placement Error:$> Imports must be declared at the top level before any content at line <$yellow:${node.range.start.line + 1}$>`]);
 				}
 
-				const alias = Object.keys(node.args).find(k => isNaN(k));
-				let filePath = alias ? node.args[alias] : node.args[0];
+				const alias = Object.keys(node.props).find(k => isNaN(k));
+				let filePath = alias ? node.props[alias] : node.props[0];
 				if (typeof filePath === "string") filePath = filePath.trim().replace(/^["']|["']$/g, "");
 
 				// 1a. Handle Aliases
@@ -269,7 +269,7 @@ export async function resolveModules(ast, context) {
 			// 2. Handle Usage Node: [$use-module = alias]
 			else if (node.type === USE_MODULE) {
 				hasContentStarted = true;
-				const alias = node.args[0] || Object.values(node.args)[0];
+				const alias = node.props[0] || Object.values(node.props)[0];
 				if (!alias || !modules.has(alias)) {
 					runtimeError([`<$red:Module Usage Error:$> Undefined module alias <$magenta:${alias}$> at line <$yellow:${node.range.start.line + 1}$>`]);
 				}
@@ -320,7 +320,7 @@ export async function resolveModules(ast, context) {
 				const boundaryNode = {
 					type: BLOCK,
 					id: context.instance.moduleIdentityToken,
-					args: { filename: mod.path },
+					props: { filename: mod.path },
 					body: expandedNodes
 				};
 				nodes.splice(i, 1, boundaryNode);
@@ -376,28 +376,28 @@ export async function resolveModules(ast, context) {
 				}
 
 				// Dynamically resolve variable placeholders inside the cloned AST
-				resolveAstVariables(subAst, node.args);
+				resolveAstVariables(subAst, node.props);
 
 				await processNodes(node.body, currentBaseDir, false);
 				const expandedNodes = injectSlots(trimAst(subAst), trimAst(node.body));
 				const rootTag = expandedNodes.find(n => n.type === BLOCK);
 				if (rootTag) {
-					const consumed = node.args.__consumed__ || new Set();
+					const consumed = node.props.__consumed__ || new Set();
 
 					const publicArgs = Object.fromEntries(
-						Object.entries(node.args).filter(([key]) => {
+						Object.entries(node.props).filter(([key]) => {
 							if (key === "__consumed__") return false;
 							if (consumed.has(key)) return false; // THE FIX: Filter if hit by v{}
 							return true;
 						})
 					);
-					rootTag.args = { ...rootTag.args, ...publicArgs };
+					rootTag.props = { ...rootTag.props, ...publicArgs };
 				}
 
 				const boundaryNode = {
 					type: BLOCK,
 					id: context.instance.moduleIdentityToken,
-					args: { filename: mod.path },
+					props: { filename: mod.path },
 					body: expandedNodes
 				};
 				nodes.splice(i, 1, boundaryNode);

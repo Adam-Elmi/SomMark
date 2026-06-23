@@ -1,6 +1,6 @@
 # get()
 
-Retrieves a registered tag object (`{ id, render, options }`) from the mapper.
+Retrieves a registered block object (`{ id, render, options }`) from the mapper.
 
 ---
 
@@ -14,33 +14,33 @@ mapper.get(id);
 ```js
 import { MARKDOWN } from "sommark";
 const mapper = MARKDOWN.clone();
-const boldTag = mapper.get("bold");
-console.log(boldTag.id); // "bold"
-console.log(boldTag.options); // { type: ["Block", "Inline"] }
-console.log(boldTag.render); // function
+const boldBlock = mapper.get("bold");
+console.log(boldBlock.id); // "bold"
+console.log(boldBlock.options); // { type: ["Block", "Inline"] }
+console.log(boldBlock.render); // function
 ```
 
 ---
 
 ### Key Behaviors
 
-* **Case-Insensitive**: Tag names are not case-sensitive. Calling `.get("BOLD")` or `.get("bold")` returns the same tag.
-* **Handles Multiple Names (Aliases)**: If a tag has multiple names (like `["b", "bold"]`), calling `.get("b")` or `.get("bold")` returns the same tag.
-* **Last Match Wins**: Searches the registered list backwards. If multiple tags share the same name, it returns the one added most recently.
-* **Returns `null` if Missing**: Returns `null` if the tag has not been explicitly registered in the mapper.
+* **Case-Insensitive**: Block names are not case-sensitive. Calling `.get("BOLD")` or `.get("bold")` returns the same block.
+* **Handles Multiple Names (Aliases)**: If a block has multiple names (like `["b", "bold"]`), calling `.get("b")` or `.get("bold")` returns the same block.
+* **Last Match Wins**: Searches the registered list backwards. If multiple blocks share the same name, it returns the one added most recently.
+* **Returns `null` if Missing**: Returns `null` if the block has not been explicitly registered in the mapper.
 
 ---
 
-### Example: Copying Tags Between Mappers
+### Example: Copying Blocks Between Mappers
 
-You can use `.get()` to copy a tag rule from one mapper to another:
+You can use `.get()` to copy a block rule from one mapper to another:
 
 ```javascript
 import { Mapper, MARKDOWN } from "sommark";
 
 const customMapper = new Mapper();
 
-// 1. Get the bold tag from the Markdown mapper
+// 1. Get the bold block from the Markdown mapper
 const boldRule = MARKDOWN.get("bold");
 
 if (boldRule) {
@@ -51,22 +51,22 @@ if (boldRule) {
 
 ---
 
-### Example: Registered Tags vs Fallback Tags
+### Example: Registered Blocks vs Fallback Blocks
 
 The HTML mapper handles common elements (like `div`) dynamically. Since they are not explicitly registered in the mapper, `.get()` returns `null`:
 
 ```javascript
 import { HTML } from "sommark";
 
-// 1. "css" is explicitly registered, so get() returns the tag object
-const cssTag = HTML.get("css");
-console.log(cssTag.id); // "css"
+// 1. "css" is explicitly registered, so get() returns the block object
+const cssBlock = HTML.get("css");
+console.log(cssBlock.id); // "css"
 
 // 2. "div" is not explicitly registered (handled by fallback), so get() returns null
-const divTag = HTML.get("div");
-console.log(divTag); // null
+const divBlock = HTML.get("div");
+console.log(divBlock); // null
 ```
 
-[Read includesId.md to check if a tag is registered without returning the object](includesId.md)
+[Read includesId.md to check if a block is registered without returning the object](includesId.md)
 
-[Read getUnknownTag.md to understand fallback tags](getUnknownTag.md)
+[Read getUnknownTag.md to understand fallback blocks](getUnknownTag.md)

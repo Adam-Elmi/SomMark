@@ -34,6 +34,36 @@ To prevent Server-Side Request Forgeries (SSRF) and restrict network access insi
 
 ---
 
+### What is Blocked
+
+These three things are always rejected and throw an error:
+
+**Non-HTTP/HTTPS protocols** — only `http:` and `https:` are accepted. Anything else is blocked:
+```js
+await SomMark.fetch("file:///etc/hosts");
+// Error: Fetch Security Error: Unsupported protocol 'file:'. Only HTTP/HTTPS is allowed.
+```
+This means you cannot use `SomMark.fetch()` to read local files. Use module imports or `?raw` imports instead.
+
+**Plain HTTP** — `http:` is blocked by default:
+```js
+await SomMark.fetch("http://example.com");
+// Error: Fetch Security Error: HTTP requests are disabled. Use HTTPS instead.
+```
+Enable it with `{ security: { allowHttp: true } }` if you have a specific reason.
+
+**Local and private addresses** — `localhost`, `127.x.x.x`, `10.x.x.x`, `192.168.x.x`, `172.16–31.x.x`, and `::1` are always blocked, even over HTTPS. This protection cannot be disabled by any option — it is hardcoded:
+```js
+await SomMark.fetch("https://localhost:3000");
+// Error: SSRF Protection: Requests to local or private IP addresses are forbidden.
+
+// allowHttp: true does NOT help here — it only applies to non-local HTTP URLs
+await SomMark.fetch("http://localhost:3000"); // still blocked
+```
+`SomMark.fetch()` is for outbound requests to public URLs only. To read local files, use module imports or `?raw` imports.
+
+---
+
 ### Response Object Signature
 
 The custom response returned by `SomMark.fetch()` mimics the standard Fetch API:

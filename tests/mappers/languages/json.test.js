@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import SomMark from '../../../index.js';
 
+const json = async (src, placeholders = {}) => {
+    const raw = await new SomMark({ src, format: "json", placeholders }).transpile();
+    return JSON.parse(raw.trim());
+};
+
 describe('JSON Mapper (Blocks only)', () => {
     const smSettings = (src) => ({
         src,
@@ -147,6 +152,94 @@ describe('JSON Mapper (Blocks only)', () => {
   "p": "v"
 }`;
             expect(output.trim()).toBe(expected);
+        });
+    });
+
+    describe('[str] alias for [string]', () => {
+        it('[str] inside Object emits a quoted string field', async () => {
+            const doc = await json(`
+                [Object]
+                  [str = key: "name"]Adam[end]
+                [end]
+            `);
+            expect(doc).toEqual({ name: "Adam" });
+        });
+
+        it('[str] inside Array emits a string value', async () => {
+            const doc = await json(`
+                [Array]
+                  [str]hello[end]
+                  [str]world[end]
+                [end]
+            `);
+            expect(doc).toEqual(["hello", "world"]);
+        });
+    });
+
+    describe('shorthand key-value (getUnknownTag)', () => {
+        it('self-closing: emits a quoted string field', async () => {
+            const doc = await json(`[Object][username = "Adam" !][end]`);
+            expect(doc).toEqual({ username: "Adam" });
+        });
+
+        it('body form: emits a quoted string field', async () => {
+            const doc = await json(`[Object][username]Adam[end][end]`);
+            expect(doc).toEqual({ username: "Adam" });
+        });
+
+        it('infers integer', async () => {
+            const doc = await json(`[Object][port = 5432 !][end]`);
+            expect(doc).toEqual({ port: 5432 });
+        });
+
+        it('infers float', async () => {
+            const doc = await json(`[Object][ratio = 1.618 !][end]`);
+            expect(doc.ratio).toBeCloseTo(1.618);
+        });
+
+        it('infers boolean true', async () => {
+            const doc = await json(`[Object][active = true !][end]`);
+            expect(doc).toEqual({ active: true });
+        });
+
+        it('infers boolean false', async () => {
+            const doc = await json(`[Object][debug = false !][end]`);
+            expect(doc).toEqual({ debug: false });
+        });
+
+        it('infers null', async () => {
+            const doc = await json(`[Object][userId = null !][end]`);
+            expect(doc).toEqual({ userId: null });
+        });
+
+        it('handles multiple shorthand fields', async () => {
+            const doc = await json(`
+                [Object]
+                  [username = "Adam" !]
+                  [userId = null !]
+                  [isAdmin = false !]
+                  [score = 99 !]
+                [end]
+            `);
+            expect(doc).toEqual({ username: "Adam", userId: null, isAdmin: false, score: 99 });
+        });
+
+        it('works nested inside another Object', async () => {
+            const doc = await json(`
+                [Object]
+                  [Object = key: "user"]
+                    [name = "Elmi" !]
+                    [age = 30 !]
+                  [end]
+                [end]
+            `);
+            expect(doc).toEqual({ user: { name: "Elmi", age: 30 } });
+        });
+
+        it('throws a clear error when used inside [Array]', async () => {
+            await expect(
+                json(`[Array][username = "Adam" !][end]`)
+            ).rejects.toThrow();
         });
     });
 

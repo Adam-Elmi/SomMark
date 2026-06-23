@@ -10,11 +10,11 @@ The most important rule of SomMark comments is that they work **everywhere**. Be
 
 ```re
 # This is a standalone comment
-[div # This comment is inside a header
+[div # The block name
   class: "active" # Comment after an argument
 ]
   Hello World
-[end]
+[end:div]
 ```
 
 ---
@@ -33,7 +33,7 @@ The most important rule of SomMark comments is that they work **everywhere**. Be
 
 ## 3. Multiline Comments `###`
 
-SomMark 4.1.0+ supports multiline comments for longer explanations or for "commenting out" large sections of code.
+SomMark supports multiline comments for longer explanations or for temporarily disabling large sections of code.
 
 *   **Syntax**: Wrapped in `###` markers.
 *   **Behavior**: Everything between the markers is ignored.
@@ -42,7 +42,7 @@ SomMark 4.1.0+ supports multiline comments for longer explanations or for "comme
 ###
   This is a multiline comment.
   It can span many lines and even 
-  include other [blocks] and tags.
+  include other [blocks] and syntax.
 ###
 ```
 
@@ -66,13 +66,18 @@ Inside a header, you can wrap the value in quotes to protect the `#`:
 
 ---
 
-## 5. Disabling Comments
+## 5. Using a Literal `#` Character
 
-If you need to process raw text that contains many hashes (like a shell script), use an **At-Block**. At-Blocks do not parse comments inside their body.
+To include a `#` as literal text (not a comment), escape it with a backslash. This works in body text and inside unquoted prop values.
 
 ```re
-@_bash_@;
-  # This # will # not # be # a # comment
-  echo "Hello"
-@_end_@
+The color code is \#FF0000.
 ```
+
+Inside a block header, wrap the value in quotes instead:
+
+```re
+[style = color: "#FF0000"][end]
+```
+
+See [Escaping](escape.md) for the full list of characters that need escaping.

@@ -1,6 +1,6 @@
 # outputs
 
-The `outputs` property is a list where every tag and rule is stored for a mapper. You usually use methods like `register()` to add tags, but you can look at this list to see what is already there.
+The `outputs` property is a list where every block and rule is stored for a mapper. You usually use methods like `register()` to add blocks, but you can look at this list to see what is already there.
 
 **Syntax:** 
 ```js
@@ -21,14 +21,14 @@ console.log(outputs);
 
 Every item in the `outputs` list is a simple object that contains:
 
-*   **`id`**: The name of the tag (e.g., `"bold"`) or a list of names (e.g., `["b", "bold"]`).
-*   **`render`**: The function that turns the tag into text.
-*   **`options`**: Settings for the tag, like if it should be safe from HTML characters.
+*   **`id`**: The name of the block (e.g., `"bold"`) or a list of names (e.g., `["b", "bold"]`).
+*   **`render`**: The function that renders the block into text.
+*   **`options`**: Settings for the block, like if it should be safe from HTML characters.
 
 ```js
 import { HTML } from "sommark";
 
-// Look at the first tag in the HTML mapper
+// Look at the first block in the HTML mapper
 const first = HTML.outputs[0];
 
 console.log(first.id);      // ["DOCTYPE", "doctype"]
@@ -41,7 +41,7 @@ console.log(first.options); // { rules: { is_self_closing: true } }
 ## 2. Important to know
 
 ### Overwriting (The Last One Wins)
-When you register a tag that already exists, SomMark automatically **removes** the old tag from the `outputs` list before adding the new one. This keeps the list clean and free of duplicates.
+When you register a block that already exists, SomMark automatically **removes** the old block from the `outputs` list before adding the new one. This keeps the list clean and free of duplicates.
 
 ```js
 import { HTML } from "sommark";
@@ -49,10 +49,10 @@ import { HTML } from "sommark";
 const customMapper = HTML.clone();
 console.log(customMapper.outputs.length); // Output: 5
 
-// Overwrite the existing "css" tag
+// Overwrite the existing "css" block
 customMapper.register("css", ({ content }) => `<style>${content}</style>`);
 
-// The old tag was deleted, so the list size remains 5
+// The old block was deleted, so the list size remains 5
 console.log(customMapper.outputs.length); // Output: 5
 ```
 
@@ -66,10 +66,10 @@ Since `outputs` is just a standard JavaScript list, you can use normal coding to
 ```js
 import { MARKDOWN } from "sommark";
 
-// Find all tags that have escaping turned off
-const safeTags = MARKDOWN.outputs.filter(item => item.options?.escape === false);
+// Find all blocks that have escaping turned off
+const safeBlocks = MARKDOWN.outputs.filter(item => item.options?.escape === false);
 
-// Get a list of every single tag name that this mapper knows
+// Get a list of every block name that this mapper knows
 const allNames = MARKDOWN.outputs.flatMap(item => Array.isArray(item.id) ? item.id : [item.id]);
 ```
 

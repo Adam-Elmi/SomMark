@@ -1,54 +1,6 @@
-import Json, { renderNode, getIndent, renderMember } from "./json.js";
+import Json, { getIndent, renderMember } from "./json.js";
 
-/**
- * JSONC Mapper - Creates JSON output with comments.
- * It inherits from the standard JSON mapper and adds comment support.
- */
-
-async function renderChildren(node, mapper, depth = 0, inArray = false) {
-	let results = [];
-	const childIndent = getIndent(depth + 1);
-
-	for (const child of node.body) {
-		if (child.type === "Block") {
-			const output = await renderNode(child, mapper, depth + 1, inArray);
-			if (output) {
-				results.push({ type: "Block", value: childIndent + output });
-			}
-		} else if (child.type === "Comment") {
-			if (!mapper.options?.removeComments) {
-				results.push({ type: "Comment", value: childIndent + mapper.comment(child.text) });
-			}
-		} else if (child.type === "CommentBlock") {
-			if (!mapper.options?.removeComments) {
-				results.push({ type: "CommentBlock", value: childIndent + mapper.commentBlock(child.text, childIndent) });
-			}
-		}
-	}
-
-	let finalOutput = "";
-	for (let i = 0; i < results.length; i++) {
-		const current = results[i];
-		finalOutput += current.value;
-
-		if (current.type === "Block") {
-			// Add comma if there is another Block later
-			let hasNextBlock = false;
-			for (let j = i + 1; j < results.length; j++) {
-				if (results[j].type === "Block") {
-					hasNextBlock = true;
-					break;
-				}
-			}
-			if (hasNextBlock) finalOutput += ",";
-		}
-
-		if (i < results.length - 1) {
-			finalOutput += "\n";
-		}
-	}
-	return finalOutput;
-}
+const ITEM_SEP = "\x1F";
 
 const Jsonc = Json.clone();
 
@@ -64,19 +16,25 @@ Jsonc.commentBlock = function (text, indent = "  ") {
 	return `/* ${text} */`;
 };
 
-// Re-register Object and Array to use the new renderChildren logic
-Jsonc.register(["Object", "object"], async function ({ args, ast, depth = 0, inArray = false }) {
-	if (ast.body.length === 0) return renderMember(args, "{}", inArray);
-	const content = await renderChildren(ast, this, depth, false);
-	const val = `{\n${content}\n${getIndent(depth)}}`;
-	return renderMember(args, val, inArray);
-}, { type: "Block", handleAst: true });
+async function renderStructure(props, ast, depth, inArray, childInArray, openBracket, closeBracket, renderChild) {
+	let combined = "";
+	for (const child of ast.body) {
+		const out = await renderChild(child, { depth: depth + 1, inArray: childInArray });
+		if (out) combined += out;
+	}
+	const parts = combined.split(ITEM_SEP).map(v => v.trim()).filter(v => v !== "");
+	const value = parts.length === 0
+		? `${openBracket}${closeBracket}`
+		: `${openBracket}\n${parts.map(p => getIndent(depth + 1) + p).join(",\n")}\n${getIndent(depth)}${closeBracket}`;
+	return renderMember(props, value, inArray);
+}
 
-Jsonc.register(["Array", "array"], async function ({ args, ast, depth = 0, inArray = false }) {
-	if (ast.body.length === 0) return renderMember(args, "[]", inArray);
-	const content = await renderChildren(ast, this, depth, true);
-	const val = `[\n${content}\n${getIndent(depth)}]`;
-	return renderMember(args, val, inArray);
-}, { type: "Block", handleAst: true });
+Jsonc.register(["Object", "object"], async function ({ props, ast, depth = 0, inArray = false, renderChild }) {
+	return renderStructure(props, ast, depth, inArray, false, "{", "}", renderChild);
+}, { handleAst: true });
+
+Jsonc.register(["Array", "array"], async function ({ props, ast, depth = 0, inArray = false, renderChild }) {
+	return renderStructure(props, ast, depth, inArray, true, "[", "]", renderChild);
+}, { handleAst: true });
 
 export default Jsonc;

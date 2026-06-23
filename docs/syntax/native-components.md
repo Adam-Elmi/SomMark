@@ -11,11 +11,11 @@ A component file acts as a template. It receives data via variables (`v{}`) and 
 
 ```smark
 [div = class: "card"]
-  [h4] v{title} [end]
+  [h4] v{title} [end:h4]
   [div = class: "card-body"]
-    [slot] Default/Fallback Content [end]
-  [end]
-[end]
+    [slot] Default/Fallback Content [end:slot]
+  [end:div]
+[end:div]
 ```
 
 ### Component Usage
@@ -26,7 +26,7 @@ Import the component at the top of your document (the `.smark` extension is opti
 
 [Card = title: "Dynamic Component Title"]
   This is the body content injected into the slot.
-[end]
+[end:Card]
 ```
 
 ### Rendered Output (HTML)
@@ -43,27 +43,27 @@ Import the component at the top of your document (the `.smark` extension is opti
 
 ## 2. Prop Mapping
 
-Props passed to a component tag are automatically mapped to internal variables:
+Props passed to a component block are automatically mapped to internal variables:
 
 * **Named Props:** `[Card = title: "Hello" !]` maps to `v{title}`.
 * **Positional Props:** `[Card = "Hello" !]` maps to `v{0}`.
-* **Complex Data Passing:** Pass array/object variables natively using `js{}`:
+* **Complex Data Passing:** Pass arrays or objects as a compile-time block:
   ```smark
-  [List = items: js{ ["Item A", "Item B"] } !]
+  [List = items: ${ ["Item A", "Item B"] } !]
   ```
 
 ---
 
 ## 3. Scope & Prop Merging (Privacy by Default)
 
-Props passed to a component are automatically merged onto its root element **unless** they are consumed by a `v{}` variable inside the component template.
+Props passed to a component block are automatically merged onto its root element **unless** they are consumed by a `v{}` variable inside the component template.
 
 ### Input Scenario
 * **Component (`Card.smark`):**
   ```smark
   [div = class: "card"]
-    [h4] v{title} [end]
-  [end]
+    [h4] v{title} [end:h4]
+  [end:div]
   ```
 * **Usage:**
   ```smark

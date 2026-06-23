@@ -1,14 +1,14 @@
 # SomMark Core Architecture
 
-SomMark is a structured, extensible markup language. It is designed to act as a **universal source format** that compiles (transpiles) into other target languages, such as HTML, Markdown, MDX, or XML. 
+SomMark is a markup language that compiles into other formats — HTML, Markdown, MDX, XML, and more. You write content in `.smark` files, and SomMark translates them into whichever format you choose.
 
-Instead of rendering content directly, SomMark parses your text into a structured data tree. A separate translation layer, called the **Mapper**, decides exactly how that structured tree should be rendered into the target language.
+The key idea: SomMark does not output anything on its own. It reads your source, builds a data tree from it, and then uses a **Mapper** to decide what the output looks like. Swap the Mapper, and the same `.smark` source produces a completely different output format.
 
 ---
 
-## The 4-Stage Compilation Pipeline
+## How Compilation Works
 
-The compilation lifecycle is split into four distinct, sequential stages:
+SomMark processes your source in 4 steps:
 
 ```mermaid
 graph TD
@@ -22,72 +22,67 @@ graph TD
     F --> I["Final Rendered Output"]
 ```
 
+### 1. Lexer
+The **Lexer** reads your source one character at a time and breaks it into labeled pieces called **tokens**. For example, `[` becomes `OPEN_BRACKET`, `Button` becomes `IDENTIFIER`, and body text becomes `TEXT`.
 
-### 1. Lexing
-The **Lexer** scans your raw source code character by character. It identifies "structural markers" (like brackets and parentheses) and separates them from your body text. 
-*   **Result**: A flat stream of **Tokens** (e.g., `OPEN_BRACKET`, `IDENTIFIER`, `TEXT`).
+### 2. Parser
+The **Parser** takes the flat list of tokens and builds a tree from it — the **AST** (Abstract Syntax Tree). The tree captures which blocks are nested inside other blocks, what props each block has, and what text each block contains. The Parser also resolves prefix layers like `p{}` and `v{}` during this step.
 
-### 2. Parsing
-The **Parser** takes the flat stream of tokens and organizes them into a hierarchical tree called an **AST** (Abstract Syntax Tree). 
-*   **Responsibility**: It handles nesting (blocks inside blocks), resolves arguments, and recognizes prefix layers like `p{}`.
-*   **Result**: A tree structure representing the logical layout of your document.
+### 3. Mapper
+The **Mapper** is a set of rules: "when you see this block, output this string". For example, a rule might say `[h1]` → `<h1>`. Switching the Mapper changes the entire output format without touching your source files.
 
-### 3. Mapping
-The **Mapper** is the translation layer. It is a reference guide that defines how SomMark's identifiers (like `[card]`) should look in the target language. By switching the Mapper, you change the language SomMark transpiles into.
-
-### 4. Transpilation
-The **Transpiler** walks the AST and, for every node it finds, it consults the Mapper. It executes the renderer functions and stitches the results together into the final output.
-*   **Result**: The final string in your target markup language.
+### 4. Transpiler
+The **Transpiler** walks the AST one node at a time. For each node, it finds the matching rule in the Mapper, runs the render function, and adds the result to the output string.
 
 ---
 
-## The Evaluator and Sandbox (`core/evaluator.js`)
+## Scripts Inside Templates
 
-SomMark lets you run JavaScript inside your templates using logic blocks. These scripts run securely inside a dedicated engine:
-* **Safe Sandbox**: Scripts run inside a secure, lightweight virtual machine (QuickJS). This isolates the code to prevent it from accessing or harming your computer.
-* **Blocked APIs**: Dangerous operations (like reading local files or making web requests) are blocked to keep your environment secure.
-* **Isolated Scopes**: Script variables created inside loops or imported files are isolated to their specific areas. They are cleaned up immediately after running to prevent them from leaking.
+SomMark lets you run JavaScript inside your templates using **logic blocks**. These scripts run at compile time, inside a **sandboxed VM** — completely separate from your main Node.js process.
+
+* **Sandboxed**: Scripts cannot access your filesystem, environment variables, or Node.js APIs.
+* **Scoped**: Variables inside one logic block do not leak into other blocks.
 
 ---
 
 ## Static Logic vs. Runtime Logic
 
-SomMark distinguishes between two types of logic blocks based on **when** and **where** they execute:
+SomMark has two types of logic blocks — one runs at compile time, the other runs later in the browser:
 
-| Feature | Static Logic | Runtime Logic |
+| | Static Logic | Runtime Logic |
 | :--- | :--- | :--- |
-| **Syntax** | `static ${ ... }$` | `runtime ${ ... }$` |
-| **Execution Time** | **Compile Time** (during transpilation) | **Client-side Runtime** (in the browser or app) |
-| **Execution Context** | Sandboxed QuickJS VM inside the compiler | Target environment (Browser, etc.) |
-| **Transpiler Action** | Executes the JS code, converts the result to a string, and embeds it in the output. | Passes the raw code string to the Mapper (`mapper.runtimeLogic()`) to generate runtime wrappers. |
+| **Syntax** | `${ ... }$` | `runtime ${ ... }$` |
+| **When it runs** | At compile time (when you call `transpile()`) | In the browser, after the page loads |
+| **Where it runs** | Sandboxed QuickJS VM inside the compiler | The browser's JavaScript engine |
+| **What the transpiler does** | Runs the code and embeds the result in the output | Wraps the code in a `<script>` tag and passes it through |
 
-### Code Examples
+The `static` keyword is optional — `${ expr }$` and `static ${ expr }$` are identical.
 
-#### 1. Static Logic
-In your Smark source file:
+### Static Logic Example
+
 ```mdx
-Total price: static ${ 100 * 1.2 }$
+Total price: ${ 100 * 1.2 }$
 ```
-**Note**: An explicit `return` statement is optional. SomMark automatically returns and embeds the value of the last evaluated expression statement in the block (matching standard JavaScript `eval` behavior).
 
-* **Transpiler Action**: Executes `100 * 1.2` during compilation using QuickJS.
-* **Compiled HTML Output**:
+The compiler runs `100 * 1.2` and replaces the block with the result:
+
 ```html
 Total price: 120
 ```
 
-#### 2. Runtime Logic
-In your Smark source file: (global scope):
+> You do not need a `return` statement. SomMark automatically uses the value of the last expression in the block.
+
+### Runtime Logic Example
+
 ```js
 runtime ${ 
   const total_price = 100 * 1.2;
   console.log(total_price);
 }$
 ```
-**Note**: If you use runtime logic in top-level (not inside blocks), it will be considered global scope so just a script tag is wrapped with the code.
 
-* **Transpiler Action**: Leaves the logic string `count` untouched. Passes it to the active Mapper's `runtimeLogic()` renderer function.
-* **Compiled HTML Output** (using a standard HTML web framework mapper):
+The compiler does not run this code. It passes it to the Mapper's `runtimeLogic()` function, which wraps it in a `<script>` tag:
+
 ```html
 <script>
   const total_price = 100 * 1.2;
@@ -95,309 +90,81 @@ runtime ${
 </script>
 ```
 
+> A `runtime` block at the top level of your file (not inside any other block) becomes a plain global `<script>` tag.
+
 ---
 
-## Code Example: The Entire Lifecycle
+## Full Example: One Block Through Every Step
 
-Here is a concrete example tracing a custom tag `[Button]` through the entire pipeline:
+Here is `[Button = disabled: true]Click Me[end:Button]` traced through each stage:
 
-### 1. Raw SomMark Input
+### 1. Source Input
 ```ini
-[Button = disabled: true]Click Me[end]
+[Button = disabled: true]Click Me[end:Button]
 ```
 
-### 2. Lexer Tokens Output
+### 2. Lexer Output
+Each piece of the source becomes a labeled token (ranges omitted for brevity):
 ```json
 [
-  {
-    "type": "OPEN_BRACKET",
-    "value": "[",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 0
-      },
-      "end": {
-        "line": 0,
-        "character": 1
-      }
-    }
-  },
-  {
-    "type": "IDENTIFIER",
-    "value": "Button",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 1
-      },
-      "end": {
-        "line": 0,
-        "character": 7
-      }
-    }
-  },
-  {
-    "type": "WHITESPACE",
-    "value": " ",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 7
-      },
-      "end": {
-        "line": 0,
-        "character": 8
-      }
-    }
-  },
-  {
-    "type": "EQUAL",
-    "value": "=",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 8
-      },
-      "end": {
-        "line": 0,
-        "character": 9
-      }
-    }
-  },
-  {
-    "type": "WHITESPACE",
-    "value": " ",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 9
-      },
-      "end": {
-        "line": 0,
-        "character": 10
-      }
-    }
-  },
-  {
-    "type": "KEY",
-    "value": "disabled",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 10
-      },
-      "end": {
-        "line": 0,
-        "character": 18
-      }
-    }
-  },
-  {
-    "type": "COLON",
-    "value": ":",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 18
-      },
-      "end": {
-        "line": 0,
-        "character": 19
-      }
-    }
-  },
-  {
-    "type": "WHITESPACE",
-    "value": " ",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 19
-      },
-      "end": {
-        "line": 0,
-        "character": 20
-      }
-    }
-  },
-  {
-    "type": "VALUE",
-    "value": "true",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 20
-      },
-      "end": {
-        "line": 0,
-        "character": 24
-      }
-    }
-  },
-  {
-    "type": "CLOSE_BRACKET",
-    "value": "]",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 24
-      },
-      "end": {
-        "line": 0,
-        "character": 25
-      }
-    }
-  },
-  {
-    "type": "TEXT",
-    "value": "Click Me",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 25
-      },
-      "end": {
-        "line": 0,
-        "character": 33
-      }
-    }
-  },
-  {
-    "type": "OPEN_BRACKET",
-    "value": "[",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 33
-      },
-      "end": {
-        "line": 0,
-        "character": 34
-      }
-    }
-  },
-  {
-    "type": "END_KEYWORD",
-    "value": "end",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 34
-      },
-      "end": {
-        "line": 0,
-        "character": 37
-      }
-    }
-  },
-  {
-    "type": "CLOSE_BRACKET",
-    "value": "]",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 37
-      },
-      "end": {
-        "line": 0,
-        "character": 38
-      }
-    }
-  },
-  {
-    "type": "EOF",
-    "value": "",
-    "source": "anonymous",
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 38
-      },
-      "end": {
-        "line": 0,
-        "character": 38
-      }
-    }
-  }
+  { "type": "OPEN_BRACKET",  "value": "[" },
+  { "type": "IDENTIFIER",    "value": "Button" },
+  { "type": "WHITESPACE",    "value": " " },
+  { "type": "EQUAL",         "value": "=" },
+  { "type": "WHITESPACE",    "value": " " },
+  { "type": "KEY",           "value": "disabled" },
+  { "type": "COLON",         "value": ":" },
+  { "type": "WHITESPACE",    "value": " " },
+  { "type": "VALUE",         "value": "true" },
+  { "type": "CLOSE_BRACKET", "value": "]" },
+  { "type": "TEXT",          "value": "Click Me" },
+  { "type": "OPEN_BRACKET",  "value": "[" },
+  { "type": "END_KEYWORD",   "value": "end:Button" },
+  { "type": "CLOSE_BRACKET", "value": "]" },
+  { "type": "EOF",           "value": "" }
 ]
 ```
 
-### 3. Parser AST Node Representation
+### 3. Parser Output
+The flat token list becomes a nested node:
 ```json
 [
   {
     "type": "Block",
-    "structure": "Block",
     "id": "Button",
-    "args": {
+    "props": {
       "0": "true",
       "disabled": "true"
     },
     "body": [
       {
         "type": "Text",
-        "structure": "Text",
-        "text": "Click Me",
-        "depth": 2,
-        "range": {
-          "start": {
-            "line": 0,
-            "character": 25
-          },
-          "end": {
-            "line": 0,
-            "character": 33
-          }
-        }
+        "text": "Click Me"
       }
-    ],
-    "depth": 1,
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 0
-      },
-      "end": {
-        "line": 0,
-        "character": 38
-      }
-    }
+    ]
   }
 ]
 ```
 
-### 4. Mapper Definition (HTML)
+The `Button` block has one prop (`disabled: true`) and one child text node (`Click Me`). Every prop is stored twice: once by position (`"0"`) and once by name (`"disabled"`).
+
+### 4. Mapper Rule (HTML)
 ```javascript
 import SomMark from "sommark";
 
 const myMapper = new SomMark.Mapper();
 
-myMapper.register("Button", ({ args, content }) => {
+myMapper.register("Button", ({ props, content }) => {
     return SomMark.tag("button")
         .attributes({
             class: "btn btn-primary",
-            disabled: args.disabled === "true"
+            disabled: props.disabled === "true"
         })
         .body(content);
 });
 ```
 
-### 5. Final Transpiled Output
+### 5. Final Output
 ```html
 <button class="btn btn-primary" disabled>Click Me</button>
 ```

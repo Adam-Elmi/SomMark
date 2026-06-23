@@ -69,10 +69,8 @@ class TagBuilder {
 		const id = this.tagName.toLowerCase();
 		const isCodeStyleOrScript = ["style", "script"].includes(id);
 		let inline_style = "";
-		const useClassFallback = options.fallbackTarget === "class";
-		const classSet = new Set();
 
-		// 1. Initial CSS Variable/Style processing
+		// 1. Initial style processing
 		if (!isCodeStyleOrScript && args.style) {
 			if (typeof args.style === "object") {
 				inline_style = Object.entries(args.style)
@@ -85,20 +83,11 @@ class TagBuilder {
 			}
 		}
 
-		// 2. Pre-collect native classes if using class fallback
-		if (useClassFallback) {
-			if (args.class) {
-				String(args.class).split(/\s+/).filter(Boolean).forEach(c => classSet.add(c));
-			}
-		}
-
-		// 3. Attribute Dispatching
+		// 2. Attribute dispatching
 		const keys = Object.keys(args).filter(arg => isNaN(parseInt(arg)));
 		keys.forEach(key => {
-			if (!isNaN(parseInt(key))) return; // Skip numeric positional arguments
 			if (key === "style") return;
 			if (isCodeStyleOrScript && key === "scoped") return;
-			if (useClassFallback && key === "class") return;
 
 			const isDimensionAttributeSupported = ["img", "video", "svg", "canvas", "iframe", "object", "embed"].includes(id);
 			const isWidthOrHeight = key === "width" || key === "height";
@@ -108,38 +97,23 @@ class TagBuilder {
 			const isDataOrAria = kebabize(key).startsWith("data-") || kebabize(key).startsWith("aria-");
 
 			const k = isEvent ? key.toLowerCase() : (isNative || isCustom) ? key : kebabize(key);
+			const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
 
 			if (isCodeStyleOrScript || options.fallbackTarget === false) {
-				// Specialized tags or fallback disabled: render standard attributes, no styling fallback
-				const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
+				// Specialized tags or fallback disabled: render as standard attributes
 				this.#attr.push(`${k}="${escapeHTML(String(val))}"`);
 			} else {
-				// Standard elements: process smart fallbacks
 				if (isEvent || ((isNative || isCustom) && (!isWidthOrHeight || isDimensionAttributeSupported)) || isDataOrAria) {
-					const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
 					this.#attr.push(`${k}="${escapeHTML(String(val))}"`);
 				} else {
-					if (useClassFallback) {
-						const val = args[key];
-						if (val === true || val === "true") {
-							classSet.add(k);
-						} else if (val !== false && val !== "false" && val !== null && val !== undefined) {
-							classSet.add(`${k}-${val}`);
-						}
-					} else {
-						const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
-						inline_style += `${k}:${val};`;
-					}
+					// Unknown attribute: fall through to inline style
+					inline_style += `${k}:${val};`;
 				}
 			}
 		});
 
-		if (useClassFallback && classSet.size > 0) {
-			this.#attr.push(`class="${escapeHTML([...classSet].join(" "))}"`);
-		}
-
 		if (inline_style) {
-			// V4 DYNAMIC CSS: Automatically wrap CSS variables in var()
+			// Wrap CSS variables in var()
 			const processedStyle = inline_style.replace(/(^|[^\w\-_$])(--[\w\-_$]+)(?![\w\-_$]|:)/g, "$1var($2)");
 			this.#attr.push(`style="${escapeHTML(processedStyle)}"`);
 		}

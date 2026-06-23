@@ -1,6 +1,6 @@
 # includesId()
 
-Checks if any of the provided tag names/IDs are registered in the active environment.
+Checks if any of the provided block names/IDs are registered in the active environment.
 ---
 
 **Syntax:**
@@ -11,8 +11,8 @@ SomMark.includesId(ids);
 **Usage:**
 ```javascript
 static ${
-  // Checks if the [alert] or [card] tags are active
-  const hasTags = SomMark.includesId(["alert", "card"]);
+  // Checks if the [alert] or [card] blocks are active
+  const hasBlocks = SomMark.includesId(["alert", "card"]);
 }$
 ```
 

@@ -1,216 +1,346 @@
-# JSON Mapping Guide
+# JSON
 
-The **JSON Mapper** provides the translation logic for converting SomMark document nodes into a structured, type-safe JSON string. By organizing your document into typed blocks, SomMark turns JSON from a strict, error-prone configuration layout into a clean, human-friendly, and maintainable authoring format.
+Use SomMark to generate JSON from templates.
 
----
-
-## 1. Using JSON
-
-To compile your templates to JSON, initialize the transpilation pipeline with the `"json"` format:
-
-```javascript
+```js
 import SomMark from "sommark";
 
-const sm = new SomMark({
-  src: sourceText,
-  format: "json"
-});
+const sm = new SomMark({ src, format: "json", placeholders: { ... } });
+const json = await sm.transpile();
+// JSON.parse(json) to get a JS object
+```
 
-const jsonString = await sm.transpile();
-// The result is a standard valid JSON string.
-// Use JSON.parse(jsonString) to convert it back into an active JS object.
+```bash
+sommark --json input.smark
 ```
 
 ---
 
-## 2. Core Key & Value Resolution Rules
+## Why use SomMark instead of writing JSON directly?
 
-The JSON Mapper (`mappers/languages/json.js`) operates recursively on blocks using a specialized AST processor (`handleAst: true`). How members are named and valued depends on whether they reside inside an **Object`** or an **Array**:
-
-### I. Member Keys (Inside Objects)
-In a parent Object block, member keys (names) are resolved in two ways (both work, but **explicit named parameters are highly preferred** for clarity and code safety):
-1.  **Explicit `key` Attribute** *(Preferred)*: The named `key: "name"` argument.
-2.  **First Positional Argument**: The first unnamed string argument in the block header.
-- `[string = key: "username"] Adam [end]` compiles to `"username": "Adam"` *(Preferred)*
-- `[string = "username"] Adam [end]` compiles to `"username": "Adam"`
-
-### II. Array Values (Inside Arrays)
-Inside a parent Array block, members do **not** have keys. The first positional argument in the child header is automatically treated as the **actual value** (falling back to the block body if omitted).
-- `[string = "developer"][end]` inside `[Array]` compiles to `"developer"`
-- `[string] developer [end]` inside `[Array]` compiles to `"developer"`
-
-### III. Self-Closing Blocks (`!`) & Explicit `value` Key
-For maximum efficiency, you can avoid writing block-body text and structural `[end]` tags entirely. Simply use a **Self-Closing Block** (ending with an exclamation mark `!`) and pass the value using the named `value` parameter:
-
-*   **In Objects**: Set the member name as the explicit `key` parameter (preferred) or the first positional argument, and set the value using the named `value` attribute:
-    - `[string = key: "username", value: "Adam" !]` compiles to `"username": "Adam"` *(Preferred)*
-    - `[string = "username", value: "Adam" !]` compiles to `"username": "Adam"`
-    - `[number = key: "age", value: 25 !]` compiles to `"age": 25` *(Preferred)*
-    - `[bool = key: "isActive", value: true !]` compiles to `"isActive": true` *(Preferred)*
-*   **In Arrays**: Since arrays ignore keys, simply pass the value as the first positional argument:
-    - `[string = "developer" !]` compiles to `"developer"`
-    - `[number = 42 !]` compiles to `42`
-    - `[bool = true !]` compiles to `true`
-
-> [!NOTE]
-> **Container vs. Primitive Scoping**:
-> * When a container block (like `[Array]` or `[Object]`) is nested as a direct child of an `[Object]`, it represents a key-value member and **must** have a key (e.g. `[Array = key: "ids"]`).
-> * However, all elements nested *inside* that `[Array]` block are array items and **do not** have keys (e.g., using `[number = 101 !]`).
->
-> **Example**: To represent `{ "ids": [101, 202, 303] }`:
-> ```ini
-> [Object]
->   [Array = key: "ids"]
->     [number = 101 !]
->     [number = 202 !]
->     [number = 303 !]
->   [end]
-> [end]
-> ```
+| Problem with raw JSON | How SomMark solves it |
+| --------------------- | --------------------- |
+| No comments allowed | `#` and `###` comments are stripped at build time |
+| No loops — repeated entries must be copy-pasted | `[for-each]` generates repeated entries from an array |
+| No dynamic values — everything is hardcoded | `${ }$` runs JavaScript at build time and inlines the result |
+| No file splitting — everything in one file | `[import]` merges multiple `.smark` files into one output |
+| Trailing commas break the file | Commas handled automatically — you never manage them |
+| Nested quotes must be escaped manually | Block body handles quotes naturally |
 
 ---
 
-## 3. Data Type Blocks
+## Writing object fields
 
-SomMark supports six registered JSON structural and primitive blocks:
+### Shorthand — tag name as key
 
-### 1. `[Object]` / `[object]`
-- **Type**: Block Container
-- **Purpose**: Creates a JSON object wrapping other properties.
-- **Example**:
-  ```ini
-  [Object = "profile"]
-    [string = "name"] Sarah [end]
+Write the key directly as the tag name. The value goes in the first argument or
+the block body. Type is detected automatically:
+
+```ini
+[Object]
+  [username = "Adam" !]
+  [age = 25 !]
+  [score = 9.8 !]
+  [isAdmin = false !]
+  [deletedAt = null !]
+[end]
+```
+
+```json
+{
+  "username": "Adam",
+  "age": 25,
+  "score": 9.8,
+  "isAdmin": false,
+  "deletedAt": null
+}
+```
+
+| Value you write | JSON output |
+| --------------- | ----------- |
+| `"hello"` | `"hello"` (string) |
+| `42` | `42` (number) |
+| `true` / `false` | `true` / `false` (boolean) |
+| `null` | `null` |
+
+Body form works too — useful for longer string values:
+
+```ini
+[Object]
+  [bio]Software developer based in Hargeisa.[end]
+[end]
+```
+
+```json
+{
+  "bio": "Software developer based in Hargeisa."
+}
+```
+
+### Typed blocks — explicit type, with key prop
+
+Use typed blocks when you need the `trim` option or want to be explicit. Pass
+the key via the `key:` named prop:
+
+```ini
+[Object]
+  [string = key: "bio", trim: true]
+    A passionate developer.
   [end]
-  ```
-  **JSON Output**:
-  ```json
-  "profile": {
-    "name": "Sarah"
-  }
-  ```
+  [number = key: "port", value: 5432 !]
+  [bool = key: "ssl", value: true !]
+  [null = key: "deletedAt" !]
+[end]
+```
 
-### 2. `[Array]` / `[array]`
-- **Type**: Block Container
-- **Purpose**: Creates a JSON array listing other values.
-- **Example**:
-  ```ini
-  [Array = "roles"]
-    [string] admin [end]
-    [string = "editor"][end]
+`[str]` is an alias for `[string]` — both work.
+
+> The tag name must be a fixed word — `${ variable }$` cannot be used as the
+> tag name. For dynamic keys, use `[string]` with two args inside a `[for-each]`:
+> `[string = ${ key }$, ${ value }$ !]`
+
+---
+
+## Arrays
+
+Use typed scalar blocks as items — each takes a value with no key:
+
+```ini
+[Array]
+  [string = "admin" !]
+  [string = "editor" !]
+  [number = 42 !]
+  [bool = true !]
+  [null !]
+[end]
+```
+
+```json
+[
+  "admin",
+  "editor",
+  42,
+  true,
+  null
+]
+```
+
+`[str]` works inside arrays too: `[str = "hello" !]`
+
+> Using an unknown tag (shorthand) inside `[Array]` is an error — there is no
+> key to use. Use the typed blocks above instead.
+
+---
+
+## Nested objects and arrays
+
+Give `[Object]` or `[Array]` a key via the `key:` named prop when nested:
+
+```ini
+[Object]
+  [username = "Adam" !]
+  [Object = key: "address"]
+    [city = "Hargeisa" !]
+    [country = "Somalia" !]
   [end]
-  ```
-  **JSON Output**:
-  ```json
+  [Array = key: "roles"]
+    [string = "admin" !]
+    [string = "editor" !]
+  [end]
+[end]
+```
+
+```json
+{
+  "username": "Adam",
+  "address": {
+    "city": "Hargeisa",
+    "country": "Somalia"
+  },
   "roles": [
     "admin",
     "editor"
   ]
-  ```
-
-### 3. `[string]`
-- **Type**: Primitive Block
-- **Purpose**: Represents a double-quoted JSON string.
-- **Parameters**: 
-  - `trim` *(boolean, defaults to `false`)*: Instructs Smark to automatically strip all leading/trailing whitespaces and newlines from the resolved string before JSON-escaping it. Smark's `safeArg` parser co-evaluates `"true"` (string) and `true` (boolean):
-    *   **With `trim: true`**: Trims leading and trailing margins.
-        ```ini
-        [string = "msg", trim: true]
-          Hello World  
-        [end]
-        ```
-        **JSON Output**: `"msg": "Hello World"`
-    *   **With `trim: false` (Default)**: Fully preserves all leading and trailing indentation margins and newlines.
-        ```ini
-        [string = "msg", trim: false]
-          Hello World  
-        [end]
-        ```
-        **JSON Output**: `"msg": "\n  Hello World  \n"`
-  - `value` / `index 0` (in arrays) - Explicitly sets the string value in the header. If omitted, falls back to the block's text body.
-- **Example**:
-  ```ini
-  [string = key: "bio", trim: true]
-    A passionate developer.  
-  [end]
-  ```
-  **JSON Output**:
-  ```json
-  "bio": "A passionate developer."
-  ```
-
-### 4. `[number]`
-- **Type**: Primitive Block
-- **Purpose**: Represents a numeric value.
-- **Sanitization**: Automatically sanitizes input: if the value is empty or not a valid number, Smark safely defaults it to `0` to prevent throwing syntax exceptions.
-- **Example**:
-  ```ini
-  [number = "age"] 25 [end]
-  [number = "invalid"] abc [end]
-  ```
-  **JSON Output**:
-  ```json
-  "age": 25,
-  "invalid": 0
-  ```
-
-### 5. `[bool]`
-- **Type**: Primitive Block
-- **Purpose**: Represents a boolean value (`true` or `false`).
-- **Sanitization**: Defaults to `false` unless the trimmed input string equals `"true"` or `"1"`.
-- **Example**:
-  ```ini
-  [bool = "isActive"] true [end]
-  [bool = "isVerified"] 1 [end]
-  [bool = "isPending"] off [end]
-  ```
-  **JSON Output**:
-  ```json
-  "isActive": true,
-  "isVerified": true,
-  "isPending": false
-  ```
-
-### 6. `[null]`
-- **Type**: Primitive Block
-- **Purpose**: Represents a literal `null` value. It ignores any internal body content.
-- **Example**:
-  ```ini
-  [null = "deletedUser"][end]
-  ```
-  **JSON Output**:
-  ```json
-  "deletedUser": null
-  ```
-
----
-
-## 4. Build-Time Static Logic Support
-
-You can evaluate JavaScript dynamically at compile-time using standard `static ${ ... }$` blocks inside string, number, or boolean tags to dynamically inject structured properties.
-
-**SomMark Source:**
-```ini
-[Object = "system"]
-  [string = "compiledAt"] static ${ new Date().toISOString() }$ [end]
-  [number = "version"] static ${ 2 + 2 }$ [end]
-[end]
-```
-**JSON Output**:
-```json
-"system": {
-  "compiledAt": "2026-05-31T12:00:00.000Z",
-  "version": 4
 }
 ```
 
 ---
 
-## 5. Architectural Advantages Over Raw JSON
+## Loops with `[for-each]`
 
-1.  **Document Comments**: JSON does not support comments. SomMark allows you to write standard `#` comments anywhere in your source; these are cleanly stripped at compile-time to maintain strict JSON compliance.
-2.  **Effortless Multi-line Text**: Writing multi-line strings in raw JSON is difficult and requires manual `\n` character escapes. SomMark preserves standard newlines and double-quotes inside `[string]` blocks automatically.
-3.  **Automatic Comma Management**: SomMark handles all nested brackets and commas automatically, completely preventing common syntax errors like trailing commas or missing separators.
-4.  **Flexible Whitespace Preservation**: Automatically outputs beautifully indented 2-space JSON formatting while ignoring structural junk whitespaces inside the header declarations.
-5.  **Compile-Time JS Execution**: Evaluate JavaScript dynamically at compile-time using `static ${ ... }$` blocks (e.g., to automatically calculate values, resolve environments, or inject build timestamps) directly into string, number, or boolean tags while generating a perfectly compliant JSON output.
-6.  **Modular Files**: Raw JSON cannot be split across multiple files. SomMark lets you break down massive JSON documents into smaller, reusable files (`[import]`) and combine them cleanly into one final output.
+### Dynamic array from data
+
+```ini
+${
+  const tags = ["rust", "cli", "json"];
+}$
+
+[Array]
+  [for-each = ${ tags }$, as: "t"]
+    [string = ${ t }$ !]
+  [end]
+[end]
+```
+
+```json
+[
+  "rust",
+  "cli",
+  "json"
+]
+```
+
+### Dynamic array of objects
+
+```ini
+${
+  const users = [
+    { name: "Adam",  age: 25 },
+    { name: "Elmi",  age: 40 },
+  ];
+}$
+
+[Array]
+  [for-each = ${ users }$, as: "u"]
+    [Object]
+      [name = ${ u.name }$ !]
+      [age = ${ u.age }$ !]
+    [end]
+  [end]
+[end]
+```
+
+```json
+[
+  { "name": "Adam", "age": 25 },
+  { "name": "Elmi", "age": 40 }
+]
+```
+
+### Dynamic object fields
+
+When keys come from the data, use `[string]` with two args — key first, value
+second:
+
+```ini
+${
+  const deps = [
+    { name: "react",   version: "18.0.0" },
+    { name: "vite",    version: "5.0.0"  },
+  ];
+}$
+
+[Object = key: "dependencies"]
+  [for-each = ${ deps }$, as: "d"]
+    [string = ${ d.name }$, ${ d.version }$ !]
+  [end]
+[end]
+```
+
+```json
+{
+  "dependencies": {
+    "react": "18.0.0",
+    "vite": "5.0.0"
+  }
+}
+```
+
+---
+
+## Compile-time values
+
+`${ }$` runs JavaScript at build time and inlines the result:
+
+```ini
+[Object]
+  [builtAt = ${ new Date().toISOString() }$ !]
+  [version = ${ (await import("./package.json", { assert: { type: "json" } })).default.version }$ !]
+[end]
+```
+
+Declare shared variables once, use everywhere:
+
+```ini
+${
+  const env = "production";
+  const replicas = env === "production" ? 3 : 1;
+}$
+
+[Object]
+  [env = ${ env }$ !]
+  [replicas = ${ replicas }$ !]
+[end]
+```
+
+```json
+{
+  "env": "production",
+  "replicas": 3
+}
+```
+
+---
+
+## Placeholders
+
+Inject values at build time without changing the template:
+
+```ini
+[Object]
+  [host = ${ DB_HOST }$ !]
+  [port = ${ DB_PORT }$ !]
+[end]
+```
+
+```js
+new SomMark({
+  src,
+  format: "json",
+  placeholders: { DB_HOST: "db.example.com", DB_PORT: 5432 }
+});
+```
+
+---
+
+## File splitting with modules
+
+Split a large config across multiple `.smark` files:
+
+```ini
+[import = db: "./db.smark" !]
+[import = server: "./server.smark" !]
+
+[Object]
+  [Object = key: "database"]
+    [$use-module = "db" !]
+  [end]
+  [Object = key: "server"]
+    [$use-module = "server" !]
+  [end]
+[end]
+```
+
+`db.smark`:
+
+```ini
+[host = "localhost" !]
+[port = 5432 !]
+[ssl = false !]
+```
+
+---
+
+## Comments
+
+SomMark comments are stripped and never appear in the JSON output.
+
+```ini
+# this comment disappears
+[Object]
+  # another comment — gone
+  [name = "myapp" !]
+[end]
+```
+
+For JSON output that keeps comments, use the [JSONC format](./jsonc.md).

@@ -1,6 +1,6 @@
 # mapperFile
 
-A custom `Mapper` instance that defines tag compilation rules for the engine.
+A custom `Mapper` instance that defines block compilation rules for the engine.
 ---
 
 **Syntax:**
@@ -20,7 +20,7 @@ const customMapper = new Mapper();
 customMapper.register("h1", ({ body }) => `<h1>${body}</h1>`);
 
 const output = await transpile({
-  src: "[h1]Hello World[end]",
+  src: "[h1]Hello World[end:h1]",
   format: "html",
   mapperFile: customMapper
 });
@@ -40,11 +40,11 @@ import { transpile, HTML } from "sommark";
 // Clone default HTML mapper
 const myMapper = HTML.clone();
 
-// Override only the 'p' tag definition
+// Override only the 'p' block definition
 myMapper.register("p", ({ body }) => `<p class="lead">${body}</p>`);
 
 const output = await transpile({
-  src: "[p]Custom lead paragraph[end]",
+  src: "[p]Custom lead paragraph[end:p]",
   format: "html",
   mapperFile: myMapper
 });
@@ -54,4 +54,4 @@ console.log(output);
 
 [Read clear.md for cleaning custom mappers](../Mapper/clear.md)
 
-[Read register.md for registering new tags](../Mapper/register.md)
+[Read register.md for registering new blocks](../Mapper/register.md)

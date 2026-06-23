@@ -337,16 +337,10 @@ class FetchFS {
  * @property {string} END_KEYWORD - 'end' value.
  * @property {string} IDENTIFIER - Block or inline name (e.g. 'Person', 'import', '$use-module').
  * @property {string} EQUAL - '=' char.
- * @property {string} VALUE - Data values. Encapsulates Quoted Strings ("...") and Prefix Layers (js{}, p{}).
+ * @property {string} VALUE - Data values. Encapsulates Quoted Strings ("...") and Prefix Layers (p{}, v{}).
  * @property {string} TEXT - Plain unformatted text content.
- * @property {string} THIN_ARROW - '->' sequence.
- * @property {string} OPEN_PAREN - '(' char.
- * @property {string} CLOSE_PAREN - ')' char.
- * @property {string} OPEN_AT - '@_' sequence (At-Block start).
- * @property {string} CLOSE_AT - '_@' sequence (At-Header end).
  * @property {string} COLON - ':' char.
  * @property {string} COMMA - ',' char.
- * @property {string} SEMICOLON - ';' char (At-Block separator).
  * @property {string} COMMENT - '#' comments.
  * @property {string} COMMENT_BLOCK - '###' comments.
  * @property {string} ESCAPE - '\' char. Used for literalizing structural chars like '\"' or '\['.
@@ -354,7 +348,6 @@ class FetchFS {
  * @property {string} EXCLAMATION_MARK - '!' char.
  * @property {string} IMPORT - 'import' keyword.
  * @property {string} USE_MODULE - '$use-module' keyword.
- * @property {string} PREFIX_JS - 'js{}' prefix layer.
  * @property {string} PREFIX_P - 'p{}' placeholder layer.
  * @property {string} PREFIX_V - 'v{}' local variable layer.
  * @property {string} EOF - End of File indicator.
@@ -369,18 +362,11 @@ const TOKEN_TYPES = {
   EQUAL: "EQUAL",
   VALUE: "VALUE",
   QUOTE: "QUOTE",
-  PREFIX_JS: "PREFIX_JS",
   PREFIX_P: "PREFIX_P",
   PREFIX_V: "PREFIX_V",
   TEXT: "TEXT",
-  THIN_ARROW: "THIN_ARROW",
-  OPEN_PAREN: "OPEN_PAREN",
-  CLOSE_PAREN: "CLOSE_PAREN",
-  OPEN_AT: "OPEN_AT",
-  CLOSE_AT: "CLOSE_AT",
   COLON: "COLON",
   COMMA: "COMMA",
-  SEMICOLON: "SEMICOLON",
   COMMENT: "COMMENT",
   COMMENT_BLOCK: "COMMENT_BLOCK",
   ESCAPE: "ESCAPE",
@@ -390,8 +376,13 @@ const TOKEN_TYPES = {
   WHITESPACE: "WHITESPACE",
   STATIC_KEYWORD: "STATIC_KEYWORD",
   RUNTIME_KEYWORD: "RUNTIME_KEYWORD",
+  LOGIC_OPEN: "LOGIC_OPEN",
   LOGIC: "LOGIC",
+  LOGIC_CLOSE: "LOGIC_CLOSE",
   FOR_EACH: "FOR_EACH",
+  PREFIX_OPEN: "PREFIX_OPEN",
+  PREFIX_CLOSE: "PREFIX_CLOSE",
+  PIPELINE: "PIPELINE",
   EOF: "EOF"
 };
 
@@ -422,8 +413,6 @@ function peek(input, index, offset) {
  */
 const BLOCK = "Block",
 	TEXT$1 = "Text",
-	INLINE = "Inline",
-	ATBLOCK = "AtBlock",
 	COMMENT = "Comment",
 	COMMENT_BLOCK = "CommentBlock",
 	IMPORT = "Import",
@@ -436,13 +425,8 @@ const BLOCK = "Block",
 /**
  * Names for symbols used to separate parts of the code (like commas and colons).
  */
-const SEMICOLON = "Semicolon",
-	BLOCKCOMMA = "Block-comma",
-	ATBLOCKCOMMA = "Atblock-comma",
-	INLINECOMMA = "Inline-comma",
-	BLOCKCOLON = "Block-colon",
-	ATBLOCKCOLON = "Atblock-colon",
-	INLINECOLON = "Inline-colon";
+const BLOCKCOMMA = "Block-comma",
+	BLOCKCOLON = "Block-colon";
 
 /**
  * These names are used in error messages to tell you exactly which part 
@@ -452,12 +436,6 @@ const block_id = "Block Identifier",
 	block_value = "Block Value",
 	block_key = "Block Key",
 	block_end = "Block end",
-	inline_id = "Inline Identifier",
-	inline_text = "Inline Text",
-	at_id = "At Identifier",
-	at_value = "At Value",
-	atblock_key = "AtBlock Key",
-	at_end = "Atblock End",
 	/** Reserved keyword for closing blocks */
 	end_keyword = "end",
 	slot_keyword = "slot",
@@ -465,9 +443,6 @@ const block_id = "Block Identifier",
 
 var labels = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  ATBLOCK: ATBLOCK,
-  ATBLOCKCOLON: ATBLOCKCOLON,
-  ATBLOCKCOMMA: ATBLOCKCOMMA,
   BLOCK: BLOCK,
   BLOCKCOLON: BLOCKCOLON,
   BLOCKCOMMA: BLOCKCOMMA,
@@ -475,29 +450,590 @@ var labels = /*#__PURE__*/Object.freeze({
   COMMENT_BLOCK: COMMENT_BLOCK,
   FOR_EACH: FOR_EACH,
   IMPORT: IMPORT,
-  INLINE: INLINE,
-  INLINECOLON: INLINECOLON,
-  INLINECOMMA: INLINECOMMA,
   RUNTIME_LOGIC: RUNTIME_LOGIC,
-  SEMICOLON: SEMICOLON,
   SLOT: SLOT,
   STATIC_LOGIC: STATIC_LOGIC,
   TEXT: TEXT$1,
   USE_MODULE: USE_MODULE,
-  at_end: at_end,
-  at_id: at_id,
-  at_value: at_value,
-  atblock_key: atblock_key,
   block_end: block_end,
   block_id: block_id,
   block_key: block_key,
   block_value: block_value,
   end_keyword: end_keyword,
   for_each_keyword: for_each_keyword,
-  inline_id: inline_id,
-  inline_text: inline_text,
   slot_keyword: slot_keyword
 });
+
+/**
+ * SomMark Lexer
+ * 
+ * Transforms a raw SomMark source string into a stream of tokens.
+ * It uses a state-machine approach to handle complex contexts like At-Block bodies,
+ * quoted values, and hierarchical headers.
+ * 
+ * @param {string} src - The raw SomMark source code.
+ * @param {string} [filename="anonymous"] - Source filename for error reporting.
+ * @returns {Array<Object>} Array of token objects.
+ */
+function lexer(src, filename = "anonymous") {
+	if (!src || typeof src !== "string") return [];
+	const tokens = [];
+	let last_non_junk_type = ""; // Tracks the last real token for context guessing
+	let i = 0;
+	let line = 0, character = 0;
+
+	// State Variables
+	let isInQuote = false;
+	let isInHeader = false;      // Tracks if we are in a structural header context
+	let isInPVPrefix = false;    // Tracks if we are scanning inside a p{} or v{} prefix
+	let pendingSmarkRaw = false; // Set when KEY "smark-raw" is seen — waiting for value
+	let hasSmarkRaw = false;     // Set when smark-raw: true is confirmed in header
+	let isRawContent = false;    // Set when inside a smark-raw block — content collected as-is, not parsed
+
+	/**
+	 * Adds a token to the stream and updates the scanner's position tracking.
+	 * 
+	 * @param {string} type - The type of token (from TOKEN_TYPES).
+	 * @param {string} value - The literal text content of the token.
+	 */
+	function addToken(type, value) {
+		const start = { line, character };
+
+		// Update position
+		const parts = value.split("\n");
+		if (parts.length > 1) {
+			line += parts.length - 1;
+			character = parts[parts.length - 1].length;
+		} else {
+			character += value.length;
+		}
+
+		const end = { line, character };
+		tokens.push({
+			type,
+			value,
+			source: filename,
+			range: { start, end }
+		});
+		if (type !== TOKEN_TYPES.WHITESPACE && type !== TOKEN_TYPES.COMMENT) {
+			if (type !== TOKEN_TYPES.TEXT || value.trim() !== "") {
+				last_non_junk_type = type;
+			}
+		}
+	}
+
+	/**
+	 * Looks ahead to find the next structural character, skipping whitespace and comments.
+	 * Used for context-guessing (e.g., distinguishing KEY from VALUE).
+	 * 
+	 * @param {number} start - Index to start peeking from.
+	 * @returns {string|null} The next structural character or null if EOF.
+	 */
+	function peekStructural(start) {
+		let j = start;
+		while (j < src.length) {
+			const c = src[j];
+			if (c === " " || c === "\t" || c === "\n" || c === "\r") {
+				j++;
+				continue;
+			}
+			if (c === "#") {
+				while (j < src.length && src[j] !== "\n") j++;
+				continue;
+			}
+			if (c === "\\") {
+				// Escape sequence: jump over the backslash and the escaped char
+				j += 2;
+				continue;
+			}
+			return c;
+		}
+		return null;
+	}
+
+	while (i < src.length) {
+		const char = src[i];
+		const next = src[i + 1];
+
+		// --- RAW CONTENT MODE ---
+		// Collect everything as-is until [end] or [end:name]. \[ escapes a literal [.
+		if (isRawContent) {
+			let raw = "";
+			while (i < src.length) {
+				if (src[i] === "\\" && src[i + 1] === "[") {
+					raw += "[";
+					i += 2;
+					continue;
+				}
+				if (src[i] === "[") {
+					if (src.startsWith(`[${end_keyword}]`, i) || src.startsWith(`[${end_keyword}:`, i)) break;
+				}
+				raw += src[i];
+				i++;
+			}
+			if (raw) addToken(TOKEN_TYPES.TEXT, raw);
+			isRawContent = false;
+			continue;
+		}
+
+		// --- PHASE 1.5: PV PREFIX CONTENT MODE ---
+		// Handles structured content inside p{} and v{} prefixes.
+		if (isInPVPrefix && !isInQuote) {
+			if (char === '"' || char === "'") {
+				addToken(TOKEN_TYPES.QUOTE, char);
+				i++;
+				isInQuote = true;
+				continue;
+			}
+			if (char === '|') {
+				addToken(TOKEN_TYPES.PIPELINE, "|");
+				i++;
+				continue;
+			}
+			if (char === '}') {
+				addToken(TOKEN_TYPES.PREFIX_CLOSE, "}");
+				isInPVPrefix = false;
+				i++;
+				continue;
+			}
+			if (char !== ' ' && char !== '\t' && char !== '\n' && char !== '\r') {
+				let word = '';
+				while (i < src.length) {
+					const c = src[i];
+					if (c === '}' || c === '|' || c === '"' || c === "'" || c === ' ' || c === '\t' || c === '\n' || c === '\r') break;
+					word += c;
+					i++;
+				}
+				if (word) addToken(TOKEN_TYPES.KEY, word);
+				continue;
+			}
+			// Whitespace: fall through to PHASE 3 whitespace handling
+		}
+
+		// --- PHASE 2: QUOTE MODE ---
+		// Handles balanced strings and allows prefix layers (js{}, p{}) inside them.
+		if (isInQuote) {
+			let quoteValue = "";
+			const quoteChar = tokens[tokens.length - 1].value;
+			while (i < src.length) {
+				if (src[i] === "\\" && i + 1 < src.length) {
+					// Inside quotes, we split escapes if we want to match reliability tests
+					if (quoteValue.length > 0) addToken(TOKEN_TYPES.VALUE, quoteValue);
+					addToken(TOKEN_TYPES.ESCAPE, "\\" + src[i + 1]);
+					quoteValue = "";
+					i += 2;
+					continue;
+				}
+
+				// Support Prefix Layers inside quotes!
+				if ((src[i] === "p" && src[i + 1] === "{") || (src[i] === "v" && src[i + 1] === "{")) {
+					const isV = (src[i] === "v");
+					if (quoteValue.length > 0) {
+						addToken(TOKEN_TYPES.VALUE, quoteValue);
+						quoteValue = "";
+					}
+
+					{
+						// p{} or v{}: keyword + PREFIX_OPEN + unquoted key + optional PIPELINE + fallback + PREFIX_CLOSE
+						addToken(isV ? TOKEN_TYPES.PREFIX_V : TOKEN_TYPES.PREFIX_P, isV ? "v" : "p");
+						addToken(TOKEN_TYPES.PREFIX_OPEN, "{");
+						i += 2;
+						// Scan unquoted key (cannot use same quote char as outer string)
+						let key = "";
+						while (i < src.length && src[i] !== "|" && src[i] !== "}" && src[i] !== quoteChar) {
+							key += src[i];
+							i++;
+						}
+						if (key.trim()) addToken(TOKEN_TYPES.KEY, key.trim());
+						// Optional PIPELINE + fallback
+						if (i < src.length && src[i] === "|") {
+							addToken(TOKEN_TYPES.PIPELINE, "|");
+							i++;
+							let fallback = "";
+							while (i < src.length && src[i] !== "}" && src[i] !== quoteChar) {
+								fallback += src[i];
+								i++;
+							}
+							if (fallback.trim()) addToken(TOKEN_TYPES.VALUE, fallback.trim());
+						}
+						// PREFIX_CLOSE
+						if (i < src.length && src[i] === "}") {
+							addToken(TOKEN_TYPES.PREFIX_CLOSE, "}");
+							i++;
+						}
+					}
+					continue;
+				}
+
+				if (src[i] === quoteChar) {
+					// Guess role based on next structural character
+					let nextStructural = peekStructural(i + 1);
+					let tokenType = isInHeader && (nextStructural === ":" || nextStructural === "=")
+						? TOKEN_TYPES.KEY
+						: TOKEN_TYPES.VALUE;
+
+					if (quoteValue.length > 0) addToken(tokenType, quoteValue);
+					if (pendingSmarkRaw && tokenType === TOKEN_TYPES.VALUE && quoteValue === "true") {
+						hasSmarkRaw = true;
+						pendingSmarkRaw = false;
+					}
+					addToken(TOKEN_TYPES.QUOTE, quoteChar);
+					isInQuote = false;
+					i++;
+					break;
+				}
+				quoteValue += src[i];
+				i++;
+			}
+			if (!isInQuote) continue;
+		}
+
+		// --- PHASE 3: STRUCTURAL PARSING ---
+		// Handles markers, whitespace, and structural symbols.
+
+		// WHITESPACE
+		if (char === "\n") {
+			addToken(TOKEN_TYPES.WHITESPACE, char);
+			i++;
+			continue;
+		}
+
+		if (char === " " || char === "\t" || char === "\r") {
+			let ws = "";
+			while (i < src.length && (src[i] === " " || src[i] === "\t" || src[i] === "\r")) {
+				ws += src[i];
+				i++;
+			}
+			addToken(TOKEN_TYPES.WHITESPACE, ws);
+			continue;
+		}
+
+		// COMMENTS
+		if (char === "#") {
+			let comm = "";
+			// Check for Multiline Comment ### (must have no spaces)
+			if (src[i + 1] === "#" && src[i + 2] === "#") {
+				comm = "###";
+				i += 3;
+				while (i < src.length) {
+					if (src[i] === "#" && src[i + 1] === "#" && src[i + 2] === "#") {
+						comm += "###";
+						i += 3;
+						break;
+					}
+					comm += src[i];
+					i++;
+				}
+				addToken(TOKEN_TYPES.COMMENT_BLOCK, comm);
+			} else {
+				// Single line comment
+				while (i < src.length && src[i] !== "\n") {
+					comm += src[i];
+					i++;
+				}
+				addToken(TOKEN_TYPES.COMMENT, comm);
+			}
+			continue;
+		}
+
+		// ESCAPE CHARACTER (Sequence-based)
+		if (char === "\\") {
+			const seq = i + 1 < src.length ? "\\" + src[i + 1] : "\\";
+			addToken(TOKEN_TYPES.ESCAPE, seq);
+			i += seq.length;
+			continue;
+		}
+
+		// PREFIX LAYERS (p{...} or v{...})
+		if ((char === "p" && next === "{") || (char === "v" && next === "{")) {
+			const isP = (char === "p");
+			const isV = (char === "v");
+
+			// Context Check
+			const isBlockHeader = isInHeader;
+			const isNormalText = !isInHeader;
+
+			let allowed = false;
+			if (isP && (isBlockHeader || isNormalText)) allowed = true;
+			if (isV && (isBlockHeader || isNormalText)) allowed = true;
+
+			if (allowed) {
+				// p{} or v{}: emit keyword + PREFIX_OPEN, enter structured content mode
+				addToken(isV ? TOKEN_TYPES.PREFIX_V : TOKEN_TYPES.PREFIX_P, isV ? "v" : "p");
+				addToken(TOKEN_TYPES.PREFIX_OPEN, "{");
+				i += 2; // skip "p{" or "v{"
+				isInPVPrefix = true;
+				continue;
+			}
+			// If not allowed, it will fall through to normal word scanning
+		}
+
+		// STATIC KEYWORD
+		if (char === "s" && src.slice(i, i + 6) === "static") {
+			const afterStatic = src.slice(i + 6);
+			const hasSpace = afterStatic.startsWith(" ");
+			const hasLogic = hasSpace ? afterStatic.slice(1).startsWith("${") : afterStatic.startsWith("${");
+
+			const isMainIdentifier = last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET;
+
+			if ((hasLogic || isInHeader) && !isMainIdentifier) {
+				addToken(TOKEN_TYPES.STATIC_KEYWORD, hasSpace ? "static " : "static");
+				i += hasSpace ? 7 : 6;
+				continue;
+			}
+		}
+
+		// RUNTIME KEYWORD
+		if (char === "r" && src.slice(i, i + 7) === "runtime") {
+			const afterRuntime = src.slice(i + 7);
+			const hasSpace = afterRuntime.startsWith(" ");
+			const hasLogic = hasSpace ? afterRuntime.slice(1).startsWith("${") : afterRuntime.startsWith("${");
+
+			const isMainIdentifier = last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET;
+
+			if ((hasLogic || isInHeader) && !isMainIdentifier) {
+				addToken(TOKEN_TYPES.RUNTIME_KEYWORD, hasSpace ? "runtime " : "runtime");
+				i += hasSpace ? 8 : 7;
+				continue;
+			}
+		}
+
+		// LOGIC BLOCKS (${ ... }$) — explicit: static/runtime ${ }$  shorthand: ${ }$ = static ${ }$
+		if (char === "$" && next === "{") {
+			{
+				const hasExplicitKeyword = last_non_junk_type === TOKEN_TYPES.STATIC_KEYWORD || last_non_junk_type === TOKEN_TYPES.RUNTIME_KEYWORD;
+				if (!hasExplicitKeyword) addToken(TOKEN_TYPES.STATIC_KEYWORD, "static");
+				addToken(TOKEN_TYPES.LOGIC_OPEN, "${");
+				i += 2;
+
+				let logicCode = "";
+				let depth = 0;
+				let internalString = null;
+
+				while (i < src.length) {
+					const c = src[i];
+					const n = src[i + 1];
+
+					// Close condition: }$ at depth 0, not followed by { (}${ is a template expression boundary)
+					if (c === "}" && n === "$" && !internalString && depth === 0 && src[i + 2] !== "{") {
+						break;
+					}
+
+					if (internalString) {
+						if (c === "\\" && (n === internalString || n === "\\")) {
+							logicCode += c + n;
+							i += 2;
+							continue;
+						}
+						if (c === internalString) internalString = null;
+					} else {
+						if (c === "/" && n === "/") {
+							logicCode += c + n;
+							i += 2;
+							while (i < src.length && src[i] !== "\n" && src[i] !== "\r") {
+								logicCode += src[i];
+								i++;
+							}
+							continue;
+						}
+						if (c === "/" && n === "*") {
+							logicCode += c + n;
+							i += 2;
+							while (i < src.length) {
+								if (src[i] === "*" && src[i + 1] === "/") {
+									logicCode += "*/";
+									i += 2;
+									break;
+								}
+								logicCode += src[i];
+								i++;
+							}
+							continue;
+						}
+
+						if (c === "\"" || c === "'" || c === "`") internalString = c;
+						else if (c === "{") depth++;
+						else if (c === "}") depth--;
+					}
+
+					logicCode += c;
+					i++;
+				}
+
+				addToken(TOKEN_TYPES.LOGIC, logicCode);
+
+				if (i < src.length && src[i] === "}" && src[i + 1] === "$") {
+					addToken(TOKEN_TYPES.LOGIC_CLOSE, "}$");
+					i += 2;
+				}
+
+				continue;
+			}
+		}
+
+		// SINGLE-CHAR MARKERS
+		if (char === "[") {
+			addToken(TOKEN_TYPES.OPEN_BRACKET, "[");
+			isInHeader = true;
+			pendingSmarkRaw = false;
+			hasSmarkRaw = false;
+			i++;
+			continue;
+		}
+		if (char === "]") {
+			addToken(TOKEN_TYPES.CLOSE_BRACKET, "]");
+			isInHeader = false;
+			if (hasSmarkRaw) {
+				isRawContent = true;
+				hasSmarkRaw = false;
+			}
+			pendingSmarkRaw = false;
+			i++;
+			continue;
+		}
+		if (char === ":") {
+			const colonAllowed = [TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.KEY, TOKEN_TYPES.VALUE, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.QUOTE, TOKEN_TYPES.PREFIX_V, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.PREFIX_CLOSE, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT, TOKEN_TYPES.LOGIC, TOKEN_TYPES.LOGIC_CLOSE, TOKEN_TYPES.STATIC_KEYWORD, TOKEN_TYPES.RUNTIME_KEYWORD, TOKEN_TYPES.FOR_EACH];
+			if (colonAllowed.includes(last_non_junk_type)) {
+				addToken(TOKEN_TYPES.COLON, ":");
+				isInHeader = true;
+			} else {
+				addToken(TOKEN_TYPES.TEXT, ":");
+			}
+			i++;
+			continue;
+		}
+		if (char === "=") {
+			const eqAllowed = [TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.KEY, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.QUOTE, TOKEN_TYPES.PREFIX_V, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.PREFIX_CLOSE, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT, TOKEN_TYPES.LOGIC, TOKEN_TYPES.LOGIC_CLOSE, TOKEN_TYPES.STATIC_KEYWORD, TOKEN_TYPES.RUNTIME_KEYWORD, TOKEN_TYPES.FOR_EACH];
+			if (eqAllowed.includes(last_non_junk_type)) {
+				addToken(TOKEN_TYPES.EQUAL, "=");
+			} else {
+				addToken(TOKEN_TYPES.TEXT, "=");
+			}
+			i++;
+			continue;
+		}
+		if (char === ",") {
+			const commaAllowed = [TOKEN_TYPES.VALUE, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.QUOTE, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.PREFIX_V, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.PREFIX_CLOSE, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT, TOKEN_TYPES.LOGIC, TOKEN_TYPES.LOGIC_CLOSE, TOKEN_TYPES.STATIC_KEYWORD, TOKEN_TYPES.RUNTIME_KEYWORD, TOKEN_TYPES.FOR_EACH];
+			if (commaAllowed.includes(last_non_junk_type)) {
+				addToken(TOKEN_TYPES.COMMA, ",");
+			} else {
+				addToken(TOKEN_TYPES.TEXT, ",");
+			}
+			i++;
+			continue;
+		}
+		if (char === "!") {
+			if (isInHeader) {
+				addToken(TOKEN_TYPES.EXCLAMATION_MARK, "!");
+				i++;
+				continue;
+			}
+		}
+		if (char === "\"" || char === "'") {
+			const valTriggers = [TOKEN_TYPES.COLON, TOKEN_TYPES.EQUAL, TOKEN_TYPES.COMMA, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.OPEN_BRACKET];
+			const wasValueTrigger = valTriggers.includes(last_non_junk_type);
+			addToken(TOKEN_TYPES.QUOTE, char);
+			i++;
+			// Enable quote mode
+			// NOTE: We allow quotes basically anywhere in headers as values/keys
+			if (isInHeader || wasValueTrigger) {
+				isInQuote = true;
+			}
+			continue;
+		}
+
+		// --- PHASE 4: WORD / TEXT SCANNING ---
+		// This is the "Fallback" mode where we scan for identifiers, keys, or values.
+		// It uses lookahead and context variables to guess the role of a word.
+		let word = "";
+		const isStartOfBlockId = (last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET);
+		const isInNormalText = !isInHeader;
+
+		let stopChars = "[]{}:=,\"'#\\ \t\n\r!";
+		if (isStartOfBlockId) {
+			stopChars = stopChars.replace(":", "");
+		}
+		if (isInNormalText) {
+			stopChars = "[]\\#\n\r"; // In normal text, stop only at block markers, escapes, comments and newlines
+		}
+
+		while (i < src.length && !stopChars.includes(src[i])) {
+			// Stop ONLY if $ is followed by { (Logic block start)
+			if (src[i] === "$" && src[i + 1] === "{") break;
+
+			// Lookahead for 'static ${' or 'runtime ${' mid-word
+			if (word.length > 0) {
+				if (src[i] === "s" && src.slice(i, i + 7) === "static " && src[i + 7] === "$" && src[i + 8] === "{") break;
+				if (src[i] === "s" && src.slice(i, i + 6) === "static" && src[i + 6] === "$" && src[i + 7] === "{") break;
+				if (src[i] === "r" && src.slice(i, i + 8) === "runtime " && src[i + 8] === "$" && src[i + 9] === "{") break;
+				if (src[i] === "r" && src.slice(i, i + 7) === "runtime" && src[i + 7] === "$" && src[i + 8] === "{") break;
+			}
+
+			// Stop if we hit an ALLOWED prefix trigger
+			if ((src[i] === "p" && src[i + 1] === "{") || (src[i] === "v" && src[i + 1] === "{")) {
+				if (isInHeader || isInNormalText) break;
+			}
+			word += src[i];
+			i++;
+		}
+
+		if (word.length > 0) {
+			// Guess role based on context
+			if (isInHeader) {
+				// Inside a structural header context
+				const isMainIdentifier = last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET;
+
+				if (isMainIdentifier) {
+					if (word === end_keyword || word.startsWith(end_keyword + ":")) {
+						addToken(TOKEN_TYPES.END_KEYWORD, word);
+					}
+					else if (word === "import") addToken(TOKEN_TYPES.IMPORT, word);
+					else if (word === "$use-module") addToken(TOKEN_TYPES.USE_MODULE, word);
+					else if (word === "slot") addToken(TOKEN_TYPES.SLOT_KEYWORD, word);
+					else if (word === "for-each") addToken(TOKEN_TYPES.FOR_EACH, word);
+					else {
+						addToken(TOKEN_TYPES.IDENTIFIER, word);
+					}
+				} else {
+					// Use lookahead to distinguish KEY from VALUE
+					const p = peekStructural(i);
+					if (p === ":") {
+						addToken(TOKEN_TYPES.KEY, word);
+						if (word === "smark-raw") pendingSmarkRaw = true;
+					} else if (word === "static") {
+						addToken(TOKEN_TYPES.STATIC_KEYWORD, word);
+					} else if (word === "runtime") {
+						addToken(TOKEN_TYPES.RUNTIME_KEYWORD, word);
+					} else {
+						addToken(TOKEN_TYPES.VALUE, word);
+						if (pendingSmarkRaw) {
+							if (word === "true") hasSmarkRaw = true;
+							pendingSmarkRaw = false;
+						}
+					}
+				}
+			} else {
+				// Normal text
+				if (word.trim() === "static") {
+					addToken(TOKEN_TYPES.STATIC_KEYWORD, word);
+				} else if (word.trim() === "runtime") {
+					addToken(TOKEN_TYPES.RUNTIME_KEYWORD, word);
+				} else {
+					addToken(TOKEN_TYPES.TEXT, word);
+				}
+			}
+		} else {
+			// Fallback for any unhandled characters
+			if (i < src.length) {
+				addToken(TOKEN_TYPES.TEXT, src[i]);
+				i++;
+			}
+		}
+	}
+
+	addToken(TOKEN_TYPES.EOF, "");
+	return tokens;
+}
 
 const colors = {
         red: "\x1b[31m",
@@ -556,17 +1092,18 @@ function colorize(color, text) {
  * @returns {string} - The final formatted and colored string.
  */
 function formatMessage(text) {
-	const horizontal_rule = "\n----------------------------------------------------------------------------------------------\n";
+	const horizontal_rule = "\n" + colorize("blue", "-".repeat(90)) + "\n";
 	const pattern = /<\$([^:]+):([\s\S]*?)\$>/g;
 
 	if (Array.isArray(text)) {
 		text = text.join("");
 	}
 
+	// Apply {line} before color tags so the rule is never nested inside a color wrapper.
+	text = text.replaceAll("{line}", horizontal_rule);
 	text = text.replace(pattern, (match, color, content) => {
 		return colorize(color, content.trim());
 	});
-	text = text.replaceAll("{line}", horizontal_rule);
 	text = text.replaceAll("{N}", "\n");
 
 	text = text
@@ -604,11 +1141,11 @@ function formatErrorWithContext(src, range, filename, message, typeName) {
 			: `from line <$yellow:${range.start.line + 1}$>, column <$yellow:${range.start.character}$> to line <$yellow:${range.end.line + 1}$>, column <$yellow:${range.end.character}$>`;
 
 	const formattedMessage = [
-		`<$blue:{line}$><$red:Here where error occurred${sourceLabel}:$>{N}${lineContent}{N}${pointerPadding}<$yellow:^$>{N}{N}`,
+		`{line}<$red:Here where error occurred${sourceLabel}:$>{N}${lineContent}{N}${pointerPadding}<$yellow:^$>{N}`,
 		`<$red:${typeName} Error:$> `,
 		...(Array.isArray(message) ? message : [message]),
 		`{N}at line <$yellow:${range.start.line + 1}$>, ${rangeInfo}{N}`,
-		"<$blue:{line}$>"
+		`{line}`
 	];
 
 	return formattedMessage;
@@ -706,9 +1243,6 @@ function getError(type) {
 	};
 }
 
-/** Helper to throw Lexer errors. */
-const lexerError = getError("lexer");
-
 /** Helper to throw Parser errors. */
 const parserError = getError("parser");
 
@@ -720,807 +1254,6 @@ const runtimeError = getError("runtime");
 
 /** Helper to throw general internal SomMark errors. */
 const sommarkError = getError("sommark");
-
-/**
- * SomMark Lexer
- * 
- * Transforms a raw SomMark source string into a stream of tokens.
- * It uses a state-machine approach to handle complex contexts like At-Block bodies,
- * quoted values, and hierarchical headers.
- * 
- * @param {string} src - The raw SomMark source code.
- * @param {string} [filename="anonymous"] - Source filename for error reporting.
- * @returns {Array<Object>} Array of token objects.
- */
-function lexer(src, filename = "anonymous") {
-	if (!src || typeof src !== "string") return [];
-	const tokens = [];
-	let last_non_junk_type = ""; // Tracks the last real token for context guessing
-	let i = 0;
-	let line = 0, character = 0;
-
-	// State Variables
-	let isInAtBlockBody = false;
-	let isInQuote = false;
-	let isInHeader = false; // Tracks if we are in a structural header context
-	let isInAtBlockHeader = false; // Specific for At-Block headers (@_ ... _@)
-	let isInInlineHead = false; // Specific for (key:val) after ->
-	let parenDepth = 0; // To track balanced parentheses in inlines
-
-	/**
-	 * Adds a token to the stream and updates the scanner's position tracking.
-	 * 
-	 * @param {string} type - The type of token (from TOKEN_TYPES).
-	 * @param {string} value - The literal text content of the token.
-	 */
-	function addToken(type, value) {
-		const start = { line, character };
-
-		// Update position
-		const parts = value.split("\n");
-		if (parts.length > 1) {
-			line += parts.length - 1;
-			character = parts[parts.length - 1].length;
-		} else {
-			character += value.length;
-		}
-
-		const end = { line, character };
-		tokens.push({
-			type,
-			value,
-			source: filename,
-			range: { start, end }
-		});
-		if (type !== TOKEN_TYPES.WHITESPACE && type !== TOKEN_TYPES.COMMENT) {
-			if (type !== TOKEN_TYPES.TEXT || value.trim() !== "") {
-				last_non_junk_type = type;
-			}
-		}
-	}
-
-	/**
-	 * Looks ahead to find the next structural character, skipping whitespace and comments.
-	 * Used for context-guessing (e.g., distinguishing KEY from VALUE).
-	 * 
-	 * @param {number} start - Index to start peeking from.
-	 * @returns {string|null} The next structural character or null if EOF.
-	 */
-	function peekStructural(start) {
-		let j = start;
-		while (j < src.length) {
-			const c = src[j];
-			if (c === " " || c === "\t" || c === "\n" || c === "\r") {
-				j++;
-				continue;
-			}
-			if (c === "#") {
-				while (j < src.length && src[j] !== "\n") j++;
-				continue;
-			}
-			if (c === "\\") {
-				// Escape sequence: jump over the backslash and the escaped char
-				j += 2;
-				continue;
-			}
-			return c;
-		}
-		return null;
-	}
-
-	while (i < src.length) {
-		// --- PHASE 1: AT-BLOCK BODY MODE ---
-		// In this mode, we consume everything as raw text until we hit the @_ marker.
-		if (isInAtBlockBody) {
-			if (src[i] === "@" && src[i + 1] === "_") {
-				isInAtBlockBody = false;
-			} else {
-				let body = "";
-				while (i < src.length) {
-					// Handle escapes in At-Block Body
-					if (src[i] === "\\" && i + 1 < src.length) {
-						body += src[i + 1];
-						i += 2;
-						continue;
-					}
-					// Stop at end marker
-					if (src[i] === "@" && src[i + 1] === "_") {
-						break;
-					}
-					body += src[i];
-					i++;
-				}
-				if (body.length > 0) {
-					addToken(TOKEN_TYPES.TEXT, body);
-				}
-				continue;
-			}
-		}
-		const char = src[i];
-		const next = src[i + 1];
-
-		// --- PHASE 2: QUOTE MODE ---
-		// Handles balanced strings and allows prefix layers (js{}, p{}) inside them.
-		if (isInQuote) {
-			let quoteValue = "";
-			const quoteChar = tokens[tokens.length - 1].value;
-			while (i < src.length) {
-				if (src[i] === "\\" && i + 1 < src.length) {
-					// Inside quotes, we split escapes if we want to match reliability tests
-					if (quoteValue.length > 0) addToken(TOKEN_TYPES.VALUE, quoteValue);
-					addToken(TOKEN_TYPES.ESCAPE, "\\" + src[i + 1]);
-					quoteValue = "";
-					i += 2;
-					continue;
-				}
-
-				// Support Prefix Layers inside quotes!
-				if ((src[i] === "j" && src[i + 1] === "s" && src[i + 2] === "{") || (src[i] === "p" && src[i + 1] === "{") || (src[i] === "v" && src[i + 1] === "{")) {
-					const isJS = (src[i] === "j");
-					const isV = (src[i] === "v");
-					if (quoteValue.length > 0) {
-						addToken(TOKEN_TYPES.VALUE, quoteValue);
-						quoteValue = "";
-					}
-
-					let braceDepth = 1;
-					let prefixValue = isJS ? "js{" : (isV ? "v{" : "p{");
-					i += isJS ? 3 : 2;
-
-					let internalString = null;
-					while (i < src.length && braceDepth > 0) {
-						const c = src[i];
-						const n = src[i + 1];
-						if (internalString) {
-							if (c === "\\" && (n === internalString || n === "\\")) {
-								prefixValue += c + n;
-								i += 2;
-								continue;
-							}
-							if (c === internalString) internalString = null;
-						} else {
-							if (c === "\"" || c === "'") internalString = c;
-							else if (c === "{") braceDepth++;
-							else if (c === "}") braceDepth--;
-						}
-						prefixValue += c;
-						i++;
-					}
-					let tokenType = isJS ? TOKEN_TYPES.PREFIX_JS : (isV ? TOKEN_TYPES.PREFIX_V : TOKEN_TYPES.PREFIX_P);
-					addToken(tokenType, prefixValue);
-					continue;
-				}
-
-				if (src[i] === quoteChar) {
-					// Guess role based on next structural character
-					let nextStructural = peekStructural(i + 1);
-					let tokenType = (isInHeader || isInInlineHead) && (nextStructural === ":" || nextStructural === "=")
-						? TOKEN_TYPES.KEY
-						: TOKEN_TYPES.VALUE;
-
-					if (quoteValue.length > 0) addToken(tokenType, quoteValue);
-					addToken(TOKEN_TYPES.QUOTE, quoteChar);
-					isInQuote = false;
-					i++;
-					break;
-				}
-				quoteValue += src[i];
-				i++;
-			}
-			if (!isInQuote) continue;
-		}
-
-		// --- PHASE 3: STRUCTURAL PARSING ---
-		// Handles markers, whitespace, and structural symbols.
-
-		// WHITESPACE
-		if (char === "\n") {
-			addToken(TOKEN_TYPES.WHITESPACE, char);
-			i++;
-			continue;
-		}
-
-		if (char === " " || char === "\t" || char === "\r") {
-			let ws = "";
-			while (i < src.length && (src[i] === " " || src[i] === "\t" || src[i] === "\r")) {
-				ws += src[i];
-				i++;
-			}
-			addToken(TOKEN_TYPES.WHITESPACE, ws);
-			continue;
-		}
-
-		// COMMENTS
-		if (char === "#") {
-			let comm = "";
-			// Check for Multiline Comment ### (must have no spaces)
-			if (src[i + 1] === "#" && src[i + 2] === "#") {
-				comm = "###";
-				i += 3;
-				while (i < src.length) {
-					if (src[i] === "#" && src[i + 1] === "#" && src[i + 2] === "#") {
-						comm += "###";
-						i += 3;
-						break;
-					}
-					comm += src[i];
-					i++;
-				}
-				addToken(TOKEN_TYPES.COMMENT_BLOCK, comm);
-			} else {
-				// Single line comment
-				while (i < src.length && src[i] !== "\n") {
-					comm += src[i];
-					i++;
-				}
-				addToken(TOKEN_TYPES.COMMENT, comm);
-			}
-			continue;
-		}
-
-		// ESCAPE CHARACTER (Sequence-based)
-		if (char === "\\") {
-			const seq = i + 1 < src.length ? "\\" + src[i + 1] : "\\";
-			addToken(TOKEN_TYPES.ESCAPE, seq);
-			i += seq.length;
-			continue;
-		}
-
-		// PREFIX LAYERS (js{...} or p{...} or v{...})
-		if ((char === "j" && next === "s" && src[i + 2] === "{") || (char === "p" && next === "{") || (char === "v" && next === "{")) {
-			const isJS = (char === "j");
-			const isP = (char === "p");
-			const isV = (char === "v");
-
-			// Context Check
-			const isBlockHeader = isInHeader && !isInAtBlockHeader;
-			const isNormalText = !isInHeader && !isInInlineHead && !isInAtBlockBody && parenDepth === 0;
-
-			let allowed = false;
-			if (isJS && isBlockHeader) allowed = true;
-			if (isP && (isBlockHeader || isNormalText)) allowed = true;
-			if (isV && (isBlockHeader || isNormalText)) allowed = true;
-
-			if (allowed) {
-				let braceDepth = 1;
-				let prefixValue = isJS ? "js{" : (isV ? "v{" : "p{");
-				i += isJS ? 3 : 2;
-
-				let inString = null; // Track if we are inside " " or ' '
-				while (i < src.length && braceDepth > 0) {
-					const c = src[i];
-					const n = src[i + 1];
-
-					if (inString) {
-						if (c === "\\" && (n === inString || n === "\\")) {
-							prefixValue += c + n;
-							i += 2;
-							continue;
-						}
-						if (c === inString) inString = null;
-					} else {
-						if (c === "\"" || c === "'") inString = c;
-						else if (c === "{") braceDepth++;
-						else if (c === "}") braceDepth--;
-					}
-					prefixValue += c;
-					i++;
-				}
-				let tokenType = isJS ? TOKEN_TYPES.PREFIX_JS : (isV ? TOKEN_TYPES.PREFIX_V : TOKEN_TYPES.PREFIX_P);
-				addToken(tokenType, prefixValue);
-				continue;
-			}
-			// If not allowed, it will fall through to normal word scanning
-		}
-
-		// MULTI-CHAR MARKERS
-		if (char === "@" && next === "_") {
-			addToken(TOKEN_TYPES.OPEN_AT, "@_");
-			i += 2;
-			isInHeader = true; // At-Blocks start with a header part
-			isInAtBlockHeader = true;
-			continue;
-		}
-		if (char === "-" && next === ">") {
-			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
-				addToken(TOKEN_TYPES.TEXT, "-");
-				i++; // Swallowed one char
-			} else {
-				addToken(TOKEN_TYPES.THIN_ARROW, "->");
-				i += 2;
-				isInInlineHead = true; // The following ( ) will be structural
-			}
-			continue;
-		}
-
-		// STATIC KEYWORD
-		if (char === "s" && src.slice(i, i + 6) === "static") {
-			const afterStatic = src.slice(i + 6);
-			const hasSpace = afterStatic.startsWith(" ");
-			const hasLogic = hasSpace ? afterStatic.slice(1).startsWith("${") : afterStatic.startsWith("${");
-
-			const isMainIdentifier = (
-				last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET ||
-				last_non_junk_type === TOKEN_TYPES.OPEN_AT ||
-				(last_non_junk_type === TOKEN_TYPES.OPEN_PAREN && isInInlineHead)
-			);
-
-			if ((hasLogic || isInHeader) && !isMainIdentifier) {
-				addToken(TOKEN_TYPES.STATIC_KEYWORD, hasSpace ? "static " : "static");
-				i += hasSpace ? 7 : 6;
-				continue;
-			}
-		}
-
-		// RUNTIME KEYWORD
-		if (char === "r" && src.slice(i, i + 7) === "runtime") {
-			const afterRuntime = src.slice(i + 7);
-			const hasSpace = afterRuntime.startsWith(" ");
-			const hasLogic = hasSpace ? afterRuntime.slice(1).startsWith("${") : afterRuntime.startsWith("${");
-
-			const isMainIdentifier = (
-				last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET ||
-				last_non_junk_type === TOKEN_TYPES.OPEN_AT ||
-				(last_non_junk_type === TOKEN_TYPES.OPEN_PAREN && isInInlineHead)
-			);
-
-			if ((hasLogic || isInHeader) && !isMainIdentifier) {
-				addToken(TOKEN_TYPES.RUNTIME_KEYWORD, hasSpace ? "runtime " : "runtime");
-				i += hasSpace ? 8 : 7;
-				continue;
-			}
-		}
-
-		// LOGIC BLOCKS (${ ... }$)
-		if (char === "$" && next === "{" && (last_non_junk_type === TOKEN_TYPES.STATIC_KEYWORD || last_non_junk_type === TOKEN_TYPES.RUNTIME_KEYWORD)) {
-			const startLine = line;
-			const startCharacter = character;
-			i += 2;
-			let logicCode = "";
-			let braceDepth = 1;
-			let internalString = null;
-			let foundClosing = false;
-
-			while (i < src.length) {
-				const c = src[i];
-				const n = src[i + 1];
-
-				// Stop condition: }$ (only if not inside a JS string and at top-level brace depth)
-				if (c === "}" && n === "$" && !internalString && braceDepth === 1) {
-					i += 2;
-					braceDepth = 0;
-					foundClosing = true;
-					break;
-				}
-
-				if (internalString) {
-					if (c === "\\" && (n === internalString || n === "\\")) {
-						logicCode += c + n;
-						i += 2;
-						continue;
-					}
-					if (c === internalString) internalString = null;
-				} else {
-					if (c === "/" && n === "/") {
-						logicCode += c + n;
-						i += 2;
-						while (i < src.length && src[i] !== "\n" && src[i] !== "\r") {
-							logicCode += src[i];
-							i++;
-						}
-						continue;
-					}
-					if (c === "/" && n === "*") {
-						logicCode += c + n;
-						i += 2;
-						while (i < src.length) {
-							if (src[i] === "*" && src[i + 1] === "/") {
-								logicCode += "*/";
-								i += 2;
-								break;
-							}
-							logicCode += src[i];
-							i++;
-						}
-						continue;
-					}
-
-					if (c === "\"" || c === "'" || c === "`") internalString = c;
-					else if (c === "{") braceDepth++;
-					else if (c === "}") braceDepth--;
-				}
-
-				logicCode += c;
-				i++;
-			}
-
-			if (!foundClosing) {
-				lexerError("Unclosed logic block. Expected '}$' to close the block starting with '${'.", {
-					src,
-					filename,
-					range: {
-						start: { line: startLine, character: startCharacter },
-						end: { line: startLine, character: startCharacter + 2 }
-					}
-				});
-			}
-
-			addToken(TOKEN_TYPES.LOGIC, logicCode);
-			continue;
-		}
-
-		// SINGLE-CHAR MARKERS
-		if (char === "[") {
-			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
-				addToken(TOKEN_TYPES.TEXT, "[");
-			} else {
-				addToken(TOKEN_TYPES.OPEN_BRACKET, "[");
-				isInHeader = true;
-			}
-			i++;
-			continue;
-		}
-		if (char === "_" && next === "@") {
-			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
-				addToken(TOKEN_TYPES.TEXT, "_@");
-			} else {
-				const lastRealType = last_non_junk_type;
-				addToken(TOKEN_TYPES.CLOSE_AT, "_@");
-				// Removed delimiter stack check
-				if (lastRealType === TOKEN_TYPES.END_KEYWORD) {
-					isInAtBlockBody = false;
-					isInHeader = false;
-					isInAtBlockHeader = false;
-				}
-			}
-			i += 2;
-			continue;
-		}
-		if (char === "]") {
-			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
-				addToken(TOKEN_TYPES.TEXT, "]");
-			} else {
-				addToken(TOKEN_TYPES.CLOSE_BRACKET, "]");
-				isInHeader = false;
-			}
-			i++;
-			continue;
-		}
-		if (char === "(") {
-			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
-				addToken(TOKEN_TYPES.TEXT, "(");
-				parenDepth++;
-			} else {
-				addToken(TOKEN_TYPES.OPEN_PAREN, "(");
-				parenDepth++;
-			}
-			i++;
-			continue;
-		}
-		if (char === ")") {
-			if (isInAtBlockBody || (parenDepth > 1 && !isInInlineHead)) {
-				addToken(TOKEN_TYPES.TEXT, ")");
-				parenDepth--;
-			} else if (parenDepth > 0) {
-				// This ends the content part if depth drops to 0
-				parenDepth--;
-				if (parenDepth === 0) {
-					addToken(TOKEN_TYPES.CLOSE_PAREN, ")");
-					if (isInInlineHead) {
-						isInInlineHead = false;
-						isInHeader = false;
-					}
-				} else {
-					addToken(TOKEN_TYPES.TEXT, ")");
-				}
-			} else {
-				addToken(TOKEN_TYPES.TEXT, ")");
-			}
-			i++;
-			continue;
-		}
-		if (char === ":") {
-			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
-				addToken(TOKEN_TYPES.TEXT, ":");
-			} else {
-				const allowed = [TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.KEY, TOKEN_TYPES.CLOSE_AT, TOKEN_TYPES.VALUE, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.QUOTE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_V, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT, TOKEN_TYPES.LOGIC, TOKEN_TYPES.STATIC_KEYWORD, TOKEN_TYPES.RUNTIME_KEYWORD, TOKEN_TYPES.FOR_EACH];
-				if (allowed.includes(last_non_junk_type)) {
-					addToken(TOKEN_TYPES.COLON, ":");
-					isInHeader = true;
-				} else {
-					addToken(TOKEN_TYPES.TEXT, ":");
-				}
-			}
-			i++;
-			continue;
-		}
-		if (char === "=") {
-			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
-				addToken(TOKEN_TYPES.TEXT, "=");
-			} else {
-				const allowed = [TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.KEY, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.QUOTE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_V, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT, TOKEN_TYPES.LOGIC, TOKEN_TYPES.STATIC_KEYWORD, TOKEN_TYPES.RUNTIME_KEYWORD, TOKEN_TYPES.FOR_EACH];
-				if (allowed.includes(last_non_junk_type)) {
-					addToken(TOKEN_TYPES.EQUAL, "=");
-				} else {
-					addToken(TOKEN_TYPES.TEXT, "=");
-				}
-			}
-			i++;
-			continue;
-		}
-		if (char === ",") {
-			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
-				addToken(TOKEN_TYPES.TEXT, ",");
-			} else {
-				const allowed = [TOKEN_TYPES.VALUE, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.QUOTE, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_V, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT, TOKEN_TYPES.LOGIC, TOKEN_TYPES.STATIC_KEYWORD, TOKEN_TYPES.RUNTIME_KEYWORD, TOKEN_TYPES.FOR_EACH];
-				if (allowed.includes(last_non_junk_type)) {
-					addToken(TOKEN_TYPES.COMMA, ",");
-				} else {
-					addToken(TOKEN_TYPES.TEXT, ",");
-				}
-			}
-			i++;
-			continue;
-		}
-		if (char === ";") {
-			if (isInAtBlockBody || (parenDepth > 0 && !isInInlineHead)) {
-				addToken(TOKEN_TYPES.TEXT, ";");
-			} else {
-				const allowed = [TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.VALUE, TOKEN_TYPES.CLOSE_AT, TOKEN_TYPES.CLOSE_PAREN, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.QUOTE, TOKEN_TYPES.PREFIX_JS, TOKEN_TYPES.PREFIX_V, TOKEN_TYPES.PREFIX_P, TOKEN_TYPES.IMPORT, TOKEN_TYPES.USE_MODULE, TOKEN_TYPES.END_KEYWORD, TOKEN_TYPES.TEXT, TOKEN_TYPES.LOGIC, TOKEN_TYPES.STATIC_KEYWORD, TOKEN_TYPES.RUNTIME_KEYWORD, TOKEN_TYPES.FOR_EACH];
-				if (allowed.includes(last_non_junk_type)) {
-					addToken(TOKEN_TYPES.SEMICOLON, ";");
-					// ONLY trigger body mode if we were actually in an At-Block header
-					if (isInAtBlockHeader) {
-						isInHeader = false;
-						isInAtBlockHeader = false;
-						isInAtBlockBody = true;
-					}
-				} else {
-					addToken(TOKEN_TYPES.TEXT, ";");
-				}
-			}
-			i++;
-			continue;
-		}
-		if (char === "!") {
-			if (isInHeader) {
-				addToken(TOKEN_TYPES.EXCLAMATION_MARK, "!");
-				i++;
-				continue;
-			}
-		}
-		if (char === "\"" || char === "'") {
-			const valTriggers = [TOKEN_TYPES.COLON, TOKEN_TYPES.EQUAL, TOKEN_TYPES.COMMA, TOKEN_TYPES.ESCAPE, TOKEN_TYPES.OPEN_BRACKET, TOKEN_TYPES.OPEN_AT];
-			const wasValueTrigger = valTriggers.includes(last_non_junk_type);
-			addToken(TOKEN_TYPES.QUOTE, char);
-			i++;
-			// Enable quote mode
-			// NOTE: We allow quotes basically anywhere in headers as values/keys
-			if (isInHeader || wasValueTrigger) {
-				isInQuote = true;
-			}
-			continue;
-		}
-
-		// --- PHASE 4: WORD / TEXT SCANNING ---
-		// This is the "Fallback" mode where we scan for identifiers, keys, or values.
-		// It uses lookahead and context variables to guess the role of a word.
-		let word = "";
-		// Only Blocks ([ ]) allow ':' in their main identifier.
-		// At-Blocks (@_) and Inlines (->( )) do NOT allow ':' in the ID.
-		const isStartOfBlockId = (last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET);
-
-		let stopChars = "[](){}:=;,@>\"'#\\ \t\n\r!";
-		if (isStartOfBlockId || (parenDepth > 0 && !isInInlineHead)) {
-			stopChars = stopChars.replace(":", "");
-		}
-		const isInNormalText = !isInHeader && !isInInlineHead && !isInAtBlockBody;
-		if (isInNormalText) {
-			stopChars = "[]@()>_()\\#\n\r"; // In normal text, stop at markers, comments and newlines
-		}
-
-		while (i < src.length && !stopChars.includes(src[i])) {
-			// Stop ONLY if $ is followed by { (Logic block start)
-			if (src[i] === "$" && src[i + 1] === "{") break;
-
-			// Lookahead for At-Block markers (_@ or @_)
-			if (src[i] === "_" && src[i + 1] === "@") break;
-			if (src[i] === "@" && src[i + 1] === "_") break;
-
-			// Lookahead for 'static ${' or 'runtime ${' (only if we're not at the very start of the word scanning)
-			if (word.length > 0) {
-				if (src[i] === "s" && src.slice(i, i + 7) === "static " && src[i + 7] === "$" && src[i + 8] === "{") break;
-				if (src[i] === "s" && src.slice(i, i + 6) === "static" && src[i + 6] === "$" && src[i + 7] === "{") break;
-				if (src[i] === "r" && src.slice(i, i + 8) === "runtime " && src[i + 8] === "$" && src[i + 9] === "{") break;
-				if (src[i] === "r" && src.slice(i, i + 7) === "runtime" && src[i + 7] === "$" && src[i + 8] === "{") break;
-			}
-
-			// Lookahead for -> marker in normal text
-			if (!isInHeader && src[i] === "-" && src[i + 1] === ">") break;
-
-			// Stop if we hit an ALLOWED prefix trigger
-			if ((src[i] === "p" && src[i + 1] === "{") || (src[i] === "v" && src[i + 1] === "{")) {
-				if (isInHeader || isInNormalText) break;
-			}
-			if (src[i] === "j" && src[i + 1] === "s" && src[i + 2] === "{") {
-				if (isInHeader) break;
-			}
-			word += src[i];
-			i++;
-		}
-
-		if (word.length > 0) {
-			// Guess role based on context
-			if (parenDepth > 0 && !isInInlineHead) {
-				// Inside Inline Content (raw text)
-				addToken(TOKEN_TYPES.TEXT, word);
-			} else if (isInHeader || isInInlineHead) {
-				// Inside a structural header context
-				const isMainIdentifier = (
-					last_non_junk_type === TOKEN_TYPES.OPEN_BRACKET ||
-					last_non_junk_type === TOKEN_TYPES.OPEN_AT ||
-					(last_non_junk_type === TOKEN_TYPES.OPEN_PAREN && isInInlineHead)
-				);
-
-				if (isMainIdentifier) {
-					if (word === end_keyword) {
-						addToken(TOKEN_TYPES.END_KEYWORD, word);
-					}
-					else if (word === "import") addToken(TOKEN_TYPES.IMPORT, word);
-					else if (word === "$use-module") addToken(TOKEN_TYPES.USE_MODULE, word);
-					else if (word === "slot") addToken(TOKEN_TYPES.SLOT_KEYWORD, word);
-					else if (word === "for-each") addToken(TOKEN_TYPES.FOR_EACH, word);
-					else addToken(TOKEN_TYPES.IDENTIFIER, word);
-				} else {
-					// Use lookahead to distinguish KEY from VALUE
-					const p = peekStructural(i);
-					if (p === ":") {
-						addToken(TOKEN_TYPES.KEY, word);
-					} else if (word === "static") {
-						addToken(TOKEN_TYPES.STATIC_KEYWORD, word);
-					} else if (word === "runtime") {
-						addToken(TOKEN_TYPES.RUNTIME_KEYWORD, word);
-					} else {
-						addToken(TOKEN_TYPES.VALUE, word);
-					}
-				}
-			} else {
-				// Normal text
-				if (word.trim() === "static") {
-					addToken(TOKEN_TYPES.STATIC_KEYWORD, word);
-				} else if (word.trim() === "runtime") {
-					addToken(TOKEN_TYPES.RUNTIME_KEYWORD, word);
-				} else {
-					addToken(TOKEN_TYPES.TEXT, word);
-				}
-			}
-		} else {
-			// Fallback for any unhandled characters
-			if (i < src.length) {
-				addToken(TOKEN_TYPES.TEXT, src[i]);
-				i++;
-			}
-		}
-	}
-
-	addToken(TOKEN_TYPES.EOF, "");
-	return tokens;
-}
-
-/**
- * A safe parser that turns Javascript-like strings into real objects and arrays.
- * It is built to handle data structures without running any dangerous code or
- * accessing other parts of your project.
- * 
- * It supports: 
- * - Standard JSON: {"key": "val"}
- * - Javascript-style: { key: 'val' }
- * - Basic data: true, false, null, numbers, and strings
- */
-function safeDataParse(str) {
-    if (typeof str !== "string") return str;
-    const s = str.trim();
-    if (!s) return null;
-
-    let index = 0;
-
-    function skipWhitespace() {
-        while (index < s.length && /\s/.test(s[index])) {
-            index++;
-        }
-    }
-
-    function parseValue() {
-        skipWhitespace();
-        const char = s[index];
-
-        if (char === '{') return parseObject();
-        if (char === '[') return parseArray();
-        if (char === '"' || char === "'") return parseString();
-
-        // Primitives or Unquoted identifiers
-        return parsePrimitiveOrIdentifier();
-    }
-
-    function parseString() {
-        const quote = s[index++];
-        let result = "";
-        while (index < s.length && s[index] !== quote) {
-            if (s[index] === '\\') index++; // Skip escape
-            result += s[index++];
-        }
-        index++; // Skip closing quote
-        return result;
-    }
-
-    function parseObject() {
-        index++; // Skip {
-        const obj = {};
-        skipWhitespace();
-
-        while (index < s.length && s[index] !== '}') {
-            skipWhitespace();
-            // Key can be unquoted, quoted "key", or quoted 'key'
-            let key;
-            if (s[index] === '"' || s[index] === "'") {
-                key = parseString();
-            } else {
-                let keyMatch = s.slice(index).match(/^[a-zA-Z_$][a-zA-Z0-9_$]*/);
-                if (!keyMatch) break;
-                key = keyMatch[0];
-                index += key.length;
-            }
-
-            skipWhitespace();
-            if (s[index] !== ':') break;
-            index++; // Skip :
-
-            obj[key] = parseValue();
-
-            skipWhitespace();
-            if (s[index] === ',') index++; // Skip optional comma
-            skipWhitespace();
-        }
-        index++; // Skip }
-        return obj;
-    }
-
-    function parseArray() {
-        index++; // Skip [
-        const arr = [];
-        skipWhitespace();
-
-        while (index < s.length && s[index] !== ']') {
-            arr.push(parseValue());
-            skipWhitespace();
-            if (s[index] === ',') index++; // Skip optional comma
-            skipWhitespace();
-        }
-        index++; // Skip ]
-        return arr;
-    }
-
-    function parsePrimitiveOrIdentifier() {
-        const start = index;
-        while (index < s.length && /[a-zA-Z0-9_$+\-.]/.test(s[index])) {
-            index++;
-        }
-        const token = s.slice(start, index);
-
-        if (token === "true") return true;
-        if (token === "false") return false;
-        if (token === "null") return null;
-        if (!isNaN(Number(token))) return Number(token);
-
-        return token; // Fallback to string if it looks like an identifier
-    }
-
-    try {
-        return parseValue();
-    } catch (e) {
-        return str; // Fallback to raw string if parsing fails
-    }
-}
 
 /**
  * Finds a matching output definition for a tag ID from a list of registered outputs.
@@ -1562,9 +1295,9 @@ function matchedValue(outputs, targetId) {
  * @param {any} [options.fallBack=null] - Value to return if resolution or validation fails.
  * @returns {any} - The resolved argument value or the fallback.
  */
-function safeArg$1({ args, index, key, type = null, setType = null, fallBack = null }) {
-        if (typeof args !== 'object' || args === null) {
-                sommarkError([`{line}<$red:TypeError:$> <$yellow:args must be an object$>{line}`]);
+function safeArg$1({ props, index, key, type = null, setType = null, fallBack = null }) {
+        if (typeof props !== 'object' || props === null) {
+                sommarkError([`{line}<$red:TypeError:$> <$yellow:props must be an object$>{line}`]);
         }
 
         if (index === undefined && key === undefined) {
@@ -1574,7 +1307,6 @@ function safeArg$1({ args, index, key, type = null, setType = null, fallBack = n
         const validate = value => {
                 if (value === undefined) return false;
 
-                // Handle explicit type check functions (e.g., isObject, isArray)
                 if (typeof type === 'function') {
                         return type(value);
                 }
@@ -1584,30 +1316,30 @@ function safeArg$1({ args, index, key, type = null, setType = null, fallBack = n
                 return typeof evaluated === type;
         };
 
-        if (index !== undefined && validate(args[index])) {
-                return args[index];
+        if (index !== undefined && validate(props[index])) {
+                return props[index];
         }
 
-        if (key !== undefined && validate(args[key])) {
-                return args[key];
+        if (key !== undefined && validate(props[key])) {
+                return props[key];
         }
 
         return fallBack;
 }
 
 /**
- * Extracts and returns all positional arguments from the Object-based 'args' structure of V4.
- * 
- * @param {Object} args - The AST node's argument object.
- * @returns {Array<any>} - An ordered array of positional argument values.
+ * Extracts positional props from a block node's props object.
+ *
+ * @param {Object} props - The block node's props object.
+ * @returns {Array<any>} - An ordered array of positional prop values.
  */
-function getPositionalArgs(args) {
-        if (!args) return [];
-        const keys = Object.keys(args);
+function getPositionalArgs(props) {
+        if (!props) return [];
+        const keys = Object.keys(props);
         const result = keys
                 .filter(k => !isNaN(parseInt(k)))
                 .sort((a, b) => parseInt(a) - parseInt(b))
-                .map(k => args[k]);
+                .map(k => props[k]);
 
         return result;
 }
@@ -1733,7 +1465,7 @@ function validateName(
 		: "must contain only letters, numbers, hyphens, underscores, or dollar signs ($)";
 
 	if (!keyRegex.test(id)) {
-		parserError([`{line}<$red:Invalid ${name}:$><$blue: '${id}'$>{N}<$yellow:${name} ${ruleMessage}$> <$cyan: ${rule}.$>{line}`]);
+		parserError([`{line}<$red:Invalid ${name}:$><$blue: '${id}'$>{N}<$yellow:${name} ${ruleMessage}$> <$cyan: ${rule}.$>`]);
 	}
 }
 
@@ -1743,7 +1475,7 @@ function makeBlockNode() {
 		type: BLOCK,
 		structure: "Block",
 		id: "",
-		args: {},
+		props: {},
 		body: [],
 		depth: 0,
 		range: {
@@ -1778,41 +1510,6 @@ function makeCommentNode() {
 		}
 	};
 }
-/** Creates a new empty Inline node. */
-function makeInlineNode() {
-	return {
-		type: INLINE,
-		structure: "Inline",
-		value: "",
-		id: "",
-		args: {},
-		depth: 0,
-		range: {
-			start: { line: 0, character: 0 },
-			end: { line: 0, character: 0 }
-		}
-	};
-}
-
-// ========================================================================== //
-//  Node Creators                                                             //
-// ========================================================================== //
-/** Creates a new empty AtBlock node. */
-function makeAtBlockNode() {
-	return {
-		type: ATBLOCK,
-		structure: "AtBlock",
-		id: "",
-		args: {},
-		content: "",
-		depth: 0,
-		range: {
-			start: { line: 0, character: 0 },
-			end: { line: 0, character: 0 }
-		}
-	};
-}
-
 /** Creates a new empty Logic node. */
 function makeLogicNode(type = RUNTIME_LOGIC) {
 	return {
@@ -1845,53 +1542,66 @@ const updateData = (tokens, i) => {
 
 const errorMessage = (tokens, i, expectedValue, behindValue, frontText, filename = null) => {
 	const current = tokens[i] || fallback;
-	const errorLineNumber = current.range.start.line;
-	current.range.start.character;
+	const errorLine = current.range.start.line;
+	const errorColStart = current.range.start.character;
+	const errorColEnd = current.range.end.character;
 	const source = current.source || filename;
-	const sourceLabel = source ? ` [${source}]` : "";
 
+	// Collect all tokens on the error line for the source snippet
 	let lineStartIndex = i;
 	while (
 		lineStartIndex > 0 &&
 		tokens[lineStartIndex - 1] &&
-		tokens[lineStartIndex - 1].range.start.line === errorLineNumber &&
+		tokens[lineStartIndex - 1].range.start.line === errorLine &&
 		(tokens[lineStartIndex - 1].source || filename) === source
 	) {
 		lineStartIndex--;
 	}
-
 	let lineEndIndex = i;
 	while (
 		lineEndIndex < tokens.length - 1 &&
 		tokens[lineEndIndex + 1] &&
-		tokens[lineEndIndex + 1].range.start.line === errorLineNumber &&
+		tokens[lineEndIndex + 1].range.start.line === errorLine &&
 		(tokens[lineEndIndex + 1].source || filename) === source
 	) {
 		lineEndIndex++;
 	}
 
-	// Get all tokens on the error line
-	const lineTokens = tokens.slice(lineStartIndex, lineEndIndex + 1);
-	const lineContent = lineTokens.map(t => t.value).join('');
+	const lineContent = tokens.slice(lineStartIndex, lineEndIndex + 1).map(t => t.value).join('');
+	const contentBefore = tokens.slice(lineStartIndex, i).map(t => t.value).join('');
+	const pointerPadding = " ".repeat(contentBefore.length);
 
-	// Get content on the line before the error token
-	const tokensBeforeErrorOnLine = tokens.slice(lineStartIndex, i);
-	const contentBeforeErrorOnLine = tokensBeforeErrorOnLine.map(t => t.value).join('');
+	// Location header — file, line, column
+	const lineNum = errorLine + 1;
+	const isMultiLine = current.range.start.line !== current.range.end.line;
+	const colDisplay = isMultiLine
+		? `${errorColStart} → line ${current.range.end.line + 1} col ${errorColEnd}`
+		: errorColStart === errorColEnd ? `${errorColStart}` : `${errorColStart}–${errorColEnd}`;
 
-	const pointerPadding = " ".repeat(contentBeforeErrorOnLine.length);
-	const rangeInfo = current.range.start.line === current.range.end.line
-		? `from column <$yellow:${current.range.start.character}$> to <$yellow:${current.range.end.character}$>`
-		: `from line <$yellow:${current.range.start.line + 1}$>, column <$yellow:${current.range.start.character}$> to line <$yellow:${current.range.end.line + 1}$>, column <$yellow:${current.range.end.character}$>`;
+	// Error description — avoid nested <$color:...$> tags (breaks the non-greedy regex)
+	let errorDesc;
+	if (frontText) {
+		errorDesc = `<$red:${frontText}$>`;
+	} else {
+		errorDesc = `<$red:Expected$> <$blue:'${expectedValue}'$>`;
+		if (behindValue) errorDesc += ` <$red:after$> <$blue:'${behindValue}'$>`;
+	}
 
-	return [
-		`<$blue:{line}$><$red:Here where error occurred${sourceLabel}:$>{N}${lineContent}{N}${pointerPadding}<$yellow:^$>{N}{N}`,
-		`<$red:${frontText ? frontText : "Expected token"}$>${!frontText ? " <$blue:'" + expectedValue + "'$>" : ""} ${behindValue ? "after <$blue:'" + behindValue + "'$>" : ""} at line <$yellow:${current.range.start.line + 1}$>,`,
-		` ${rangeInfo}`,
-		`{N}<$yellow:Received:$> <$blue:'${current.value === "\n" ? "\\n' (newline)" : current.value}'$>`,
-		` at line <$yellow:${current.range.start.line + 1}$>,`,
-		` ${rangeInfo}{N}`,
-		"<$blue:{line}$>"
-	];
+	const tokenDisplay = current.value === ""   ? "end of input"
+		: current.value === "\n" ? "newline (\\n)"
+		: `'${current.value}'`;
+
+	const parts = [`{line}`];
+	if (source) parts.push(`<$cyan:File:$> ${source}{N}`);
+	parts.push(`<$cyan:Line:$> <$yellow:${lineNum}$> <$cyan:Col:$> <$yellow:${colDisplay}$>{N}`);
+	parts.push(`{line}`);
+	parts.push(`<$red:Here where error occurred:$>{N}`);
+	parts.push(`  ${lineContent}{N}`);
+	parts.push(`  ${pointerPadding}<$yellow:^$>{N}`);
+	parts.push(`${errorDesc}{N}`);
+	parts.push(`<$yellow:Received:$> <$blue:${tokenDisplay}$>{N}`);
+	parts.push(`{line}`);
+	return parts;
 };
 // ========================================================================== //
 //  Parse Key                                                                 //
@@ -1913,6 +1623,88 @@ function parseKey(tokens, i) {
 	return [key, i];
 }
 // ========================================================================== //
+//  Read Prefix Key/Fallback from structured p{}/v{} tokens                  //
+// ========================================================================== //
+function readPrefixKeyFallback(tokens, i, prefixType = "p") {
+	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.PREFIX_OPEN) i++;
+	i = skipJunk(tokens, i);
+
+	let key = "";
+	let fallback = undefined;
+
+	// Read key — must be quoted or unquoted identifier
+	const keyToken = current_token(tokens, i);
+	if (!keyToken || keyToken.type === TOKEN_TYPES.PREFIX_CLOSE) {
+		parserError(errorMessage(tokens, i, "key", "{", 'Prefix requires a key — write p{key} or p{key | "fallback"}'));
+	}
+	if (keyToken.type === TOKEN_TYPES.QUOTE) {
+		i++; // skip opening QUOTE
+		while (current_token(tokens, i) &&
+			current_token(tokens, i).type !== TOKEN_TYPES.QUOTE &&
+			current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_CLOSE &&
+			current_token(tokens, i).type !== TOKEN_TYPES.PIPELINE) {
+			key += current_token(tokens, i).value;
+			i++;
+		}
+		if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.QUOTE) i++;
+	} else if (keyToken.type === TOKEN_TYPES.KEY) {
+		key = keyToken.value.trim();
+		const isValidIdent = /^[a-zA-Z_$][a-zA-Z0-9_$-]*$/.test(key);
+		const isNumeric = /^\d+$/.test(key);
+		// p{} keys must be identifiers; v{} keys may also be positional integers
+		if (!isValidIdent && !(prefixType === "v" && isNumeric)) {
+			parserError(errorMessage(tokens, i, "key", "{", `Invalid prefix key '${key}' — must start with a letter, _ or $`));
+		}
+		i++;
+	} else {
+		parserError(errorMessage(tokens, i, "key", "{", "Invalid prefix key — must be a quoted string or identifier"));
+	}
+
+	i = skipJunk(tokens, i);
+
+	// After key: only | or } is valid
+	const afterKey = current_token(tokens, i);
+	if (!afterKey || (afterKey.type !== TOKEN_TYPES.PIPELINE && afterKey.type !== TOKEN_TYPES.PREFIX_CLOSE)) {
+		parserError(errorMessage(tokens, i, "| or }", key, "Expected '|' or '}' after prefix key"));
+	}
+
+	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.PIPELINE) {
+		i++; // skip PIPELINE
+		i = skipJunk(tokens, i);
+
+		// Fallback must be a quoted string — any content allowed inside quotes
+		const fallbackToken = current_token(tokens, i);
+		if (!fallbackToken || fallbackToken.type === TOKEN_TYPES.PREFIX_CLOSE) {
+			parserError(errorMessage(tokens, i, '"fallback"', "|", 'Expected a quoted fallback after \'|\' — write p{key | "default"}'));
+		}
+		if (fallbackToken.type === TOKEN_TYPES.QUOTE) {
+			fallback = "";
+			i++; // skip opening QUOTE
+			while (current_token(tokens, i) &&
+				current_token(tokens, i).type !== TOKEN_TYPES.QUOTE &&
+				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_CLOSE) {
+				fallback += current_token(tokens, i).value;
+				i++;
+			}
+			if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.QUOTE) i++;
+		} else {
+			parserError(errorMessage(tokens, i, '"fallback"', "|", 'Fallback must be a quoted string — write p{key | "default"}'));
+		}
+	}
+
+	i = skipJunk(tokens, i);
+
+	// After key (or fallback): only } is valid
+	const afterFallback = current_token(tokens, i);
+	if (!afterFallback || afterFallback.type !== TOKEN_TYPES.PREFIX_CLOSE) {
+		parserError(errorMessage(tokens, i, "}", key, "Unexpected content inside prefix — only one key and one optional fallback are allowed"));
+	}
+
+	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.PREFIX_CLOSE) i++;
+
+	return [key, fallback, i];
+}
+// ========================================================================== //
 //  Parse Value                                                               //
 // ========================================================================== //
 function parseValue(tokens, i, placeholders = {}, variables = {}, allowLogic = true) {
@@ -1923,7 +1715,7 @@ function parseValue(tokens, i, placeholders = {}, variables = {}, allowLogic = t
 		val = "";
 		while (i < tokens.length && current_token(tokens, i).type !== TOKEN_TYPES.QUOTE) {
 			const token = current_token(tokens, i);
-			if (token.type === TOKEN_TYPES.PREFIX_P || token.type === TOKEN_TYPES.PREFIX_JS || token.type === TOKEN_TYPES.PREFIX_V) {
+			if (token.type === TOKEN_TYPES.PREFIX_P || token.type === TOKEN_TYPES.PREFIX_V) {
 				const [resolvedVal, nextI] = parseValue(tokens, i, placeholders, variables, allowLogic);
 				val += resolvedVal;
 				i = nextI;
@@ -1939,72 +1731,55 @@ function parseValue(tokens, i, placeholders = {}, variables = {}, allowLogic = t
 
 		i++; // consume closing QUOTE
 		return [val, i, true];
-	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_JS) {
-		val = current_token(tokens, i).value;
-		// V4 NATIVE DATA: Strip js{ } and parse safely
-		if (val.startsWith("js{") && val.endsWith("}")) {
-			const clean = val.slice(3, -1).trim();
-			val = safeDataParse(clean);
-		}
-		i++;
-		return [val, i, false];
-	} else if (current_token(tokens, i).type === TOKEN_TYPES.LOGIC || current_token(tokens, i).type === TOKEN_TYPES.STATIC_KEYWORD || current_token(tokens, i).type === TOKEN_TYPES.RUNTIME_KEYWORD) {
+	} else if (current_token(tokens, i).type === TOKEN_TYPES.STATIC_KEYWORD || current_token(tokens, i).type === TOKEN_TYPES.RUNTIME_KEYWORD) {
 		if (!allowLogic) {
 			parserError(errorMessage(tokens, i, "literal value", "", "Logic blocks are not allowed in this context."));
 		}
 		let isStatic = current_token(tokens, i).type === TOKEN_TYPES.STATIC_KEYWORD;
-		let isRuntimeKeyword = current_token(tokens, i).type === TOKEN_TYPES.RUNTIME_KEYWORD;
-		let nextI = i;
+		let nextI = skipJunk(tokens, i + 1);
 
-		if (isStatic || isRuntimeKeyword) {
-			nextI = skipJunk(tokens, i + 1);
-			if (!current_token(tokens, nextI) || current_token(tokens, nextI).type !== TOKEN_TYPES.LOGIC) {
-				// Treat as literal text if keyword is not followed by a logic block
-				return [current_token(tokens, i).value, i + 1, false];
-			}
-			i = nextI;
+		if (!current_token(tokens, nextI) || current_token(tokens, nextI).type !== TOKEN_TYPES.LOGIC_OPEN) {
+			// Keyword not followed by ${ — treat as literal text
+			return [current_token(tokens, i).value, i + 1, false];
 		}
 
-		const logicToken = current_token(tokens, i);
+		// Skip LOGIC_OPEN, read LOGIC body
+		nextI++;
+		const logicToken = current_token(tokens, nextI);
 		const node = makeLogicNode(isStatic ? STATIC_LOGIC : RUNTIME_LOGIC);
-		node.code = logicToken.value;
-		node.range = logicToken.range;
+		node.code = logicToken ? logicToken.value : "";
+		node.range = logicToken ? logicToken.range : current_token(tokens, i).range;
+		nextI++;
 
-		return [node, i + 1, false];
-	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_V) {
-		val = current_token(tokens, i).value;
-		// V4.1.0 VARIABLE: Strip v{ } and resolve from local variables
-		if (val.startsWith("v{") && val.endsWith("}")) {
-			const key = val.slice(2, -1).trim();
-			if (variables[key] !== undefined) {
-				val = variables[key];
-				if (!variables.__consumed__) {
-					Object.defineProperty(variables, "__consumed__", {
-						value: new Set(),
-						enumerable: false,
-						configurable: true
-					});
-				}
-				variables.__consumed__.add(key);
-			} else {
-				val = getPrefixValue('v', key);
-			}
+		// Consume LOGIC_CLOSE if present
+		if (current_token(tokens, nextI) && current_token(tokens, nextI).type === TOKEN_TYPES.LOGIC_CLOSE) {
+			nextI++;
 		}
-		i++;
-		return [val, i, false];
-	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_C) {
-		val = current_token(tokens, i).value;
-		// PREFIX_C is preserved for the resolveModules expansion phase
-		i++;
+
+		return [node, nextI, false];
+	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_V) {
+		i++; // consume PREFIX_V keyword
+		const [vKey, vFallback, vNextI] = readPrefixKeyFallback(tokens, i, "v");
+		i = vNextI;
+		if (variables[vKey] !== undefined) {
+			val = variables[vKey];
+			if (!variables.__consumed__) {
+				Object.defineProperty(variables, "__consumed__", {
+					value: new Set(),
+					enumerable: false,
+					configurable: true
+				});
+			}
+			variables.__consumed__.add(vKey);
+		} else {
+			val = vFallback !== undefined ? vFallback : getPrefixValue('v', vKey);
+		}
 		return [val, i, false];
 	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_P) {
-		val = current_token(tokens, i).value;
-		// V4 PLACEHOLDER: Strip p{ } and resolve from config
-		if (val.startsWith("p{") && val.endsWith("}")) {
-			const key = val.slice(2, -1).trim();
-			val = placeholders[key] !== undefined ? placeholders[key] : getPrefixValue('p', key);
-		}
-		i++;
+		i++; // consume PREFIX_P keyword
+		const [pKey, pFallback, pNextI] = readPrefixKeyFallback(tokens, i);
+		i = pNextI;
+		val = placeholders[pKey] !== undefined ? placeholders[pKey] : (pFallback !== undefined ? pFallback : getPrefixValue('p', pKey));
 		return [val, i, false];
 	} else {
 		val = "";
@@ -2017,9 +1792,7 @@ function parseValue(tokens, i, placeholders = {}, variables = {}, allowLogic = t
 				token.type === TOKEN_TYPES.COMMA ||
 				token.type === TOKEN_TYPES.CLOSE_BRACKET ||
 				token.type === TOKEN_TYPES.COLON ||
-				token.type === TOKEN_TYPES.SEMICOLON ||
-				token.type === TOKEN_TYPES.EXCLAMATION_MARK ||
-				token.type === TOKEN_TYPES.CLOSE_PAREN) break;
+				token.type === TOKEN_TYPES.EXCLAMATION_MARK) break;
 
 			if (token.type === TOKEN_TYPES.ESCAPE) {
 				// Remove backslash
@@ -2035,53 +1808,12 @@ function parseValue(tokens, i, placeholders = {}, variables = {}, allowLogic = t
 	return [val, i, false];
 }
 // ========================================================================== //
-//  Parse ','                                                                 //
-// ========================================================================== //
-function parseComma(tokens, i, beforeChar = "") {
-	i = skipJunk(tokens, i);
-	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COMMA) {
-		i++;
-		i = skipJunk(tokens, i);
-		updateData(tokens, i);
-
-		if (
-			!current_token(tokens, i) ||
-			(current_token(tokens, i) &&
-				current_token(tokens, i).type !== TOKEN_TYPES.VALUE &&
-				current_token(tokens, i).type !== TOKEN_TYPES.ESCAPE &&
-				current_token(tokens, i).type !== TOKEN_TYPES.IDENTIFIER &&
-				current_token(tokens, i).type !== TOKEN_TYPES.KEY &&
-				current_token(tokens, i).type !== TOKEN_TYPES.QUOTE &&
-				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_JS &&
-				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_P)
-		) {
-			parserError(errorMessage(tokens, i, "value", ","));
-		}
-	} else {
-		parserError(errorMessage(tokens, i, ",", beforeChar));
-	}
-	return i;
-}
-// ========================================================================== //
 //  Parse ':'                                                                 //
 // ========================================================================== //
 function parseColon(tokens, i, afterChar = "") {
 	i = skipJunk(tokens, i);
 	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.COLON)) {
 		parserError(errorMessage(tokens, i, ":", afterChar));
-	}
-	i++;
-	i = skipJunk(tokens, i);
-	updateData(tokens, i);
-	return i;
-}
-// ========================================================================== //
-//  Parse ';'                                                                 //
-// ========================================================================== //
-function parseSemiColon(tokens, i, afterChar = "") {
-	i = skipJunk(tokens, i);
-	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.SEMICOLON)) {
-		parserError(errorMessage(tokens, i, ";", afterChar));
 	}
 	i++;
 	i = skipJunk(tokens, i);
@@ -2110,7 +1842,7 @@ function parseBlock(tokens, i, filename = null, placeholders = {}, variables = {
 	updateData(tokens, i);
 
 	const idToken = current_token(tokens, i);
-	if (!idToken || idToken.type === TOKEN_TYPES.EOF) {
+	if (!idToken || idToken.type === TOKEN_TYPES.EOF || idToken.type === TOKEN_TYPES.CLOSE_BRACKET) {
 		parserError(errorMessage(tokens, i, "Block ID", "[", "Missing Block Identifier"));
 	}
 	const id = idToken.value;
@@ -2162,10 +1894,9 @@ function parseBlock(tokens, i, filename = null, placeholders = {}, variables = {
 				current_token(tokens, i).type !== TOKEN_TYPES.END_KEYWORD &&
 				current_token(tokens, i).type !== TOKEN_TYPES.KEY &&
 				current_token(tokens, i).type !== TOKEN_TYPES.QUOTE &&
-				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_JS &&
 				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_V &&
 				current_token(tokens, i).type !== TOKEN_TYPES.PREFIX_P &&
-				current_token(tokens, i).type !== TOKEN_TYPES.LOGIC &&
+				current_token(tokens, i).type !== TOKEN_TYPES.LOGIC_OPEN &&
 				current_token(tokens, i).type !== TOKEN_TYPES.STATIC_KEYWORD &&
 				current_token(tokens, i).type !== TOKEN_TYPES.RUNTIME_KEYWORD)
 		) {
@@ -2212,9 +1943,9 @@ function parseBlock(tokens, i, filename = null, placeholders = {}, variables = {
 			i = valueIndex;
 
 			// Store Argument
-			blockNode.args[String(argIndex++)] = v;
+			blockNode.props[String(argIndex++)] = v;
 			if (k) {
-				blockNode.args[k] = v;
+				blockNode.props[k] = v;
 			}
 			k = "";
 			v = "";
@@ -2315,6 +2046,23 @@ function parseBlock(tokens, i, filename = null, placeholders = {}, variables = {
 			i++;
 			i = skipJunk(tokens, i);
 			updateData(tokens, i);
+
+			// Named closing: [end:blockname] — the lexer emits END_KEYWORD "end:name" as one
+			// token because ':' is stripped from stop chars at block-start (XML namespace support).
+			const endValue = current.value.trim();
+			if (endValue.includes(":")) {
+				const closingName = endValue.slice(endValue.indexOf(":") + 1);
+				if (!closingName) {
+					parserError(errorMessage(tokens, i - 1, "block name", "", "Missing block name — write [end:blockname] to name the closing tag"));
+				}
+				const expected = end_stack[end_stack.length - 1];
+				if (expected && closingName !== expected.id) {
+					parserError(errorMessage(tokens, i - 1, closingName, "",
+						`Mismatched closing tag: [end:${closingName}] cannot close '${closingName}' — '${expected.id}' is still open (opened at line ${expected.line}, col ${expected.col})`
+					));
+				}
+			}
+
 			if (
 				!current_token(tokens, i) ||
 				(current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_BRACKET)
@@ -2350,147 +2098,6 @@ function parseBlock(tokens, i, filename = null, placeholders = {}, variables = {
 	return [blockNode, i];
 }
 /**
- * Parses an Inline Statement ((content) -> (id)).
- * Inlines are fast, non-nesting formatting elements.
- * 
- * @param {Object[]} tokens - Token stream.
- * @param {number} i - Initial index.
- * @param {Object} placeholders - Dynamic public API data.
- * @returns {[Object, number]} The parsed Inline node and new index.
- */
-function parseInline(tokens, i, placeholders = {}, depth = 0) {
-	const inlineNode = makeInlineNode();
-	inlineNode.depth = depth;
-	const openParenToken = current_token(tokens, i);
-	inlineNode.range.start = openParenToken.range.start;
-
-	// consume '('
-	i++;
-	updateData(tokens, i);
-
-	// Phase 1: Content capture (Lexer provides high-level TEXT/ESCAPE tokens here)
-	while (i < tokens.length) {
-		const token = current_token(tokens, i);
-		if (!token || token.type === TOKEN_TYPES.CLOSE_PAREN) break;
-
-		if (token.type === TOKEN_TYPES.ESCAPE) {
-			inlineNode.value += token.value.slice(1);
-		} else if (token.type !== TOKEN_TYPES.COMMENT) {
-			inlineNode.value += token.value;
-		}
-		i++;
-	}
-
-	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
-		parserError(errorMessage(tokens, i, ")", "inline content"));
-	}
-	i++; // consume ')'
-
-	// Collapse newlines and whitespace for "inline" behavior
-	inlineNode.value = inlineNode.value.replace(/\s+/g, " ").trim();
-
-	i = skipJunk(tokens, i);
-	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.THIN_ARROW) {
-		parserError(errorMessage(tokens, i, "->", ")"));
-	}
-	i++; // consume '->'
-
-	i = skipJunk(tokens, i);
-	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_PAREN) {
-		parserError(errorMessage(tokens, i, "(", "->"));
-	}
-	i++; // consume '('
-	i = skipJunk(tokens, i);
-	const idToken = current_token(tokens, i);
-	const allowedInlineIdTypes = new Set([
-		TOKEN_TYPES.IDENTIFIER,
-		TOKEN_TYPES.KEY,
-		TOKEN_TYPES.IMPORT,
-		TOKEN_TYPES.USE_MODULE,
-		TOKEN_TYPES.SLOT_KEYWORD,
-		TOKEN_TYPES.FOR_EACH
-	]);
-	if (!idToken || !allowedInlineIdTypes.has(idToken.type)) {
-		parserError(errorMessage(tokens, i, inline_id, "("));
-	}
-	inlineNode.id = idToken.value.trim();
-	validateName(inlineNode.id);
-
-	i++; // consume ID
-	i = skipJunk(tokens, i);
-
-	const hasArgsTrigger = current_token(tokens, i) && (
-		current_token(tokens, i).type === TOKEN_TYPES.COLON ||
-		current_token(tokens, i).type === TOKEN_TYPES.EQUAL
-	);
-
-	if (hasArgsTrigger) {
-		const separator = current_token(tokens, i).value;
-		i++; // consume ':' or '='
-		i = skipJunk(tokens, i);
-
-		// Ensure there is a value after the separator
-		const nextToken = current_token(tokens, i);
-		if (!nextToken || nextToken.type === TOKEN_TYPES.CLOSE_PAREN || nextToken.type === TOKEN_TYPES.COMMA) {
-			parserError(errorMessage(tokens, i, inline_value, separator, `Missing value after ${separator === "=" ? "equals" : "colon"}`));
-		}
-
-		let k = "";
-		let v = "";
-		let argIndex = 0;
-
-		while (i < tokens.length) {
-			i = skipJunk(tokens, i);
-			const token = current_token(tokens, i);
-			if (!token || token.type === TOKEN_TYPES.CLOSE_PAREN) break;
-
-			if (token.type === TOKEN_TYPES.KEY) {
-				let [key, keyIndex] = parseKey(tokens, i);
-				k = key;
-				i = keyIndex;
-				i = skipJunk(tokens, i);
-				i = parseColon(tokens, i, "inline argument");
-				i = skipJunk(tokens, i);
-
-				// Ensure there is a value after the colon
-				const nextToken = current_token(tokens, i);
-				if (!nextToken || nextToken.type === TOKEN_TYPES.CLOSE_PAREN || nextToken.type === TOKEN_TYPES.COMMA) {
-					parserError(errorMessage(tokens, i, inline_value, ":", "Missing value after colon"));
-				}
-				validateName(k);
-			}
-
-			let [value, valueIndex, isQuoted] = parseValue(tokens, i, placeholders, {}, false);
-			v = value;
-			i = valueIndex;
-
-			inlineNode.args[String(argIndex++)] = v;
-			if (k) {
-				inlineNode.args[k] = v;
-			}
-			k = "";
-			v = "";
-
-			i = skipJunk(tokens, i);
-			if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COMMA) {
-				i = parseComma(tokens, i, "inline argument");
-			} else {
-				break;
-			}
-		}
-	}
-
-	i = skipJunk(tokens, i);
-	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_PAREN) {
-		parserError(errorMessage(tokens, i, ")", inlineNode.id));
-	}
-	const finalParenToken = current_token(tokens, i);
-	i++; // consume ')'
-	inlineNode.range.end = finalParenToken.range.end;
-
-	return [inlineNode, i];
-}
-/**
  * Parses a stream of text tokens into a single Text node.
  * Handles unescaping and placeholder resolution.
  * 
@@ -2517,7 +2124,7 @@ function parseText(tokens, i, placeholders = {}, variables = {}, depth = 0, opti
 			i++;
 		} else if (token.type === TOKEN_TYPES.STATIC_KEYWORD || token.type === TOKEN_TYPES.RUNTIME_KEYWORD) {
 			const nextIdx = skipJunk(tokens, i + 1);
-			if (tokens[nextIdx] && tokens[nextIdx].type === TOKEN_TYPES.LOGIC) {
+			if (tokens[nextIdx] && tokens[nextIdx].type === TOKEN_TYPES.LOGIC_OPEN) {
 				// Stop consuming text; this is the start of a logic block
 				break;
 			}
@@ -2536,44 +2143,31 @@ function parseText(tokens, i, placeholders = {}, variables = {}, depth = 0, opti
 			}
 			i++;
 		} else if (token.type === TOKEN_TYPES.PREFIX_P) {
-			const val = token.value;
-			if (val.startsWith("p{") && val.endsWith("}")) {
-				const match = [val.slice(2, -1).trim(), val, 'p'];
-				const key = match[0];
-				const layer = match[2]; // 'p' or 'v'
-
-				if (placeholders[key] !== undefined) {
-					textNode.text += String(placeholders[key]);
-				} else {
-					// Use the unique 'Unresolved Envelope' format via helper
-					textNode.text += getPrefixValue(layer, key);
-				}
+			i++; // consume PREFIX_P keyword
+			const [tpKey, tpFallback, tpNextI] = readPrefixKeyFallback(tokens, i);
+			i = tpNextI;
+			if (placeholders[tpKey] !== undefined) {
+				textNode.text += String(placeholders[tpKey]);
 			} else {
-				textNode.text += val;
+				textNode.text += tpFallback !== undefined ? tpFallback : getPrefixValue('p', tpKey);
 			}
-			i++;
 		} else if (token.type === TOKEN_TYPES.PREFIX_V) {
-			const val = token.value;
-			if (val.startsWith("v{") && val.endsWith("}")) {
-				const key = val.slice(2, -1).trim();
-				if (variables[key] !== undefined) {
-					textNode.text += String(variables[key]);
-					if (!variables.__consumed__) {
-						Object.defineProperty(variables, "__consumed__", {
-							value: new Set(),
-							enumerable: false,
-							configurable: true
-						});
-					}
-					variables.__consumed__.add(key);
-				} else {
-					// Use the unique 'Unresolved Envelope' format via helper
-					textNode.text += getPrefixValue('v', key);
+			i++; // consume PREFIX_V keyword
+			const [tvKey, tvFallback, tvNextI] = readPrefixKeyFallback(tokens, i, "v");
+			i = tvNextI;
+			if (variables[tvKey] !== undefined) {
+				textNode.text += String(variables[tvKey]);
+				if (!variables.__consumed__) {
+					Object.defineProperty(variables, "__consumed__", {
+						value: new Set(),
+						enumerable: false,
+						configurable: true
+					});
 				}
+				variables.__consumed__.add(tvKey);
 			} else {
-				textNode.text += val;
+				textNode.text += tvFallback !== undefined ? tvFallback : getPrefixValue('v', tvKey);
 			}
-			i++;
 		} else {
 			break;
 		}
@@ -2582,155 +2176,6 @@ function parseText(tokens, i, placeholders = {}, variables = {}, depth = 0, opti
 		textNode.range.end = tokens[i - 1].range.end;
 	}
 	return [textNode, i];
-}
-/**
- * Parses an At-Block (@_id_@: args; content @_end_@).
- * At-Blocks maintain raw content preservation.
- * 
- * @param {Object[]} tokens - Token stream.
- * @param {number} i - Initial index.
- * @param {string|null} filename - Source filename.
- * @param {Object} placeholders - Dynamic public API data.
- * @returns {[Object, number]} The At-Block node and new index.
- */
-function parseAtBlock(tokens, i, filename = null, placeholders = {}, depth = 0) {
-	const atBlockNode = makeAtBlockNode();
-	atBlockNode.depth = depth;
-	const openAtToken = current_token(tokens, i);
-	atBlockNode.range.start = openAtToken.range.start;
-
-	// consume '@_'
-	i++;
-	i = skipJunk(tokens, i);
-	updateData(tokens, i);
-
-	const idToken = current_token(tokens, i);
-	if (!idToken || idToken.type === TOKEN_TYPES.EOF) {
-		parserError(errorMessage(tokens, i, "AtBlock ID", "@_", "Missing AtBlock Identifier"));
-	}
-
-	const id = idToken.value;
-	if (id.trim() === end_keyword) {
-		parserError(errorMessage(tokens, i, id, "", `'${id.trim()}' is a reserved keyword and cannot be used as an identifier.`));
-	}
-
-	atBlockNode.id = id.trim();
-	validateName(atBlockNode.id);
-
-	// consume ID
-	i++;
-	i = skipJunk(tokens, i);
-	updateData(tokens, i);
-
-	if (!current_token(tokens, i) || (current_token(tokens, i) && current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT)) {
-		parserError(errorMessage(tokens, i, "_@", "at-block identifier"));
-	}
-	// consume '_@'
-	i++;
-	i = skipJunk(tokens, i);
-	updateData(tokens, i);
-
-	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COLON) {
-		// consume ':'
-		i++;
-		i = skipJunk(tokens, i);
-
-		// Ensure there is a value after the colon
-		const nextToken = current_token(tokens, i);
-		if (!nextToken || nextToken.type === TOKEN_TYPES.SEMICOLON || nextToken.type === TOKEN_TYPES.COMMA) {
-			parserError(errorMessage(tokens, i, at_value, ":", "Missing value after colon"));
-		}
-
-		let k = "";
-		let v = "";
-		let argIndex = 0;
-
-		while (i < tokens.length) {
-			i = skipJunk(tokens, i);
-			const token = current_token(tokens, i);
-			if (!token || token.type === TOKEN_TYPES.SEMICOLON) break;
-
-			const isQuotedKey = token.type === TOKEN_TYPES.QUOTE && peek(tokens, i, 1) && (peek(tokens, i, 1).type === TOKEN_TYPES.KEY);
-
-			if (token.type === TOKEN_TYPES.KEY || isQuotedKey) {
-				let [key, keyIndex] = parseKey(tokens, i);
-				k = key;
-				i = keyIndex;
-				i = skipJunk(tokens, i);
-				i = parseColon(tokens, i, "at-block argument");
-				i = skipJunk(tokens, i);
-
-				// Ensure there is a value after the colon
-				const nextToken = current_token(tokens, i);
-				if (!nextToken || nextToken.type === TOKEN_TYPES.SEMICOLON || nextToken.type === TOKEN_TYPES.COMMA) {
-					parserError(errorMessage(tokens, i, at_value, ":", "Missing value after colon"));
-				}
-
-				if (token.type === TOKEN_TYPES.KEY) {
-					validateName(k);
-				}
-			}
-
-			let [value, valueIndex, isQuoted] = parseValue(tokens, i, placeholders, {}, false);
-			v = value;
-			i = valueIndex;
-
-			atBlockNode.args[String(argIndex++)] = v;
-			if (k) {
-				atBlockNode.args[k] = v;
-			}
-			k = "";
-			v = "";
-
-			i = skipJunk(tokens, i);
-			if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.COMMA) {
-				i = parseComma(tokens, i, "at-block argument");
-			} else {
-				break;
-			}
-		}
-	}
-
-	// Semicolon is ALWAYS required after ID or ARGS
-	i = parseSemiColon(tokens, i, "at-block header");
-
-	// Body Capture
-	i = skipJunk(tokens, i);
-	if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.TEXT) {
-		atBlockNode.content = current_token(tokens, i).value;
-		i++;
-	} else {
-		parserError(errorMessage(tokens, i, "content", "at-block body"));
-	}
-
-	// End Marker (@_end_@)
-	i = skipJunk(tokens, i);
-	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.OPEN_AT) {
-		parserError(errorMessage(tokens, i, "@_", "at-block content"));
-	}
-	i++; // consume '@_'
-	i = skipJunk(tokens, i);
-	const endToken = current_token(tokens, i);
-	if (!endToken || (endToken.type !== TOKEN_TYPES.END_KEYWORD && endToken.value.trim() !== end_keyword)) {
-		let extraInfo = "";
-		if (endToken && endToken.value) {
-			const dist = levenshtein(endToken.value.trim().toLowerCase(), "end");
-			if (dist > 0 && dist <= 2) {
-				extraInfo = ` (Did you mean '@_end_@'?)`;
-			}
-		}
-		parserError(errorMessage(tokens, i, "end", "AtBlock Body", extraInfo));
-	}
-	i++; // consume 'end'
-	i = skipJunk(tokens, i);
-	if (!current_token(tokens, i) || current_token(tokens, i).type !== TOKEN_TYPES.CLOSE_AT) {
-		parserError(errorMessage(tokens, i, "_@", "end marker"));
-	}
-	const closeAtToken = current_token(tokens, i);
-	i++; // consume '_@'
-	atBlockNode.range.end = closeAtToken.range.end;
-
-	return [atBlockNode, i];
 }
 // ========================================================================== //
 //  Parse Comments                                                            //
@@ -2787,72 +2232,36 @@ function parseNode(tokens, i, filename = null, placeholders = {}, variables = {}
 		return parseBlock(tokens, i, filename, placeholders, variables, depth);
 	}
 	// ========================================================================== //
-	//  Inline Statement or Text                                                  //
-	// ========================================================================== //
-	else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.OPEN_PAREN) {
-		let j = i + 1;
-		let parenCount = 1;
-		let foundArrow = false;
-		while (j < tokens.length) {
-			const token = tokens[j];
-			if (token.type === TOKEN_TYPES.OPEN_PAREN) {
-				parenCount++;
-			} else if (token.type === TOKEN_TYPES.CLOSE_PAREN) {
-				parenCount--;
-			}
-
-			if (parenCount === 0) {
-				const nextIdx = skipJunk(tokens, j + 1);
-				if (tokens[nextIdx] && tokens[nextIdx].type === TOKEN_TYPES.THIN_ARROW) {
-					foundArrow = true;
-				}
-				break;
-			}
-			// Safe-guard: If we hit a [ or @, it's highly unlikely to be an inline statement content
-			// unless it's escaped, but lexer already handles [ and @ as structural tokens if not escaped.
-			if (token.type === TOKEN_TYPES.OPEN_BRACKET || token.type === TOKEN_TYPES.OPEN_AT) break;
-			j++;
-		}
-
-		if (foundArrow) {
-			return parseInline(tokens, i, placeholders, depth);
-		}
-
-		// Treat as text if not an inline
-		const textNode = makeTextNode();
-		textNode.text = current_token(tokens, i).value;
-		textNode.depth = depth;
-		textNode.range = current_token(tokens, i).range;
-		return [textNode, i + 1];
-	}
-	// ========================================================================== //
 	//  Logic Block                                                               //
 	// ========================================================================== //
-	else if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.STATIC_KEYWORD || current_token(tokens, i).type === TOKEN_TYPES.RUNTIME_KEYWORD || current_token(tokens, i).type === TOKEN_TYPES.LOGIC)) {
+	else if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.STATIC_KEYWORD || current_token(tokens, i).type === TOKEN_TYPES.RUNTIME_KEYWORD)) {
 		let isStatic = current_token(tokens, i).type === TOKEN_TYPES.STATIC_KEYWORD;
-		let isRuntimeKeyword = current_token(tokens, i).type === TOKEN_TYPES.RUNTIME_KEYWORD;
 		let startRange = current_token(tokens, i).range;
-		let nextI = i;
+		let nextI = skipJunk(tokens, i + 1);
 
-		if (isStatic || isRuntimeKeyword) {
-			nextI = skipJunk(tokens, i + 1);
-			if (!current_token(tokens, nextI) || current_token(tokens, nextI).type !== TOKEN_TYPES.LOGIC) {
-				// Treat as normal text if keyword is not followed by a logic block
-				return parseText(tokens, i, placeholders, variables, depth);
-			}
-			i = nextI;
+		if (!current_token(tokens, nextI) || current_token(tokens, nextI).type !== TOKEN_TYPES.LOGIC_OPEN) {
+			// Keyword not followed by ${ — treat as normal text
+			return parseText(tokens, i, placeholders, variables, depth);
 		}
 
-		const logicToken = current_token(tokens, i);
+		// Skip LOGIC_OPEN, read LOGIC body
+		nextI++;
+		const logicToken = current_token(tokens, nextI);
 		const node = makeLogicNode(isStatic ? STATIC_LOGIC : RUNTIME_LOGIC);
-		node.code = logicToken.value;
+		node.code = logicToken ? logicToken.value : "";
 		node.depth = depth;
 		node.range = {
-			start: (isStatic || isRuntimeKeyword) ? startRange.start : logicToken.range.start,
-			end: logicToken.range.end
+			start: startRange.start,
+			end: logicToken ? logicToken.range.end : startRange.end
 		};
+		nextI++;
 
-		return [node, i + 1];
+		// Consume LOGIC_CLOSE if present
+		if (current_token(tokens, nextI) && current_token(tokens, nextI).type === TOKEN_TYPES.LOGIC_CLOSE) {
+			nextI++;
+		}
+
+		return [node, nextI];
 	}
 	// ========================================================================== //
 	//  Text or Placeholder                                                       //
@@ -2867,12 +2276,6 @@ function parseNode(tokens, i, filename = null, placeholders = {}, variables = {}
 			current_token(tokens, i).type === TOKEN_TYPES.PREFIX_P)
 	) {
 		return parseText(tokens, i, placeholders, variables, depth);
-	}
-	// ========================================================================== //
-	//  Atblock                                                                   //
-	// ========================================================================== //
-	else if (current_token(tokens, i) && (current_token(tokens, i).type === TOKEN_TYPES.OPEN_AT)) {
-		return parseAtBlock(tokens, i, filename, placeholders, depth);
 	} else {
 		// FALLBACK: Treat any other token as TEXT to avoid infinite loops and allow literal content
 		const textNode = makeTextNode();
@@ -2920,7 +2323,7 @@ function parser(tokens, filename = null, placeholders = {}, variables = {}) {
 				const val = token.value.trim().toLowerCase();
 				if (val === "") return "";
 				const dist = levenshtein(val, "end");
-				if (dist > 0 && dist <= 2) return ` (Did you mean <$cyan:'[end]'$>?)`;
+				if (dist > 0 && dist <= 2) return ` Did you mean '[end]'?`;
 			}
 			return "";
 		};
@@ -9184,7 +8587,7 @@ function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const version = "4.5.3";
+const version = "5.0.0";
 
 const SomMark$1 = {
     version,
@@ -9875,10 +9278,9 @@ class EvaluatorState {
                 const tag = SomMark.__dynamicTags.get(${JSON.stringify(id)});
                 if (!tag) throw new Error("Tag not found inside VM: " + ${JSON.stringify(id)});
                 const res = tag.render({
-                    args: payload.args,
+                    props: payload.props,
                     content: payload.content,
                     textContent: payload.textContent,
-                    nodeType: payload.nodeType,
                     isSelfClosing: payload.isSelfClosing
                 });
                 return res;
@@ -10538,6 +9940,22 @@ function wrapRuntimeLogic(code, format, parentId, isGlobal) {
 	return `\n${trimmedCode}\n`;
 }
 
+function warnDroppedVariables(variables) {
+	for (const [key, value] of Object.entries(variables)) {
+		if (value === undefined) {
+			console.warn(`[SomMark] variables.${key} is undefined and will be ignored.`);
+		} else if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+			for (const [nestedKey, nestedVal] of Object.entries(value)) {
+				if (typeof nestedVal === "function") {
+					console.warn(`[SomMark] variables.${key}.${nestedKey} is a function nested inside an object and will be ignored. Move it to the top level: variables.${nestedKey}`);
+				} else if (nestedVal === undefined) {
+					console.warn(`[SomMark] variables.${key}.${nestedKey} is undefined and will be ignored.`);
+				}
+			}
+		}
+	}
+}
+
 const randomBytesHex = (size) => {
 	const arr = new Uint8Array(size);
 	globalThis.crypto.getRandomValues(arr);
@@ -10552,16 +9970,13 @@ const BODY_PLACEHOLDER = `SOMMARKBODYPLACEHOLDER${randomBytesHex(8)}SOMMARK`;
  * @param {Object} node - The node to read.
  * @returns {string} - The extracted text.
  */
-function getNodeText$1(node) {
-	if (!node?.body && !node?.content) return "";
-	if (node.type === ATBLOCK) return node.content || "";
+function getNodeText(node) {
+	if (!node?.body) return "";
 	let text = "";
 	if (node.body) {
 		for (const child of node.body) {
 			if (child.type === TEXT$1) text += child.text || "";
-			else if (child.type === INLINE) text += child.value || "";
-			else if (child.type === ATBLOCK) text += child.content || "";
-			else if (child.type === BLOCK || child.type === FOR_EACH) text += getNodeText$1(child);
+			else if (child.type === BLOCK || child.type === FOR_EACH) text += getNodeText(child);
 		}
 	}
 	return text;
@@ -10577,7 +9992,7 @@ function getNodeText$1(node) {
  * @param {Object} mapper_file - The rules for how to convert each node.
  * @returns {Promise<string>} - The final text for this node.
  */
-async function generateOutput(ast, i, format, mapper_file, security = {}, parentId = null, generateRuntimeOutput = false, hideRuntimeOutput = false, instance = null, idState = null) {
+async function generateOutput(ast, i, format, mapper_file, security = {}, parentId = null, generateRuntimeOutput = false, hideRuntimeOutput = false, instance = null, idState = null, extraCtx = {}) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	if (!node) return "";
 
@@ -10587,7 +10002,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	if (node.id === mapper_file?.options?.moduleIdentityToken) {
 		const oldFilename = mapper_file.options.filename;
-		mapper_file.options.filename = node.args?.filename || oldFilename;
+		mapper_file.options.filename = node.props?.filename || oldFilename;
 		let bodyOutput = "";
 		if (node.body) {
 			Evaluator$1.pushScope();
@@ -10618,12 +10033,8 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	if (node.type === RUNTIME_LOGIC) {
 		const preprocessed = await preprocessRuntimeLogic(node.code, mapper_file?.options?.filename, security, instance);
-		if (hideRuntimeOutput) {
-			return "";
-		}
-		if (generateRuntimeOutput) {
-			return wrapRuntimeLogic(preprocessed, format, parentId, node.depth === 1);
-		}
+		if (hideRuntimeOutput) return "";
+		if (generateRuntimeOutput) return wrapRuntimeLogic(preprocessed, format, parentId, node.depth === 1);
 		return mapper_file ? mapper_file.runtimeLogic(preprocessed, node.depth === 1, parentId) : "";
 	}
 
@@ -10650,8 +10061,8 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 	}
 
 	if (node.type === FOR_EACH) {
-		const transpiledArgs = await transpileArgs(node.args);
-		const items = mapper_file ? mapper_file.safeArg({ args: transpiledArgs, index: 0, key: "items", fallBack: [] }) : [];
+		const transpiledArgs = await transpileArgs(node.props);
+		const items = mapper_file ? mapper_file.safeArg({ props: transpiledArgs, index: 0, key: "items", fallBack: [] }) : [];
 
 		if (!Array.isArray(items)) {
 			const line = node.range?.start?.line + 1 || 1;
@@ -10663,8 +10074,16 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			return "";
 		}
 
-		const asVar = transpiledArgs.as || "item";
-		const indexVar = `${asVar}_index`;
+		const asVar = transpiledArgs.as || "value";
+		if (asVar === "i") {
+			const line = node.range?.start?.line + 1 || 1;
+			transpilerError([
+				`<$red:Reserved Variable Error in [for-each]:$>{line}`,
+				`'i' is a reserved variable name for the loop index.{N}Use a different name for the 'as' prop, e.g. as: "item"{line}`,
+				`at line <$yellow:${line}$>{line}`
+			]);
+			return "";
+		}
 
 		// Trim structural whitespace/newlines at start and end of loop body for formatting clean output
 		let cleanedBody = [];
@@ -10696,11 +10115,11 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			Evaluator$1.pushScope();
 			Evaluator$1.inject({
 				[asVar]: item,
-				[indexVar]: idx++
+				i: idx++
 			});
 
 			for (let j = 0; j < cleanedBody.length; j++) {
-				output += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState);
+				output += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState, extraCtx);
 			}
 
 			await Evaluator$1.popScope();
@@ -10710,8 +10129,8 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	let secretId = null;
 	if (node.type === BLOCK) {
-		if (node.args) {
-			for (const key of Object.keys(node.args)) {
+		if (node.props) {
+			for (const key of Object.keys(node.props)) {
 				if (key.toLowerCase().startsWith("data-sommark")) {
 					transpilerError([
 						`<$red:Reserved Attribute Error:$> The attribute name '<$yellow:${key}$>' is reserved for SomMark's internal runtime compiler logic.{line}`,
@@ -10732,6 +10151,29 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 		}
 	}
 
+	// smark-raw block — body collected verbatim by lexer, bypasses normal body processing pipeline
+	if (node.type === BLOCK && (node.props?.["smark-raw"] === "true" || node.props?.["smark-raw"] === true)) {
+		const rawContent = node.body?.map(n => String(n.text || "")).join("") || "";
+		const { "smark-raw": _, ...cleanArgs } = node.props;
+		const transpiledArgs = await transpileArgs(cleanArgs);
+		if (Evaluator$1.active?.hasDynamicTag?.(node.id)) {
+			return await Evaluator$1.active.executeDynamicTag(node.id, { props: transpiledArgs, content: rawContent, textContent: rawContent });
+		}
+		let rawTarget = mapper_file ? matchedValue(mapper_file.outputs, node.id) : null;
+		if (!rawTarget && mapper_file) rawTarget = mapper_file.getUnknownTag(node);
+		if (rawTarget) {
+			const isManualMode = !!rawTarget.options?.handleAst;
+			return await rawTarget.render.call(mapper_file, {
+				props: transpiledArgs,
+				content: rawContent,
+				textContent: rawContent,
+				ast: isManualMode ? node : undefined,
+				isSelfClosing: node.isSelfClosing || false
+			});
+		}
+		return rawContent;
+	}
+
 	let target = null;
 	if (Evaluator$1.active && Evaluator$1.active.hasDynamicTag(node.id)) {
 		target = {
@@ -10750,22 +10192,9 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	if (target) {
 		const shouldResolveImmediate = target.options?.resolve === true;
-		const textContent = getNodeText$1(node);
+		const textContent = getNodeText(node);
 
-		let content = (node.body?.length === 0) ? "" :
-			(node.type === ATBLOCK ? dedentBy(node.content || "", node.range?.start?.character || 0).trim() :
-				(node.type === INLINE ? (node.value || "") : BODY_PLACEHOLDER));
-
-		// Apply pipelines to format literal values
-		if (node.type === INLINE) {
-			content = String(content || "");
-			content = mapper_file ? mapper_file.inlineText(content, target.options) : content;
-		}
-
-		if (node.type === ATBLOCK) {
-			content = String(content || "");
-			content = mapper_file ? mapper_file.atBlockBody(content, target.options) : content;
-		}
+		let content = (node.body?.length === 0) ? "" : BODY_PLACEHOLDER;
 
 		// 1. Determine if this is a parent block that needs newline wrapping (Trim-and-Wrap)
 		// Priority: Target options > Mapper global options
@@ -10802,16 +10231,72 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 		const isManualMode = target.options?.handleAst === true;
 
-		const transpiledArgs = await transpileArgs(node.args);
+		if (isManualMode) {
+			const cleanBody = [];
+			let richText = "";
+
+			Evaluator$1.pushScope();
+			try {
+				for (const child of (node.body || [])) {
+					if (child.type === BLOCK || child.type === TEXT$1 || child.type === FOR_EACH) {
+						cleanBody.push(child);
+						if (child.type === TEXT$1) {
+							richText += mapper_file ? mapper_file.text(String(child.text || ""), target.options) : String(child.text || "");
+						}
+					} else if (child.type === STATIC_LOGIC) {
+						try {
+							const val = await Evaluator$1.execute(child.code);
+							if (val !== undefined && typeof val !== "object") richText += String(val);
+						} catch (err) {
+							transpilerError([
+								`<$red:Logic Error:$> ${err.message}{line}`,
+								`<$yellow:Code:$> <$blue:${child.code}$>{line}`
+							]);
+						}
+					} else if (child.type === COMMENT) {
+						if (!mapper_file?.options?.removeComments) richText += mapper_file?.comment(child.text) || "";
+					} else if (child.type === COMMENT_BLOCK) {
+						if (!mapper_file?.options?.removeComments) richText += mapper_file?.commentBlock(child.text) || "";
+					} else if (child.type === RUNTIME_LOGIC) {
+						if (!hideRuntimeOutput) {
+							const preprocessed = await preprocessRuntimeLogic(child.code, mapper_file?.options?.filename, security, instance);
+							richText += mapper_file ? mapper_file.runtimeLogic(preprocessed, child.depth === 1, secretId || parentId) : "";
+						}
+					}
+					// FOR_EACH → silently ignored
+				}
+
+				const cleanAst = { ...node, body: cleanBody };
+				const transpiledArgs = await transpileArgs(node.props);
+				if (secretId) transpiledArgs["data-sommark-id"] = secretId;
+
+				const renderChild = async (childNode, extra = {}) => {
+					return await generateOutput(childNode, 0, format, mapper_file, security, secretId || parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState, extra);
+				};
+
+				return await target.render.call(mapper_file, {
+					props: transpiledArgs,
+					content: "",
+					textContent: richText || textContent,
+					ast: cleanAst,
+					isSelfClosing: node.isSelfClosing || false,
+					...extraCtx,
+					renderChild
+				}) ?? "";
+			} finally {
+				await Evaluator$1.popScope();
+			}
+		}
+
+		const transpiledArgs = await transpileArgs(node.props);
 		if (secretId) {
 			transpiledArgs["data-sommark-id"] = secretId;
 		}
 		result += await target.render.call(mapper_file, {
-			nodeType: node.type,
-			args: transpiledArgs,
+			props: transpiledArgs,
 			content,
 			textContent,
-			ast: isManualMode ? node : new Proxy({}, {
+			ast: new Proxy({}, {
 				get(target, prop) {
 					if (prop === "then" || prop === "toJSON" || typeof prop === "symbol" || prop === "constructor" || prop === "inspect" || prop === "valueOf" || prop === "toString") {
 						return undefined;
@@ -10822,7 +10307,8 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 					]);
 				}
 			}),
-			isSelfClosing: node.type === BLOCK ? (node.isSelfClosing || false) : undefined
+			isSelfClosing: node.isSelfClosing || false,
+			...extraCtx
 		});
 		// if (isParentBlock) result = "\n" + result;
 
@@ -10848,49 +10334,6 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 							bodyTextVal = security.sanitize(bodyTextVal);
 						}
 						bodyOutput = bodyTextVal;
-						break;
-
-					case INLINE:
-						let inlineTarget = matchedValue(mapper_file.outputs, body_node.id);
-						if (!inlineTarget) {
-							inlineTarget = mapper_file.getUnknownTag(body_node);
-						}
-
-						if (inlineTarget) {
-							let inlineValue = String(body_node.value || "").trim();
-							if (mapper_file) inlineValue = mapper_file.inlineText(inlineValue, inlineTarget.options);
-
-							const hasArgs = body_node.args && typeof body_node.args === "object" && Object.keys(body_node.args).length > 0;
-							bodyOutput = await inlineTarget.render.call(mapper_file, {
-								nodeType: body_node.type,
-								args: hasArgs ? body_node.args : {},
-								content: inlineValue,
-								ast: body_node
-							});
-						} else {
-							let fallback = body_node.value || "";
-							if (mapper_file) fallback = mapper_file.inlineText(fallback, {});
-							bodyOutput = fallback;
-						}
-						break;
-
-					case ATBLOCK:
-						let atTarget = matchedValue(mapper_file.outputs, body_node.id);
-						if (!atTarget) {
-							atTarget = mapper_file.getUnknownTag(body_node);
-						}
-
-						// AtBlocks handle their own absolute dedenting
-						let atContent = dedentBy(body_node.content || "", body_node.range?.start?.character || 0).trim();
-						if (mapper_file) {
-							atContent = mapper_file.atBlockBody(atContent, atTarget?.options || {});
-						}
-
-						// Removed multiline injection since atBlockBody handles formatting
-						const transpiledAtArgs = await transpileArgs(body_node.args);
-						bodyOutput = atTarget
-							? await atTarget.render.call(mapper_file, { nodeType: body_node.type, args: transpiledAtArgs, content: atContent, ast: body_node })
-							: atContent;
 						break;
 
 					case COMMENT:
@@ -11032,36 +10475,14 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 		return posix.dirname(abs);
 	})();
 
-	const generateRuntimeOutput = optionsOrAst?.generateRuntimeOutput || false;
-	const hideRuntimeOutput = optionsOrAst?.hideRuntimeOutput || false;
 	const dualOutput = optionsOrAst?.dualOutput || false;
-
-	if (dualOutput && (generateRuntimeOutput || hideRuntimeOutput)) {
-		const flags = [
-			generateRuntimeOutput && "\x1b[36mgenerateRuntimeOutput\x1b[0m",
-			hideRuntimeOutput     && "\x1b[36mhideRuntimeOutput\x1b[0m"
-		].filter(Boolean).join(" and ");
-		console.warn(
-			`\n[SomMark] \x1b[33m⚠ Ignored options when dualOutput is true\x1b[0m\n` +
-			`  ${flags} ${generateRuntimeOutput && hideRuntimeOutput ? "are" : "is"} ignored when \x1b[32mdualOutput: true\x1b[0m is set.\n` +
-			`  \x1b[2mdualOutput manages both HTML and JS passes internally — no need to set those flags.\x1b[0m\n`
-		);
-	} else if (generateRuntimeOutput && hideRuntimeOutput) {
-		console.warn(
-			"\n[SomMark] \x1b[33m⚠ Conflicting options — output will be empty\x1b[0m\n" +
-			"  \x1b[36mgenerateRuntimeOutput: true\x1b[0m  →  outputs only JS, suppresses all HTML\n" +
-			"  \x1b[36mhideRuntimeOutput: true\x1b[0m      →  suppresses all JS output\n" +
-			"  Together they cancel each other out and produce nothing.\n" +
-			"  \x1b[2mHint: use one at a time, or \x1b[0m\x1b[32mdualOutput: true\x1b[0m\x1b[2m to get [html, js] in one call.\x1b[0m\n"
-		);
-		return "";
-	}
 
 	// Initialize Logic Sandbox
 	await Evaluator$1.init(fileBaseDir, security, settings, targetMapper);
 	// Inject global data
 	const placeholders = optionsOrAst?.placeholders || settings?.placeholders || {};
 	const variables = optionsOrAst?.variables || settings?.variables || {};
+	warnDroppedVariables(variables);
 	Evaluator$1.inject(placeholders);
 	Evaluator$1.inject(variables);
 
@@ -11128,7 +10549,7 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 	try {
 		for (let i = 0; i < body.length; i++) {
 			const node = body[i];
-			const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, generateRuntimeOutput, hideRuntimeOutput, instance);
+			const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, false, instance);
 
 			let finalBlockOutput = blockOutput;
 			if (prev_was_silent && node.type === TEXT$1) {
@@ -11163,11 +10584,11 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 /**
  * Transpiles block arguments, resolving logic or variables.
  */
-async function transpileArgs(args) {
+async function transpileArgs(props) {
 	const result = {};
-	if (!args) return result;
+	if (!props) return result;
 
-	for (const [key, value] of Object.entries(args)) {
+	for (const [key, value] of Object.entries(props)) {
 		if (key.toLowerCase().startsWith("data-sommark") && key.toLowerCase() !== "data-sommark-id") {
 			transpilerError([
 				`<$red:Reserved Attribute Error:$> The attribute name '<$yellow:${key}$>' is reserved for SomMark's internal runtime compiler logic.{line}`,
@@ -11481,10 +10902,8 @@ class TagBuilder {
 		const id = this.tagName.toLowerCase();
 		const isCodeStyleOrScript = ["style", "script"].includes(id);
 		let inline_style = "";
-		const useClassFallback = options.fallbackTarget === "class";
-		const classSet = new Set();
 
-		// 1. Initial CSS Variable/Style processing
+		// 1. Initial style processing
 		if (!isCodeStyleOrScript && args.style) {
 			if (typeof args.style === "object") {
 				inline_style = Object.entries(args.style)
@@ -11497,20 +10916,11 @@ class TagBuilder {
 			}
 		}
 
-		// 2. Pre-collect native classes if using class fallback
-		if (useClassFallback) {
-			if (args.class) {
-				String(args.class).split(/\s+/).filter(Boolean).forEach(c => classSet.add(c));
-			}
-		}
-
-		// 3. Attribute Dispatching
+		// 2. Attribute dispatching
 		const keys = Object.keys(args).filter(arg => isNaN(parseInt(arg)));
 		keys.forEach(key => {
-			if (!isNaN(parseInt(key))) return; // Skip numeric positional arguments
 			if (key === "style") return;
 			if (isCodeStyleOrScript && key === "scoped") return;
-			if (useClassFallback && key === "class") return;
 
 			const isDimensionAttributeSupported = ["img", "video", "svg", "canvas", "iframe", "object", "embed"].includes(id);
 			const isWidthOrHeight = key === "width" || key === "height";
@@ -11520,38 +10930,23 @@ class TagBuilder {
 			const isDataOrAria = kebabize(key).startsWith("data-") || kebabize(key).startsWith("aria-");
 
 			const k = isEvent ? key.toLowerCase() : (isNative || isCustom) ? key : kebabize(key);
+			const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
 
 			if (isCodeStyleOrScript || options.fallbackTarget === false) {
-				// Specialized tags or fallback disabled: render standard attributes, no styling fallback
-				const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
+				// Specialized tags or fallback disabled: render as standard attributes
 				this.#attr.push(`${k}="${escapeHTML(String(val))}"`);
 			} else {
-				// Standard elements: process smart fallbacks
 				if (isEvent || ((isNative || isCustom) && (!isWidthOrHeight || isDimensionAttributeSupported)) || isDataOrAria) {
-					const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
 					this.#attr.push(`${k}="${escapeHTML(String(val))}"`);
 				} else {
-					if (useClassFallback) {
-						const val = args[key];
-						if (val === true || val === "true") {
-							classSet.add(k);
-						} else if (val !== false && val !== "false" && val !== null && val !== undefined) {
-							classSet.add(`${k}-${val}`);
-						}
-					} else {
-						const val = typeof args[key] === "object" ? JSON.stringify(args[key]) : args[key];
-						inline_style += `${k}:${val};`;
-					}
+					// Unknown attribute: fall through to inline style
+					inline_style += `${k}:${val};`;
 				}
 			}
 		});
 
-		if (useClassFallback && classSet.size > 0) {
-			this.#attr.push(`class="${escapeHTML([...classSet].join(" "))}"`);
-		}
-
 		if (inline_style) {
-			// V4 DYNAMIC CSS: Automatically wrap CSS variables in var()
+			// Wrap CSS variables in var()
 			const processedStyle = inline_style.replace(/(^|[^\w\-_$])(--[\w\-_$]+)(?![\w\-_$]|:)/g, "$1var($2)");
 			this.#attr.push(`style="${escapeHTML(processedStyle)}"`);
 		}
@@ -11897,8 +11292,42 @@ class MarkdownBuilder {
 		return result;
 	}
 
+	/**
+	 * Escapes Markdown trigger characters for MDX output using HTML entities instead of
+	 * backslashes. Backslash escapes render literally inside JSX text children, so entities
+	 * are the only reliable way to neutralise Markdown symbols in MDX.
+	 */
+	mdxEscaper(text) {
+		if (!text) return "";
 
+		// 1. HTML tags → entities (before & escaping to avoid double-encoding)
+		let result = text.replace(/<([a-zA-Z\/][^>]*?)>/g, "&lt;$1&gt;");
 
+		// 2. Ampersands and quotes
+		result = result
+			.replace(/&(?!lt;|gt;)/g, "&amp;")
+			.replace(/"/g, "&quot;")
+			.replace(/'/g, "&#39;");
+
+		// 3. Unordered list triggers: -, *, + at start of line followed by space
+		result = result.replace(/^([-*+])(\s+)/gm, (_, c, sp) => `&#${c.codePointAt(0)};${sp}`);
+
+		// 4. Ordered list triggers: 1. at start of line — encode the dot
+		result = result.replace(/^(\d+)\.(\s+)/gm, (_, n, sp) => `${n}&#46;${sp}`);
+
+		// 5. Emphasis triggers: *text*, **text**, _text_, ~~text~~
+		result = result.replace(/(\*+|_+|~~)(\S[\s\S]*?\S)\1/g, (_, prefix, content) => {
+			const enc = prefix.split("").map(c => `&#${c.codePointAt(0)};`).join("");
+			return enc + content + enc;
+		});
+
+		// 6. Horizontal rule triggers: ---, ***, ___ on their own line
+		result = result.replace(/^([*_-]{3,})\s*$/gm, (m) =>
+			m.replace(/[*_-]/g, c => `&#${c.codePointAt(0)};`)
+		);
+
+		return result;
+	}
 
 	/**
 	 * Formats data as a Markdown table.
@@ -12044,10 +11473,9 @@ class Mapper {
 	 * 
 	 * @param {string|Array<string>} id - The name of the tag (like 'Person' or ['p', 'para']).
 	 * @param {Function} renderOutput - The function that formats this tag. It receives:
-	 *    - `args`: Tag attributes.
+	 *    - `props`: Tag attributes.
 	 *    - `content`: Formatted inner content.
 	 *    - `textContent`: Raw inner text.
-	 *    - `nodeType`: Type of node (Block, Inline, etc.).
 	 *    - `isSelfClosing`: (Blocks only) True if marked with !.
 	 *    - `ast`: The full AST node.
 	 * @param {Object} [options={ escape: true }] - Settings for this tag.
@@ -12163,26 +11591,6 @@ class Mapper {
 	 * @returns {string} - The formatted text string.
 	 */
 	text(text, options) {
-		return text;
-	}
-
-	/**
-	 * Formats the content of an inline statement.
-	 * @param {string} text - The raw inline content.
-	 * @param {Object} options - The target output options.
-	 * @returns {string} - The formatted inline string.
-	 */
-	inlineText(text, options) {
-		return text;
-	}
-
-	/**
-	 * Formats the raw body of an At-Block.
-	 * @param {string} text - The raw atblock body.
-	 * @param {Object} options - The target output options.
-	 * @returns {string} - The formatted atblock string.
-	 */
-	atBlockBody(text, options) {
 		return text;
 	}
 
@@ -12314,23 +11722,12 @@ class Mapper {
 }
 
 /**
- * Registers universal utility tags shared across all SomMark mappers.
- * These tags are considered "Format Agnostic."
- * 
+ * Registers universal utility blocks shared across all SomMark mappers.
+ * These blocks are considered "Format Agnostic."
+ *
  * @param {Mapper} mapper - The mapper instance to register tags on.
  */
 function registerSharedOutputs(mapper) {
-    // 1. 'raw' - AtBlock that return the raw, unparsed content.
-    mapper.register("raw", ({ content, nodeType }) => {
-        if (nodeType === "Block") {
-            return String(content);
-        }
-        return content;
-    }, {
-        type: "AtBlock",
-        escape: false
-    });
-
 }
 
 const SVG_ELEMENTS = new Set([
@@ -12369,22 +11766,22 @@ const SVG_ELEMENTS = new Set([
  * Helper to format an HTML tag with attributes and content.
  * 
  * @param {string} id - The name of the HTML tag.
- * @param {Object} args - The attributes for the tag.
+ * @param {Object} props - The attributes for the tag.
  * @param {string} content - The text or tags inside this tag.
  * @returns {string} - The finished HTML string.
  */
-const renderHtmlTag = function (id, args, content, isSelfClosing) {
+const renderHtmlTag = function (id, props, content, isSelfClosing) {
 	const element = this.tag(id);
 	const idLower = id.toLowerCase();
 
 	if (SVG_ELEMENTS.has(idLower)) {
-		element.attributes(args);
+		element.attributes(props);
 	} else {
-		element.smartAttributes(args, this.customProps, this.options);
+		element.smartAttributes(props, this.customProps, this.options);
 	}
 
 	let finalContent = content;
-	if (idLower === "script" && args.scoped === true) {
+	if (idLower === "script" && props.scoped === true) {
 		finalContent = `(function(){\n${content}\n})();`;
 	}
 
@@ -12433,27 +11830,6 @@ const HTML = Mapper.define({
 	},
 
 	/**
-	 * Formats text inside inline tags (like bold or links).
-	 */
-	inlineText(text, options) {
-		if (options?.escape !== false) {
-			return this.escapeHTML(text);
-		}
-		return text;
-	},
-
-	/**
-	 * Formats the content inside AtBlocks.
-	 */
-	atBlockBody(text, options) {
-		let out = String(text);
-		if (options?.escape !== false) {
-			out = this.escapeHTML(out);
-		}
-		return out;
-	},
-
-	/**
 	 * Provides high-fidelity fallback for unknown ids by rendering them as HTML elements.
 	 * @param {Object} node - The unknown AST node.
 	 * @returns {Object} - A virtual id registration for fallback rendering.
@@ -12464,11 +11840,10 @@ const HTML = Mapper.define({
 		const isCodeStyleOrScript = ["code", "style", "script"].includes(idLower);
 
 		return {
-			render: function ({ args, content, isSelfClosing }) { return renderHtmlTag.call(this, node.id, args, content, isSelfClosing); },
+			render: function ({ props, content, isSelfClosing }) { return renderHtmlTag.call(this, node.id, props, content, isSelfClosing); },
 			options: {
-				type: isCodeStyleOrScript ? ["Block", "AtBlock"] : ["Block", "Inline"],
 				escape: !isCodeStyleOrScript,
-				rules: { is_self_closing: isVoid }
+				rules: { is_empty_body: isVoid }
 			}
 		};
 	},
@@ -12481,7 +11856,7 @@ const HTML = Mapper.define({
 // DOCTYPE tag
 HTML.register(["DOCTYPE", "doctype"], () => {
 	return "<!DOCTYPE html>";
-}, { type: "Block", rules: { is_self_closing: true } });
+}, { rules: { is_empty_body: true } });
 
 // head tag
 HTML.register("head", function ({ content }) {
@@ -12490,111 +11865,21 @@ HTML.register("head", function ({ content }) {
 		varsStyle = `<style>:root { ${this.cssVariables} }</style>\n`;
 	}
 	return this.tag("head").body(`${varsStyle}${content}`);
-}, { type: "Block", escape: false });
+}, { escape: false });
 
 // Root tag for Metadata and CSS Variables (Collector)
 HTML.register(
 	["Root", "root"],
-	function ({ args }) {
+	function ({ props }) {
 		this.cssVariables = this.cssVariables || "";
-		Object.keys(args).forEach(key => {
+		Object.keys(props).forEach(key => {
 			if (key.startsWith("--")) {
-				this.cssVariables += `${key}:${args[key]};`;
+				this.cssVariables += `${key}:${props[key]};`;
 			}
 		});
 		return "";
 	},
-	{
-		type: "Block"
-	}
 );
-// Inline CSS tag (Moved from shared)
-HTML.register("css", ({ args, content }) => {
-	// Compile style from named arguments (keys that are not numeric digits)
-	const namedStyle = Object.keys(args)
-		.filter(k => isNaN(parseInt(k)))
-		.map(k => `${kebabize(k)}:${args[k]}`)
-		.join(";");
-
-	// Fetch positional style string (index 0) or "style" key if present
-	let positionalStyle = HTML.safeArg({ args, index: 0, key: "style", fallBack: "" });
-
-	// Filter out positional styles that are just duplicates of named arguments
-	const hasDuplicateNamed = Object.keys(args)
-		.filter(k => isNaN(parseInt(k)))
-		.some(k => args[k] === positionalStyle);
-
-	if (hasDuplicateNamed) {
-		positionalStyle = "";
-	}
-
-	// Combine both together
-	let style = [positionalStyle, namedStyle].filter(s => s.trim()).join(";");
-
-	style = style.split(";").filter(s => s.trim()).map(s => s.trim().split(":").map(s => s.trim()).join(":")).join(";");
-	return HTML.tag("span").attributes({ style }).body(content);
-}, {
-	type: "Inline"
-});
-registerSharedOutputs(HTML);
-
-/**
- * Helper to manually render AST children inside handleAst blocks,
- * avoiding the need to call the core transpiler recursively.
- */
-async function renderNodeAst(astArray, mapperFile) {
-	if (!astArray || !Array.isArray(astArray)) return "";
-	let result = "";
-	for (const node of astArray) {
-		if (node.type === TEXT$1) {
-			const text = String(node.text || "");
-			result += mapperFile.text(text);
-		} else if (node.type === INLINE) {
-			let target = matchedValue(mapperFile.outputs, node.id) || mapperFile.getUnknownTag(node);
-			if (target) {
-				let inlineValue = String(node.value || "").trim();
-				inlineValue = mapperFile.inlineText(inlineValue, target.options);
-				result += await target.render.call(mapperFile, {
-					nodeType: node.type,
-					args: node.args || {},
-					content: inlineValue,
-					ast: node
-				});
-			} else {
-				result += mapperFile.inlineText(node.value || "", {});
-			}
-		} else if (node.type === STATIC_LOGIC) {
-			try {
-				const val = await Evaluator$1.execute(node.code);
-				if (val !== undefined && typeof val !== "object") {
-					result += mapperFile.text(String(val));
-				}
-			} catch (e) {
-				console.error(`\x1b[31mLogic Error in Markdown mapper:\x1b[0m ${e.message}`);
-			}
-		} else if (node.type === BLOCK) {
-			let target = matchedValue(mapperFile.outputs, node.id) || mapperFile.getUnknownTag(node);
-			if (target) {
-				const isSelfClosing = node.isSelfClosing || false;
-				let content = "";
-				Evaluator$1.pushScope();
-				if (!target.options?.handleAst && node.body) {
-					content = await renderNodeAst(node.body, mapperFile);
-				}
-				const output = await target.render.call(mapperFile, {
-					nodeType: node.type,
-					args: node.args || {},
-					content,
-					ast: node,
-					isSelfClosing
-				});
-				await Evaluator$1.popScope();
-				result += output;
-			}
-		}
-	}
-	return result;
-}
 
 /**
  * The Markdown Mapper used for generating Markdown text.
@@ -12621,185 +11906,146 @@ const MARKDOWN = Mapper.define({
 	},
 
 	/**
-	 * Formats inline content before rendering.
-	 */
-	inlineText(text, options) {
-		if (options?.escape !== false) {
-			// Use smartEscaper to protect special characters
-			let out = text;
-			if (this.md && this.md.smartEscaper) out = this.md.smartEscaper(out);
-			return out;
-		}
-		return text;
-	},
-
-	/**
-	 * Formats the literal content inside AtBlocks.
-	 */
-	atBlockBody(text, options) {
-		if (options?.escape === false) return text;
-		// Escaping with smartEscaper
-		let out = text;
-		if (this.md && this.md.smartEscaper) out = this.md.smartEscaper(out);
-		return out;
-	},
-
-	/**
 	 * Provides a fallback for unknown tags by using the HTML mapper instead.
 	 */
 	getUnknownTag(node) {
-		const isBlock = node.type === BLOCK;
 		const id = node.id.toLowerCase();
 
 		return {
-			render: async (ctx) => {
-				const { args, ast, isSelfClosing } = ctx;
-				const body = ast && ast.body ? ast.body : [];
-				const meaningful = body.filter(c => c.type !== TEXT$1 || c.text.trim());
-				const childCount = meaningful.length;
-				const element = this.tag(id).smartAttributes(args, this.customProps, this.options);
+			render: async ({ props, ast, isSelfClosing, renderChild }) => {
+				const element = this.tag(id).smartAttributes(props, this.customProps, this.options);
+				if (isSelfClosing || VOID_ELEMENTS.has(id)) return element.selfClose();
 
-				// Use the transpiler to format the children if any, otherwise use direct content
-				let rawContent;
-				if (node.type === "AtBlock") {
-					rawContent = node.content || "";
-					rawContent = this.atBlockBody(rawContent, ctx);
-				} else if (node.type === "Inline") {
-					rawContent = node.value || "";
-					rawContent = this.inlineText(rawContent, ctx);
-				} else {
-					rawContent = (await renderNodeAst(body, this)).trim();
+				let rawContent = "";
+				for (const child of (ast.body || [])) {
+					if (child.type === TEXT$1) rawContent += this.text(child.text);
+					else if (child.type === BLOCK) rawContent += await renderChild(child);
 				}
+				rawContent = rawContent.trim();
 
-				if (isSelfClosing || VOID_ELEMENTS.has(id)) {
-					return element.selfClose();
-				}
-
-				let finalContent;
-				if (childCount <= 1) {
-					// COMPACT PASS: Single child or empty
-					finalContent = rawContent;
-				} else {
-					// MULTILINE PASS: Enforce \n prefix/suffix for multiple children
-					finalContent = `\n${rawContent}\n`;
-				}
-
+				const meaningful = (ast.body || []).filter(c => c.type !== TEXT$1 || c.text.trim());
+				const finalContent = meaningful.length <= 1 ? rawContent : `\n${rawContent}\n`;
 				return element.body(finalContent);
 			},
-			options: {
-				type: isBlock ? "Block" : (node.type === "AtBlock" ? "AtBlock" : "Inline"),
-				handleAst: true
-			}
+			options: { handleAst: true }
 		};
 	}
 });
 
 MARKDOWN.inherit(HTML);
 const { md, safeArg } = MARKDOWN;
-registerSharedOutputs(MARKDOWN);
 
 /**
  * Quote - Renders blockquote content or GFM alerts.
  */
-MARKDOWN.register("quote", ({ args, content }) => {
-	const type = safeArg({ args, index: 0, key: "type", fallBack: "" });
+MARKDOWN.register("quote", ({ props, content }) => {
+	const type = safeArg({ props, index: 0, key: "type", fallBack: "" });
 	return md.quote(content, type);
-}, { type: "Block", resolve: true });
+}, { resolve: true });
 
 /**
  * Headings - Renders H1-H6 block headings.
  */
 ["h1", "h2", "h3", "h4", "h5", "h6"].forEach(heading => {
-	MARKDOWN.register(heading, function ({ args, content, isSelfClosing }) {
-		const format = safeArg({ args, key: "format", type: "string", fallBack: "" });
+	MARKDOWN.register(heading, function ({ props, content, isSelfClosing }) {
+		const format = safeArg({ props, key: "format", type: "string", fallBack: "" });
 		const lvl = heading[1] && !isNaN(Number(heading[1])) ? Number(heading[1]) : 1;
 		if (format.toLowerCase() === "html") {
-			delete args.format;
-			const el = this.tag(heading).smartAttributes(args);
+			delete props.format;
+			const el = this.tag(heading).smartAttributes(props);
 			if (isSelfClosing) return el.selfClose();
 			return el.body(content);
 		}
 		return this.md.heading(content, lvl);
-	}, { type: "Block" });
+	});
 });
 
 /**
  * Bold - Renders bold text (**text**).
+ * Self-closing: [bold = "text" !] or [bold = text: "text" !]
  */
-MARKDOWN.register(["bold", "b"], ({ content }) => {
-	return md.bold(content);
-}, { type: ["Block", "Inline"] });
+MARKDOWN.register(["bold", "b"], ({ props, content, isSelfClosing }) => {
+	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+	return md.bold(text);
+});
 
 /**
  * Italic - Renders italic text (*text*).
+ * Self-closing: [italic = "text" !] or [italic = text: "text" !]
  */
-MARKDOWN.register(["italic", "i"], ({ content }) => {
-	return md.italic(content);
-}, { type: ["Block", "Inline"] });
+MARKDOWN.register(["italic", "i"], ({ props, content, isSelfClosing }) => {
+	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+	return md.italic(text);
+});
 
 /**
  * Emphasis - Renders bold-italic text (***text***).
+ * Self-closing: [emphasis = "text" !] or [emphasis = text: "text" !]
  */
-MARKDOWN.register(["emphasis", "em"], ({ content }) => {
-	return md.emphasis(content);
-}, { type: ["Block", "Inline"] });
+MARKDOWN.register(["emphasis", "em"], ({ props, content, isSelfClosing }) => {
+	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+	return md.emphasis(text);
+});
 
 /**
  * Strike - Renders strikethrough text (~~text~~).
+ * Self-closing: [strike = "text" !] or [strike = text: "text" !]
  */
-MARKDOWN.register(["strike", "s"], ({ content }) => {
-	return md.strike(content);
-}, { type: ["Block", "Inline"] });
+MARKDOWN.register(["strike", "s"], ({ props, content, isSelfClosing }) => {
+	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+	return md.strike(text);
+});
 
 /**
  * Code - Renders inline or fenced code blocks.
  */
 MARKDOWN.register(
 	["Code", "code"],
-	({ args, content, nodeType }) => {
-		if (nodeType === "Inline") {
-			return `\`${content}\``;
+	({ props, content, isSelfClosing }) => {
+		if (isSelfClosing) {
+			const text = safeArg({ props, index: 0, key: "text", fallBack: "" });
+			return `\`${text}\``;
 		}
-		const lang = safeArg({ args, index: 0, key: "lang", fallBack: "text" });
+		const lang = safeArg({ props, index: 0, key: "lang", fallBack: "" });
 		return md.codeBlock(content, lang);
 	},
-	{
-		escape: false,
-		type: ["AtBlock", "Inline"]
-	}
+	{ escape: false }
 );
 
 /**
  * Link - Renders Markdown links [text](url).
+ * Body form:       [link = src: "url", title: "..."]text[end]
+ * Self-closing:    [link = "text", "url" !] or [link = text: "...", src: "...", title: "..." !]
  */
 MARKDOWN.register(
 	"link",
-	({ args, content }) => {
-		const src = safeArg({ args, index: 0, key: "src", fallBack: "" });
-		const title = safeArg({ args, index: 1, key: "title", fallBack: "" });
+	({ props, content, isSelfClosing }) => {
+		if (isSelfClosing) {
+			const text  = safeArg({ props, index: 0, key: "text",  fallBack: "" });
+			const src   = safeArg({ props, index: 1, key: "src",   fallBack: "" });
+			const title = safeArg({ props, index: 2, key: "title", fallBack: "" });
+			return md.url("link", text, src, title);
+		}
+		const src   = safeArg({ props, index: 0, key: "src",   fallBack: "" });
+		const title = safeArg({ props, index: 1, key: "title", fallBack: "" });
 		return md.url("link", content, src, title);
 	},
-	{
-		type: ["Block", "Inline"],
-		rules: { is_empty_body: false }
-	}
+	{ rules: { is_empty_body: false } }
 );
 
 /**
  * Image - Renders Markdown images ![alt](url).
+ * [image = "alt", "src", "title" !] or [image = alt: "...", src: "...", title: "..." !]
  */
 MARKDOWN.register(
 	"image",
-	({ args }) => {
-		const alt = safeArg({ args, index: 0, key: "alt", fallBack: "" });
-		const src = safeArg({ args, index: 1, key: "src", fallBack: "" });
-		const title = safeArg({ args, index: 2, key: "title", fallBack: "" });
+	({ props }) => {
+		const alt = safeArg({ props, index: 0, key: "alt", fallBack: "" });
+		const src = safeArg({ props, index: 1, key: "src", fallBack: "" });
+		const title = safeArg({ props, index: 2, key: "title", fallBack: "" });
 		return md.url("image", alt, src, title);
 	},
-	{
-		type: "Block",
-		rules: { is_empty_body: true }
-	}
+	{ rules: { is_empty_body: true } }
 );
 
 /**
@@ -12807,172 +12053,153 @@ MARKDOWN.register(
  */
 MARKDOWN.register(
 	"hr",
-	({ args }) => {
-		const fmt = safeArg({ args, index: 0, fallBack: "-" });
+	({ props }) => {
+		const fmt = safeArg({ props, index: 0, fallBack: "-" });
 		return md.horizontal(fmt);
 	},
-	{
-		type: "Block",
-		rules: { is_empty_body: true }
-	}
+	{ rules: { is_empty_body: true } }
 );
 
 /**
  * Escape - Escapes special Markdown characters.
+ * Self-closing: [escape = "text" !] or [escape = text: "text" !]
  */
-MARKDOWN.register(["escape", "e"], function ({ content }) {
-	return this.md.escape(content);
-}, { type: ["Block", "Inline"], resolve: true });
+MARKDOWN.register(["escape", "e"], function ({ props, content, isSelfClosing }) {
+	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+	return this.md.escape(text);
+}, { resolve: true });
+
+const ROW_SEP = "\x1E";
+const CELL_SEP = "\x1F";
 
 /**
  * Table - Authoritative Native AST Table resolution.
  * Processes Header/Body sections with Row/Cell nesting.
+ * Supports [for-each] inside [body] for dynamic rows.
  */
 MARKDOWN.register(
 	"Table",
-	async function ({ ast }) {
+	async function ({ ast, renderChild }) {
 		const headers = [];
 		const rows = [];
 
-		const extractCells = async (node) => {
-			const cells = [];
-			if (!node || !node.body) return cells;
-			// Trim empty spaces while keeping line breaks
-			const cellAst = node.body.map(n => n.type === TEXT$1 ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
-				.filter(n => n.type !== TEXT$1 || n.text);
-
-			for (const child of cellAst) {
-				if (child.type === BLOCK && (child.id.toLowerCase() === "cell" || child.id.toLowerCase() === "th" || child.id.toLowerCase() === "td")) {
-					const cellContent = await renderNodeAst(child.body, this);
-					cells.push(cellContent.trim());
-				}
-			}
-			return cells;
-		};
-
 		const extractRows = async (sectionNode) => {
-			if (!sectionNode || !sectionNode.body) return [];
 			const sectionRows = [];
-			// Trim empty spaces while keeping line breaks
-			const rowAst = sectionNode.body.map(n => n.type === TEXT$1 ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
-				.filter(n => n.type !== TEXT$1 || n.text);
-			for (const rowNode of rowAst) {
-				if (rowNode.type === BLOCK && rowNode.id.toLowerCase() === "row") {
-					const rowData = await extractCells(rowNode);
-					if (rowData.length > 0) sectionRows.push(rowData);
-				} else if (rowNode.type === STATIC_LOGIC) {
-					try { await Evaluator$1.execute(rowNode.code); } catch (e) { console.error(`Logic Error: ${e.message}`); }
+			for (const child of (sectionNode.body || [])) {
+				if (child.type === BLOCK && child.id?.toLowerCase() === "row") {
+					const rendered = await renderChild(child, { inTable: true });
+					const cells = rendered.split(ROW_SEP)[0]?.split(CELL_SEP).filter(c => c !== "") ?? [];
+					if (cells.length > 0) sectionRows.push(cells);
+				} else if (child.type === FOR_EACH) {
+					const rendered = await renderChild(child, { inTable: true });
+					for (const row of rendered.split(ROW_SEP)) {
+						const cells = row.split(CELL_SEP).filter(c => c !== "");
+						if (cells.length > 0) sectionRows.push(cells);
+					}
 				}
 			}
 			return sectionRows;
 		};
 
-		const processTable = async () => {
-			// Remove empty text blocks
-			const tableNodes = ast.body.filter(n => n.type !== TEXT$1 || n.text.trim());
-			for (const node of tableNodes) {
-				if (node.type === STATIC_LOGIC) {
-					try { await Evaluator$1.execute(node.code); } catch (e) { console.error(`Logic Error: ${e.message}`); }
-					continue;
-				}
-				if (node.type !== BLOCK) continue;
-
-				const id = node.id.toLowerCase();
-				if (id === "header") {
-					const headerRows = await extractRows(node);
-					if (headerRows.length > 0) {
-						headers.push(...headerRows[0]);
-					}
-				} else if (id === "body") {
-					const bodyRows = await extractRows(node);
-					rows.push(...bodyRows);
-				}
+		for (const node of ast.body) {
+			if (node.type !== BLOCK) continue;
+			const id = node.id.toLowerCase();
+			if (id === "header") {
+				const headerRows = await extractRows(node);
+				if (headerRows.length > 0) headers.push(...headerRows[0]);
+			} else if (id === "body") {
+				rows.push(...(await extractRows(node)));
 			}
-			return md.table(headers, rows);
-		};
+		}
 
-		return processTable();
+		return md.table(headers, rows);
 	},
-	{
-		escape: true,
-		type: "Block",
-		handleAst: true,
-		trimAndWrapBlocks: false
-	}
+	{ escape: true, handleAst: true, trimAndWrapBlocks: false }
 );
 
 /**
  * Table Helpers - Internal tags for table structural organization.
  */
-MARKDOWN.register(["header", "body", "row", "cell"], ({ content }) => content);
+MARKDOWN.register(["header", "body"], ({ content }) => content);
+
+MARKDOWN.register("row", async function ({ ast, renderChild, inTable }) {
+	if (!inTable) {
+		let result = "";
+		for (const child of ast.body) {
+			if (child.type === TEXT$1) result += this.text(child.text);
+			else if (child.type === BLOCK) result += await renderChild(child);
+		}
+		return result;
+	}
+	let cells = "";
+	for (const child of ast.body) {
+		if (child.type !== BLOCK) continue;
+		const id = child.id?.toLowerCase();
+		if (id === "cell" || id === "th" || id === "td") {
+			cells += await renderChild(child, { inTable: true });
+		}
+	}
+	return cells + ROW_SEP;
+}, { handleAst: true });
+
+MARKDOWN.register(["cell", "th", "td"], ({ content, inTable }) => {
+	return inTable ? content.trim() + CELL_SEP : content;
+});
 
 /**
  * Lists - Authoritative Native AST List resolution.
  * Supports Ordered (Number) and Unordered (Dotlex) lists with deep nesting.
  */
-MARKDOWN.register(["list", "List"], async function ({ ast, args }) {
+MARKDOWN.register(["list", "List"], async function ({ ast, props, renderChild }) {
+	const indicator = safeArg({ props, index: 0, fallBack: "dot" });
+	const isOrdered = indicator === "number" || indicator === "ol";
+	const marker = isOrdered ? "" : (indicator === "dot" ? "-" : indicator);
 	const items = [];
 
-	// Determine list type (dot/unordered vs number/ordered)
-	const indicator = safeArg({ args, index: 0, fallBack: "dot" });
-	const isOrdered = indicator === "number" || indicator === "ol";
-	let marker = "-";
-
-	if (!isOrdered) {
-		if (indicator === "dot") marker = "-";
-		else marker = indicator; // Custom symbol like "*" or "+"
-	}
-
-	// Remove empty spaces from the start and end of strings
-	const itemNodes = ast.body.map(n => n.type === TEXT$1 ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
-		.filter(n => n.type !== TEXT$1 || n.text);
-
-	for (const node of itemNodes) {
+	for (const node of ast.body) {
+		if (node.type !== BLOCK) continue;
 		const id = node.id?.toLowerCase();
-		if (node.type === BLOCK && (id === "item")) {
-			// Trim spaces inside the list item
-			const itemBody = node.body.map(n => n.type === TEXT$1 ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
-				.filter(n => n.type !== TEXT$1 || n.text);
-			const itemContent = await renderNodeAst(itemBody, this);
-			items.push(itemContent.trim());
-		} else if (node.type === BLOCK && (id === "list")) {
-			// Add nested lists to the latest item
-			if (items.length > 0) {
-				const listContent = await renderNodeAst([node], this);
-				items[items.length - 1] += "\n" + listContent;
-			}
+		if (id === "item") {
+			items.push((await renderChild(node)).trim());
 		}
 	}
 
-	const result = isOrdered
-		? md.orderedList(items, 0)
-		: md.unorderedList(items, 0, marker);
-
-	return result;
-}, { type: "Block", handleAst: true, trimAndWrapBlocks: false });
+	return isOrdered ? md.orderedList(items, 0) : md.unorderedList(items, 0, marker);
+}, { handleAst: true, trimAndWrapBlocks: false });
 
 /**
  * List Helpers - Internal tags for list structural organization.
  */
-MARKDOWN.register(["item", "Item"], async function ({ ast }) {
-	// Trim whitespace but keep line breaks
-	const bodyAst = ast.body.map(n => n.type === TEXT$1 ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
-		.filter(n => n.type !== TEXT$1 || n.text);
-	return await renderNodeAst(bodyAst, this);
-}, { type: "Block", handleAst: true, trimAndWrapBlocks: false });
+MARKDOWN.register(["item", "Item"], async function ({ ast, renderChild }) {
+	let result = "";
+	for (const child of ast.body) {
+		if (child.type === TEXT$1) result += this.text(child.text);
+		else if (child.type === BLOCK) result += await renderChild(child);
+	}
+	return result.trim();
+}, { handleAst: true, trimAndWrapBlocks: false });
 
 /**
  * Todo - Renders task list items with status markers.
+ *
+ * Supported forms:
+ *   [todo = task: "Add feature", status: "x" !]   named self-closing
+ *   [todo = "Add feature", "x" !]                 positional self-closing (task, status)
+ *   [todo = "x"]Add feature[end]                  status in prop, task in body
  */
-MARKDOWN.register("todo", ({ args, content }) => {
-	const statusMarkers = ["done", "x", "-", ""].map(s => s.toLowerCase());
+MARKDOWN.register("todo", ({ props, content, isSelfClosing }) => {
+	let status, task;
 
-	const isInlineStatus = statusMarkers.includes(content.toLowerCase());
-	const status = isInlineStatus ? content : (args[0] || "");
-	const task = isInlineStatus ? (args[0] || "") : content;
+	if (isSelfClosing) {
+		task   = safeArg({ props, index: 0, key: "task",   fallBack: "" });
+		status = safeArg({ props, index: 1, key: "status", fallBack: "" });
+	} else {
+		status = safeArg({ props, index: 0, fallBack: "" });
+		task   = content;
+	}
 
 	return md.todo(status, task);
-}, { type: "Block", trimAndWrapBlocks: false });
+}, { trimAndWrapBlocks: false });
 
 /**
  * The MDX Mapper used for generating Markdown with JSX.
@@ -13000,12 +12227,11 @@ const MDX = Mapper.define({
 
 		return {
 			render: (ctx) => {
-				const { args, content, isSelfClosing } = ctx;
-				const element = this.tag(tagName).jsxProps(args);
+				const { props, content, isSelfClosing } = ctx;
+				const element = this.tag(tagName).jsxProps(props);
 				return (isSelfClosing || isVoid) ? element.selfClose() : element.body(content);
 			},
 			options: {
-				type: isVoid ? "Block" : (isCodeStyleOrScript ? ["Block", "AtBlock"] : ["Block", "Inline", "AtBlock"]),
 				escape: !isCodeStyleOrScript,
 				rules: { is_empty_body: isVoid }
 			}
@@ -13022,32 +12248,11 @@ const MDX = Mapper.define({
 	text(text, options) {
 		let out = text;
 		if (options?.escape !== false) {
-			out = this.escapeHTML(out);
+			out = this.md.mdxEscaper(out);
 		}
 		return out;
 	},
 
-	/**
-	 * Formats inline content before rendering, respecting explicit escape flags.
-	 */
-	inlineText(text, options) {
-		let out = text;
-		if (options?.escape !== false) {
-			out = this.escapeHTML(out);
-		}
-		return out;
-	},
-
-	/**
-	 * Formats the literal content inside AtBlocks.
-	 */
-	atBlockBody(text, options) {
-		let out = text;
-		if (options?.escape !== false) {
-			out = this.escapeHTML(out);
-		}
-		return out;
-	}
 });
 
 const { tag } = MDX;
@@ -13056,277 +12261,115 @@ MDX.inherit(MARKDOWN);
 MDX.md = MARKDOWN.md;
 
 ["h1", "h2", "h3", "h4", "h5", "h6"].forEach(h => {
-	MDX.register(h, function ({ args, content }) {
-		const format = this.safeArg({ args, key: "format", fallBack: "" });
+	MDX.register(h, function ({ props, content }) {
+		const format = this.safeArg({ props, key: "format", fallBack: "" });
 		if (format === "md" || format === "markdown") {
 			return this.md.heading(content, h.slice(1) || 1);
 		}
-		delete args.format;
-		return tag(h).jsxProps(args).body(content);
+		delete props.format;
+		return tag(h).jsxProps(props).body(content);
 	});
 });
 
-/**
- * mdx AtBlock - Renders raw MDX content (ESM imports, exports, or complex JSX).
- */
-MDX.register("mdx", ({ content }) => {
-	return content;
-}, { escape: false, type: "AtBlock" });
+const ITEM_SEP$3 = "\x1F";
 
-// Inline CSS tag (Moved from shared)
-MDX.register("css", ({ args, content }) => {
-	// Compile style from named arguments (keys that are not numeric digits)
-	const namedStyle = Object.keys(args)
-		.filter(k => isNaN(parseInt(k)))
-		.map(k => `${k}:${args[k]}`)
-		.join(";");
-
-	// Fetch positional style string (index 0) or "style" key if present
-	let positionalStyle = MDX.safeArg({ args, index: 0, key: "style", fallBack: "" });
-
-	// Filter out positional styles that are just duplicates of named arguments
-	const hasDuplicateNamed = Object.keys(args)
-		.filter(k => isNaN(parseInt(k)))
-		.some(k => args[k] === positionalStyle);
-
-	if (hasDuplicateNamed) {
-		positionalStyle = "";
-	}
-
-	// Combine both together
-	let style = [positionalStyle, namedStyle].filter(s => s.trim()).join(";");
-
-	return MDX.tag("span").jsxProps({ style }).body(content);
-}, { type: "Inline" });
-
-/**
- * JSON Mapper - Creates JSON output.
- * It manages the structure manually using 'handleAst: true'.
- */
-
-/**
- * Returns a string representing the specified indentation level.
- */
-function getIndent(depth) {
+function getIndent$1(depth) {
 	return "  ".repeat(depth);
 }
 
-/**
- * Escapes a string for use in a JSON property or value.
- * @param {string} str - The string to escape.
- * @param {boolean} [trim=false] - Whether to trim the string.
- */
 function escapeString(str, trim = false) {
 	let out = String(str);
 	if (trim) out = out.trim();
 	return JSON.stringify(out);
 }
 
-/**
- * Recursively extracts text content from a node, ignoring structural metadata.
- * Evaluates StaticLogic nodes using the Evaluator to inject build-time values.
- */
-async function getNodeText(node) {
-	if (!node.body) return "";
-	let text = "";
-	for (const child of node.body) {
-		if (child.type === "Text") text += child.text || "";
-		else if (child.type === "StaticLogic") {
-			try {
-				const result = await Evaluator$1.execute(child.code);
-				if (result !== undefined && typeof result !== "object") {
-					text += String(result);
-				}
-			} catch (err) {
-				console.error(`\x1b[31mLogic Error in JSON mapper:\x1b[0m ${err.message}`);
-				console.error(`\x1b[33mCode:\x1b[0m \x1b[34m${child.code}\x1b[0m`);
-			}
-		}
-		else if (child.type === "Block") text += await getNodeText(child);
-	}
-	return text;
-}
-
-/**
- * Resolves the key-value pairing for a JSON member.
- */
-function renderMember(args, value, inArray = false) {
-	if (inArray) return value;
-
-	const posArgs = getPositionalArgs(args);
-	const key = args.key || posArgs[0]; // The 'key' rule determines the member name
-
-	if (key) {
-		return `${escapeString(key)}: ${value}`;
-	}
+function renderMember(props, value, inArray = false) {
+	if (inArray) return value + ITEM_SEP$3;
+	const posArgs = getPositionalArgs(props);
+	const key = props.key || posArgs[0];
+	if (key) return `${escapeString(key)}: ${value}` + ITEM_SEP$3;
 	return value;
-}
-
-/**
- * Formats a given node and tracks its indentation.
- */
-async function renderNode(node, mapper, depth = 0, inArray = false) {
-	const target = matchedValue(mapper.outputs, node.id) || mapper.getUnknownTag(node);
-	if (!target) return "";
-
-	Evaluator$1.pushScope();
-	const textContent = await getNodeText(node);
-	const output = await target.render.call(mapper, {
-		nodeType: node.type,
-		args: node.args,
-		content: "",
-		textContent,
-		ast: node,
-		depth,
-		inArray
-	});
-	await Evaluator$1.popScope();
-	return output;
-}
-
-/**
- * Formats the children of a node into a neat list.
- */
-async function renderChildren$1(node, mapper, depth = 0, inArray = false) {
-	let results = [];
-	const childIndent = getIndent(depth + 1);
-
-	for (const child of node.body) {
-		if (child.type === "Block") {
-			const output = await renderNode(child, mapper, depth + 1, inArray);
-			if (output) {
-				results.push({ type: "Block", value: childIndent + output });
-			}
-		}
-	}
-
-	let finalOutput = "";
-	for (let i = 0; i < results.length; i++) {
-		const current = results[i];
-		finalOutput += current.value;
-
-		if (current.type === "Block") {
-			// Add comma if there is another Block later
-			let hasNextBlock = false;
-			for (let j = i + 1; j < results.length; j++) {
-				if (results[j].type === "Block") {
-					hasNextBlock = true;
-					break;
-				}
-			}
-			if (hasNextBlock) finalOutput += ",";
-		}
-
-		if (i < results.length - 1) {
-			finalOutput += "\n";
-		}
-	}
-	return finalOutput;
 }
 
 const Json = Mapper.define({});
 
-/**
- * The JSON object node rule.
- */
-Json.register(["Object", "object"], async ({ args, ast, depth = 0, inArray = false }) => {
-	if (ast.body.length === 0) return renderMember(args, "{}", inArray);
-	const content = await renderChildren$1(ast, Json, depth, false);
-	const val = `{\n${content}\n${getIndent(depth)}}`;
-	return renderMember(args, val, inArray);
-}, { type: "Block", handleAst: true });
+Json.register(["Object", "object"], async function ({ props, ast, depth = 0, inArray = false, renderChild }) {
+	let combined = "";
+	for (const child of ast.body) {
+		const out = await renderChild(child, { depth: depth + 1, inArray: false });
+		if (out) combined += out;
+	}
+	const parts = combined.split(ITEM_SEP$3).map(v => v.trim()).filter(v => v !== "");
+	const value = parts.length === 0
+		? "{}"
+		: `{\n${parts.map(p => getIndent$1(depth + 1) + p).join(",\n")}\n${getIndent$1(depth)}}`;
+	return renderMember(props, value, inArray);
+}, { handleAst: true });
 
-/**
- * The JSON array node rule.
- */
-Json.register(["Array", "array"], async ({ args, ast, depth = 0, inArray = false }) => {
-	if (ast.body.length === 0) return renderMember(args, "[]", inArray);
-	const content = await renderChildren$1(ast, Json, depth, true);
-	const val = `[\n${content}\n${getIndent(depth)}]`;
-	return renderMember(args, val, inArray);
-}, { type: "Block", handleAst: true });
+Json.register(["Array", "array"], async function ({ props, ast, depth = 0, inArray = false, renderChild }) {
+	let combined = "";
+	for (const child of ast.body) {
+		const out = await renderChild(child, { depth: depth + 1, inArray: true });
+		if (out) combined += out;
+	}
+	const parts = combined.split(ITEM_SEP$3).map(v => v.trim()).filter(v => v !== "");
+	const value = parts.length === 0
+		? "[]"
+		: `[\n${parts.map(p => getIndent$1(depth + 1) + p).join(",\n")}\n${getIndent$1(depth)}]`;
+	return renderMember(props, value, inArray);
+}, { handleAst: true });
 
-/**
- * JSON Primitives
- */
-Json.register("string", ({ args, textContent, inArray }) => {
+Json.register(["string", "str"], ({ props, textContent, inArray }) => {
 	const trim = safeArg$1({
-		args,
+		props,
 		key: "trim",
 		type: "boolean",
 		setType: v => v === "true" || v === true,
 		fallBack: false
 	});
-	const raw = safeArg$1({ args, index: inArray ? 0 : undefined, key: "value", fallBack: textContent });
-	const val = escapeString(raw, trim);
-	return renderMember(args, val, inArray);
-}, { type: "Block", handleAst: true });
+	const raw = safeArg$1({ props, index: inArray ? 0 : undefined, key: "value", fallBack: textContent });
+	return renderMember(props, escapeString(raw, trim), inArray);
+}, { handleAst: true });
 
-Json.register("number", ({ args, textContent, inArray }) => {
-	const raw = String(safeArg$1({ args, index: inArray ? 0 : undefined, key: "value", fallBack: textContent })).trim();
+Json.register("number", ({ props, textContent, inArray }) => {
+	const raw = String(safeArg$1({ props, index: inArray ? 0 : undefined, key: "value", fallBack: textContent })).trim();
 	const val = (isNaN(Number(raw)) || raw === "") ? "0" : raw;
-	return renderMember(args, val, inArray);
-}, { type: "Block", handleAst: true });
+	return renderMember(props, val, inArray);
+}, { handleAst: true });
 
-Json.register("bool", ({ args, textContent, inArray }) => {
-	const raw = String(safeArg$1({ args, index: inArray ? 0 : undefined, key: "value", fallBack: textContent })).trim().toLowerCase();
-	const val = (raw === "true" || raw === "1") ? "true" : "false";
-	return renderMember(args, val, inArray);
-}, { type: "Block", handleAst: true });
+Json.register("bool", ({ props, textContent, inArray }) => {
+	const raw = String(safeArg$1({ props, index: inArray ? 0 : undefined, key: "value", fallBack: textContent })).trim().toLowerCase();
+	return renderMember(props, (raw === "true" || raw === "1") ? "true" : "false", inArray);
+}, { handleAst: true });
 
-Json.register("null", ({ args, inArray }) => {
-	return renderMember(args, "null", inArray);
-}, { type: "Block", handleAst: true });
+Json.register("null", ({ props, inArray }) => {
+	return renderMember(props, "null", inArray);
+}, { handleAst: true });
 
-/**
- * JSONC Mapper - Creates JSON output with comments.
- * It inherits from the standard JSON mapper and adds comment support.
- */
-
-async function renderChildren(node, mapper, depth = 0, inArray = false) {
-	let results = [];
-	const childIndent = getIndent(depth + 1);
-
-	for (const child of node.body) {
-		if (child.type === "Block") {
-			const output = await renderNode(child, mapper, depth + 1, inArray);
-			if (output) {
-				results.push({ type: "Block", value: childIndent + output });
+Json.getUnknownTag = function (node) {
+	const key = node.id;
+	return {
+		render({ props, textContent, inArray = false }) {
+			if (inArray) {
+				transpilerError(
+					`Unknown tag '<$yellow:[${key}]$>' cannot be used inside <$yellow:[Array]$>.{N}Use <$cyan:[string]$>, <$cyan:[number]$>, <$cyan:[bool]$>, or <$cyan:[null]$> instead.`
+				);
 			}
-		} else if (child.type === "Comment") {
-			if (!mapper.options?.removeComments) {
-				results.push({ type: "Comment", value: childIndent + mapper.comment(child.text) });
-			}
-		} else if (child.type === "CommentBlock") {
-			if (!mapper.options?.removeComments) {
-				results.push({ type: "CommentBlock", value: childIndent + mapper.commentBlock(child.text, childIndent) });
-			}
-		}
-	}
+			const raw = String(
+				safeArg$1({ props, index: 0, key: "value", fallBack: textContent.trim() })
+			).trim();
+			let val;
+			if (raw === "null")                             val = "null";
+			else if (raw === "true" || raw === "false")     val = raw;
+			else if (raw !== "" && !isNaN(Number(raw)))     val = raw;
+			else                                            val = escapeString(raw);
+			return `${escapeString(key)}: ${val}` + ITEM_SEP$3;
+		},
+		options: { handleAst: true }
+	};
+};
 
-	let finalOutput = "";
-	for (let i = 0; i < results.length; i++) {
-		const current = results[i];
-		finalOutput += current.value;
-
-		if (current.type === "Block") {
-			// Add comma if there is another Block later
-			let hasNextBlock = false;
-			for (let j = i + 1; j < results.length; j++) {
-				if (results[j].type === "Block") {
-					hasNextBlock = true;
-					break;
-				}
-			}
-			if (hasNextBlock) finalOutput += ",";
-		}
-
-		if (i < results.length - 1) {
-			finalOutput += "\n";
-		}
-	}
-	return finalOutput;
-}
+const ITEM_SEP$2 = "\x1F";
 
 const Jsonc = Json.clone();
 
@@ -13342,39 +12385,45 @@ Jsonc.commentBlock = function (text, indent = "  ") {
 	return `/* ${text} */`;
 };
 
-// Re-register Object and Array to use the new renderChildren logic
-Jsonc.register(["Object", "object"], async function ({ args, ast, depth = 0, inArray = false }) {
-	if (ast.body.length === 0) return renderMember(args, "{}", inArray);
-	const content = await renderChildren(ast, this, depth, false);
-	const val = `{\n${content}\n${getIndent(depth)}}`;
-	return renderMember(args, val, inArray);
-}, { type: "Block", handleAst: true });
+async function renderStructure(props, ast, depth, inArray, childInArray, openBracket, closeBracket, renderChild) {
+	let combined = "";
+	for (const child of ast.body) {
+		const out = await renderChild(child, { depth: depth + 1, inArray: childInArray });
+		if (out) combined += out;
+	}
+	const parts = combined.split(ITEM_SEP$2).map(v => v.trim()).filter(v => v !== "");
+	const value = parts.length === 0
+		? `${openBracket}${closeBracket}`
+		: `${openBracket}\n${parts.map(p => getIndent$1(depth + 1) + p).join(",\n")}\n${getIndent$1(depth)}${closeBracket}`;
+	return renderMember(props, value, inArray);
+}
 
-Jsonc.register(["Array", "array"], async function ({ args, ast, depth = 0, inArray = false }) {
-	if (ast.body.length === 0) return renderMember(args, "[]", inArray);
-	const content = await renderChildren(ast, this, depth, true);
-	const val = `[\n${content}\n${getIndent(depth)}]`;
-	return renderMember(args, val, inArray);
-}, { type: "Block", handleAst: true });
+Jsonc.register(["Object", "object"], async function ({ props, ast, depth = 0, inArray = false, renderChild }) {
+	return renderStructure(props, ast, depth, inArray, false, "{", "}", renderChild);
+}, { handleAst: true });
+
+Jsonc.register(["Array", "array"], async function ({ props, ast, depth = 0, inArray = false, renderChild }) {
+	return renderStructure(props, ast, depth, inArray, true, "[", "]", renderChild);
+}, { handleAst: true });
 
 /**
  * Renders a standard XML tag based on the provided identifier and arguments.
  * Ensures strict attribute quoting and handles self-closing tags for empty bodies.
  * 
  * @param {string} id - The XML tag identifier (case-sensitive).
- * @param {Object} args - Key-value pairs to be rendered as XML attributes.
+ * @param {Object} props - Key-value pairs to be rendered as XML attributes.
  * @param {string} content - The rendered inner content of the tag.
  * @returns {string} The fully rendered XML tag string.
  */
-const renderXmlTag = function (id, args, content, isSelfClosing) {
+const renderXmlTag = function (id, props, content, isSelfClosing) {
     // XML is case-sensitive, so we use the exact id provided
     const element = this.tag(id);
 
     // Filter out positional indices (numeric keys) for XML attributes
     const namedArgs = {};
-    Object.keys(args).forEach(key => {
+    Object.keys(props).forEach(key => {
         if (isNaN(parseInt(key))) {
-            namedArgs[key] = args[key];
+            namedArgs[key] = props[key];
         }
     });
 
@@ -13411,10 +12460,8 @@ const XML = Mapper.define({
     getUnknownTag(node) {
         const id = node.id;
         return {
-            render: ({ args, content, isSelfClosing }) => renderXmlTag.call(this, id, args, content, isSelfClosing),
-            options: {
-                type: "any"
-            }
+            render: ({ props, content, isSelfClosing }) => renderXmlTag.call(this, id, props, content, isSelfClosing),
+            options: {}
         };
     }
 });
@@ -13423,20 +12470,20 @@ const XML = Mapper.define({
  * Registers the XML declaration as a self-closing block.
  * Usage: [xml = version: "1.0", encoding: "UTF-8"]
  */
-XML.register("xml", ({ args }) => {
-    const version = args.version || "1.0";
-    const encoding = args.encoding || "UTF-8";
+XML.register("xml", ({ props }) => {
+    const version = props.version || "1.0";
+    const encoding = props.encoding || "UTF-8";
     return `<?xml version="${version}" encoding="${encoding}"?>`;
-}, { type: "Block", rules: { is_empty_body: true } });
+}, { rules: { is_empty_body: true } });
 
 /**
  * Registers the DOCTYPE declaration.
  * Usage: [doctype = root: "note", system: "note.dtd"]
  */
-XML.register(["DOCTYPE", "doctype"], ({ args }) => {
-    const root = args.root || "root";
-    const system = args.system;
-    const pub = args.public || args.fpi;
+XML.register(["DOCTYPE", "doctype"], ({ props }) => {
+    const root = props.root || "root";
+    const system = props.system;
+    const pub = props.public || props.fpi;
 
     if (pub && system) {
         return `<!DOCTYPE ${root} PUBLIC "${pub}" "${system}">`;
@@ -13444,28 +12491,622 @@ XML.register(["DOCTYPE", "doctype"], ({ args }) => {
         return `<!DOCTYPE ${root} SYSTEM "${system}">`;
     }
     return `<!DOCTYPE ${root}>`;
-}, { type: "Block", rules: { is_empty_body: true } });
+}, { rules: { is_empty_body: true } });
 
 /**
  * Registers the XML stylesheet processing instruction.
  * Usage: [xml-stylesheet = href: "style.xsl"]
  */
-XML.register("xml-stylesheet", ({ args }) => {
-    const type = args.type || "text/xsl";
-    const href = args.href;
+XML.register("xml-stylesheet", ({ props }) => {
+    const type = props.type || "text/xsl";
+    const href = props.href;
     if (!href) return "";
     return `<?xml-stylesheet type="${type}" href="${href}"?>`;
-}, { type: "Block", rules: { is_self_closing: true } });
+}, { rules: { is_empty_body: true } });
 
 /**
  * Registers CDATA sections.
- * Usage: @_cdata_@: ; raw content @_end_@
+ * Body form:    [cdata]raw content[end]
+ * Self-closing: [cdata = "raw content" !] or [cdata = text: "raw content" !]
  */
-XML.register("cdata", ({ content }) => {
-    return `<![CDATA[${content}]]>`;
-}, { type: "AtBlock" });
+XML.register("cdata", ({ props, content, isSelfClosing }) => {
+    const text = isSelfClosing ? (props[0] ?? props.text ?? "") : content;
+    return `<![CDATA[${text}]]>`;
+});
 
-registerSharedOutputs(XML);
+const csvEscape = (value) => {
+	const str = String(value ?? "").trim();
+	if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+		return `"${str.replace(/"/g, '""')}"`;
+	}
+	return str;
+};
+
+const rowFromProps = (props) =>
+	Object.keys(props)
+		.filter(k => !isNaN(parseInt(k)))
+		.sort((a, b) => parseInt(a) - parseInt(b))
+		.map(k => csvEscape(props[k]))
+		.join(",");
+
+const renderRow = async ({ props, ast, isSelfClosing, renderChild }) => {
+	if (isSelfClosing) return rowFromProps(props) + "\n";
+	const cells = [];
+	for (const child of ast.body.filter(c => c.type === "Block")) {
+		const out = await renderChild(child);
+		if (out != null && out !== "") cells.push(out);
+	}
+	return cells.join(",") + "\n";
+};
+
+const CSV = Mapper.define({
+	comment(text) {
+		return `# ${text}`;
+	},
+	text(text) {
+		return text.trim() === "" ? "" : text;
+	}
+});
+
+/**
+ * [header] — header row
+ * Self-closing: [header = "name", "age", "city" !]
+ * Body form:    [header][col]name[end][col]age[end][end]
+ */
+CSV.register(["header", "thead"], renderRow, { handleAst: true });
+
+/**
+ * [row] / [tr] — data row
+ * Self-closing: [row = "Alice", "30", "New York" !]
+ * Body form:    [row][col]Alice[end][col]30[end][end]
+ */
+CSV.register(["row", "tr"], renderRow, { handleAst: true });
+
+/**
+ * [col] / [cell] / [td] — single cell, used inside body-form rows
+ * [col]New York, NY[end]
+ */
+CSV.register(["col", "cell", "td"], ({ textContent }) => {
+	return csvEscape(textContent);
+}, { handleAst: true, trimAndWrapBlocks: false });
+
+const isValidInt$1    = (v) => v !== "" && !isNaN(Number(v)) && !v.includes(".");
+const isValidFloat$1  = (v) => v !== "" && !isNaN(Number(v)) && v.includes(".");
+const isValidNumber$1 = (v) => v !== "" && !isNaN(Number(v));
+
+// Escape a string value for use inside TOML basic strings
+const tomlEscapeString = (str) =>
+	String(str ?? "")
+		.replace(/\\/g, "\\\\")
+		.replace(/"/g, '\\"')
+		.replace(/\x08/g, "\\b")
+		.replace(/\f/g, "\\f")
+		.replace(/\n/g, "\\n")
+		.replace(/\r/g, "\\r")
+		.replace(/\t/g, "\\t");
+
+// Quote a bare key segment if it contains characters outside [A-Za-z0-9_-]
+const toBareKey = (k) => /^[A-Za-z0-9_-]+$/.test(k) ? k : `"${tomlEscapeString(k)}"`;
+
+// Handle dotted keys like "database.host" → database.host
+const tomlKey = (key) => String(key).split(".").map(toBareKey).join(".");
+
+const ITEM_SEP$1 = "\x1F";
+
+const TOML = Mapper.define({
+	comment(text) {
+		return `# ${text}`;
+	},
+	text(text) {
+		return text.trim() === "" ? "" : text;
+	}
+});
+
+/**
+ * [str] / [string] — string key-value pair or array string value
+ *
+ * Key-value:  [str = "title", "My App" !]         → title = "My App"
+ * Body form:  [str = "description"]Long text[end] → description = "Long text"
+ * In array:   [str = "hello" !]                   → "hello"
+ */
+TOML.register(["str", "string"], ({ props, textContent, inArray = false }) => {
+	const value = inArray
+		? safeArg$1({ props, index: 0, key: "value", fallBack: textContent.trim() })
+		: safeArg$1({ props, index: 1, key: "value", fallBack: textContent.trim() });
+	const escaped = `"${tomlEscapeString(String(value))}"`;
+	if (inArray) return escaped + ITEM_SEP$1;
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	return `${tomlKey(key)} = ${escaped}\n`;
+}, { handleAst: true });
+
+/**
+ * [int] / [integer] — integer key-value pair or array integer value
+ *
+ * Key-value:  [int = "port", "5432" !]  → port = 5432
+ * In array:   [int = "5432" !]          → 5432
+ */
+TOML.register(["int", "integer"], ({ props, textContent, inArray = false }) => {
+	const raw = String(safeArg$1({ props, index: inArray ? 0 : 1, key: "value", fallBack: textContent.trim() })).trim();
+	if (!isValidInt$1(raw))
+		transpilerError(`<$yellow:[int]$> expects a whole number but got <$yellow:'${raw}'$>.{N}Use <$cyan:[float]$> for decimal numbers or <$cyan:[number]$> for either.`);
+	if (inArray) return raw + ITEM_SEP$1;
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	return `${tomlKey(key)} = ${raw}\n`;
+}, { handleAst: true });
+
+TOML.register("float", ({ props, textContent, inArray = false }) => {
+	const raw = String(safeArg$1({ props, index: inArray ? 0 : 1, key: "value", fallBack: textContent.trim() })).trim();
+	if (!isValidFloat$1(raw))
+		transpilerError(`<$yellow:[float]$> expects a decimal number but got <$yellow:'${raw}'$>.{N}Use <$cyan:[int]$> for whole numbers or <$cyan:[number]$> for either.`);
+	if (inArray) return raw + ITEM_SEP$1;
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	return `${tomlKey(key)} = ${raw}\n`;
+}, { handleAst: true });
+
+TOML.register("number", ({ props, textContent, inArray = false }) => {
+	const raw = String(safeArg$1({ props, index: inArray ? 0 : 1, key: "value", fallBack: textContent.trim() })).trim();
+	if (!isValidNumber$1(raw))
+		transpilerError(`<$yellow:[number]$> expects a numeric value but got <$yellow:'${raw}'$>.`);
+	if (inArray) return raw + ITEM_SEP$1;
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	return `${tomlKey(key)} = ${raw}\n`;
+}, { handleAst: true });
+
+/**
+ * [bool] / [boolean] — boolean key-value pair or array bool value
+ *
+ * Key-value:  [bool = "debug", "false" !]  → debug = false
+ * In array:   [bool = "true" !]            → true
+ */
+TOML.register(["bool", "boolean"], ({ props, textContent, inArray = false }) => {
+	const raw = String(
+		inArray
+			? safeArg$1({ props, index: 0, key: "value", fallBack: textContent.trim() })
+			: safeArg$1({ props, index: 1, key: "value", fallBack: textContent.trim() })
+	).trim().toLowerCase();
+	const value = (raw === "true" || raw === "1" || raw === "yes") ? "true" : "false";
+	if (inArray) return value + ITEM_SEP$1;
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	return `${tomlKey(key)} = ${value}\n`;
+}, { handleAst: true });
+
+/**
+ * [datetime] — datetime key-value pair
+ * TOML datetimes are bare (unquoted): 1979-05-27T07:32:00Z
+ *
+ * [datetime = "born", "1979-05-27T07:32:00Z" !]  → born = 1979-05-27T07:32:00Z
+ */
+TOML.register("datetime", ({ props, textContent, inArray = false }) => {
+	const raw = String(
+		inArray
+			? safeArg$1({ props, index: 0, key: "value", fallBack: textContent.trim() })
+			: safeArg$1({ props, index: 1, key: "value", fallBack: textContent.trim() })
+	).trim();
+	if (inArray) return raw + ITEM_SEP$1;
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	return `${tomlKey(key)} = ${raw}\n`;
+}, { handleAst: true });
+
+/**
+ * [table] / [section] — renders a TOML table header + children
+ *
+ * [table = "database"]
+ *   [str = "host", "localhost" !]
+ *   [int = "port", "5432" !]
+ * [end]
+ *
+ * →
+ *
+ * [database]
+ * host = "localhost"
+ * port = 5432
+ */
+TOML.register(["table", "section"], async ({ props, ast, renderChild }) => {
+	const name = safeArg$1({ props, index: 0, key: "name", fallBack: "" });
+	const parts = [];
+	for (const child of ast.body) {
+		const out = await renderChild(child);
+		if (out != null && out.trim() !== "") parts.push(out);
+	}
+	return `[${tomlKey(name)}]\n${parts.join("")}\n`;
+}, { handleAst: true });
+
+/**
+ * [array-table] — renders a TOML array of tables entry
+ *
+ * [array-table = "servers"]
+ *   [str = "name", "alpha" !]
+ *   [str = "ip", "10.0.0.1" !]
+ * [end]
+ *
+ * →
+ *
+ * [[servers]]
+ * name = "alpha"
+ * ip = "10.0.0.1"
+ */
+TOML.register("array-table", async ({ props, ast, renderChild }) => {
+	const name = safeArg$1({ props, index: 0, key: "name", fallBack: "" });
+	const parts = [];
+	for (const child of ast.body) {
+		const out = await renderChild(child);
+		if (out != null && out.trim() !== "") parts.push(out);
+	}
+	return `[[${tomlKey(name)}]]\n${parts.join("")}\n`;
+}, { handleAst: true });
+
+/**
+ * [array] — renders a TOML inline array
+ * Children are rendered with inArray: true so they output just their value.
+ *
+ * [array = "ports"]
+ *   [int = "8001" !][int = "8002" !][int = "8003" !]
+ * [end]
+ *
+ * → ports = [8001, 8002, 8003]
+ *
+ * Works with [for-each] for dynamic arrays:
+ * [array = "tags"]
+ *   [for-each = ${ tags }$, as: "item"][str = ${ item }$ !][end]
+ * [end]
+ */
+/**
+ * Unknown tag — tag name becomes the TOML key, first positional arg is the value.
+ * Type is inferred: number → raw integer/float, true/false → boolean, everything else → quoted string.
+ *
+ * [name = "Adam" !]    → name = "Adam"
+ * [port = 5432 !]      → port = 5432
+ * [debug = false !]    → debug = false
+ * [bio]Long text[end]  → bio = "Long text"
+ */
+TOML.getUnknownTag = function (node) {
+	const key = node.id;
+	return {
+		render({ props, textContent, inArray = false }) {
+			const raw = String(
+				safeArg$1({ props, index: 0, key: "value", fallBack: textContent.trim() })
+			).trim();
+
+			let val;
+			if (raw === "true" || raw === "false") {
+				val = raw;
+			} else if (raw !== "" && !isNaN(Number(raw))) {
+				val = raw;
+			} else {
+				val = `"${tomlEscapeString(raw)}"`;
+			}
+
+			if (inArray) return val + ITEM_SEP$1;
+			return `${tomlKey(key)} = ${val}\n`;
+		},
+		options: { handleAst: true }
+	};
+};
+
+TOML.register("array", async ({ props, ast, renderChild }) => {
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	let combined = "";
+	for (const child of ast.body) {
+		combined += await renderChild(child, { inArray: true });
+	}
+	const vals = combined.split(ITEM_SEP$1).filter(v => v.trim() !== "");
+	return `${tomlKey(key)} = [${vals.join(", ")}]\n`;
+}, { handleAst: true });
+
+const isValidInt    = (v) => v !== "" && !isNaN(Number(v)) && !v.includes(".");
+const isValidFloat  = (v) => v !== "" && !isNaN(Number(v)) && v.includes(".");
+const isValidNumber = (v) => v !== "" && !isNaN(Number(v));
+
+const ITEM_SEP = "\x1F";
+
+const getIndent = (depth) => "  ".repeat(depth);
+
+// Escape a string value for use inside YAML double-quoted scalars
+const yamlEscape = (str) =>
+	String(str ?? "")
+		.replace(/\\/g, "\\\\")
+		.replace(/"/g, '\\"')
+		.replace(/\n/g, "\\n")
+		.replace(/\r/g, "\\r")
+		.replace(/\t/g, "\\t");
+
+// Always double-quote string values — [str] is explicitly typed, no ambiguity needed
+const yamlStr = (val) => `"${yamlEscape(val)}"`;
+
+// Bare keys: [A-Za-z0-9_-] are safe without quoting
+const yamlKey = (key) => {
+	const s = String(key ?? "");
+	return /^[A-Za-z0-9_\-]+$/.test(s) ? s : `"${yamlEscape(s)}"`;
+};
+
+const YAML = Mapper.define({
+	comment(text) {
+		return `# ${text}`;
+	},
+	text(text) {
+		return text.trim() === "" ? "" : text;
+	}
+});
+
+/**
+ * [str] / [string] — string scalar
+ *
+ * Key-value:    [str = "name", "SomMark" !]            → name: "SomMark"
+ * Body form:    [str = "desc"]Long text[end]           → desc: "Long text"
+ * In sequence:  [str = "rust" !]                       → - "rust"
+ * In map-item:  [str = "host", "localhost" !]          → host: "localhost"  (no indent, feeds [map-item])
+ */
+YAML.register(["str", "string"], ({ props, textContent, depth = 0, inSeq = false, inMapItem = false }) => {
+	if (inSeq) {
+		const val = safeArg$1({ props, index: 0, key: "value", fallBack: textContent.trim() });
+		return `${getIndent(depth)}- ${yamlStr(val)}\n`;
+	}
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	const val = safeArg$1({ props, index: 1, key: "value", fallBack: textContent.trim() });
+	if (inMapItem) return `${yamlKey(key)}: ${yamlStr(val)}${ITEM_SEP}`;
+	return `${getIndent(depth)}${yamlKey(key)}: ${yamlStr(val)}\n`;
+}, { handleAst: true });
+
+/**
+ * [int] / [integer] — integer scalar
+ *
+ * Key-value:    [int = "port", "5432" !]   → port: 5432
+ * In sequence:  [int = "8001" !]           → - 8001
+ */
+YAML.register(["int", "integer"], ({ props, textContent, depth = 0, inSeq = false, inMapItem = false }) => {
+	const val = String(safeArg$1({ props, index: inSeq ? 0 : 1, key: "value", fallBack: textContent.trim() })).trim();
+	if (!isValidInt(val))
+		transpilerError(`<$yellow:[int]$> expects a whole number but got <$yellow:'${val}'$>.{N}Use <$cyan:[float]$> for decimal numbers or <$cyan:[number]$> for either.`);
+	if (inSeq) return `${getIndent(depth)}- ${val}\n`;
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	if (inMapItem) return `${yamlKey(key)}: ${val}${ITEM_SEP}`;
+	return `${getIndent(depth)}${yamlKey(key)}: ${val}\n`;
+}, { handleAst: true });
+
+YAML.register("float", ({ props, textContent, depth = 0, inSeq = false, inMapItem = false }) => {
+	const val = String(safeArg$1({ props, index: inSeq ? 0 : 1, key: "value", fallBack: textContent.trim() })).trim();
+	if (!isValidFloat(val))
+		transpilerError(`<$yellow:[float]$> expects a decimal number but got <$yellow:'${val}'$>.{N}Use <$cyan:[int]$> for whole numbers or <$cyan:[number]$> for either.`);
+	if (inSeq) return `${getIndent(depth)}- ${val}\n`;
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	if (inMapItem) return `${yamlKey(key)}: ${val}${ITEM_SEP}`;
+	return `${getIndent(depth)}${yamlKey(key)}: ${val}\n`;
+}, { handleAst: true });
+
+YAML.register("number", ({ props, textContent, depth = 0, inSeq = false, inMapItem = false }) => {
+	const val = String(safeArg$1({ props, index: inSeq ? 0 : 1, key: "value", fallBack: textContent.trim() })).trim();
+	if (!isValidNumber(val))
+		transpilerError(`<$yellow:[number]$> expects a numeric value but got <$yellow:'${val}'$>.`);
+	if (inSeq) return `${getIndent(depth)}- ${val}\n`;
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	if (inMapItem) return `${yamlKey(key)}: ${val}${ITEM_SEP}`;
+	return `${getIndent(depth)}${yamlKey(key)}: ${val}\n`;
+}, { handleAst: true });
+
+/**
+ * [bool] / [boolean] — boolean scalar
+ *
+ * Key-value:    [bool = "debug", "false" !]   → debug: false
+ * In sequence:  [bool = "true" !]             → - true
+ */
+YAML.register(["bool", "boolean"], ({ props, textContent, depth = 0, inSeq = false, inMapItem = false }) => {
+	const raw = String(
+		inSeq
+			? safeArg$1({ props, index: 0, key: "value", fallBack: textContent.trim() })
+			: safeArg$1({ props, index: 1, key: "value", fallBack: textContent.trim() })
+	).trim().toLowerCase();
+	const val = (raw === "true" || raw === "1" || raw === "yes") ? "true" : "false";
+	if (inSeq) return `${getIndent(depth)}- ${val}\n`;
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	if (inMapItem) return `${yamlKey(key)}: ${val}${ITEM_SEP}`;
+	return `${getIndent(depth)}${yamlKey(key)}: ${val}\n`;
+}, { handleAst: true });
+
+/**
+ * [null] — null scalar
+ *
+ * Key-value:    [null = "missing" !]   → missing: null
+ * In sequence:  [null !]               → - null
+ */
+YAML.register("null", ({ props, depth = 0, inSeq = false, inMapItem = false }) => {
+	if (inSeq) return `${getIndent(depth)}- null\n`;
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	if (inMapItem) return `${yamlKey(key)}: null${ITEM_SEP}`;
+	return `${getIndent(depth)}${yamlKey(key)}: null\n`;
+}, { handleAst: true });
+
+/**
+ * [mapping] / [map] — block mapping (YAML object)
+ *
+ * [mapping = "database"]
+ *   [str = "host", "localhost" !]
+ *   [int = "port", "5432" !]
+ * [end]
+ *
+ * →
+ *
+ * database:
+ *   host: "localhost"
+ *   port: 5432
+ *
+ * Omit the key for a root mapping.
+ * Supports [for-each] inside — each iteration's lines are pre-indented and concatenate correctly.
+ */
+YAML.register(["mapping", "map"], async ({ props, ast, depth = 0, renderChild }) => {
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	const childDepth = key ? depth + 1 : depth;
+	let body = "";
+	for (const child of ast.body) {
+		body += await renderChild(child, { depth: childDepth });
+	}
+	if (!key) return body;
+	return `${getIndent(depth)}${yamlKey(key)}:\n${body}`;
+}, { handleAst: true });
+
+/**
+ * [seq] / [sequence] / [list] — block sequence (YAML array of scalars)
+ *
+ * Scalar items use [str], [int], [bool], [float], [null].
+ * Mapping items use [map-item].
+ *
+ * [seq = "tags"]
+ *   [str = "rust" !]
+ *   [str = "cli" !]
+ * [end]
+ *
+ * →
+ *
+ * tags:
+ *   - "rust"
+ *   - "cli"
+ *
+ * Supports [for-each] inside naturally.
+ */
+YAML.register(["seq", "sequence", "list"], async ({ props, ast, depth = 0, renderChild }) => {
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	let body = "";
+	for (const child of ast.body) {
+		body += await renderChild(child, { depth: depth + 1, inSeq: true });
+	}
+	if (!key) return body;
+	return `${getIndent(depth)}${yamlKey(key)}:\n${body}`;
+}, { handleAst: true });
+
+/**
+ * [map-item] — mapping as a sequence item (used inside [seq])
+ *
+ * Each child scalar renders a bare "key: value" pair (no indent).
+ * [map-item] assembles them with the correct "- " prefix on the first pair
+ * and aligned indentation for the rest.
+ *
+ * [seq = "servers"]
+ *   [map-item]
+ *     [str = "host", "10.0.0.1" !]
+ *     [int = "port", "8001" !]
+ *   [end]
+ * [end]
+ *
+ * →
+ *
+ * servers:
+ *   - host: "10.0.0.1"
+ *     port: 8001
+ */
+YAML.register("map-item", async ({ props, ast, depth = 0, renderChild }) => {
+	let combined = "";
+	for (const child of ast.body) {
+		combined += await renderChild(child, { depth: 0, inMapItem: true });
+	}
+	const pairs = combined.split(ITEM_SEP).map(v => v.trim()).filter(v => v !== "");
+	if (pairs.length === 0) return "";
+	const seqIndent  = getIndent(depth);
+	const bodyIndent = getIndent(depth) + "  ";
+	const [first, ...rest] = pairs;
+	const restLines = rest.length > 0 ? `\n${rest.map(p => `${bodyIndent}${p}`).join("\n")}` : "";
+	return `${seqIndent}- ${first}${restLines}\n`;
+}, { handleAst: true });
+
+/**
+ * [literal] / [lit] — literal block scalar (|)
+ * Preserves newlines exactly as written.
+ *
+ * [literal = "script"]
+ *   echo "hello"
+ *   echo "world"
+ * [end]
+ *
+ * →
+ *
+ * script: |
+ *   echo "hello"
+ *   echo "world"
+ */
+YAML.register(["literal", "lit"], ({ props, textContent, depth = 0, inMapItem = false }) => {
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	const childIndent = getIndent(depth + 1);
+	const lines = textContent
+		.split("\n")
+		.map(l => l.trim())
+		.filter((l, i, a) => !(i === 0 && l === "") && !(i === a.length - 1 && l === ""))
+		.map(l => l === "" ? "" : `${childIndent}${l}`)
+		.join("\n");
+	if (inMapItem) return `${yamlKey(key)}: |\n${lines}\n${ITEM_SEP}`;
+	return `${getIndent(depth)}${yamlKey(key)}: |\n${lines}\n`;
+}, { handleAst: true });
+
+/**
+ * [folded] / [fold] — folded block scalar (>)
+ * Newlines become spaces; blank lines become paragraph breaks.
+ *
+ * [folded = "description"]
+ *   This is a long
+ *   description.
+ * [end]
+ *
+ * →
+ *
+ * description: >
+ *   This is a long
+ *   description.
+ */
+YAML.register(["folded", "fold"], ({ props, textContent, depth = 0, inMapItem = false }) => {
+	const key = safeArg$1({ props, index: 0, key: "key", fallBack: "" });
+	const childIndent = getIndent(depth + 1);
+	const lines = textContent
+		.split("\n")
+		.map(l => l.trim())
+		.filter((l, i, a) => !(i === 0 && l === "") && !(i === a.length - 1 && l === ""))
+		.map(l => l === "" ? "" : `${childIndent}${l}`)
+		.join("\n");
+	if (inMapItem) return `${yamlKey(key)}: >\n${lines}\n${ITEM_SEP}`;
+	return `${getIndent(depth)}${yamlKey(key)}: >\n${lines}\n`;
+}, { handleAst: true });
+
+/**
+ * Unknown tag — tag name becomes the YAML key, first positional arg is the value.
+ * Type is inferred: number → raw, true/false → boolean, everything else → quoted string.
+ *
+ * [greeting = "Hello" !]    → greeting: "Hello"
+ * [price = 99.99 !]         → price: 99.99
+ * [active = true !]         → active: true
+ * [label]My text[end]       → label: "My text"
+ */
+YAML.getUnknownTag = function (node) {
+	const key = node.id;
+	return {
+		render({ props, textContent, depth = 0, inSeq = false, inMapItem = false }) {
+			const raw = String(
+				safeArg$1({ props, index: 0, key: "value", fallBack: textContent.trim() })
+			).trim();
+
+			let val;
+			if (raw === "true" || raw === "false") {
+				val = raw;
+			} else if (raw !== "" && !isNaN(Number(raw))) {
+				val = raw;
+			} else {
+				val = yamlStr(raw);
+			}
+
+			if (inSeq) return `${getIndent(depth)}- ${val}\n`;
+			if (inMapItem) return `${yamlKey(key)}: ${val}${ITEM_SEP}`;
+			return `${getIndent(depth)}${yamlKey(key)}: ${val}\n`;
+		},
+		options: { handleAst: true }
+	};
+};
+
+/**
+ * [doc-start] — YAML document start marker (---)
+ * [doc-start !]  →  ---
+ */
+YAML.register("doc-start", () => "---\n", { rules: { is_empty_body: true } });
+
+/**
+ * [doc-end] — YAML document end marker (...)
+ * [doc-end !]  →  ...
+ */
+YAML.register("doc-end", () => "...\n", { rules: { is_empty_body: true } });
 
 /**
  * The Text Mapper used for plain-text extraction.
@@ -13504,29 +13145,12 @@ const TEXT = Mapper.define({
 	},
 
 	/**
-	 * Returns inline text literally.
-	 */
-	inlineText(text) {
-		return text;
-	},
-
-	/**
-	 * Returns at-block body text literally.
-	 */
-	atBlockBody(text) {
-		return text;
-	},
-
-	/**
 	 * Fallback for all tags - extracts inner content.
 	 */
-	getUnknownTag(node) {
-		const isBlock = node.type === "Block" || node.type === "ForEach";
+	getUnknownTag() {
 		return {
 			render: ({ content }) => content,
-			options: {
-				type: isBlock ? "Block" : (node.type === "AtBlock" ? "AtBlock" : "Inline")
-			}
+			options: {}
 		};
 	}
 });
@@ -13541,6 +13165,9 @@ const mdxFormat = "mdx";
 const jsonFormat = "json";
 const jsoncFormat = "jsonc";
 const xmlFormat = "xml";
+const csvFormat = "csv";
+const tomlFormat = "toml";
+const yamlFormat = "yaml";
 
 const formats = {
 	textFormat,
@@ -13549,7 +13176,10 @@ const formats = {
 	mdxFormat,
 	jsonFormat,
 	jsoncFormat,
-	xmlFormat
+	xmlFormat,
+	csvFormat,
+	tomlFormat,
+	yamlFormat
 };
 
 function fileURLToPath(url) {
@@ -13632,11 +13262,11 @@ const resolveAstVariables = (nodes, variables) => {
 			}
 		} else if (node.type === BLOCK) {
 			// Resolve any unresolved variables in block arguments
-			for (const [argKey, argVal] of Object.entries(node.args)) {
+			for (const [argKey, argVal] of Object.entries(node.props)) {
 				if (typeof argVal === "string" && argVal.startsWith(VAR_PREFIX) && argVal.endsWith(VAR_SUFFIX)) {
 					const varKey = argVal.slice(VAR_PREFIX.length, -VAR_SUFFIX.length);
 					if (variables[varKey] !== undefined) {
-						node.args[argKey] = variables[varKey];
+						node.props[argKey] = variables[varKey];
 						if (!variables.__consumed__) {
 							Object.defineProperty(variables, "__consumed__", {
 								value: new Set(),
@@ -13676,8 +13306,8 @@ const cloneAst = (nodes) => {
 		if (node.id !== undefined) nodeCopy.id = node.id;
 		if (node.code !== undefined) nodeCopy.code = node.code;
 		if (node.isSelfClosing !== undefined) nodeCopy.isSelfClosing = node.isSelfClosing;
-		if (node.args !== undefined) {
-			nodeCopy.args = { ...node.args };
+		if (node.props !== undefined) {
+			nodeCopy.props = { ...node.props };
 		}
 		if (node.body !== undefined) {
 			nodeCopy.body = cloneAst(node.body);
@@ -13787,8 +13417,8 @@ async function resolveModules(ast, context) {
 					runtimeError([`<$red:Module Placement Error:$> Imports must be declared at the top level before any content at line <$yellow:${node.range.start.line + 1}$>`]);
 				}
 
-				const alias = Object.keys(node.args).find(k => isNaN(k));
-				let filePath = alias ? node.args[alias] : node.args[0];
+				const alias = Object.keys(node.props).find(k => isNaN(k));
+				let filePath = alias ? node.props[alias] : node.props[0];
 				if (typeof filePath === "string") filePath = filePath.trim().replace(/^["']|["']$/g, "");
 
 				// 1a. Handle Aliases
@@ -13831,7 +13461,7 @@ async function resolveModules(ast, context) {
 			// 2. Handle Usage Node: [$use-module = alias]
 			else if (node.type === USE_MODULE) {
 				hasContentStarted = true;
-				const alias = node.args[0] || Object.values(node.args)[0];
+				const alias = node.props[0] || Object.values(node.props)[0];
 				if (!alias || !modules.has(alias)) {
 					runtimeError([`<$red:Module Usage Error:$> Undefined module alias <$magenta:${alias}$> at line <$yellow:${node.range.start.line + 1}$>`]);
 				}
@@ -13882,7 +13512,7 @@ async function resolveModules(ast, context) {
 				const boundaryNode = {
 					type: BLOCK,
 					id: context.instance.moduleIdentityToken,
-					args: { filename: mod.path },
+					props: { filename: mod.path },
 					body: expandedNodes
 				};
 				nodes.splice(i, 1, boundaryNode);
@@ -13938,28 +13568,28 @@ async function resolveModules(ast, context) {
 				}
 
 				// Dynamically resolve variable placeholders inside the cloned AST
-				resolveAstVariables(subAst, node.args);
+				resolveAstVariables(subAst, node.props);
 
 				await processNodes(node.body, currentBaseDir, false);
 				const expandedNodes = injectSlots(trimAst(subAst), trimAst(node.body));
 				const rootTag = expandedNodes.find(n => n.type === BLOCK);
 				if (rootTag) {
-					const consumed = node.args.__consumed__ || new Set();
+					const consumed = node.props.__consumed__ || new Set();
 
 					const publicArgs = Object.fromEntries(
-						Object.entries(node.args).filter(([key]) => {
+						Object.entries(node.props).filter(([key]) => {
 							if (key === "__consumed__") return false;
 							if (consumed.has(key)) return false; // THE FIX: Filter if hit by v{}
 							return true;
 						})
 					);
-					rootTag.args = { ...rootTag.args, ...publicArgs };
+					rootTag.props = { ...rootTag.props, ...publicArgs };
 				}
 
 				const boundaryNode = {
 					type: BLOCK,
 					id: context.instance.moduleIdentityToken,
-					args: { filename: mod.path },
+					props: { filename: mod.path },
 					body: expandedNodes
 				};
 				nodes.splice(i, 1, boundaryNode);
@@ -14031,27 +13661,7 @@ const runValidations = (node, target, instance) => {
 	const context = instance ? { src: instance.src, range: errorRange, filename: instance.filename } : null;
 
 	// -- Structural Integrity (Empty Body / Self-Closing) ----------------- //
-	const isEmptyBodyTarget = rules.is_empty_body || rules.is_self_closing;
-
-	// -- Node Type Validation --------------------------------------------- //
-	if (target.options.type) {
-		const allowedTypes = Array.isArray(target.options.type) ? target.options.type : [target.options.type];
-		const hasAny = allowedTypes.includes("any");
-		if (!hasAny && !allowedTypes.includes(node.structure)) {
-			const isReserved = ["import", "$use-module", "slot", "for-each"].includes(id.toLowerCase());
-			const msg = isReserved
-				? `<$yellow:Reserved keyword$> <$blue:'${id}'$> <$yellow:is strictly defined as a [${allowedTypes.join(", ")}] structure node, but was used as a [${node.structure}] structure node.$>`
-				: `<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is defined as type(s) [${allowedTypes.join(", ")}], but was used as a [${node.structure}] structure node.$>`;
-
-			transpilerError(
-				[
-					"{N}",
-					msg
-				],
-				context
-			);
-		}
-	}
+	const isEmptyBodyTarget = rules.is_empty_body;
 
 	if (isEmptyBodyTarget && node.type === "Block" && !node.isSelfClosing && node.body) {
 		const hasContent = node.body.some(child => {
@@ -14074,14 +13684,14 @@ const runValidations = (node, target, instance) => {
 	}
 
 	// -- Arguments Validation (Required Args) ----------------------------- //
-	const isStructural = node.type === "Block" || node.type === "AtBlock";
+	const isStructural = node.type === "Block";
 	if (isStructural && rules.required_args && Array.isArray(rules.required_args)) {
 		const missingArgs = rules.required_args.filter(arg => {
 			// Check if the argument exists in named args or as a positional arg (if arg is a number)
 			if (typeof arg === "number") {
-				return node.args[arg] === undefined;
+				return node.props[arg] === undefined;
 			}
-			return node.args[arg] === undefined;
+			return node.props[arg] === undefined;
 		});
 
 		if (missingArgs.length > 0) {
@@ -14114,7 +13724,7 @@ function validateAST(ast, mapperFile, instance) {
 		// Handle filename context updates for module identity tokens
 		if (instance?.moduleIdentityToken && node.id === instance.moduleIdentityToken) {
 			const oldFilename = instance.filename;
-			instance.filename = node.args?.filename || oldFilename;
+			instance.filename = node.props?.filename || oldFilename;
 			if (node.body) {
 				node.body.forEach(child => validateNode(child));
 			}
@@ -14129,7 +13739,7 @@ function validateAST(ast, mapperFile, instance) {
 			if (["import", "$use-module", "slot", "for-each"].includes(lowerId)) {
 				target = {
 					id: lowerId,
-					options: { type: "Block" }
+					options: {}
 				};
 			} else {
 				target = mapperFile.get(node.id) || (mapperFile.getUnknownTag ? mapperFile.getUnknownTag(node) : null);
@@ -14253,6 +13863,7 @@ function stopSpinner() {
 let defaultFs = null;
 let defaultCwd = "/";
 let defaultFindAndLoadConfig = async () => ({});
+let defaultResolvePath = (p) => p; // identity in browser; overridden to path.resolve in Node.js
 
 const isURL = (s) => typeof s === "string" && /^https?:\/\//.test(s);
 
@@ -14264,6 +13875,12 @@ function setDefaultFs(fs) {
 	defaultFs = fs;
 	Evaluator$1.setDefaultFs(fs);
 }
+
+function setDefaultResolvePath(fn) {
+	defaultResolvePath = fn;
+}
+
+const resolveFilename = (f) => (f && f !== "anonymous") ? defaultResolvePath(f) : f;
 
 function setDefaultFindAndLoadConfig(fn) {
 	defaultFindAndLoadConfig = fn;
@@ -14291,18 +13908,16 @@ class SomMark {
 	 * @param {string} [options.baseDir=null] - The base directory for resolving relative paths.
 	 */
 	constructor(options = {}) {
-		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = "style", outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, generateRuntimeOutput = false, hideRuntimeOutput = false, dualOutput = false, moduleIdentityToken = null } = options;
+		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = "style", outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, dualOutput = false, moduleIdentityToken = null } = options;
 		this.rawSettings = options;
 		this.src = src;
 		this.ast = ast;
 		this.targetFormat = format;
 		this.mapperFile = mapperFile;
-		this.filename = filename;
+		this.filename = resolveFilename(filename);
 		this.removeComments = removeComments;
 		this.placeholders = placeholders;
 		this.customProps = customProps;
-		this.generateRuntimeOutput = generateRuntimeOutput;
-		this.hideRuntimeOutput = hideRuntimeOutput;
 		this.dualOutput = dualOutput;
 		this.cwd = options.baseDir || (options.files ? "/" : defaultCwd);
 		this.fs = options.fs
@@ -14342,7 +13957,7 @@ class SomMark {
 
 		this.Mapper = Mapper;
 
-		const mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json, [jsoncFormat]: Jsonc, [xmlFormat]: XML, [textFormat]: TEXT };
+		const mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json, [jsoncFormat]: Jsonc, [xmlFormat]: XML, [csvFormat]: CSV, [tomlFormat]: TOML, [yamlFormat]: YAML, [textFormat]: TEXT };
 
 		if (!this.mapperFile && this.targetFormat) {
 			const DefaultMapper = mapperFiles[this.targetFormat];
@@ -14517,8 +14132,6 @@ class SomMark {
 				mapperFile: this.mapperFile,
 				security: this.security,
 				settings: this.rawSettings,
-				generateRuntimeOutput: this.generateRuntimeOutput,
-				hideRuntimeOutput: this.hideRuntimeOutput,
 				dualOutput: this.dualOutput,
 				instance: this
 			});
@@ -14551,7 +14164,7 @@ const lex = async (src, filename = "anonymous") => {
 	if (typeof src !== "string") {
 		runtimeError([`{line}<$red:Invalid Source Type:$> <$yellow:The 'src' argument must be a string, received ${typeof src}.$>{line}`]);
 	}
-	return lexer(src, filename);
+	return lexer(src, resolveFilename(filename));
 };
 
 /**
@@ -14618,7 +14231,7 @@ const lexSync = (src, filename = "anonymous") => {
 	if (typeof src !== "string") {
 		runtimeError([`{line}<$red:Invalid Source Type:$> <$yellow:The 'src' argument must be a string, received ${typeof src}.$>{line}`]);
 	}
-	return lexer(src, filename);
+	return lexer(src, resolveFilename(filename));
 };
 
 /**
@@ -14635,8 +14248,9 @@ const parseSync = (src, filename = "anonymous") => {
 	if (typeof src !== "string") {
 		runtimeError([`{line}<$red:Invalid Source Type:$> <$yellow:The 'src' argument must be a string, received ${typeof src}.$>{line}`]);
 	}
-	const tokens = lexer(src, filename);
-	return parser(tokens, filename);
+	const resolved = resolveFilename(filename);
+	const tokens = lexer(src, resolved);
+	return parser(tokens, resolved);
 };
 
 async function findAndLoadConfig(targetPath) {
@@ -14727,4 +14341,4 @@ function renderCompiledHTML(container, html) {
     }
 }
 
-export { Evaluator$1 as Evaluator, formats as FORMATS, HTML, Json, Jsonc, MARKDOWN, MDX, Mapper, TOKEN_TYPES, XML, SomMark as default, enableColor, findAndLoadConfig, labels, lex, lexSync, parse, parseSync, preprocessRuntimeLogic, registerSharedOutputs, renderCompiledHTML, resolveBaseDir, safeArg$1 as safeArg, setDefaultCwd, setDefaultFindAndLoadConfig, setDefaultFs, transpile };
+export { CSV, Evaluator$1 as Evaluator, formats as FORMATS, HTML, Json, Jsonc, MARKDOWN, MDX, Mapper, TOKEN_TYPES, TOML, XML, YAML, SomMark as default, enableColor, findAndLoadConfig, labels, lex, lexSync, parse, parseSync, preprocessRuntimeLogic, registerSharedOutputs, renderCompiledHTML, resolveBaseDir, safeArg$1 as safeArg, setDefaultCwd, setDefaultFindAndLoadConfig, setDefaultFs, setDefaultResolvePath, transpile };

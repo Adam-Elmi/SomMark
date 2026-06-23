@@ -12,7 +12,7 @@ lex(src, filename?)
 ```js
 import { lex } from "sommark";
 
-const tokens = await lex("[h1]Hello[end]");
+const tokens = await lex("[h1]Hello[end:h1]");
 ```
 
 ---
@@ -24,7 +24,7 @@ You can pass an optional `filename` to get accurate error reports:
 ```javascript
 import { lex } from "sommark";
 
-const tokens = await lex("[h1]Hello[end]", "header.smark");
+const tokens = await lex("[h1]Hello[end:h1]", "header.smark");
 console.log(tokens[0]);
 /*
 Output:

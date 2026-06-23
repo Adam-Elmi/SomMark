@@ -12,7 +12,7 @@ lexSync(src, filename?)
 ```js
 import { lexSync } from "sommark";
 
-const tokens = lexSync("[h1]Hello[end]");
+const tokens = lexSync("[h1]Hello[end:h1]");
 ```
 
 ---
@@ -24,7 +24,7 @@ Perfect for real-time syntax highlighters, linter plugins, or CPU-bound scripts:
 ```javascript
 import { lexSync } from "sommark";
 
-const tokens = lexSync("[h1]Hello[end]", "main.smark");
+const tokens = lexSync("[h1]Hello[end:h1]", "main.smark");
 console.log(tokens[0]);
 /*
 Output:

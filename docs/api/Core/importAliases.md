@@ -6,7 +6,7 @@ The `importAliases` option allows you to define custom path mappings (like `@/` 
 
 ## How It Works
 
-During module resolution, the engine checks every declared import path (e.g., `[import = Card: "@/Card"][end]`).
+During module resolution, the engine checks every declared import path (e.g., `[import = Card: "@/Card" !]`).
 
 1. If the path starts with a key defined in your `importAliases` object (e.g., `@/`), the engine replaces that key with your configured path replacement.
 2. The newly constructed path is resolved as an absolute path relative to the active working directory (`process.cwd()`).
@@ -29,11 +29,11 @@ my-project/
 ### 2. Smark Template Input (`index.smark`)
 ```ini
 # Clean, location-independent import using a path alias
-[import = Card: "@/components/Card.smark"][end]
+[import = Card: "@/components/Card.smark" !]
 
 [Card = title: "Product Card"]
   Card body content...
-[end]
+[end:Card]
 ```
 
 ### 3. JavaScript API Configuration
@@ -62,5 +62,5 @@ console.log(html);
 
 * **Prefix-Based Replacement**: Path resolution only replaces the alias if it appears at the **very start** of the path string (`filename.startsWith(prefix)`).
 * **Relative to Root**: All replaced paths are resolved directly against the current working directory (`process.cwd()`) rather than the active file's folder.
-* **Compatibility**: Path aliases apply to blocks, custom tags, nested module loaders, and command-line (CLI) build resolutions.
+* **Compatibility**: Path aliases apply to blocks, custom blocks, nested module loaders, and command-line (CLI) build resolutions.
 * **Auto-Extension Fallback**: Even when using import aliases, Smark's smart loader will automatically append `.smark` if the file extension is omitted and the target cannot be found on disk.

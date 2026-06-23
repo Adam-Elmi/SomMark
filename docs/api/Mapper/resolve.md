@@ -7,13 +7,13 @@ The `resolve` option controls how block content is processed. By default (`resol
 > 
 > **Why?** Using `resolve: true` forces a bottom-up compilation sequence that can lead to unexpected behaviors (such as breaking parent-child scope variable sharing).
 > 
-> **How to migrate**: If you need to modify, clean, or read literal text inside a block (like `[h1]`), leave `resolve` as `false` (default) and use **`textContent`** instead.
+> **How to migrate**: If you need to modify, clean, or read literal text inside a block (like `[h1]...[end:h1]`), leave `resolve` as `false` (default) and use **`textContent`** instead.
 
 ---
 
 ## 1. Rule of Thumb
 
-* **Wrapping nested tags or HTML?** -> Leave `resolve: false` (default). It is extremely fast and uses very little memory.
+* **Wrapping nested blocks or HTML?** -> Leave `resolve: false` (default). It is extremely fast and uses very little memory.
 * **Modifying a simple literal text block?** (like headers, titles, or paragraphs) -> Leave `resolve: false` and use **`textContent`** to safely read and change the text.
 * **Legacy text manipulation?** (avoid this) -> Set `resolve: true` to get the compiled child text in the `content` argument. Be aware that this will be removed in future versions.
 
@@ -63,7 +63,7 @@ mapper.register("Header", function({ content }) {
 **Output (Throws Compiler Error):**
 ```text
 [Transpiler Error]:
-Placeholder Corruption Error: Attempted to modify the 'content' placeholder under 'resolve: false' mode in tag 'Header'.
+Placeholder Corruption Error: Attempted to modify the 'content' placeholder under 'resolve: false' mode in block 'Header'.
 This corrupts SomMark's internal compilation tokens and is not allowed.
 If you need to read or alter the literal inner text, please use 'textContent' instead.
 ```
@@ -88,27 +88,27 @@ mapper.register("Header", function({ textContent }) {
 
 ---
 
-## 4. How Tags Compile (Execution Order)
+## 4. How Blocks Compile (Execution Order)
 
-Choosing `resolve: true` changes the order in which SomMark compiles your tags:
+Choosing `resolve: true` changes the order in which SomMark compiles your blocks:
 
 ### Default Mode (`resolve: false`) — *Parent compiles first*
-* **How it works**: The parent tag compiles immediately, and the engine compiles the nested child tags later.
+* **How it works**: The parent block compiles immediately, and the engine compiles the nested child blocks later.
 * **Why it matters**: Since the parent runs first, it can set variables and share data that its children can read when they compile.
 
 ### Immediate Mode (`resolve: true` - Legacy) — *Children compile first*
-* **How it works**: The engine compiles all child tags first, turns them into a finished text string, and only then compiles the parent tag.
+* **How it works**: The engine compiles all child blocks first, turns them into a finished text string, and only then compiles the parent block.
 * **Why it matters**: The parent cannot share dynamic variables with its children, because the children have already finished compiling before the parent even runs.
 
 ### Example (Variable Scoping)
 
-Imagine you want a parent tag `[Section]` to inject a `theme` variable that nested child templates can dynamically read via `static ${ theme }$`.
+Imagine you want a parent block `[Section]` to inject a `theme` variable that nested child templates can dynamically read via `${ theme }`.
 
 **Smark Template:**
 ```re
 [Section]
-  This is a static ${ theme }$ section.
-[end]
+  This is a ${ theme } section.
+[end:Section]
 ```
 
 #### 1. Default Mode (`resolve: false`) — *Variable sharing works*
@@ -126,14 +126,14 @@ mapper.register("Section", function({ content }) {
 
 // Input: 
 // [Section]
-//   This is a static ${ theme }$ section.
-// [end]
+//   This is a ${ theme } section.
+// [end:Section]
 //
 // Output: <section>This is a dark section.</section>
 ```
 
 #### 2. Immediate Mode (`resolve: true`) — *Variable sharing fails*
-Because SomMark compiles the child first, Smark tries to evaluate `static ${ theme }$` before the parent's code has ever executed, causing a compilation error.
+Because SomMark compiles the child first, Smark tries to evaluate `${ theme }` before the parent's code has ever executed, causing a compilation error.
 
 ```js
 import { Evaluator } from "sommark";
@@ -147,8 +147,8 @@ mapper.register("Section", function({ content }) {
 
 // Input: 
 // [Section]
-//   This is a static ${ theme }$ section.
-// [end]
+//   This is a ${ theme } section.
+// [end:Section]
 //
 // Output: Error (theme is not defined)
 ```

@@ -170,19 +170,18 @@ describe("SomMark HTML Mapper Comprehensive Test Suite", () => {
 			expect(dom1.window.document.querySelector("div").getAttribute("style")).toBe("theme:dark;");
 		});
 
-		it("maps unrecognized properties as classes and suffixes when fallbackTarget is class", async () => {
-			// Boolean true resolves as class name, while key-value resolves as class suffix 'key-val'
+		it("falls back to style when an unsupported fallbackTarget value is passed", async () => {
+			// "class" is no longer a supported fallbackTarget — unknown values behave like "style"
 			const sm = new SomMark(smSettings('[div = theme: "dark", bold: true, class: "card"]Content[end]', {
 				fallbackTarget: "class"
 			}));
 			const output = await sm.transpile();
-			expect(output).toBe('<div class="card theme-dark bold">Content</div>');
+			expect(output).toBe('<div class="card" style="theme:dark;bold:true;">Content</div>');
 
 			const dom = validateHtml(output);
-			const classes = dom.window.document.querySelector("div").classList;
-			expect(classes.contains("card")).toBe(true);
-			expect(classes.contains("theme-dark")).toBe(true);
-			expect(classes.contains("bold")).toBe(true);
+			const el = dom.window.document.querySelector("div");
+			expect(el.getAttribute("class")).toBe("card");
+			expect(el.getAttribute("style")).toBe("theme:dark;bold:true;");
 		});
 
 		it("renders unrecognized properties literally on the HTML element when fallbackTarget is false", async () => {
@@ -234,23 +233,13 @@ describe("SomMark HTML Mapper Comprehensive Test Suite", () => {
 			expect(dom.window.document.querySelector("style").innerHTML).toContain("--theme-color:#fff;");
 		});
 
-		it("renders inline css style span tags correctly", async () => {
-			const sm = new SomMark(smSettings('(Styled text)->(css: "color: blue", fontWeight: "bold")'));
+		it("renders css style span tags using block syntax correctly", async () => {
+			const sm = new SomMark(smSettings('[span = style: "color:blue", fontWeight: "bold"]Styled text[end]'));
 			const output = await sm.transpile();
-			expect(output).toBe('<span style="color:blue;font-weight:bold">Styled text</span>');
+			expect(output).toBe('<span style="color:blue;font-weight:bold;">Styled text</span>');
 
 			const dom = validateHtml(output);
-			expect(dom.window.document.querySelector("span").getAttribute("style")).toBe("color:blue;font-weight:bold");
-		});
-
-		it("transpiles shared raw blocks and inline styled span layouts correctly", async () => {
-			const sm = new SomMark(smSettings("@_raw_@;<b>Raw</b>@_end_@ (Text)->(css: \"color: red\")"));
-			const output = await sm.transpile();
-			expect(output).toBe('<b>Raw</b> <span style="color:red">Text</span>');
-
-			const dom = validateHtml(output);
-			expect(dom.window.document.querySelector("b").textContent).toBe("Raw");
-			expect(dom.window.document.querySelector("span").getAttribute("style")).toBe("color:red");
+			expect(dom.window.document.querySelector("span").getAttribute("style")).toBe("color:blue;font-weight:bold;");
 		});
 	});
 
@@ -359,22 +348,22 @@ static \${
 		it("asynchronously fetches allowed external resources inside static blocks securely", async () => {
 			const src = `
 static \${
-	const res = await SomMark.fetch("https://api.github.com/users/Adam-Elmi");
+	const res = await SomMark.fetch("https://jsonplaceholder.typicode.com/users/1");
 	const user = await res.json();
-	return "User login is " + user.login;
+	return "User is " + user.username;
 }\$
 			`.trim();
 			const sm = new SomMark(smSettings(src, {
 				security: {
 					allowFetch: true,
-					allowedOrigins: ["https://api.github.com"]
+					allowedOrigins: ["https://jsonplaceholder.typicode.com"]
 				}
 			}));
 			const output = await sm.transpile();
-			expect(output).toBe("User login is Adam-Elmi");
+			expect(output).toBe("User is Bret");
 
 			const dom = validateHtml(output);
-			expect(dom.window.document.body.textContent.trim()).toBe("User login is Adam-Elmi");
+			expect(dom.window.document.body.textContent.trim()).toBe("User is Bret");
 		});
 
 		it("blocks SSRF and invalid security origins when fetching inside static blocks", async () => {
@@ -388,7 +377,7 @@ static \${
 			const smOrigin = new SomMark(smSettings(srcOrigin, {
 				security: {
 					allowFetch: true,
-					allowedOrigins: ["https://api.github.com"]
+					allowedOrigins: ["https://jsonplaceholder.typicode.com"]
 				}
 			}));
 			await expect(smOrigin.transpile()).rejects.toThrow();

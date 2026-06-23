@@ -9,8 +9,8 @@ The `customProps` property is a **Set** that whitelists custom attributes. It te
 By default, SomMark's `smartAttributes()` method protects your HTML by moving non-standard attributes into the `style` attribute so your browser doesn't render invalid HTML properties.
 
 ### Without customProps (Auto-Style Fallback)
-If you pass a custom property like `theme` to a tag:
-* **Smark Input**: `[div = theme: "dark"]Content[end]`
+If you pass a custom property like `theme` to a block:
+* **Smark Input**: `[div = theme: "dark"]Content[end:div]`
 * **Generated HTML**: `<div style="theme:dark;">Content</div>` (This is invalid CSS!)
 
 ---
@@ -29,19 +29,19 @@ HTML.customProps.add("columns");
 ```
 
 ### Result:
-* **Smark Input**: `[div = theme: "dark", columns: 3]Content[end]`
+* **Smark Input**: `[div = theme: "dark", columns: 3]Content[end:div]`
 * **Generated HTML**: `<div theme="dark" columns="3">Content</div>` (Perfect, clean HTML!)
 
 ---
 
 ## 3. How to use in Mappers
 
-To make this work, pass `this.customProps` into `smartAttributes(args, customProps)` inside your mapper functions:
+To make this work, pass `this.customProps` into `smartAttributes(props, customProps)` inside your mapper functions:
 
 ```js
-mapper.register("Card", function({ args, content }) {
+mapper.register("Card", function({ props, content }) {
     return this.tag("div")
-        .smartAttributes(args, this.customProps)
+        .smartAttributes(props, this.customProps)
         .body(content);
 });
 ```
@@ -51,7 +51,7 @@ mapper.register("Card", function({ args, content }) {
 ## 4. Key Rules
 
 1. **Automatic Kebab-Case Matching**: If you whitelist a property in camelCase (e.g. `cardTitle`), SomMark will automatically match its kebab-case version (`card-title`) too.
-2. **Ignored for Special Tags**: `smartAttributes()` will never apply styling fallbacks to `<style>` or `<script>` tags, keeping their attributes native automatically.
+2. **Ignored for Special Elements**: `smartAttributes()` will never apply styling fallbacks to `<style>` or `<script>` elements, keeping their attributes native automatically.
 
 ---
 

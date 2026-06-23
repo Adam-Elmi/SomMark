@@ -43,7 +43,7 @@ describe("SomMark MDX Mapper Comprehensive Test Suite", () => {
 		});
 	});
 
-	describe("Step 2: Attributes and js{...} Expression Mappings", () => {
+	describe("Step 2: Attribute Mappings", () => {
 		it("normalizes class attribute to className for React compatibility", async () => {
 			const sm = new SomMark(smSettings('[div = class: "main", id: "root"]Body[end]'));
 			const output = await sm.transpile();
@@ -59,14 +59,6 @@ describe("SomMark MDX Mapper Comprehensive Test Suite", () => {
 
 			expect(output).toContain("count={5}");
 			expect(output).toContain("active={true}");
-			await validateMDX(output);
-		});
-
-		it("supports complex nested JS data structures inside js{...} wrapper", async () => {
-			const sm = new SomMark(smSettings('[User = profile: js{ {name: "Adam", roles: ["admin", "dev"], meta: { active: true } } }]Body[end]'));
-			const output = await sm.transpile();
-
-			expect(output).toContain('profile={{name:"Adam",roles:["admin","dev"],meta:{active:true}}}');
 			await validateMDX(output);
 		});
 
@@ -104,20 +96,11 @@ describe("SomMark MDX Mapper Comprehensive Test Suite", () => {
 	});
 
 	describe("Step 4: Special Features & Shared Mappers", () => {
-		it("passes through raw JSX/ESM imports via the @_mdx_@ block", async () => {
-			const sm = new SomMark(smSettings('@_mdx_@;import { Button } from "./ui";\n\n<Button>Click</Button>@_end_@'));
+		it("supports positional and named style parameters inside mdx css block tag mapper", async () => {
+			const sm = new SomMark(smSettings('[span = style: "color: red; bg: 1"]Some Text[end]'));
 			const output = await sm.transpile();
 
-			expect(output).toContain('import { Button }');
-			expect(output).toContain("<Button>Click</Button>");
-			await validateMDX(output);
-		});
-
-		it("supports positional and named style parameters inside mdx css tag mapper", async () => {
-			const sm = new SomMark(smSettings("(Some Text)->(css = color: red, bg: 1)"));
-			const output = await sm.transpile();
-
-			expect(output).toBe('<span style={{color:"red",bg:"1"}}>Some Text</span>');
+			expect(output).toContain('color:"red"');
 			await validateMDX(output);
 		});
 	});

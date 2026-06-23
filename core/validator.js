@@ -29,27 +29,7 @@ const runValidations = (node, target, instance) => {
 	const context = instance ? { src: instance.src, range: errorRange, filename: instance.filename } : null;
 
 	// -- Structural Integrity (Empty Body / Self-Closing) ----------------- //
-	const isEmptyBodyTarget = rules.is_empty_body || rules.is_self_closing;
-
-	// -- Node Type Validation --------------------------------------------- //
-	if (target.options.type) {
-		const allowedTypes = Array.isArray(target.options.type) ? target.options.type : [target.options.type];
-		const hasAny = allowedTypes.includes("any");
-		if (!hasAny && !allowedTypes.includes(node.structure)) {
-			const isReserved = ["import", "$use-module", "slot", "for-each"].includes(id.toLowerCase());
-			const msg = isReserved
-				? `<$yellow:Reserved keyword$> <$blue:'${id}'$> <$yellow:is strictly defined as a [${allowedTypes.join(", ")}] structure node, but was used as a [${node.structure}] structure node.$>`
-				: `<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is defined as type(s) [${allowedTypes.join(", ")}], but was used as a [${node.structure}] structure node.$>`;
-
-			transpilerError(
-				[
-					"{N}",
-					msg
-				],
-				context
-			);
-		}
-	}
+	const isEmptyBodyTarget = rules.is_empty_body;
 
 	if (isEmptyBodyTarget && node.type === "Block" && !node.isSelfClosing && node.body) {
 		const hasContent = node.body.some(child => {
@@ -72,14 +52,14 @@ const runValidations = (node, target, instance) => {
 	}
 
 	// -- Arguments Validation (Required Args) ----------------------------- //
-	const isStructural = node.type === "Block" || node.type === "AtBlock";
+	const isStructural = node.type === "Block";
 	if (isStructural && rules.required_args && Array.isArray(rules.required_args)) {
 		const missingArgs = rules.required_args.filter(arg => {
 			// Check if the argument exists in named args or as a positional arg (if arg is a number)
 			if (typeof arg === "number") {
-				return node.args[arg] === undefined;
+				return node.props[arg] === undefined;
 			}
-			return node.args[arg] === undefined;
+			return node.props[arg] === undefined;
 		});
 
 		if (missingArgs.length > 0) {
@@ -112,7 +92,7 @@ export function validateAST(ast, mapperFile, instance) {
 		// Handle filename context updates for module identity tokens
 		if (instance?.moduleIdentityToken && node.id === instance.moduleIdentityToken) {
 			const oldFilename = instance.filename;
-			instance.filename = node.args?.filename || oldFilename;
+			instance.filename = node.props?.filename || oldFilename;
 			if (node.body) {
 				node.body.forEach(child => validateNode(child));
 			}
@@ -127,7 +107,7 @@ export function validateAST(ast, mapperFile, instance) {
 			if (["import", "$use-module", "slot", "for-each"].includes(lowerId)) {
 				target = {
 					id: lowerId,
-					options: { type: "Block" }
+					options: {}
 				};
 			} else {
 				target = mapperFile.get(node.id) || (mapperFile.getUnknownTag ? mapperFile.getUnknownTag(node) : null);

@@ -22,12 +22,12 @@ Use `SomMark.settings.format` to conditionally structure your templates at compi
 **Files:**
 - `htmlDoc.smark:`
 ```ini
-[h1]Welcome to SomMark HTML template[end]
-[p]Here is some content for the HTML template.[end]
+[h1]Welcome to SomMark HTML template[end:h1]
+[p]Here is some content for the HTML template.[end:p]
 ```
 - `mdxDoc.smark:`
 ```ini
-[h1 = format: "markdown"]Welcome to MDX template[end]
+[h1 = format: "markdown"]Welcome to MDX template[end:h1]
 Here is some content for the MDX template.
 ```
 - `template.smark:`

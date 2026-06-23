@@ -16,8 +16,8 @@ describe("SomMark Browser Entrypoint Isomorphic Tests", () => {
             src: `
                 static \${
                     const { default: layout } = await import("./components/Layout.smark");
-                    SomMark.register("my-card", ({ args, content }) => {
-                        return layout({ title: args.title, body: content });
+                    SomMark.register("my-card", ({ props, content }) => {
+                        return layout({ title: props.title, body: content });
                     });
                 }$
                 [my-card = title: "Browser VFS"]Simulated browser environment[end]
@@ -35,9 +35,9 @@ describe("SomMark Browser Entrypoint Isomorphic Tests", () => {
         const sm = new SomMark({
             src: `
                 static \${
-                    const res = await SomMark.fetch("https://api.github.com/users/Adam-Elmi");
+                    const res = await SomMark.fetch("https://jsonplaceholder.typicode.com/users/1");
                     const user = await res.json();
-                    globalThis.userName = user.login;
+                    globalThis.userName = user.username;
                     return;
                 }$
                 static \${ userName }$
@@ -45,7 +45,7 @@ describe("SomMark Browser Entrypoint Isomorphic Tests", () => {
             format: "html"
         });
         const res = await sm.transpile();
-        expect(res.trim()).toBe("Adam-Elmi");
+        expect(res.trim()).toBe("Bret");
     });
 
     it("resolves [import = ...] smark modules from the virtual filesystem", async () => {

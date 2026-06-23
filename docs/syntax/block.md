@@ -6,26 +6,50 @@ Blocks are the primary containers in SomMark, used to group, style, and organize
 
 ## 1. Syntax
 
-A block starts with `[identifier]` and closes with a matching `[end]` or self-closing `!` if the block does not have any content, for example `[br!]` or `[img = src: "logo.png" !]`. 
+A block starts with `[identifier]` and closes with a matching `[end:identifier]` or self-closing `!` if the block has no content.
 
 ### Standard Block
 ```ini
 [section]
   This is content inside a block container.
-[end]
+[end:section]
 ```
 
+### Named End Block `[end:name]` (Recommended)
+
+The recommended way to close a block is to include the block name in the end tag:
+
+```ini
+[div = class: "card"]
+  [h1]Welcome[end:h1]
+[end:div]
+```
+
+This makes it easy to see which block is being closed — especially in long or deeply nested templates.
+
+A plain `[end]` works too:
+```ini
+[div = class: "card"]
+  [h1]Welcome[end]
+[end]
+```
+But named end blocks `[end:name]` help you catch unclosed or mismatched blocks quickly.
+
+
+> [!TIP]
+> Use `[end:name]` for all blocks. The effort is minimal and the benefit — readable, easy-to-debug templates — is large.
+
 ### Multiline Block Headers
-For clean formatting, block headers can span multiple lines. Whitespace and comments inside headers are treated as structural junk and ignored.
+Block headers can span multiple lines. Whitespace and comments inside headers are ignored.
 ```ini
 [
-  div                   # The tag name
+  div                   # The block name
   =                     # Start of props
   class: "container",   # Named prop
   "main-layout"         # Positional prop
 ]
   Block body content...
-[end]
+[end:div]
 ```
 
 ---
@@ -37,7 +61,7 @@ For clean formatting, block headers can span multiple lines. Whitespace and comm
   ```ini
   [div = class: "card"]
     Hello World
-  [end]
+  [end:div]
   ```
 * **Rendered Output:**
   ```html
@@ -51,7 +75,7 @@ For clean formatting, block headers can span multiple lines. Whitespace and comm
   ```ini
   [Card = title: "Welcome"]
     Hello World
-  [end]
+  [end:Card]
   ```
 * **Rendered Output:**
   ```jsx
@@ -68,15 +92,15 @@ For clean formatting, block headers can span multiple lines. Whitespace and comm
 Blocks can be nested inside each other without any depth limit.
 ```ini
 [article]
-  [h1]Title[end]
+  [h1]Title[end:h1]
   [div = class: "content"]
-    [p]Paragraph within a div.[end]
-  [end]
-[end]
+    [p]Paragraph within a div.[end:p]
+  [end:div]
+[end:article]
 ```
 
 ### II. Self-Closing Blocks
-For elements that don't need a body (like line breaks or images), append `!` inside the header to omit the `[end]` tag. See [Self-Closing Blocks](self-closing.md) for details.
+For elements that don't need a body (like line breaks or images), append `!` inside the header to omit `[end]`. See [Self-Closing Blocks](self-closing.md) for details.
 ```ini
 [br!]
 [img = src: "logo.png" !]
@@ -88,4 +112,3 @@ For elements that don't need a body (like line breaks or images), append `!` ins
 # Triggers Parser Error
 [end !]
 ```
-

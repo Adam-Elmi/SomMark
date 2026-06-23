@@ -1,111 +1,149 @@
-# Command Line Interface (CLI) Manual
+# CLI Manual
 
-The SomMark CLI is a powerful tool for converting files, debugging syntax, and managing project settings.
+The SomMark CLI converts `.smark` files, prints debug output, and manages your project settings.
 
-## 1. Core Usage & Structure
+## 1. General Pattern
 
-SomMark V4 uses a **Strict Positional Logic**. This means the order of your words in the terminal matters.
-
-**General Pattern:**
 ```bash
 sommark [command/format] [sourceFile] [outputFlag] [outputName] [outputDir]
 ```
 
+The order of arguments matters. Flags must appear in the correct position.
+
 ---
 
-## 2. Transpilation Commands
+## 2. Convert a File
 
-These commands convert your `.smark` files into different formats.
+Use a format flag to convert a `.smark` file:
 
-| Format Flag | Output Type | Default Extension |
-| :--- | :--- | :---: |
-| `--html` | Web Page | `.html` |
-| `--markdown` | CommonMark | `.md` |
-| `--mdx` | JSX/React Markdown | `.mdx` |
-| `--xml` | Generic XML | `.xml` |
-| `--json` | AST/Data | `.json` |
-| `--jsonc` | Compact JSON | `.jsonc` |
-| `--text` | Plain Text | `.txt` |
-
-**Example:**
 ```bash
-sommark --html blog.smark
+sommark --html input.smark
 ```
 
+Supported formats:
+
+| Flag | Output | Extension |
+| :--- | :--- | :---: |
+| `--html` | Web page | `.html` |
+| `--markdown` | CommonMark | `.md` |
+| `--mdx` | JSX/React Markdown | `.mdx` |
+| `--xml` | XML | `.xml` |
+| `--json` | AST/Data | `.json` |
+| `--jsonc` | Compact JSON | `.jsonc` |
+| `--text` | Plain text | `.txt` |
+
 ---
 
-## 3. Output Management
+## 3. Preview in Terminal (`-p`)
 
-### Terminal Preview (`-p`)
-If you want to see the result without saving a file, use `-p`. It **must** be the second word.
-- **Correct**: `sommark --html -p input.smark`
-- **Incorrect**: `sommark --html input.smark -p`
+To print the result to the terminal without saving a file, add `-p` as the **second argument** (before the file path):
 
-### Custom Filename & Folder (`-o`)
-To save with a specific name or in a specific folder, use `-o`. It **must** be the third argument.
+```bash
+sommark --html -p input.smark
+```
+
+> `-p` must come before the file path. `sommark --html input.smark -p` will not work.
+
+---
+
+## 4. Custom Output Name and Folder (`-o`)
+
+To save with a specific filename or into a specific folder, use `-o` as the **third argument**:
+
 ```bash
 sommark --html input.smark -o my-page ./dist/
 ```
-- Argument 3: `-o` (the flag)
-- Argument 4: `my-page` (the name)
-- Argument 5: `./dist/` (the folder)
+
+- `my-page` — the output filename (without extension)
+- `./dist/` — the folder to save into
 
 > [!CAUTION]
-> **Do not combine paths**
-> You cannot combine the folder and name like this: `sommark --html input.smark -o ./dist/my-page`.
-> The CLI expects these to be **two separate arguments**. If you want to save to a specific directory, you **must** provide the filename first, then the folder.
+> Do not combine the name and path into one string. `sommark --html input.smark -o ./dist/my-page` will not work. Always pass the filename and the folder as two separate arguments.
 
 ---
 
-## 4. Debugging Tools
+## 5. Browser Bundle (`bundle`)
 
-These tools help you see how SomMark "thinks" about your code.
+Copies the SomMark browser build files into a folder in your project:
 
-- **`--lex [file]`**: Prints the internal token stream (what the Lexer sees).
-- **`--parse [file]`**: Prints the Abstract Syntax Tree (what the Parser builds).
-
-**Example:**
 ```bash
-sommark --parse input.smark
+sommark bundle ./public/sommark
+```
+
+**Partial bundles:**
+
+| Flag | File | Use when |
+| :--- | :--- | :--- |
+| *(none)* | Full bundle + WASM | You use `static ${}$` or `runtime ${}$` blocks |
+| `--lite` | `sommark.browser.lite.js` | Pure markup only, no JS evaluation |
+| `--only-parser` | `sommark.parser.js` | You need to parse SomMark into an AST |
+| `--only-lexer` | `sommark.lexer.js` | You need tokens only (syntax highlighting, linting) |
+
+```bash
+sommark bundle ./public/sommark --lite
+sommark bundle ./public/sommark --only-lexer
+sommark bundle ./public/sommark --only-parser
 ```
 
 ---
 
-## 5. Project Commands
+## 6. Debug Tools
 
-These commands help you manage your workspace.
+Print what the compiler sees internally:
 
-### Initialize Project
+```bash
+sommark --lex input.smark     # Print the token stream
+sommark --parse input.smark   # Print the AST
+```
+
+---
+
+## 7. Project Commands
+
+### `init`
 Creates a `smark.config.js` in your current folder:
 ```bash
 sommark init
 ```
 
-### Show Configuration
-Check your active settings or finding where your config file is located:
-- **`sommark show config`**: Displays the active configuration data.
-- **`sommark show --path-config`**: Displays the absolute path of the loaded config file.
+### `show`
+Inspect your active configuration:
+```bash
+sommark show config                        # Print active config settings
+sommark show config path/to/file.smark     # Print config for a specific file
+sommark show --path-config                 # Print the path to the config file being used
+sommark show --path-config path/to/file.smark
+```
 
-### Color Settings
-SomMark tells you how to enable or disable terminal colors:
-- **`sommark color on`**: Shows instructions for enabling colors.
-- **`sommark color off`**: Shows instructions for disabling colors.
+### `color`
+Enable or disable terminal colors:
+```bash
+sommark color on    # Show instructions for enabling colors
+sommark color off   # Show instructions for disabling colors
+```
 
 ---
 
-## 6. Global Flags
+## 8. Global Flags
 
-- **`-v, --version`**: Shows the current SomMark version.
-- **`-h, --help`**: Shows the help manual.
-
----
-
-## 7. Quick Reference Examples
-
-| Goal | Exact Command Pattern |
+| Flag | What it does |
 | :--- | :--- |
-| **Convert to MDX** | `sommark --mdx input.smark` |
-| **Print JSON to Console** | `sommark --json -p input.smark` |
-| **Custom Path Build** | `sommark --html input.smark -o index ./build/` |
-| **Debug Tokens** | `sommark --lex input.smark` |
-| **Check Config Path** | `sommark show --path-config` |
+| `-v`, `--version` | Print the SomMark version |
+| `-h`, `--help` | Print the help manual |
+
+---
+
+## 9. Quick Reference
+
+| Goal | Command |
+| :--- | :--- |
+| Convert to HTML | `sommark --html input.smark` |
+| Convert to MDX | `sommark --mdx input.smark` |
+| Print result to terminal | `sommark --json -p input.smark` |
+| Save to custom folder | `sommark --html input.smark -o index ./build/` |
+| Copy browser bundle | `sommark bundle ./public/sommark` |
+| Copy lite browser bundle | `sommark bundle ./public/sommark --lite` |
+| Inspect tokens | `sommark --lex input.smark` |
+| Inspect AST | `sommark --parse input.smark` |
+| Check active config | `sommark show config` |
+| Check config file path | `sommark show --path-config` |

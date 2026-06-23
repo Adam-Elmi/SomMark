@@ -7,25 +7,25 @@ Injects a previously imported module directly into the document without passing 
 ## 1. Syntax
 
 ```ini
-[import = Alias: "./path/to/file.smark"][end]
+[import = Alias: "./path/to/file.smark" !]
 
-[$use-module = Alias][end]
+[$use-module = Alias !]
 ```
 
 | Part | Description |
 | :--- | :--- |
-| `[import = Alias: "path"]` | Declares the module and assigns it an alias name. Must be at the top of the file. |
-| `[$use-module = Alias]` | Inserts the full content of that module at this position. |
+| `[import = Alias: "path" !]` | Declares the module and assigns it an alias name. Must be at the top of the file. |
+| `[$use-module = Alias !]` | Inserts the full content of that module at this position. |
 
 ---
 
 ## 2. How It Works
 
 1. You import a `.smark` file at the top of your document using `[import]`.
-2. Anywhere below, you write `[$use-module = Alias][end]` to inject the entire content of that file.
+2. Anywhere below, you write `[$use-module = Alias !]` to inject the entire content of that file.
 3. The module is compiled and its output replaces the `$use-module` block.
 
-This is a **static injection** -- the module is inserted as-is, with no props passed and no slot content provided.
+This is a **static injection** — the module is inserted as-is, with no props passed and no slot content provided.
 
 ---
 
@@ -34,18 +34,18 @@ This is a **static injection** -- the module is inserted as-is, with no props pa
 **`components/Footer.smark`**
 ```ini
 [footer = class: "site-footer"]
-  [p]Copyright 2026 SomMark[end]
-[end]
+  [p]Copyright 2026 SomMark[end:p]
+[end:footer]
 ```
 
 **`page.smark`**
 ```ini
-[import = Footer: "./components/Footer.smark"][end]
+[import = Footer: "./components/Footer.smark" !]
 
 [div = class: "page"]
-  [h1]Welcome[end]
-  [$use-module = Footer][end]
-[end]
+  [h1]Welcome[end:h1]
+  [$use-module = Footer !]
+[end:div]
 ```
 
 **HTML Output:**
@@ -64,31 +64,31 @@ This is a **static injection** -- the module is inserted as-is, with no props pa
 
 SomMark gives you two ways to use an imported module. Choose based on whether you need to pass data into it.
 
-### $use-module -- Static Injection
+### $use-module — Static Injection
 
 Use when the module is self-contained and does not need any external data or body content.
 
 ```ini
-[import = Nav: "./components/Nav.smark"][end]
+[import = Nav: "./components/Nav.smark" !]
 
-[$use-module = Nav][end]
+[$use-module = Nav !]
 ```
 
 No props. No slots. The module renders exactly as written.
 
-### Component Block -- Dynamic Injection
+### Component Block — Dynamic Injection
 
 Use when the module expects props (`v{}`) or slot content.
 
 ```ini
-[import = Card: "./components/Card.smark"][end]
+[import = Card: "./components/Card.smark" !]
 
 [Card = title: "Hello"]
   This fills the slot.
-[end]
+[end:Card]
 ```
 
-Props are passed and resolved inside the module. Slot content is injected where `[slot][end]` appears.
+Props are passed and resolved inside the module. Slot content is injected where `[slot][end:slot]` appears.
 
 ### Summary
 
@@ -96,7 +96,7 @@ Props are passed and resolved inside the module. Slot content is injected where 
 | :--- | :--- | :--- |
 | Passes props | No | Yes |
 | Injects slot content | No (uses fallback) | Yes |
-| Syntax | `[$use-module = Alias][end]` | `[Alias = props] body [end]` |
+| Syntax | `[$use-module = Alias !]` | `[Alias = props] body [end:Alias]` |
 | Best for | Static, reusable partials | Dynamic, data-driven components |
 
 ---
@@ -106,21 +106,21 @@ Props are passed and resolved inside the module. Slot content is injected where 
 You can inject the same module at multiple points in the document. Each injection is independent.
 
 ```ini
-[import = Divider: "./components/Divider.smark"][end]
+[import = Divider: "./components/Divider.smark" !]
 
 [section]
-  [h2]Part One[end]
-  [p]First section content.[end]
-[end]
+  [h2]Part One[end:h2]
+  [p]First section content.[end:p]
+[end:section]
 
-[$use-module = Divider][end]
+[$use-module = Divider !]
 
 [section]
-  [h2]Part Two[end]
-  [p]Second section content.[end]
-[end]
+  [h2]Part Two[end:h2]
+  [p]Second section content.[end:p]
+[end:section]
 
-[$use-module = Divider][end]
+[$use-module = Divider !]
 ```
 
 ---
@@ -132,15 +132,15 @@ If the imported module contains a `[slot]` block with fallback content, `$use-mo
 **`components/Alert.smark`**
 ```ini
 [div = class: "alert"]
-  [slot]No alerts at this time.[end]
-[end]
+  [slot]No alerts at this time.[end:slot]
+[end:div]
 ```
 
 **`page.smark`**
 ```ini
-[import = Alert: "./components/Alert.smark"][end]
+[import = Alert: "./components/Alert.smark" !]
 
-[$use-module = Alert][end]
+[$use-module = Alert !]
 ```
 
 **HTML Output:**
@@ -155,7 +155,7 @@ To override the fallback, use a component block instead:
 ```ini
 [Alert]
   System update available.
-[end]
+[end:Alert]
 ```
 
 ---
@@ -166,20 +166,20 @@ All `[import]` declarations must appear at the **very top** of the file, before 
 
 ```ini
 # Correct -- imports first
-[import = Header: "./Header.smark"][end]
-[import = Footer: "./Footer.smark"][end]
+[import = Header: "./Header.smark" !]
+[import = Footer: "./Footer.smark" !]
 
 [div]
-  [$use-module = Header][end]
-  [p]Page content.[end]
-  [$use-module = Footer][end]
-[end]
+  [$use-module = Header !]
+  [p]Page content.[end:p]
+  [$use-module = Footer !]
+[end:div]
 ```
 
 ```ini
 # Wrong -- import after content
-[h1]Title[end]
-[import = Footer: "./Footer.smark"][end]   # Error: imports must be before content
+[h1]Title[end:h1]
+[import = Footer: "./Footer.smark" !]   # Error: imports must be before content
 ```
 
 ---
@@ -189,8 +189,8 @@ All `[import]` declarations must appear at the **very top** of the file, before 
 The `.smark` extension is optional in import paths. Both forms work:
 
 ```ini
-[import = Nav: "./components/Nav.smark"][end]
-[import = Nav: "./components/Nav"][end]
+[import = Nav: "./components/Nav.smark" !]
+[import = Nav: "./components/Nav" !]
 ```
 
 SomMark automatically appends `.smark` if the file is not found at the given path.
@@ -202,12 +202,12 @@ SomMark automatically appends `.smark` if the file is not found at the given pat
 If you import a module but never use it (neither with `$use-module` nor as a component block), SomMark will report an unused module warning.
 
 ```ini
-[import = Sidebar: "./components/Sidebar.smark"][end]
+[import = Sidebar: "./components/Sidebar.smark" !]
 
 # Sidebar is never used -- triggers an "UnusedModule" warning
 [div]
-  [p]Hello[end]
-[end]
+  [p]Hello[end:p]
+[end:div]
 ```
 
 ---

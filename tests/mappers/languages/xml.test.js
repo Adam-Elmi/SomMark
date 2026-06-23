@@ -159,16 +159,11 @@ describe('XML Mapper (V4 Strict)', () => {
             expect(output.trim()).toBe('<?xml-stylesheet type="text/xsl" href="style.xsl"?>');
         });
 
-        it('should render CDATA sections using AtBlock syntax', async () => {
-            const sm = new SomMark(smSettings('@_cdata_@;if (a < b && b < c) { ... }@_end_@'));
+        it('renders CDATA sections verbatim via smark-raw prop with custom mapper', async () => {
+            const sm = new SomMark(smSettings('[cdata = smark-raw: true]<![CDATA[x < y && y > z]]>[end]'));
+            sm.register("cdata", ({ content }) => content);
             const output = await sm.transpile();
-            expect(output.trim()).toBe('<![CDATA[if (a < b && b < c) { ... }]]>');
-        });
-
-        it('should preserve special characters inside CDATA', async () => {
-            const sm = new SomMark(smSettings('@_cdata_@;<b>Bold</b> and & Symbol@_end_@'));
-            const output = await sm.transpile();
-            expect(output.trim()).toBe('<![CDATA[<b>Bold</b> and & Symbol]]>');
+            expect(output).toBe('<![CDATA[x < y && y > z]]>');
         });
     });
 

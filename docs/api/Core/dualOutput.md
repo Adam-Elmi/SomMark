@@ -27,7 +27,7 @@ const [html, js] = await new SomMark({
   src: `[button]
   Click me
   runtime \${ self.onclick = () => alert("clicked!"); }\$
-[end]`,
+[end:button]`,
   format: "html",
   dualOutput: true
 }).transpile();
@@ -49,46 +49,15 @@ console.log(js);
 
 ### Why `dualOutput` exists
 
-Each compilation generates a fresh random `data-sommark-id` for every element that contains a `runtime ${ }$` block. If you compile HTML and JS in two separate calls, each call produces a different ID — the JS `querySelector` will look for an element that does not exist in the HTML.
+Each compilation generates a fresh random `data-sommark-id` for every element that contains a `runtime ${ }$` block. If you compile the same source twice in separate calls, each call produces a different ID — the JS `querySelector` will look for an element that does not exist in the HTML.
+
+`dualOutput: true` solves this by running both the HTML pass and the JS pass inside one `transpile()` call. The IDs are generated once and shared between both outputs:
 
 ```js
-// ✗ Wrong — two compilations, two different IDs
-const html = await transpile({ src, format: "html", hideRuntimeOutput: true });
-// → data-sommark-id="sommark-div-aabbccdd"
-
-const js = await transpile({ src, format: "html", generateRuntimeOutput: true });
-// → querySelector('[data-sommark-id="sommark-div-11223344"]')  ← different ID, never matches
-```
-
-`dualOutput: true` solves this by running both the HTML pass and the JS pass inside one `transpile()` call. The IDs are generated once and shared between both outputs.
-
-```js
-// ✓ Correct — one compilation, matching IDs
 const [html, js] = await new SomMark({ src, format: "html", dualOutput: true }).transpile();
 // html → data-sommark-id="sommark-div-aabbccdd"
 // js   → querySelector('[data-sommark-id="sommark-div-aabbccdd"]')  ← same ID, always matches
 ```
-
----
-
-### With `generateRuntimeOutput` or `hideRuntimeOutput`
-
-When `dualOutput: true` is set, `generateRuntimeOutput` and `hideRuntimeOutput` are ignored — `dualOutput` manages both passes internally. SomMark logs a warning if those flags are also present:
-
-```js
-const result = await new SomMark({
-  src,
-  format: "html",
-  dualOutput: true,
-  generateRuntimeOutput: true  // ← ignored, warning is logged
-}).transpile();
-
-// [SomMark] ⚠ Ignored options when dualOutput is true
-//   `generateRuntimeOutput` is ignored when dualOutput: true is set.
-//   dualOutput manages both HTML and JS passes internally — no need to set those flags.
-```
-
-The result is still `[html, js]` as expected.
 
 ---
 
@@ -105,9 +74,5 @@ if (js) {
 ```
 
 ---
-
-[Read generateRuntimeOutput.md for compiling JS only](generateRuntimeOutput.md)
-
-[Read hideRuntimeOutput.md for stripping scripts from HTML output](hideRuntimeOutput.md)
 
 [Read transpile.md for compilation pipelines](transpile.md)

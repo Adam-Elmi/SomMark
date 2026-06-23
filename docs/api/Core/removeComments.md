@@ -19,7 +19,7 @@ transpile({ src, format, removeComments })
 import { transpile } from "sommark";
 
 const output = await transpile({
-  src: "### Important comment ###\n[h1]Hello[end]",
+  src: "### Important comment ###\n[h1]Hello[end:h1]",
   format: "html",
   removeComments: false // Preserve comments in formats that support them
 });

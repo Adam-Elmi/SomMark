@@ -644,10 +644,9 @@ class EvaluatorState {
                 const tag = SomMark.__dynamicTags.get(${JSON.stringify(id)});
                 if (!tag) throw new Error("Tag not found inside VM: " + ${JSON.stringify(id)});
                 const res = tag.render({
-                    args: payload.args,
+                    props: payload.props,
                     content: payload.content,
                     textContent: payload.textContent,
-                    nodeType: payload.nodeType,
                     isSelfClosing: payload.isSelfClosing
                 });
                 return res;

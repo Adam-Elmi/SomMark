@@ -44,8 +44,8 @@ describe("CLI End-to-End (Integration)", () => {
         const jsoncSource = path.join(testDir, "test_jsonc.smark");
         const jsoncDest = path.join(testDir, "test_jsonc.jsonc");
         fs.writeFileSync(jsoncSource, `
+# CLI JSONC Comment
 [Object]
-    # CLI JSONC Comment
     [string = key: "key"]val[end]
 [end]
         `.trim());

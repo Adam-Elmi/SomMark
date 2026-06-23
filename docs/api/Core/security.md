@@ -168,8 +168,8 @@ try {
   // If File A imports File B, which imports File C, which imports File D...
   await transpile({
     src: `
-      [import = A: "./fileA.smark"][end]
-      [$use-module = A][end]
+      [import = A: "./fileA.smark" !]
+      [$use-module = A !]
     `,
     format: "html",
     security: { maxDepth: 3 } // Aborts if imports are nested deeper than 3 levels

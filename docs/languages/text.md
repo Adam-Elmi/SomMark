@@ -1,21 +1,29 @@
-# Text (Plain-Text Extraction) Guide
+# Text Mapper
 
-The **Text Mapper** is a specialized output engine designed to extract pure, raw content from your SomMark source files. Instead of transforming SomMark syntax into another markup language (like HTML or MDX), it strips away all tag structures, headers, and comments to produce pristine, human-readable plain text.
+The Text Mapper pulls the plain readable text out of a SomMark file. It removes all blocks, comments, and scripts. The output is plain text — no markup, no brackets.
 
-> [!TIP]
-> Plain-text extraction is perfect for **search engine indexing**, generating **SEO meta descriptions**, and building **CLI previews** where formatting tags are not required.
+The idea is simple: write your content in SomMark once, then use `format: "text"` when you need a plain-text version. No separate file to maintain.
 
 ---
 
-## 1. Using plain-text extraction
+## Why Use the Text Mapper
 
-To request plain-text extraction, initialize the engine and specify `"text"` as the format:
+| Use case | How |
+| :--- | :--- |
+| **SEO meta descriptions** | Pull plain text from your content to fill in `<meta name="description">` |
+| **Search indexing** | Index content as clean text — no HTML brackets affecting keyword scores |
+| **CLI previews** | Show readable content in the terminal without a browser |
+| **Word / character counters** | Count content length on clean text, not markup |
+
+---
+
+## 1. Setup
 
 ```javascript
 import SomMark from "sommark";
 
 const sm = new SomMark({
-  src: "[h1]Hello World[end]",
+  src: "[h1]Hello World[end:h1]",
   format: "text"
 });
 
@@ -25,94 +33,79 @@ const output = await sm.transpile();
 
 ---
 
-## 2. Core Extraction Rules
+## 2. What Gets Removed
 
-The Text Mapper (`mappers/languages/text.js`) follows a strict set of extraction rules to ensure the resulting output is clean, readable, and free of syntax leftovers:
+### Block Wrappers
 
-### 1. Tag & Block Stripping (`getUnknownTag`)
-- **Type**: Block, Inline, and AtBlock Fallback
-- **Behavior**: All block headers (like `[div]`, `[section]`), inline tags (like `(text)->(bold)`), and AtBlocks are completely stripped from the final output. The mapper recursively extracts and returns only their inner content.
-- **Example**:
-  ```ini
-  [div]
-    This is (important)->(bold) text inside a structural container.
-  [end]
-  ```
-  **Plain-Text Output**:
-  ```text
-  This is important text inside a structural container.
-  ```
+All block wrappers (`[div]`, `[section]`, etc.) are removed. Only the text inside is kept.
 
-### 2. Comments Omission (`comment` / `commentBlock`)
-- **Type**: Block and Inline Comments
-- **Behavior**: Unlike standard mappers that transform comments into markup tags (such as `<!-- comment -->`), the Text Mapper **always strips** comments and comment blocks entirely from the output, ensuring no internal developer notes leak into user-facing content.
-- **Example**:
-  ```ini
-  [p]
-    This is visible content.
-    # This is a comment that will be omitted.
-  [end]
-  ```
-  **Plain-Text Output**:
-  ```text
+```ini
+[div]
+  This is important text inside a container.
+[end:div]
+```
+
+```
+This is important text inside a container.
+```
+
+### Comments
+
+Comments (`#` and `###...###`) are always removed — they never appear in the output.
+
+```ini
+[p]
   This is visible content.
-  ```
+  # This comment is omitted.
+[end:p]
+```
 
-### 3. Runtime Logic Omission (`runtimeLogic`)
-- **Type**: Native Runtime Blocks (`runtime ${ ... }$`)
-- **Behavior**: Standard client-side runtime logic (such as interactive script blocks) is **always stripped and omitted** from plain-text output to prevent client-side JavaScript from polluting your plain-text files.
-- **Example**:
-  ```ini
-  [p]This paragraph is visible.[end]
-  runtime ${
-    console.log("This script will be completely stripped!");
-  }$
-  ```
-  **Plain-Text Output**:
-  ```text
-  This paragraph is visible.
-  ```
+```
+This is visible content.
+```
 
-### 4. Build-Time Static Logic Evaluation (`STATIC_LOGIC`)
-- **Type**: Native Static Blocks (`static ${ ... }$`)
-- **Behavior**: Static logic blocks are executed at build-time. The evaluated return result is output literally, while the source logic code itself is cleanly stripped.
-- **Example**:
-  ```ini
-  Current Version: static ${ SomMark.version }$
-  ```
-  **Plain-Text Output**:
-  ```text
-  Current Version: 4.1.0
-  ```
+### Runtime Blocks
 
-### 5. Literal Raw Text (`text` / `inlineText` / `atBlockBody`)
-- **Type**: Raw Content Nodes
-- **Behavior**: Extracted text content is returned literally with **zero escaping**. Standard characters like `&` and `<` are preserved exactly as written in the source file, rather than being converted into HTML/XML entities.
-- **Example**:
-  ```ini
-  Developers use & and < characters in code.
-  ```
-  **Plain-Text Output**:
-  ```text
-  Developers use & and < characters in code.
-  ```
+`runtime ${}$` blocks are removed. JavaScript that runs in the browser does not belong in plain text.
+
+```ini
+[p]This paragraph is visible.[end:p]
+runtime ${
+  console.log("Stripped.");
+}$
+```
+
+```
+This paragraph is visible.
+```
+
+### Static Blocks
+
+`${}$` blocks run at build time and their result is included in the output. The code itself is not included. (`static` keyword is optional — `${ expr }$` and `static ${ expr }$` are the same.)
+
+```ini
+Current Version: ${ SomMark.version }$
+```
+
+```
+Current Version: 5.0.0
+```
+
+### Raw Text
+
+Text is output exactly as written. Characters like `&` and `<` are not escaped — they stay as you wrote them.
+
+```ini
+Developers use & and < in code.
+```
+
+```
+Developers use & and < in code.
+```
 
 ---
 
-## 3. Formatting & Whitespace Controls
+## 3. Formatting
 
-- **No Layout Alterations (`trimAndWrapBlocks: false`)**: The Text Mapper disables all block wrapping and trim controls. It strictly preserves your original whitespaces, indentation depths, and custom newlines from the source file, matching your authoring layouts.
-- **Unescaped Outputs**: All special character markers (like escaped characters `\[` or `\#`) are resolved to their raw literal representations in the final string.
-
----
-
-## 4. Key Use Cases
-
-### 1. Search Engine Optimization (SEO)
-Easily generate standard SEO `<meta name="description" content="..." />` tags by extracting the plain-text representation of your SomMark article template files in a single pass.
-
-### 2. Search Engine Indexing
-Index your documentation or blog databases using plain-text inputs. This prevents tags, brackets, and markup identifiers from polluting search results or throwing off keyword density scores.
-
-### 3. CLI Terminals & Previews
-Build terminal previews for your documentation libraries by showing the pure plain-text readable content of your files directly in standard terminal feeds.
+- **Whitespace is kept** — the original whitespace, indentation, and line breaks from your source stay as-is.
+- **Escape sequences** — sequences like `\[` and `\#` become their literal characters (`[`, `#`).

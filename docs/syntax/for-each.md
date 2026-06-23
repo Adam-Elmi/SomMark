@@ -1,94 +1,71 @@
 # For-Each Loop
 
-Repeats a block of content once for every item in an array. The array is evaluated at compile-time inside a static block.
+Repeats a block of content once for every item in an array.
 
 ---
 
 ## 1. Syntax
 
 ```ini
-[for-each = static ${ array }$, as: "alias"]
+[for-each = ${ array }$, as: "alias"]
   body content
-[end]
+[end:for-each]
 ```
 
 | Part | Required | Description |
 | :--- | :--- | :--- |
-| `static ${ array }$` | Yes | A static block that returns an array. This is the data source. |
-| `as: "alias"` | No | Names the current item variable. Defaults to `"item"` if omitted. |
+| `${ array }$` | Yes | A compile-time block that returns an array. The `static` keyword is optional. |
+| `as: "alias"` | No | Names the current item variable. Defaults to `"value"` if omitted. |
 
 ---
 
-## 2. Basic Usage
+## 2. Reserved Variables
+
+Every `for-each` loop automatically provides two variables:
+
+| Variable | Description |
+| :--- | :--- |
+| `i` | The 0-based index of the current iteration. Always `i` — not customizable. |
+| `value` | The current item. This is the default alias; rename it with `as:`. |
+
+`i` is **reserved** — you cannot use `as: "i"`.
+
+---
+
+## 3. Basic Usage
 
 Loop over a simple array of strings:
 
 ```ini
 [ul]
-  [for-each = static ${ ["Apple", "Banana", "Mango"] }$, as: "fruit"]
-    [li]static ${ fruit }$[end]
-  [end]
-[end]
+  [for-each = ${ ["Apple", "Banana", "Mango"] }$]
+    [li]${ i }$: ${ value }$[end:li]
+  [end:for-each]
+[end:ul]
 ```
 
 **HTML Output:**
 ```html
 <ul>
-  <li>Apple</li>
-  <li>Banana</li>
-  <li>Mango</li>
+  <li>0: Apple</li>
+  <li>1: Banana</li>
+  <li>2: Mango</li>
 </ul>
 ```
 
 ---
 
-## 3. The `as` Keyword
+## 4. The `as` Keyword
 
-The `as` prop controls the variable name used to access each item inside the loop body.
-
-```ini
-[for-each = static ${ ["Red", "Green", "Blue"] }$, as: "color"]
-  [span]static ${ color }$[end]
-[end]
-```
-
-Here, each string in the array is accessible through `static ${ color }$`.
-
-If you omit `as`, SomMark uses `"item"` as the default:
+Use `as` to rename the current item variable to something more descriptive:
 
 ```ini
-[for-each = static ${ ["Red", "Green", "Blue"] }$]
-  [span]static ${ item }$[end]
-[end]
+[for-each = ${ ["Red", "Green", "Blue"] }$, as: "color"]
+  [span]${ i }$: ${ color }$[end:span]
+[end:for-each]
 ```
 
----
-
-## 4. Index Variable
-
-SomMark automatically creates an index variable named `alias_index`. It holds the 0-based position of the current iteration.
-
-The name is always your `as` value followed by `_index`. For example:
-- `as: "color"` creates `color_index`
-- `as: "user"` creates `user_index`
-- Default (`item`) creates `item_index`
-
-```ini
-[ol]
-  [for-each = static ${ ["Adam", "Hawa", "Ilham"] }$, as: "name"]
-    [li]static ${ name_index }$: static ${ name }$[end]
-  [end]
-[end]
-```
-
-**HTML Output:**
-```html
-<ol>
-  <li>0: Adam</li>
-  <li>1: Hawa</li>
-  <li>2: Ilham</li>
-</ol>
-```
+The index is always `i` regardless of what `as` is set to.
 
 ---
 
@@ -99,20 +76,20 @@ Pass an array of objects and access their properties through dot notation:
 ```ini
 [table]
   [tr]
-    [th]Name[end]
-    [th]Role[end]
-  [end]
-  [for-each = static ${ [
+    [th]Name[end:th]
+    [th]Role[end:th]
+  [end:tr]
+  [for-each = ${ [
     { name: "Adam", role: "Engineer" },
     { name: "Hawa", role: "Designer" },
     { name: "Ilham", role: "Writer" }
   ] }$, as: "person"]
     [tr]
-      [td]static ${ person.name }$[end]
-      [td]static ${ person.role }$[end]
-    [end]
-  [end]
-[end]
+      [td]${ person.name }$[end:td]
+      [td]${ person.role }$[end:td]
+    [end:tr]
+  [end:for-each]
+[end:table]
 ```
 
 **HTML Output:**
@@ -141,10 +118,10 @@ Pass an array of objects and access their properties through dot notation:
 
 ## 6. Using Shared Variables
 
-You can define data in a static block before the loop and reference it:
+You can define data in a compile-time block before the loop and reference it:
 
 ```ini
-static ${
+${
   const cities = [
     { name: "Mogadishu", country: "Somalia" },
     { name: "Nairobi", country: "Kenya" },
@@ -153,10 +130,10 @@ static ${
 }$
 
 [ul]
-  [for-each = static ${ cities }$, as: "city"]
-    [li]static ${ city.name }$ — static ${ city.country }$[end]
-  [end]
-[end]
+  [for-each = ${ cities }$, as: "city"]
+    [li]${ city.name }$ — ${ city.country }$[end:li]
+  [end:for-each]
+[end:ul]
 ```
 
 **HTML Output:**
@@ -172,10 +149,10 @@ static ${
 
 ## 7. Nested Loops
 
-Loops can be nested inside each other. Each loop has its own alias and index variable, so they do not conflict.
+Loops can be nested. Each loop has its own `as` alias; both share the same `i` variable, so the inner `i` shadows the outer one inside the inner loop body.
 
 ```ini
-static ${
+${
   const groups = [
     { label: "Fruits", items: ["Apple", "Banana"] },
     { label: "Colors", items: ["Red", "Blue"] }
@@ -183,15 +160,15 @@ static ${
 }$
 
 [div]
-  [for-each = static ${ groups }$, as: "group"]
-    [h3]static ${ group.label }$[end]
+  [for-each = ${ groups }$, as: "group"]
+    [h3]${ group.label }$[end:h3]
     [ul]
-      [for-each = static ${ group.items }$, as: "entry"]
-        [li]static ${ entry }$[end]
-      [end]
-    [end]
-  [end]
-[end]
+      [for-each = ${ group.items }$, as: "entry"]
+        [li]${ i }$: ${ entry }$[end:li]
+      [end:for-each]
+    [end:ul]
+  [end:for-each]
+[end:div]
 ```
 
 **HTML Output:**
@@ -199,13 +176,13 @@ static ${
 <div>
   <h3>Fruits</h3>
   <ul>
-    <li>Apple</li>
-    <li>Banana</li>
+    <li>0: Apple</li>
+    <li>1: Banana</li>
   </ul>
   <h3>Colors</h3>
   <ul>
-    <li>Red</li>
-    <li>Blue</li>
+    <li>0: Red</li>
+    <li>1: Blue</li>
   </ul>
 </div>
 ```
@@ -219,25 +196,25 @@ Combine `for-each` with imported components to render repeated layouts:
 **`components/Card.smark`**
 ```ini
 [div = class: "card"]
-  [h2]v{title}[end]
+  [h2]v{title}[end:h2]
   [div = class: "card-body"]
-    [slot][end]
-  [end]
-[end]
+    [slot][end:slot]
+  [end:div]
+[end:div]
 ```
 
 **`page.smark`**
 ```ini
-[import = Card: "./components/Card.smark"][end]
+[import = Card: "./components/Card.smark" !]
 
-[for-each = static ${ [
+[for-each = ${ [
   { title: "First", body: "Content A" },
   { title: "Second", body: "Content B" }
 ] }$, as: "card"]
-  [Card = title: static ${ card.title }$]
-    static ${ card.body }$
-  [end]
-[end]
+  [Card = title: ${ card.title }$]
+    ${ card.body }$
+  [end:Card]
+[end:for-each]
 ```
 
 **HTML Output:**
@@ -263,19 +240,20 @@ Combine `for-each` with imported components to render repeated layouts:
 Variables created inside a `for-each` loop body are isolated to that loop. They are automatically cleaned up when the loop closes and cannot be accessed outside.
 
 ```ini
-[for-each = static ${ ["X", "Y"] }$, as: "val"]
-  static ${ const inner = val + "!"; }$
-  static ${ inner }$
-[end]
+[for-each = ${ ["X", "Y"] }$, as: "val"]
+  ${ const inner = val + "!"; }$
+  ${ inner }$
+[end:for-each]
 
-# 'inner' and 'val' are no longer accessible here
+# 'inner', 'val', and 'i' are no longer accessible here
 ```
 
 ---
 
 ## 10. Rules
 
-- The first prop **must** be a `static ${}$` block that returns an array. Passing a non-array value causes a type error.
+- The first prop **must** be a `${}$` compile-time block that returns an array. Passing a non-array value causes a type error.
 - The `as` value must be a quoted string (e.g. `as: "user"`).
+- `i` is reserved for the loop index. Using `as: "i"` throws a reserved variable error.
 - `for-each` is a reserved keyword. It cannot be used as a custom block identifier.
 - Each iteration gets a fresh scope. Variables from one iteration do not carry over to the next.

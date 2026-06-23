@@ -1,84 +1,132 @@
 # handleAst
 
-A configuration option that grants you full manual control over how a tag's body is processed. When enabled, the engine stops automatic rendering and hands the raw AST node directly to your renderer.
+An option that gives your renderer full control over a block's children. When
+`handleAst: true`, the engine stops automatic rendering and passes a cleaned
+AST node directly to your render function alongside a `renderChild` helper.
 
 ---
 
-**Syntax:**
+## Syntax
+
 ```js
-// Enabled via the third argument options object
 mapper.register(id, render, { handleAst: true })
 ```
 
-**Usage:**
+---
+
+## What reaches `ast.body`
+
+The transpiler pre-processes several node types before handing control to your
+renderer. Only three node types are ever present in `ast.body`:
+
+| Node type | `child.type` | What it is |
+| --------- | ------------ | ---------- |
+| Block | `"Block"` | A nested block tag — has `.id`, `.props`, `.body`, `.isSelfClosing` |
+| Text | `"Text"` | Plain text between blocks — has `.text` |
+
+Everything else is handled by the transpiler automatically and never appears in
+`ast.body`:
+
+| What the transpiler handles | Where the result goes |
+| --------------------------- | --------------------- |
+| `${ }$` static logic blocks | Executed; result folded into `textContent` |
+| `# comment` and `### comment ###` | Processed by `comment()` / `commentBlock()`; result folded into `textContent` |
+| Runtime logic | Pre-processed; result folded into `textContent` |
+
+So if your renderer needs the rendered text of all inline content (including
+evaluated expressions and comments), read `textContent` — don't rebuild it by
+walking `ast.body`.
+
+---
+
+## `renderChild`
+
+`renderChild(child)` renders any child node through the full transpiler
+pipeline and returns the output as a string. You can also pass a plain object
+— the transpiler forwards its properties to the child renderer as named
+parameters. The child declares the names it wants, and uses them. This is how
+parent blocks pass context like indent level or rendering mode to their children.
+
 ```js
-import { Mapper } from "sommark";
+for (const child of ast.body) {
+    if (child.type === "Block") {
+        const out = await renderChild(child);
+        // out is the rendered string for that child
+    }
+}
+```
+
+---
+
+## Example — selective child rendering
+
+```js
+import SomMark, { Mapper } from "sommark";
+
 const mapper = new Mapper();
 
-mapper.register("gallery", function({ ast }) {
-    let imagesHtml = "";
+mapper.register("section", async function ({ ast, renderChild }) {
+    let out = "";
     for (const child of ast.body) {
-        if (child.id === "image") {
-            const src = child.args.src || "placeholder.png";
-            // Use this.tag() for safe programmatic elements
-            imagesHtml += this.tag("img").attributes({ src }).selfClose() + "\n";
+        if (child.type === "Block") {
+            out += await renderChild(child);
+        } else if (child.type === "Text") {
+            out += child.text.trim();
         }
     }
-    return this.tag("div").attributes({ class: "gallery" }).body("\n" + imagesHtml);
-}, { type: "Block", handleAst: true });
+    return `<section>\n${out}</section>\n`;
+}, { handleAst: true });
 ```
 
 ---
 
-### Example: Custom Structural Filtering
+## Example — passing custom data to child renderers
 
-Use `handleAst: true` to build nested elements like lists by selectively walking and filtering the raw AST children:
+The parent passes `indentLevel` and `isListItem` — the child declares and uses them:
 
 ```js
-import { Mapper } from "sommark";
-const mapper = new Mapper();
-
-mapper.register("unordered-list", function({ ast }) {
-    let listItems = "";
-    
+mapper.register("list", async function ({ ast, renderChild, indentLevel = 0 }) {
+    let out = "";
     for (const child of ast.body) {
-        // Walk and render only child elements that are of type "Text"
-        if (child.type === "Text" && child.text.trim()) {
-            listItems += "  " + this.tag("li").body(this.escapeHTML(child.text.trim())) + "\n";
+        if (child.type === "Block") {
+            out += await renderChild(child, { indentLevel: indentLevel + 1, isListItem: true });
         }
     }
-    
-    return this.tag("ul").body("\n" + listItems);
-}, { type: "Block", handleAst: true });
+    return out;
+}, { handleAst: true });
+
+mapper.register("item", function ({ content, indentLevel = 0, isListItem = false }) {
+    const indent = "  ".repeat(indentLevel);
+    return isListItem ? `${indent}- ${content}\n` : `${indent}${content}\n`;
+});
 ```
 
 ---
 
-### Behavior when `handleAst: false` (Default)
+## Behavior when `handleAst: false` (default)
 
-When `handleAst` is `false` (default), the engine automatically compiles all children and provides the formatted text inside `content`. 
-
-In this mode, the **`ast` parameter is disabled**. To protect developers from configuration mistakes, trying to access any property on `ast` will throw a descriptive `Transpiler Error`:
+The engine compiles all children automatically and delivers the result as the
+`content` string. The `ast` parameter is disabled — accessing any property on
+it throws a transpiler error:
 
 ```js
-mapper.register("box", function({ ast, content }) {
-    // Under handleAst: false, attempting to read ast.id throws:
-    console.log(ast.id);
-    
-    // ERROR: [Transpiler Error]: Access Error: Attempted to access 'ast.id', 
-    // but 'ast' is undefined because 'handleAst' is false...
-    
-    return this.tag("div").body(content);
-}, { type: "Block" }); // handleAst is false by default
+mapper.register("box", function ({ ast, content }) {
+    // ast.id throws here because handleAst is false
+    return `<div>${content}</div>`;
+});
+// ERROR: Access Error: Attempted to access 'ast.id', but 'ast' is undefined
+// because 'handleAst' is false...
 ```
-
-> [!NOTE]
-> If you need to access AST properties (like `ast.id`, `ast.body`, or `ast.type`), you must set `handleAst: true` in your tag's options object.
 
 ---
 
-### When to Use It
+## When to use it
 
-*   **Custom Layouts**: Ideal for tables, grids, and lists where children require surrounding structural tags (e.g. `<ul>` and `<li>`).
-*   **Selective Filtering**: Skip formatting spaces, blank lines, or irrelevant child elements.
-*   **Direct Node Access**: Inspect attributes (`args`), ranges, or types of child elements before outputting them.
+- **Structural blocks** — tables, sequences, nested configs where you need to
+  control how each child contributes to the output
+- **Depth tracking** — pass a `depth` counter through `renderChild` so nested
+  blocks can indent correctly
+- **Selective filtering** — skip or reorder children based on their `.id` or
+  `.type`
+- **Direct prop inspection** — read `.props` or `.isSelfClosing` on a child
+  before deciding how to render it

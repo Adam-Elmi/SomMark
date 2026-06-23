@@ -21,8 +21,6 @@ export async function runInit() {
 export default {
     format: "html",              // Target output format (html, markdown, mdx, json, xml, jsonc, text)
     removeComments: true,       // Strip SomMark comments from the final output
-    generateRuntimeOutput: false, // Generate only VM script bundles, ignoring markup layouts
-    hideRuntimeOutput: false,     // Strip all <script> tags from final compiled HTML outputs
     customProps: [],            // Whitelisted HTML attributes
     placeholders: {},           // Global p{key} placeholders for content injection
     importAliases: {            // Custom path aliases for modules (e.g. { "@": "./src/components" })

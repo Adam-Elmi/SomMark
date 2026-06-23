@@ -37,29 +37,12 @@ const TEXT = Mapper.define({
 	},
 
 	/**
-	 * Returns inline text literally.
-	 */
-	inlineText(text) {
-		return text;
-	},
-
-	/**
-	 * Returns at-block body text literally.
-	 */
-	atBlockBody(text) {
-		return text;
-	},
-
-	/**
 	 * Fallback for all tags - extracts inner content.
 	 */
-	getUnknownTag(node) {
-		const isBlock = node.type === "Block" || node.type === "ForEach";
+	getUnknownTag() {
 		return {
 			render: ({ content }) => content,
-			options: {
-				type: isBlock ? "Block" : (node.type === "AtBlock" ? "AtBlock" : "Inline")
-			}
+			options: {}
 		};
 	}
 });

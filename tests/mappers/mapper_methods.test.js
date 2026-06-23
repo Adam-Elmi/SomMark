@@ -133,14 +133,6 @@ describe("Mapper Class Methods", () => {
 			expect(mapper.text("hello")).toBe("hello");
 		});
 
-		it("inlineText() should return content as-is", () => {
-			expect(mapper.inlineText("hello")).toBe("hello");
-		});
-
-		it("atBlockBody() should return content as-is", () => {
-			expect(mapper.atBlockBody("hello")).toBe("hello");
-		});
-
 		it("comment() should return empty string", () => {
 			expect(mapper.comment("secret")).toBe("");
 		});
@@ -174,22 +166,22 @@ describe("Mapper Class Methods", () => {
 		});
 
 		it("safeArg() should handle positional and named arguments", () => {
-			const args = { 0: "pos0", key: "val" };
+			const props = { 0: "pos0", key: "val" };
 			
-			expect(mapper.safeArg({ args, index: 0, key: "none" })).toBe("pos0");
-			expect(mapper.safeArg({ args, index: 1, key: "key" })).toBe("val");
-			expect(mapper.safeArg({ args, index: 5, key: "missing", fallBack: "default" })).toBe("default");
+			expect(mapper.safeArg({ props, index: 0, key: "none" })).toBe("pos0");
+			expect(mapper.safeArg({ props, index: 1, key: "key" })).toBe("val");
+			expect(mapper.safeArg({ props, index: 5, key: "missing", fallBack: "default" })).toBe("default");
 		});
 
 		it("safeArg() should handle type validation without transformation", () => {
-			const args = { num: "123", bool: "true" };
+			const props = { num: "123", bool: "true" };
 			
 			// It validates that Number("123") is a "number", but returns the raw "123"
-			expect(mapper.safeArg({ args, index: 0, key: "num", type: "number", setType: Number })).toBe("123");
+			expect(mapper.safeArg({ props, index: 0, key: "num", type: "number", setType: Number })).toBe("123");
 			
 			// It validates that (v => v === "true")("true") is a "boolean", but returns the raw "true"
 			const toBool = (v) => v === "true";
-			expect(mapper.safeArg({ args, index: 0, key: "bool", type: "boolean", setType: toBool })).toBe("true");
+			expect(mapper.safeArg({ props, index: 0, key: "bool", type: "boolean", setType: toBool })).toBe("true");
 		});
 
 		it("clone() should create a deep copy and isolate changes", () => {

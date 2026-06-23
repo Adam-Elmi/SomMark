@@ -1,6 +1,6 @@
 # clone()
 
-Creates a deep copy of the mapper instance, isolating all property and tag registrations to prevent shared state bugs.
+Creates a deep copy of the mapper instance, isolating all property and block registrations to prevent shared state bugs.
 
 ---
 
@@ -19,9 +19,9 @@ const customMapper = HTML.clone();
 
 ---
 
-### Example: Restricting Tag Support (Security Isolation)
+### Example: Restricting Block Support (Security Isolation)
 
-You can clone a mapper to strip potentially unsafe tags without affecting the original:
+You can clone a mapper to strip potentially unsafe blocks without affecting the original:
 
 ```js
 import { HTML } from "sommark";
@@ -29,11 +29,11 @@ import { HTML } from "sommark";
 // 1. Create a secure copy of the HTML mapper
 const safeHTML = HTML.clone();
 
-// 2. Remove tags from the clone only
+// 2. Remove blocks from the clone only
 safeHTML.removeOutput("script");
 safeHTML.removeOutput("style");
 
-// safeHTML no longer supports <script> or <style>,
+// safeHTML no longer supports [script] or [style],
 // but the original HTML mapper remains completely untouched.
 ```
 

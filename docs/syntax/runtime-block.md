@@ -17,7 +17,7 @@ runtime ${ /* js code here */ }$
 | **Execution Time** | Server-side at compile-time | Run-time in the client environment |
 | **Environment** | Sandboxed QuickJS VM on the server | Target runtime context (e.g. Browser DOM) |
 | **Global Scope** | Shared across all static blocks | Standard global context (e.g. browser `window`) |
-| **Block Scope** | Scoped to parent AST tags | Isolated scope context (e.g. via an IIFE wrapper) |
+| **Block Scope** | Scoped to parent AST blocks | Isolated scope context (e.g. via an IIFE wrapper) |
 | **Core Output** | Formatted literal values (numbers, text) | Emitted script blocks containing JavaScript |
 
 ---
@@ -32,7 +32,7 @@ Runtimes are formatted by target language mappers. In the standard **HTML** mapp
     console.log("Global client execution");
     </script>
     ```
-*   **Block Level (Inside Tags like `[div]`):** Encapsulated inside an isolated, asynchronous self-executing function (`IIFE`) to prevent namespace collisions. The host tag automatically gets a unique `data-sommark-id="[secretId]"` attribute, and a dynamic `self` reference is resolved via query selection:
+*   **Block Level (Inside Blocks like `[div]`):** Encapsulated inside an isolated, asynchronous self-executing function (`IIFE`) to prevent namespace collisions. The host block automatically gets a unique `data-sommark-id="[secretId]"` attribute, and a dynamic `self` reference is resolved via query selection:
     ```html
     <div data-sommark-id="sommark-div-a12b">
       <script>
@@ -91,15 +91,15 @@ Use block-level runtimes to create self-contained interactive components. The pa
 **File**: `component.smark`
 ```ini
 [div = class: "card"]
-  [button = id: "btn"]Click Me[end]
-  
+  [button = id: "btn"]Click Me[end:button]
+
   runtime ${
     const button = self.querySelector("#btn");
     button.addEventListener("click", () => {
       self.style.backgroundColor = "lightblue";
     });
   }$
-[end]
+[end:div]
 ```
 
 **Output**:
@@ -127,7 +127,7 @@ Declare settings or fetch dynamic data on the server during compilation, then ba
 
 **File**: `bake.smark`
 ```ini
-static ${
+${
   // Run on the server
   let mode = "development";
   let apiEndpoint = "https://dev.api.example.com";
@@ -142,7 +142,7 @@ static ${
     };
     console.log(`Configured for ${config.env} at ${config.url}`);
   }$
-[end]
+[end:div]
 ```
 
 **Output**:
@@ -178,7 +178,7 @@ Load dynamic configurations or static metadata files into client scripts without
     const translations = SomMark.import("./locales.json");
     console.log("Greeting:", translations.hello);
   }$
-[end]
+[end:div]
 ```
 
 **Output**:

@@ -59,7 +59,7 @@ describe("SomMark Markdown Mapper Comprehensive Test Suite", () => {
 		});
 
 		it("renders inline code statements correctly", async () => {
-			const sm = new SomMark(smSettings("Use (the code)->(code)"));
+			const sm = new SomMark(smSettings('Use [code = "the code" !]'));
 			const output = await sm.transpile();
 			expect(output).toBe("Use `the code`");
 			await validateMarkdown(output);
@@ -222,10 +222,11 @@ describe("SomMark Markdown Mapper Comprehensive Test Suite", () => {
 	});
 
 	describe("Step 5: Special Features & Shared Mappers", () => {
-		it("renders fenced block code successfully", async () => {
-			const sm = new SomMark(smSettings('@_code_@:lang: "javascript";console.log("Smark");@_end_@'));
+		it("renders fenced code block verbatim via smark-raw prop with custom mapper", async () => {
+			const sm = new SomMark(smSettings("[fenced = smark-raw: true]```js\nconsole.log('hi');\n```[end]"));
+			sm.register("fenced", ({ content }) => content);
 			const output = await sm.transpile();
-			expect(output).toBe('```javascript\nconsole.log("Smark");\n```');
+			expect(output).toBe("```js\nconsole.log('hi');\n```");
 			await validateMarkdown(output);
 		});
 
@@ -250,10 +251,10 @@ describe("SomMark Markdown Mapper Comprehensive Test Suite", () => {
 			await validateMarkdown(output);
 		});
 
-		it("processes shared outputs raw code and css spans correctly", async () => {
-			const sm = new SomMark(smSettings("@_raw_@;<b>Raw HTML</b>@_end_@ (Colored)->(css: 'color:blue')"));
+		it("renders inline span with style prop correctly", async () => {
+			const sm = new SomMark(smSettings("[span = style: 'color:blue']Colored[end]"));
 			const output = await sm.transpile();
-			expect(output).toBe('<b>Raw HTML</b> <span style="color:blue">Colored</span>');
+			expect(output).toBe('<span style="color:blue;">Colored</span>');
 			await validateMarkdown(output);
 		});
 	});

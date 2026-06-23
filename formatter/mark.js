@@ -188,8 +188,42 @@ class MarkdownBuilder {
 		return result;
 	}
 
+	/**
+	 * Escapes Markdown trigger characters for MDX output using HTML entities instead of
+	 * backslashes. Backslash escapes render literally inside JSX text children, so entities
+	 * are the only reliable way to neutralise Markdown symbols in MDX.
+	 */
+	mdxEscaper(text) {
+		if (!text) return "";
 
+		// 1. HTML tags → entities (before & escaping to avoid double-encoding)
+		let result = text.replace(/<([a-zA-Z\/][^>]*?)>/g, "&lt;$1&gt;");
 
+		// 2. Ampersands and quotes
+		result = result
+			.replace(/&(?!lt;|gt;)/g, "&amp;")
+			.replace(/"/g, "&quot;")
+			.replace(/'/g, "&#39;");
+
+		// 3. Unordered list triggers: -, *, + at start of line followed by space
+		result = result.replace(/^([-*+])(\s+)/gm, (_, c, sp) => `&#${c.codePointAt(0)};${sp}`);
+
+		// 4. Ordered list triggers: 1. at start of line — encode the dot
+		result = result.replace(/^(\d+)\.(\s+)/gm, (_, n, sp) => `${n}&#46;${sp}`);
+
+		// 5. Emphasis triggers: *text*, **text**, _text_, ~~text~~
+		result = result.replace(/(\*+|_+|~~)(\S[\s\S]*?\S)\1/g, (_, prefix, content) => {
+			const enc = prefix.split("").map(c => `&#${c.codePointAt(0)};`).join("");
+			return enc + content + enc;
+		});
+
+		// 6. Horizontal rule triggers: ---, ***, ___ on their own line
+		result = result.replace(/^([*_-]{3,})\s*$/gm, (m) =>
+			m.replace(/[*_-]/g, c => `&#${c.codePointAt(0)};`)
+		);
+
+		return result;
+	}
 
 	/**
 	 * Formats data as a Markdown table.

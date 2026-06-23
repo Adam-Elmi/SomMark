@@ -19,6 +19,7 @@ transpile({ src, format })
 *   `"json"` - Structured JSON.
 *   `"jsonc"` - JSON with comments.
 *   `"xml"` - Strict XML 1.0 layouts.
+*   `"csv"` - Comma-separated values.
 *   `"text"` - Stripped plain-text extraction.
 
 ---
@@ -28,7 +29,7 @@ transpile({ src, format })
 import { transpile } from "sommark";
 
 const output = await transpile({
-  src: "[h1]Header[end]",
+  src: "[h1]Header[end:h1]",
   format: "markdown"
 });
 console.log(output);
@@ -46,7 +47,7 @@ import { transpile } from "sommark";
 
 // Throws: Missing Target Format
 try {
-  await transpile({ src: "[h1]Hello[end]" });
+  await transpile({ src: "[h1]Hello[end:h1]" });
 } catch (err) {
   console.error(err.message);
   // Output: The 'format' parameter is required for transpilation...
@@ -54,7 +55,7 @@ try {
 
 // Throws: Unknown Format
 try {
-  await transpile({ src: "[h1]Hello[end]", format: "yaml" });
+  await transpile({ src: "[h1]Hello[end:h1]", format: "yaml" });
 } catch (err) {
   console.error(err.message);
   // Output: Unknown Format: Mapper for format 'yaml' not found.

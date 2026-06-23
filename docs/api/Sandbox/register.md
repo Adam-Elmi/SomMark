@@ -1,6 +1,6 @@
 # register()
 
-Registers a custom dynamic markup tag programmatically inside the sandboxed environment.
+Registers a custom dynamic block programmatically inside the sandboxed environment.
 ---
 
 **Syntax:**
@@ -11,9 +11,9 @@ SomMark.register(id, render, options);
 **Usage:**
 ```javascript
 static ${
-  // Registers [alert] tag programmatically
-  SomMark.register("alert", ({args, content }) => {
-    return SomMark.tag("div").smartAttributes(args).body(content);
+  // Registers [alert] block programmatically
+  SomMark.register("alert", ({ props, content }) => {
+    return SomMark.tag("div").smartAttributes(props).body(content);
   });
 }$
 ```

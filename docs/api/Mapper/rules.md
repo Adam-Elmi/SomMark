@@ -19,10 +19,10 @@ mapper.register(id, render, {
 
 The compiler automatically parses and validates three structural rules before code execution:
 
-1. **`is_self_closing` / `is_empty_body`** (Boolean): Enforces that a `Block` tag cannot contain nested child elements or text nodes.
-2. **`required_args`** (Array of Strings/Numbers): Enforces that named arguments (by string key) or positional arguments (by index number) must be present in the tag's parameters.
+1. **`is_self_closing` / `is_empty_body`** (Boolean): Enforces that a Block cannot contain nested child elements or text nodes.
+2. **`required_args`** (Array of Strings/Numbers): Enforces that named props (by string key) or positional props (by index number) must be present in the block's props.
 
-If a tag violates any of these rules, the transpiler immediately throws a validation error and stops compiling.
+If a block violates any of these rules, the transpiler immediately throws a validation error and stops compiling.
 
 ---
 
@@ -35,14 +35,14 @@ import { transpile, HTML } from "sommark";
 
 const mapper = HTML.clone();
 
-// 1. Register the image tag with built-in validation rules
-mapper.register("image", function ({ args }) {
-  return this.tag("img").smartAttributes(args).selfClose();
+// 1. Register the image block with built-in validation rules
+mapper.register("image", function ({ props }) {
+  return this.tag("img").smartAttributes(props).selfClose();
 }, { 
   type: "Block",
   rules: { 
-    is_empty_body: true,        // Enforce that tag must not have children
-    required_args: ["src", 0]   // Require both named 'src' and positional argument at index 0
+    is_empty_body: true,        // Enforce that block must not have children
+    required_args: ["src", 0]   // Require both named 'src' and positional prop at index 0
   }
 });
 
@@ -50,7 +50,7 @@ mapper.register("image", function ({ args }) {
 try {
   // Violates required_args because both "src" and positional arg 0 are missing
   await transpile({ 
-    src: "[image][end]", 
+    src: "[image !]", 
     format: "html", 
     mapperFile: mapper 
   });
@@ -63,7 +63,7 @@ try {
 try {
   // Violates is_empty_body because text content is placed inside the block
   await transpile({ 
-    src: "[image = 'logo.png', src: 'logo.png']Illegal Block Content[end]", 
+    src: "[image = 'logo.png', src: 'logo.png']Illegal Block Content[end:image]", 
     format: "html", 
     mapperFile: mapper 
   });
@@ -75,7 +75,7 @@ try {
 // --- Scenario C: Successful Transpilation ---
 // All rules passed successfully!
 const output = await transpile({ 
-  src: "[image = 'logo.png', src: 'logo.png'][end]", 
+  src: "[image = 'logo.png', src: 'logo.png' !]", 
   format: "html", 
   mapperFile: mapper 
 });

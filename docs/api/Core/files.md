@@ -22,8 +22,8 @@ import SomMark from "sommark";
 
 const engine = new SomMark({
     src: `
-        [import = card: "/components/Card.smark"][end]
-        [$use-module = card][end]
+        [import = card: "/components/Card.smark" !]
+        [$use-module = card !]
     `,
     format: "html",
     files: {
@@ -65,8 +65,8 @@ import SomMark from "sommark";
 
 const engine = new SomMark({
     src: `
-        [import = layout: "/Layout.smark"][end]
-        [$use-module = layout]Page content[end]
+        [import = layout: "/Layout.smark" !]
+        [$use-module = layout !]Page content[end]
     `,
     format: "html",
     files: {
@@ -88,14 +88,14 @@ import SomMark from "sommark";
 
 const engine = new SomMark({
     src: `
-        [import = page: "/Page.smark"][end]
-        [$use-module = page][end]
+        [import = page: "/Page.smark" !]
+        [$use-module = page !]
     `,
     format: "html",
     files: {
         "/Page.smark": `
-            [import = card: "/Card.smark"][end]
-            [$use-module = card][end]
+            [import = card: "/Card.smark" !]
+            [$use-module = card !]
         `,
         "/Card.smark": "[div = class: \"card\"]Content[end]"
     }

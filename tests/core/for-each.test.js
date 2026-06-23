@@ -6,9 +6,9 @@ describe("Native [for-each] Keyword Core Tests", () => {
 	const format = "html";
 
 	describe("1. Valid Iterations & Context Scoping", () => {
-		it("repeats inner content for an array of strings resolved positionally", async () => {
+		it("repeats inner content for an array of strings using default 'value' alias", async () => {
 			const sm = new SomMark({
-				src: "[ul][for-each = static ${[\"Apple\", \"Banana\"]}$][li]static ${item}$[end][end][end]",
+				src: "[ul][for-each = static ${[\"Apple\", \"Banana\"]}$][li]static ${value}$[end][end][end]",
 				format
 			});
 			const output = await sm.transpile();
@@ -33,9 +33,9 @@ describe("Native [for-each] Keyword Core Tests", () => {
 			expect(output).toBe("RedBlue");
 		});
 
-		it("tracks and binds incremental iteration indexes under the active item suffix", async () => {
+		it("tracks iteration index via reserved 'i' variable", async () => {
 			const sm = new SomMark({
-				src: "[for-each = static ${[\"a\", \"b\"]}$]static ${item_index}$:static ${item}$[end]",
+				src: "[for-each = static ${[\"a\", \"b\"]}$]static ${i}$:static ${value}$[end]",
 				format
 			});
 			const output = await sm.transpile();
@@ -53,7 +53,7 @@ describe("Native [for-each] Keyword Core Tests", () => {
 
 		it("resolves nested property attributes of list objects natively inside loop bodies", async () => {
 			const sm = new SomMark({
-				src: "[for-each = static ${[{ name: \"Adam\" }, { name: \"Elmi\" }]}$]static ${item.name}$[end]",
+				src: "[for-each = static ${[{ name: \"Adam\" }, { name: \"Elmi\" }]}$]static ${value.name}$[end]",
 				format
 			});
 			const output = await sm.transpile();
@@ -62,7 +62,7 @@ describe("Native [for-each] Keyword Core Tests", () => {
 
 		it("renders an empty string and does not execute the body if the items list is empty", async () => {
 			const sm = new SomMark({
-				src: "[for-each = static ${[]}$]Item: static ${item}$[end]",
+				src: "[for-each = static ${[]}$]Item: static ${value}$[end]",
 				format
 			});
 			const output = await sm.transpile();
@@ -74,7 +74,7 @@ describe("Native [for-each] Keyword Core Tests", () => {
 		it("trims leading and trailing structural line breaks from the loop body output", async () => {
 			const sm = new SomMark({
 				src: `[for-each = static \${["a", "b"]}$]
-    [span]static \${item}$[end]
+    [span]static \${value}$[end]
 [end]`,
 				format
 			});
@@ -93,12 +93,12 @@ describe("Native [for-each] Keyword Core Tests", () => {
 
 			// Initialize a direct VM query to verify scope variables are cleaned up
 			await evaluator.init(null, {}, { format }, null);
-			// Verify item and item_index variables are completely cleaned up and undefined
-			const itemVal = await evaluator.execute("typeof item !== 'undefined' ? item : 'cleaned'");
-			const indexVal = await evaluator.execute("typeof item_index !== 'undefined' ? item_index : 'cleaned'");
+			// Verify value and i variables are completely cleaned up and undefined
+			const valueVal = await evaluator.execute("typeof value !== 'undefined' ? value : 'cleaned'");
+			const indexVal = await evaluator.execute("typeof i !== 'undefined' ? i : 'cleaned'");
 			evaluator.destroy();
 
-			expect(itemVal).toBe("cleaned");
+			expect(valueVal).toBe("cleaned");
 			expect(indexVal).toBe("cleaned");
 		});
 	});
@@ -110,6 +110,14 @@ describe("Native [for-each] Keyword Core Tests", () => {
 				format
 			});
 			await expect(sm.transpile()).rejects.toThrow(/Type Error in \[for-each\]/);
+		});
+
+		it("throws a reserved variable error if 'as' is set to the reserved index name 'i'", async () => {
+			const sm = new SomMark({
+				src: "[for-each = static ${[1, 2]}$, as: \"i\"]static ${i}$[end]",
+				format
+			});
+			await expect(sm.transpile()).rejects.toThrow(/Reserved Variable Error in \[for-each\]/);
 		});
 	});
 });

@@ -2,28 +2,27 @@ import Mapper from "../mapper.js";
 import { VOID_ELEMENTS } from "../../constants/void_elements.js";
 import { SVG_ELEMENTS } from "../../constants/svg_elements.js";
 import { registerSharedOutputs } from "../shared/index.js";
-import kebabize from "../../helpers/kebabize.js";
 
 /**
  * Helper to format an HTML tag with attributes and content.
  * 
  * @param {string} id - The name of the HTML tag.
- * @param {Object} args - The attributes for the tag.
+ * @param {Object} props - The attributes for the tag.
  * @param {string} content - The text or tags inside this tag.
  * @returns {string} - The finished HTML string.
  */
-const renderHtmlTag = function (id, args, content, isSelfClosing) {
+const renderHtmlTag = function (id, props, content, isSelfClosing) {
 	const element = this.tag(id);
 	const idLower = id.toLowerCase();
 
 	if (SVG_ELEMENTS.has(idLower)) {
-		element.attributes(args);
+		element.attributes(props);
 	} else {
-		element.smartAttributes(args, this.customProps, this.options);
+		element.smartAttributes(props, this.customProps, this.options);
 	}
 
 	let finalContent = content;
-	if (idLower === "script" && args.scoped === true) {
+	if (idLower === "script" && props.scoped === true) {
 		finalContent = `(function(){\n${content}\n})();`;
 	}
 
@@ -72,27 +71,6 @@ const HTML = Mapper.define({
 	},
 
 	/**
-	 * Formats text inside inline tags (like bold or links).
-	 */
-	inlineText(text, options) {
-		if (options?.escape !== false) {
-			return this.escapeHTML(text);
-		}
-		return text;
-	},
-
-	/**
-	 * Formats the content inside AtBlocks.
-	 */
-	atBlockBody(text, options) {
-		let out = String(text);
-		if (options?.escape !== false) {
-			out = this.escapeHTML(out);
-		}
-		return out;
-	},
-
-	/**
 	 * Provides high-fidelity fallback for unknown ids by rendering them as HTML elements.
 	 * @param {Object} node - The unknown AST node.
 	 * @returns {Object} - A virtual id registration for fallback rendering.
@@ -103,11 +81,10 @@ const HTML = Mapper.define({
 		const isCodeStyleOrScript = ["code", "style", "script"].includes(idLower);
 
 		return {
-			render: function ({ args, content, isSelfClosing }) { return renderHtmlTag.call(this, node.id, args, content, isSelfClosing); },
+			render: function ({ props, content, isSelfClosing }) { return renderHtmlTag.call(this, node.id, props, content, isSelfClosing); },
 			options: {
-				type: isCodeStyleOrScript ? ["Block", "AtBlock"] : ["Block", "Inline"],
 				escape: !isCodeStyleOrScript,
-				rules: { is_self_closing: isVoid }
+				rules: { is_empty_body: isVoid }
 			}
 		};
 	},
@@ -120,7 +97,7 @@ const HTML = Mapper.define({
 // DOCTYPE tag
 HTML.register(["DOCTYPE", "doctype"], () => {
 	return "<!DOCTYPE html>";
-}, { type: "Block", rules: { is_self_closing: true } });
+}, { rules: { is_empty_body: true } });
 
 // head tag
 HTML.register("head", function ({ content }) {
@@ -129,52 +106,21 @@ HTML.register("head", function ({ content }) {
 		varsStyle = `<style>:root { ${this.cssVariables} }</style>\n`;
 	}
 	return this.tag("head").body(`${varsStyle}${content}`);
-}, { type: "Block", escape: false });
+}, { escape: false });
 
 // Root tag for Metadata and CSS Variables (Collector)
 HTML.register(
 	["Root", "root"],
-	function ({ args }) {
+	function ({ props }) {
 		this.cssVariables = this.cssVariables || "";
-		Object.keys(args).forEach(key => {
+		Object.keys(props).forEach(key => {
 			if (key.startsWith("--")) {
-				this.cssVariables += `${key}:${args[key]};`;
+				this.cssVariables += `${key}:${props[key]};`;
 			}
 		});
 		return "";
 	},
-	{
-		type: "Block"
-	}
 );
-// Inline CSS tag (Moved from shared)
-HTML.register("css", ({ args, content }) => {
-	// Compile style from named arguments (keys that are not numeric digits)
-	const namedStyle = Object.keys(args)
-		.filter(k => isNaN(parseInt(k)))
-		.map(k => `${kebabize(k)}:${args[k]}`)
-		.join(";");
-
-	// Fetch positional style string (index 0) or "style" key if present
-	let positionalStyle = HTML.safeArg({ args, index: 0, key: "style", fallBack: "" });
-
-	// Filter out positional styles that are just duplicates of named arguments
-	const hasDuplicateNamed = Object.keys(args)
-		.filter(k => isNaN(parseInt(k)))
-		.some(k => args[k] === positionalStyle);
-
-	if (hasDuplicateNamed) {
-		positionalStyle = "";
-	}
-
-	// Combine both together
-	let style = [positionalStyle, namedStyle].filter(s => s.trim()).join(";");
-
-	style = style.split(";").filter(s => s.trim()).map(s => s.trim().split(":").map(s => s.trim()).join(":")).join(";");
-	return HTML.tag("span").attributes({ style }).body(content);
-}, {
-	type: "Inline"
-});
 registerSharedOutputs(HTML);
 
 export default HTML;

@@ -1,17 +1,17 @@
 # smartAttributes()
 
-Applies block props to a tag as HTML attributes, with a built-in fallback strategy for props that are not standard HTML attributes.
+Applies block props as HTML attributes, with a built-in fallback strategy for props that are not standard HTML attributes.
 
 ---
 
 **Syntax:**
 ```js
-tag.smartAttributes(args, customProps, options)
+tag.smartAttributes(props, customProps, options)
 ```
 
 | Parameter | Type | Description |
 | :--- | :--- | :--- |
-| `args` | `Object` | The props passed to the block (e.g. `{ class: "card", color: "red" }`). |
+| `props` | `Object` | The props passed to the block (e.g. `{ class: "card", color: "red" }`). |
 | `customProps` | `Set<string>` | Optional. A set of extra prop names to treat as standard HTML attributes instead of falling back. Comes from the `customProps` option. |
 | `options` | `Object` | Optional. Accepts `fallbackTarget: "style" \| "class" \| false`. Default is `"style"`. |
 
@@ -33,7 +33,7 @@ When a block is compiled, its props are processed by `smartAttributes`. Each pro
 The fallback is what makes it convenient to write CSS shorthand directly on a block:
 
 ```ini
-[span = color: "red", font-size: "14px"] Hello [end]
+[span = color: "red", font-size: "14px"] Hello [end:span]
 ```
 ```html
 <span style="color:red;font-size:14px;">Hello</span>
@@ -47,15 +47,15 @@ The `fallbackTarget` option controls where unrecognised props end up:
 
 ```js
 // Default — falls back to style (same as not passing options at all)
-tag.smartAttributes(args, customProps, { fallbackTarget: "style" });
+tag.smartAttributes(props, customProps, { fallbackTarget: "style" });
 // Output: <div style="color:red;">
 
 // Falls back to a CSS class name
-tag.smartAttributes(args, customProps, { fallbackTarget: "class" });
+tag.smartAttributes(props, customProps, { fallbackTarget: "class" });
 // Output: <div class="color-red">
 
 // No fallback — unrecognised props are still rendered as attributes
-tag.smartAttributes(args, customProps, { fallbackTarget: false });
+tag.smartAttributes(props, customProps, { fallbackTarget: false });
 // Output: <div color="red">
 ```
 
@@ -74,12 +74,12 @@ If you are writing a custom mapper that handles SVG, use `attributes()` instead 
 ```js
 import { SVG_ELEMENTS } from "sommark/constants/svg_elements.js";
 
-mapper.register("mySvgWrapper", function({ args, content }) {
+mapper.register("mySvgWrapper", function({ props, content }) {
     const tag = this.tag("svg");
     if (SVG_ELEMENTS.has("svg")) {
-        tag.attributes(args);   // plain attribute output — no fallback
+        tag.attributes(props);   // plain attribute output — no fallback
     } else {
-        tag.smartAttributes(args, this.customProps, this.options);
+        tag.smartAttributes(props, this.customProps, this.options);
     }
     return tag.body(content);
 });
@@ -95,7 +95,7 @@ If you have a custom attribute that is not a standard HTML attribute but should 
 import { transpile } from "sommark";
 
 const output = await transpile({
-    src: '[div = theme: "dark"] Content [end]',
+    src: '[div = theme: "dark"] Content [end:div]',
     format: "html",
     customProps: ["theme"]
 });

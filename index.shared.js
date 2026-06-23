@@ -11,9 +11,12 @@ import MDX from "./mappers/languages/mdx.js";
 import Json from "./mappers/languages/json.js";
 import Jsonc from "./mappers/languages/jsonc.js";
 import XML from "./mappers/languages/xml.js";
+import CSV from "./mappers/languages/csv.js";
+import TOML from "./mappers/languages/toml.js";
+import YAML from "./mappers/languages/yaml.js";
 import TEXT from "./mappers/languages/text.js";
 import { runtimeError } from "./core/errors.js";
-import FORMATS, { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat, jsoncFormat, xmlFormat } from "./core/formats.js";
+import FORMATS, { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat, jsoncFormat, xmlFormat, csvFormat, tomlFormat, yamlFormat } from "./core/formats.js";
 import TOKEN_TYPES from "./core/tokenTypes.js";
 import * as labels from "./core/labels.js";
 import { resolveModules } from "./core/modules.js";
@@ -26,6 +29,7 @@ import { preprocessRuntimeLogic } from "./core/helpers/preprocessor.js";
 let defaultFs = null;
 let defaultCwd = "/";
 let defaultFindAndLoadConfig = async () => ({});
+let defaultResolvePath = (p) => p; // identity in browser; overridden to path.resolve in Node.js
 
 const isURL = (s) => typeof s === "string" && /^https?:\/\//.test(s);
 
@@ -37,6 +41,12 @@ export function setDefaultFs(fs) {
 	defaultFs = fs;
 	Evaluator.setDefaultFs(fs);
 }
+
+export function setDefaultResolvePath(fn) {
+	defaultResolvePath = fn;
+}
+
+const resolveFilename = (f) => (f && f !== "anonymous") ? defaultResolvePath(f) : f;
 
 export function setDefaultFindAndLoadConfig(fn) {
 	defaultFindAndLoadConfig = fn;
@@ -64,18 +74,16 @@ class SomMark {
 	 * @param {string} [options.baseDir=null] - The base directory for resolving relative paths.
 	 */
 	constructor(options = {}) {
-		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = "style", outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, generateRuntimeOutput = false, hideRuntimeOutput = false, dualOutput = false, moduleIdentityToken = null } = options;
+		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = "style", outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, dualOutput = false, moduleIdentityToken = null } = options;
 		this.rawSettings = options;
 		this.src = src;
 		this.ast = ast;
 		this.targetFormat = format;
 		this.mapperFile = mapperFile;
-		this.filename = filename;
+		this.filename = resolveFilename(filename);
 		this.removeComments = removeComments;
 		this.placeholders = placeholders;
 		this.customProps = customProps;
-		this.generateRuntimeOutput = generateRuntimeOutput;
-		this.hideRuntimeOutput = hideRuntimeOutput;
 		this.dualOutput = dualOutput;
 		this.cwd = options.baseDir || (options.files ? "/" : defaultCwd);
 		this.fs = options.fs
@@ -115,7 +123,7 @@ class SomMark {
 
 		this.Mapper = Mapper;
 
-		const mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json, [jsoncFormat]: Jsonc, [xmlFormat]: XML, [textFormat]: TEXT };
+		const mapperFiles = { [htmlFormat]: HTML, [markdownFormat]: MARKDOWN, [mdxFormat]: MDX, [jsonFormat]: Json, [jsoncFormat]: Jsonc, [xmlFormat]: XML, [csvFormat]: CSV, [tomlFormat]: TOML, [yamlFormat]: YAML, [textFormat]: TEXT };
 
 		if (!this.mapperFile && this.targetFormat) {
 			const DefaultMapper = mapperFiles[this.targetFormat];
@@ -290,8 +298,6 @@ class SomMark {
 				mapperFile: this.mapperFile,
 				security: this.security,
 				settings: this.rawSettings,
-				generateRuntimeOutput: this.generateRuntimeOutput,
-				hideRuntimeOutput: this.hideRuntimeOutput,
 				dualOutput: this.dualOutput,
 				instance: this
 			});
@@ -324,7 +330,7 @@ const lex = async (src, filename = "anonymous") => {
 	if (typeof src !== "string") {
 		runtimeError([`{line}<$red:Invalid Source Type:$> <$yellow:The 'src' argument must be a string, received ${typeof src}.$>{line}`]);
 	}
-	return lexer(src, filename);
+	return lexer(src, resolveFilename(filename));
 };
 
 /**
@@ -391,7 +397,7 @@ const lexSync = (src, filename = "anonymous") => {
 	if (typeof src !== "string") {
 		runtimeError([`{line}<$red:Invalid Source Type:$> <$yellow:The 'src' argument must be a string, received ${typeof src}.$>{line}`]);
 	}
-	return lexer(src, filename);
+	return lexer(src, resolveFilename(filename));
 };
 
 /**
@@ -408,8 +414,9 @@ const parseSync = (src, filename = "anonymous") => {
 	if (typeof src !== "string") {
 		runtimeError([`{line}<$red:Invalid Source Type:$> <$yellow:The 'src' argument must be a string, received ${typeof src}.$>{line}`]);
 	}
-	const tokens = lexer(src, filename);
-	return parser(tokens, filename);
+	const resolved = resolveFilename(filename);
+	const tokens = lexer(src, resolved);
+	return parser(tokens, resolved);
 };
 
 async function findAndLoadConfig(targetPath) {
@@ -427,6 +434,9 @@ export {
 	Json,
 	Jsonc,
 	XML,
+	CSV,
+	TOML,
+	YAML,
 	Mapper,
 	FORMATS,
 	lex,

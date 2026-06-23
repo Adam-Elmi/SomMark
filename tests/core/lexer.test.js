@@ -12,22 +12,10 @@ describe("SomMark Lexer Comprehensive Suite", () => {
 			expect(tokens[0].value).toBe("[");
 		});
 
-		it("should parse an open bracket as TEXT inside an At-Block body", () => {
-			const tokens = tokenize("@_raw_@; [ @_end_@");
-			const textToken = tokens.find(t => t.type === TOKEN_TYPES.TEXT);
-			expect(textToken.value).toBe(" [ ");
-		});
-
 		it("should parse a close bracket as CLOSE_BRACKET in structural context", () => {
 			const tokens = tokenize("[]");
 			expect(tokens[1].type).toBe(TOKEN_TYPES.CLOSE_BRACKET);
 			expect(tokens[1].value).toBe("]");
-		});
-
-		it("should parse a close bracket as TEXT inside an At-Block body", () => {
-			const tokens = tokenize("@_raw_@; ] @_end_@");
-			const textToken = tokens.find(t => t.type === TOKEN_TYPES.TEXT);
-			expect(textToken.value).toBe(" ] ");
 		});
 
 		it("should parse the word 'end' as END_KEYWORD when at the start of a block header", () => {
@@ -55,12 +43,6 @@ describe("SomMark Lexer Comprehensive Suite", () => {
 			expect(equalToken.value).toBe("=");
 		});
 
-		it("should parse '=' as TEXT inside an At-Block body", () => {
-			const tokens = tokenize("@_raw_@; = @_end_@");
-			const textToken = tokens.find(t => t.type === TOKEN_TYPES.TEXT);
-			expect(textToken.value).toBe(" = ");
-		});
-
 		it("should parse '\"' as QUOTE in structural context", () => {
 			const tokens = tokenize("[div = \"val\"]");
 			const quoteTokens = tokens.filter(t => t.type === TOKEN_TYPES.QUOTE);
@@ -68,52 +50,16 @@ describe("SomMark Lexer Comprehensive Suite", () => {
 			expect(quoteTokens[0].value).toBe("\"");
 		});
 
-		it("should parse '->' as THIN_ARROW in normal context", () => {
+		it("should parse '->' as TEXT in normal context", () => {
 			const tokens = tokenize("->");
-			expect(tokens[0].type).toBe(TOKEN_TYPES.THIN_ARROW);
-			expect(tokens[0].value).toBe("->");
+			const textToken = tokens.find(t => t.value === "->");
+			expect(textToken?.type).toBe(TOKEN_TYPES.TEXT);
 		});
 
-		it("should parse '->' as TEXT inside At-Block bodies", () => {
-			const tokens = tokenize("@_raw_@; -> @_end_@");
-			const textToken = tokens.find(t => t.type === TOKEN_TYPES.TEXT);
-			expect(textToken.value).toBe(" -> ");
-		});
-
-		it("should parse '(' as OPEN_PAREN when opening an inline span or inline head", () => {
+		it("should parse '(' and ')' as TEXT in normal context", () => {
 			const tokens = tokenize("()");
-			expect(tokens[0].type).toBe(TOKEN_TYPES.OPEN_PAREN);
-			expect(tokens[0].value).toBe("(");
-		});
-
-		it("should parse '(' as TEXT inside At-Block bodies", () => {
-			const tokens = tokenize("@_raw_@; ( @_end_@");
-			const textToken = tokens.find(t => t.type === TOKEN_TYPES.TEXT);
-			expect(textToken.value).toBe(" ( ");
-		});
-
-		it("should parse ')' as TEXT when standalone and not closing parentheses", () => {
-			const tokens = tokenize(")");
 			expect(tokens[0].type).toBe(TOKEN_TYPES.TEXT);
-			expect(tokens[0].value).toBe(")");
-		});
-
-		it("should parse ')' as CLOSE_PAREN when closing an open paren", () => {
-			const tokens = tokenize("()");
-			expect(tokens[1].type).toBe(TOKEN_TYPES.CLOSE_PAREN);
-			expect(tokens[1].value).toBe(")");
-		});
-
-		it("should parse '@_' as OPEN_AT and '_@' as CLOSE_AT", () => {
-			const tokens = tokenize("@_code_@");
-			expect(tokens[0].type).toBe(TOKEN_TYPES.OPEN_AT);
-			expect(tokens[2].type).toBe(TOKEN_TYPES.CLOSE_AT);
-		});
-
-		it("should parse '@_' and '_@' as TEXT inside At-Block bodies when escaped", () => {
-			const tokens = tokenize("@_code_@; \\@_ \\_@ @_end_@");
-			const textToken = tokens.find(t => t.type === TOKEN_TYPES.TEXT);
-			expect(textToken.value).toContain("@_ _@");
+			expect(tokens[0].value).toBe("()");
 		});
 
 		it("should parse ':' as COLON in structural header context", () => {
@@ -140,13 +86,6 @@ describe("SomMark Lexer Comprehensive Suite", () => {
 			const tokens = tokenize("a, b");
 			const textToken = tokens.find(t => t.type === TOKEN_TYPES.TEXT);
 			expect(textToken.value).toBe("a, b");
-		});
-
-		it("should parse ';' as SEMICOLON in At-Block header context", () => {
-			const tokens = tokenize("@_code_@;");
-			const semiToken = tokens.find(t => t.type === TOKEN_TYPES.SEMICOLON);
-			expect(semiToken).toBeDefined();
-			expect(semiToken.value).toBe(";");
 		});
 
 		it("should parse ';' as TEXT in normal text context", () => {
@@ -212,39 +151,11 @@ describe("SomMark Lexer Comprehensive Suite", () => {
 			expect(values[1].value).toBe("val");
 		});
 
-		it("should tokenize inline spans mapping to formatting tags", () => {
+		it("should tokenize parentheses as plain text", () => {
 			const tokens = tokenize("(bold content)->(bold)");
-			// Left hand parenthesized body is parsed as TEXT
-			const leftContent = tokens.find(t => t.value === "bold content");
-			expect(leftContent.type).toBe(TOKEN_TYPES.TEXT);
-			
-			// Thin arrow separator
-			expect(tokens.find(t => t.type === TOKEN_TYPES.THIN_ARROW)).toBeDefined();
-			
-			// Right hand tag name is parsed as IDENTIFIER
-			const rightId = tokens.find(t => t.value === "bold");
-			expect(rightId.type).toBe(TOKEN_TYPES.IDENTIFIER);
-		});
-
-		it("should tokenize an At-Block with dynamic arguments", () => {
-			const tokens = tokenize("@_code_@: lang: \"js\";\nconst x = 1;\n@_end_@");
-			expect(tokens[0].type).toBe(TOKEN_TYPES.OPEN_AT);
-			expect(tokens[1].type).toBe(TOKEN_TYPES.IDENTIFIER); // code
-			expect(tokens[2].type).toBe(TOKEN_TYPES.CLOSE_AT);
-			expect(tokens[3].type).toBe(TOKEN_TYPES.COLON);
-			expect(tokens[4].type).toBe(TOKEN_TYPES.WHITESPACE);
-			expect(tokens[5].type).toBe(TOKEN_TYPES.KEY); // lang
-			
-			// Semicolon separator
-			const semi = tokens.find(t => t.type === TOKEN_TYPES.SEMICOLON);
-			expect(semi).toBeDefined();
-			
-			// At-Block raw body text
-			const bodyText = tokens.find(t => t.value.includes("const x = 1;"));
-			expect(bodyText.type).toBe(TOKEN_TYPES.TEXT);
-			
-			// Ending structure
-			expect(tokens.find(t => t.type === TOKEN_TYPES.END_KEYWORD)).toBeDefined();
+			const text = tokens.filter(t => t.type === TOKEN_TYPES.TEXT).map(t => t.value).join("");
+			expect(text).toContain("bold content");
+			expect(text).toContain("bold");
 		});
 	});
 
@@ -307,39 +218,48 @@ describe("SomMark Lexer Comprehensive Suite", () => {
 			expect(tokens[0].value).toBe("###\nmultiline comment\n###");
 		});
 
-		it("should throw a lexer error when logic block is unclosed", () => {
-			expect(() => tokenize("static ${ return 1;")).toThrow();
+		it("should emit LOGIC_OPEN and LOGIC without LOGIC_CLOSE when logic block is unclosed", () => {
+			const tokens = tokenize("static ${ return 1;");
+			const open = tokens.find(t => t.type === TOKEN_TYPES.LOGIC_OPEN);
+			const logic = tokens.find(t => t.type === TOKEN_TYPES.LOGIC);
+			const close = tokens.find(t => t.type === TOKEN_TYPES.LOGIC_CLOSE);
+			expect(open).toBeDefined();
+			expect(logic).toBeDefined();
+			expect(close).toBeUndefined();
 		});
 
-		it("should parse nested braces inside prefix layers", () => {
-			const tokens = tokenize("[div = x: js{{a: {b: 1}}}]");
-			const jsToken = tokens.find(t => t.type === TOKEN_TYPES.PREFIX_JS);
-			expect(jsToken).toBeDefined();
-			expect(jsToken.value).toBe("js{{a: {b: 1}}}");
-		});
-
-		it("should parse prefix layers inside quotes", () => {
+		it("should parse p{} and v{} inside quotes as structured tokens", () => {
 			const tokens = tokenize("[div = x: \"prefix p{user} layer v{local} layer\"]");
-			const pToken = tokens.find(t => t.type === TOKEN_TYPES.PREFIX_P);
-			const vToken = tokens.find(t => t.type === TOKEN_TYPES.PREFIX_V);
-			expect(pToken).toBeDefined();
-			expect(pToken.value).toBe("p{user}");
-			expect(vToken).toBeDefined();
-			expect(vToken.value).toBe("v{local}");
+			const pKeyword = tokens.find(t => t.type === TOKEN_TYPES.PREFIX_P);
+			const vKeyword = tokens.find(t => t.type === TOKEN_TYPES.PREFIX_V);
+			const pKey = tokens.find(t => t.type === TOKEN_TYPES.KEY && t.value === "user");
+			const vKey = tokens.find(t => t.type === TOKEN_TYPES.KEY && t.value === "local");
+			expect(pKeyword).toBeDefined();
+			expect(pKeyword.value).toBe("p");
+			expect(vKeyword).toBeDefined();
+			expect(vKeyword.value).toBe("v");
+			expect(pKey).toBeDefined();
+			expect(vKey).toBeDefined();
+			const prefixCloses = tokens.filter(t => t.type === TOKEN_TYPES.PREFIX_CLOSE);
+			expect(prefixCloses.length).toBe(2);
 		});
 
-		it("should parse v{} layers in block headers and normal text", () => {
+		it("should parse v{} layers in block headers and normal text as structured tokens", () => {
 			// Header
 			const headerTokens = tokenize("[div = x: v{varInHeader}]");
 			const headerV = headerTokens.find(t => t.type === TOKEN_TYPES.PREFIX_V);
+			const headerKey = headerTokens.find(t => t.type === TOKEN_TYPES.KEY && t.value === "varInHeader");
 			expect(headerV).toBeDefined();
-			expect(headerV.value).toBe("v{varInHeader}");
+			expect(headerV.value).toBe("v");
+			expect(headerKey).toBeDefined();
 
 			// Normal text
 			const textTokens = tokenize("Welcome v{user}!");
 			const textV = textTokens.find(t => t.type === TOKEN_TYPES.PREFIX_V);
+			const textKey = textTokens.find(t => t.type === TOKEN_TYPES.KEY && t.value === "user");
 			expect(textV).toBeDefined();
-			expect(textV.value).toBe("v{user}");
+			expect(textV.value).toBe("v");
+			expect(textKey).toBeDefined();
 		});
 	});
 

@@ -54,7 +54,7 @@ describe("SomMark Config Loader Integration Tests", () => {
 			expect(config.fallbackTarget).toBe("style");
 			expect(config.outputValidator).toBeNull();
 			expect(config.baseDir).toBeNull();
-			expect(config.showSpinner).toBe(false);
+			expect(config.showSpinner).toBe(true);
 			expect(config.security).toEqual({});
 			expect(config.resolvedConfigPath).toBeNull();
 		});

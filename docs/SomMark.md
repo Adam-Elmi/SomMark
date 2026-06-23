@@ -11,14 +11,14 @@ For the complete list of individual properties, methods, constructor options, an
 You can initialize and execute the compiler in two ways:
 
 ### Engine Class Instantiation
-Creates a persistent compiler instance for step-by-step tag registration, inheritance pipelines, and translation execution:
+Creates a persistent compiler instance for step-by-step block registration, inheritance pipelines, and translation execution:
 ```javascript
 // nodejs
 import SomMark from "sommark";
 
 // Initialize the compiler instance
 const compiler = new SomMark({
-  src: "[h1]Hello World[end]",
+  src: "[h1]Hello World[end:h1]",
   format: "html"
 });
 
@@ -33,7 +33,7 @@ The high-level wrapper to immediately compile Smark templates in a single call:
 import { transpile } from "sommark";
 
 const output = await transpile({
-  src: "[h1]Hello World[end]",
+  src: "[h1]Hello World[end:h1]",
   format: "html"
 });
 ```

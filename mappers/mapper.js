@@ -33,10 +33,9 @@ class Mapper {
 	 * 
 	 * @param {string|Array<string>} id - The name of the tag (like 'Person' or ['p', 'para']).
 	 * @param {Function} renderOutput - The function that formats this tag. It receives:
-	 *    - `args`: Tag attributes.
+	 *    - `props`: Tag attributes.
 	 *    - `content`: Formatted inner content.
 	 *    - `textContent`: Raw inner text.
-	 *    - `nodeType`: Type of node (Block, Inline, etc.).
 	 *    - `isSelfClosing`: (Blocks only) True if marked with !.
 	 *    - `ast`: The full AST node.
 	 * @param {Object} [options={ escape: true }] - Settings for this tag.
@@ -152,26 +151,6 @@ class Mapper {
 	 * @returns {string} - The formatted text string.
 	 */
 	text(text, options) {
-		return text;
-	}
-
-	/**
-	 * Formats the content of an inline statement.
-	 * @param {string} text - The raw inline content.
-	 * @param {Object} options - The target output options.
-	 * @returns {string} - The formatted inline string.
-	 */
-	inlineText(text, options) {
-		return text;
-	}
-
-	/**
-	 * Formats the raw body of an At-Block.
-	 * @param {string} text - The raw atblock body.
-	 * @param {Object} options - The target output options.
-	 * @returns {string} - The formatted atblock string.
-	 */
-	atBlockBody(text, options) {
 		return text;
 	}
 

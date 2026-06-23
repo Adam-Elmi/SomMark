@@ -1,103 +1,136 @@
 # The Placeholder Layer `p{}`
 
-`p{}` is SomMark's global data-injection hook. Unlike local variables (`v{}`), placeholders resolve global values passed down from your Javascript configuration across the entire compilation graph.
+`p{}` injects global values from your JavaScript configuration into any template. Unlike local variables (`v{}`), placeholders are resolved from a shared object that passes through the entire compilation graph automatically.
 
 ---
 
-## 1. How It Works
+## 1. Syntax
 
-*   **Global Resolution**: Placeholders are passed to the `placeholders` option in the SomMark constructor or `transpile()` function.
-*   **Propagation**: Placeholders propagate globally to all imported `.smark` components and modules in your project.
-*   **Safety Envelope**: If a placeholder is not found, it is rendered as a high-visibility envelope (`SOMMARK_UNRESOLVED_p_key_SOMMARK`) in the final output so developers can easily identify missing global configurations.
+```ini
+p{key}
+p{key | "fallback"}
+```
+
+| Part | Required | Description |
+| :--- | :--- | :--- |
+| `key` | Yes | The placeholder key to look up. Must start with a letter, `_`, or `$`. |
+| `\| "fallback"` | No | A quoted string to use if the key is not found. |
 
 ---
 
-## 2. Global Text Injection
+## 2. Where You Can Use It
 
-You can inject global metadata (like site names, versions, or author profiles) directly into any template.
+`p{}` works anywhere in a template — in body text, in block props, and inside quoted strings.
 
-### Example: Injecting Site Metadata
-**JavaScript Configuration**
+**In body text:**
+```ini
+[p]Welcome to p{siteName}![end:p]
+```
+
+**In block props:**
+```ini
+[img = src: p{cdnUrl}/logo.png, alt: "Logo" !]
+```
+
+**Inside a quoted string:**
+```ini
+[a = href: "p{baseUrl}/contact"]Contact[end:a]
+```
+
+---
+
+## 3. Providing Placeholders
+
+Pass a `placeholders` object when compiling:
+
 ```javascript
 import { transpile } from "sommark";
 
 const output = await transpile({
-  src: "[header] Welcome to p{siteName}! [end]",
+  src: "[h1]Welcome to p{siteName}![end:h1]",
   format: "html",
   placeholders: {
-    siteName: "SomMark Documentation"
+    siteName: "SomMark Docs"
   }
 });
 ```
 
-**Rendered HTML**
+**Output:**
 ```html
-<header> Welcome to SomMark Documentation! </header>
+<h1>Welcome to SomMark Docs!</h1>
 ```
 
 ---
 
-## 3. Global Prop Injection
+## 4. Fallback Values
 
-Placeholders can also be resolved inside tag headers to inject dynamic global props (like asset paths, API domains, or environment states).
+If a key might not always be provided, add a fallback after `|`:
 
-### Example: Injecting Base Asset Paths
-**JavaScript Configuration**
-```javascript
-import { transpile } from "sommark";
-
-const output = await transpile({
-  src: "[img = src: 'p{cdnUrl}/images/logo.png', alt: 'Logo' !]",
-  format: "html",
-  placeholders: {
-    cdnUrl: "https://cdn.example.com"
-  }
-});
+```ini
+[footer]Built with p{engine | "SomMark"}[end:footer]
 ```
 
-**Rendered HTML**
-```html
-<img src="https://cdn.example.com/images/logo.png" alt="Logo" />
-```
+- If `engine` is set → uses its value.
+- If `engine` is not set → renders `SomMark`.
+
+The fallback **must be a quoted string**.
 
 ---
 
-## 4. Propagation into Sub-Components
+## 5. Unresolved Placeholders
 
-Placeholders automatically cascade to all sub-components. You do not need to pass them down manually.
+If a key is not found and no fallback is given, SomMark renders a high-visibility envelope in the output:
 
-### Example: Nested Component Propagation
-**Component (`Card.smark`)**
+```
+SOMMARK_UNRESOLVED_p_key_SOMMARK
+```
+
+This is intentional — it makes missing placeholders immediately visible so you can find and fix them.
+
+---
+
+## 6. Propagation into Sub-Components
+
+Placeholders pass down automatically to every imported `.smark` component. You never need to thread them through manually.
+
+**`Card.smark`**
 ```ini
 [div = class: "card"]
-  [p] Powered by p{brandName} [end]
-[end]
+  [p]Powered by p{brandName}[end:p]
+[end:div]
 ```
 
-**Usage (`index.smark`)**
+**`index.smark`**
 ```ini
-[import = Card: "./Card.smark"][end]
+[import = Card: "./Card.smark" !]
 
-# No need to explicitly pass p{brandName} into [Card]!
 [Card !]
 ```
 
-**JavaScript Configuration**
+**JavaScript:**
 ```javascript
-import { transpile } from "sommark";
-
 const output = await transpile({
   src: await fs.readFile("./index.smark", "utf-8"),
   format: "html",
-  placeholders: {
-    brandName: "SomMark Engine"
-  }
+  placeholders: { brandName: "SomMark Engine" }
 });
 ```
 
-**Rendered HTML**
+**Output:**
 ```html
 <div class="card">
   <p>Powered by SomMark Engine</p>
 </div>
 ```
+
+---
+
+## 7. `p{}` vs `v{}`
+
+| | `p{}` | `v{}` |
+| :--- | :--- | :--- |
+| **Source** | `placeholders` option in JS config | Props passed to a component |
+| **Scope** | Global — available everywhere | Local — scoped to one component call |
+| **Propagation** | Automatic — passes to all sub-components | Only the component that receives the prop |
+| **Fallback syntax** | `p{key \| "default"}` | `v{key \| "default"}` |
+| **Positional access** | Not supported | `v{0}`, `v{1}`, ... |

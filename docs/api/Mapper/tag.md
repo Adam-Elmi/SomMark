@@ -40,21 +40,21 @@ const img = mapper.tag("img")
 
 ### Example: Smart Attributes (`.smartAttributes()`)
 
-The `.smartAttributes()` method intelligently maps tag properties, automatically converting non-HTML attributes into style properties and normalizing casing:
+The `.smartAttributes()` method intelligently maps block props, automatically converting non-HTML attributes into style properties and normalizing casing:
 
 ```js
 import { Mapper } from "sommark";
 const mapper = new Mapper();
 
-mapper.register("box", function({ args, content }) {
+mapper.register("box", function({ props, content }) {
     return this.tag("div")
-        .smartAttributes(args)
+        .smartAttributes(props)
         .body(content);
 });
 
 /*
 Input Smark:
-[box = id: "b1", color: "blue", margin: "10px"] Hello [end]
+[box = id: "b1", color: "blue", margin: "10px"] Hello [end:box]
 
 Output HTML:
 <div id="b1" style="color:blue;margin:10px;">Hello</div>
@@ -72,12 +72,12 @@ Converts arguments into React/JSX-compliant properties. It automatically maps `c
 import { Mapper } from "sommark";
 const mapper = new Mapper();
 
-mapper.register("badge", function({ args, content }) {
+mapper.register("badge", function({ props, content }) {
     return this.tag("span")
         .jsxProps({
-            class: args.class,
-            style: args.style,
-            disabled: args.disabled
+            class: props.class,
+            style: props.style,
+            disabled: props.disabled
         })
         .body(content);
 });
@@ -89,14 +89,14 @@ mapper.register("badge", function({ args, content }) {
 import { Mapper } from "sommark";
 const mapper = new Mapper();
 
-// Automatically passes all arguments directly to JSX properties
-mapper.register("btn", function({ args, content }) {
+// Automatically passes all props directly to JSX properties
+mapper.register("btn", function({ props, content }) {
     return this.tag("button")
-        .jsxProps(args)
+        .jsxProps(props)
         .body(content);
 });
 /*
-Input Smark: [btn = class: "primary", count: "3", disabled: "true"] Submit [end]
+Input Smark: [btn = class: "primary", count: "3", disabled: "true"] Submit [end:btn]
 Output JSX:  <button className="primary" count={3} disabled={true}>Submit</button>
 */
 ```

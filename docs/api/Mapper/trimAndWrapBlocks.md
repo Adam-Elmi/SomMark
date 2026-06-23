@@ -5,15 +5,15 @@ Cleans up extra empty lines at the start and end of blocks, and wraps multi-line
 
 ## 1. Why it is useful: Safe & Beautiful Structure
 
-MDX can crash or break if multi-line content starts on the same line as a tag. This option moves multi-line content onto its own new lines automatically to prevent failures.
+MDX can crash or break if multi-line content starts on the same line as a JSX element. This option moves multi-line content onto its own new lines automatically to prevent failures.
 
-Additionally, it organizes nested tags into a beautiful, readable hierarchy with clean vertical breaks. Without it, opening and closing tags are squeezed onto the same line as the text, which looks messy and hard to read.
+Additionally, it organizes nested blocks into a beautiful, readable hierarchy with clean vertical breaks. Without it, opening and closing elements are squeezed onto the same line as the text, which looks messy and hard to read.
 
 **Smark Input (Breaks MDX):**
 ```re
 [Note]Multiline
   Content
-[end]
+[end:Note]
 ```
 
 **Clean Result (Safe for MDX):**
@@ -38,7 +38,7 @@ SomMark removes extra blank lines without breaking your formatting:
 
 ## 3. How to use it in a Mapper
 
-### Global Setup (For all tags)
+### Global Setup (For all blocks)
 ```js
 const MyMapper = Mapper.define({
     options: {
@@ -47,7 +47,7 @@ const MyMapper = Mapper.define({
 });
 ```
 
-### Selective Setup (For a single tag)
+### Selective Setup (For a single block)
 ```js
 mapper.register("Note", function({ content }) {
     return this.tag("Note").body(content);
@@ -58,11 +58,11 @@ mapper.register("Note", function({ content }) {
 
 ---
 
-## 4. Tag Override beats Global Settings
+## 4. Block Override beats Global Settings
 
-Tag settings always win. If you turn on `trimAndWrapBlocks` globally, you can still turn it off for individual tags by setting `trimAndWrapBlocks: false` when registering them.
+Block settings always win. If you turn on `trimAndWrapBlocks` globally, you can still turn it off for individual blocks by setting `trimAndWrapBlocks: false` when registering them.
 
-This is perfect for tags that require exact formatting and shouldn't get extra newlines.
+This is perfect for blocks that require exact formatting and shouldn't get extra newlines.
 
 ### Example
 ```js
@@ -79,7 +79,7 @@ mapper.register("StandardBlock", function({ content }) {
 mapper.register("CustomBlock", function({ content }) {
     return `[Custom]${content}[/Custom]`;
 }, { 
-  // tag settings override global settings
+  // block settings override global settings
   // This is why CustomBlock is not wrapped in newlines
   trimAndWrapBlocks: false
 });

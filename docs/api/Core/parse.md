@@ -12,7 +12,7 @@ parse(src, filename?)
 ```js
 import { parse } from "sommark";
 
-const ast = await parse("[h1]Hello[end]");
+const ast = await parse("[h1]Hello[end:h1]");
 ```
 
 ---
@@ -24,14 +24,14 @@ Parsing standard structural code returns a nested AST node array:
 ```javascript
 import { parse } from "sommark";
 
-const ast = await parse("[div = class: \"card\"]Content[end]", "card.smark");
+const ast = await parse("[div = class: \"card\"]Content[end:div]", "card.smark");
 console.log(ast[0]);
 /*
 Output:
 {
   type: "BLOCK",
   id: "div",
-  args: { "0": "card", class: "card" },
+  props: { "0": "card", class: "card" },
   body: [
     { type: "TEXT", text: "Content", ... }
   ],

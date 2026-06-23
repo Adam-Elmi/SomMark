@@ -1,15 +1,24 @@
-# XML Mapping Guide
+# XML Mapper
 
-The **XML Mapper** converts SomMark structural hierarchies into strictly well-formed, compliant XML 1.0 documents. This is ideal for data interchanges, config generation, RSS feeds, and integration with legacy semantic workflows.
-
-> [!TIP]
-> SomMark completely eliminates the repetitive verbosity of raw XML markup, while guaranteeing that every document compiled is syntactically well-formed.
+The XML Mapper converts SomMark blocks into valid XML 1.0. Use it for data exchange, RSS feeds, config files, and anything that reads XML.
 
 ---
 
-## 1. Using XML
+## Advantages over Raw XML
 
-To compile your templates into strictly compliant XML, initialize the transpilation pipeline with the `"xml"` format:
+| Feature | SomMark | Raw XML |
+| :--- | :--- | :--- |
+| **Module system** | `[import]` splits templates across files | XInclude is complicated and rarely supported |
+| **Component system** | `[slot]` + `[import]` = reusable XML fragments | No components |
+| **Compile-time logic** | `${}$` computes values at build time (`static` keyword is optional) | No logic |
+| **Looping** | `[for-each]` generates repeated elements | No looping |
+| **Placeholder injection** | `p{key}` / `v{key}` inject data at build time | No variables |
+| **No extra setup code** | No namespace declarations unless you need them | Namespace and schema setup code in every file |
+| **Auto escaping** | `&`, `<`, `>` in body text are escaped automatically | You must escape them manually |
+
+---
+
+## 1. Setup
 
 ```javascript
 import SomMark from "sommark";
@@ -24,26 +33,25 @@ const xmlString = await sm.transpile();
 
 ---
 
-## 2. Strict XML 1.0 Standards
+## 2. XML Rules
 
-The XML Mapper (`mappers/languages/xml.js`) enforces strict structural regulations compliant with the XML 1.0 specification:
+These XML 1.0 rules are applied automatically:
 
-*   **Single Root Rule**: Valid XML documents must contain exactly one root element.
-*   **Case Sensitivity**: XML identifiers are strictly case-sensitive. The block `[Note] ... [end]` produces `<Note> ... </Note>`, which is distinct from `[note] ... [end]` (`<note> ... </note>`).
-*   **Mandatory Values**: XML attributes must always have explicit double-quoted string values. Smark co-enforces this rule; any boolean arguments without explicit values are cleanly ignored.
-*   **Positional Attribute Filtering**: XML does not support positional elements. Any numeric positional arguments passed in headers are automatically filtered out, ensuring only named key-value arguments are compiled as standard XML attributes.
-*   **Automatic Self-Closing tags**: XML requires empty tags to close immediately. If a block is empty (contains no body content or child nodes), Smark automatically transpiles it to self-closing syntax (e.g. `<tag />`), preventing build crashes.
+- **One root element** — valid XML has exactly one root.
+- **Case sensitive** — `[Note]` outputs `<Note>`, not `<note>`.
+- **Quoted attributes** — all attribute values are double-quoted. Boolean attributes with no value are ignored.
+- **Named attributes only** — unnamed (positional) props are dropped. XML requires every attribute to have a name.
+- **Auto self-closing** — blocks with no body or children are output as self-closing elements.
 
-**SomMark Source:**
 ```ini
 [h:table = "xmlns:h": "http://www.w3.org/TR/html4/", border: "1"]
   [h:tr]
     [h:td]Apples[end]
     [h:td = class: "empty-cell" !]
-  [end]
-[end]
+  [end:h:tr]
+[end:h:table]
 ```
-**XML Output:**
+
 ```xml
 <h:table xmlns:h="http://www.w3.org/TR/html4/" border="1">
   <h:tr>
@@ -55,94 +63,115 @@ The XML Mapper (`mappers/languages/xml.js`) enforces strict structural regulatio
 
 ---
 
-## 3. Registered Outputs & Layout Utilities
+## 3. Built-in Blocks
 
-The XML mapper explicitly registers several specialized tags to output compliant declarations, processing instructions, and unparsed character blocks.
+### `[xml]` — XML Declaration
 
-### 1. `[xml]` (XML Declaration / Prolog)
-- **Type**: Block (Self-closing / Empty body enforced)
-- **Purpose**: Generates the standard XML prolog declaration. 
-- **Parameters**:
-  - `version` *(defaults to `"1.0"`)*: Specifies the XML standard version.
-  - `encoding` *(defaults to `"UTF-8"`)*: Specifies the character encoding format.
-- **Example**:
-  ```ini
-  [xml = version: "1.0", encoding: "UTF-8"][end]
-  ```
-  **Output XML**:
-  ```xml
-  <?xml version="1.0" encoding="UTF-8"?>
-  ```
+Outputs the XML declaration line. Body must be empty.
 
-### 2. `[DOCTYPE]` / `[doctype]`
-- **Type**: Block (Self-closing / Empty body enforced)
-- **Purpose**: Injects the Document Type Declaration (DTD).
-- **Parameters**:
-  - `root` *(defaults to `"root"`)*: The name of the root element.
-  - `system`: Path to the local DTD file (SYSTEM).
-  - `public` / `fpi`: Public formal path identifier (PUBLIC).
-- **Example (System DTD)**:
-  ```ini
-  [doctype = root: "note", system: "note.dtd"][end]
-  ```
-  **Output XML**:
-  ```xml
-  <!DOCTYPE note SYSTEM "note.dtd">
-  ```
-- **Example (Public DTD)**:
-  ```ini
-  [doctype = root: "svg", public: "-//W3C//DTD SVG 1.1//EN", system: "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"][end]
-  ```
-  **Output XML**:
-  ```xml
-  <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-  ```
+Props:
+- `version` — defaults to `"1.0"`
+- `encoding` — defaults to `"UTF-8"`
 
-### 3. `[xml-stylesheet]`
-- **Type**: Block (Self-closing / Empty body enforced)
-- **Purpose**: Injects XSL stylesheet processing instructions to style XML documents in the browser.
-- **Parameters**:
-  - `href` *(Required)*: Path to the XSL styling stylesheet.
-  - `type` *(defaults to `"text/xsl"`)*: The stylesheet MIME type.
-- **Example**:
-  ```ini
-  [xml-stylesheet = href: "style.xsl"][end]
-  ```
-  **Output XML**:
-  ```xml
-  <?xml-stylesheet type="text/xsl" href="style.xsl"?>
-  ```
+```ini
+[xml = version: "1.0", encoding: "UTF-8" !]
+```
 
-### 4. `@_cdata_@` CDATA Block
-- **Type**: AtBlock (Unescaped)
-- **Purpose**: Generates CDATA sections to preserve raw text block segments (like source code, XML syntax templates, or mathematical expressions) without triggering parser checks or escaping active characters like `&` and `<`.
-- **Example**:
-  ```js
-  @_cdata_@;
-    if (a < b && b < c) { console.log(true); }
-  @_end_@
-  ```
-  **Output XML**:
-  ```xml
-  <![CDATA[if (a < b && b < c) { console.log(true); }]]>
-  ```
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+```
 
-### 5. `raw` AtBlock
-- **Type**: AtBlock (Unescaped)
-- **Purpose**: Bypasses the parser and escaping layer entirely to inject raw, unescaped XML segments.
-- **Example**:
-  ```mdx
-  @_raw_@;
-    <raw-unparsed-data>Untouched</raw-unparsed-data>
-  @_end_@
-  ```
+### `[DOCTYPE]` / `[doctype]` — Document Type
+
+Props:
+- `root` — root element name (defaults to `"root"`)
+- `system` — path to a local DTD file (a file that defines what elements are allowed in this XML)
+- `public` / `fpi` — a public name string that identifies the document type (rarely needed)
+
+```ini
+[doctype = root: "note", system: "note.dtd" !]
+```
+
+```xml
+<!DOCTYPE note SYSTEM "note.dtd">
+```
+
+```ini
+[doctype = root: "svg", public: "-//W3C//DTD SVG 1.1//EN", system: "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" !]
+```
+
+```xml
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+```
+
+### `[xml-stylesheet]` — Stylesheet Link
+
+Props:
+- `href` (required) — path to the XSL stylesheet
+- `type` — defaults to `"text/xsl"`
+
+```ini
+[xml-stylesheet = href: "style.xsl" !]
+```
+
+```xml
+<?xml-stylesheet type="text/xsl" href="style.xsl"?>
+```
+
+### `[cdata]` — CDATA Section
+
+Wraps content in a `<![CDATA[...]]>` section so special characters like `&` and `<` are not escaped.
+
+Body form — for multi-line content:
+
+```ini
+[cdata]
+  function greet() { return "Hello & World"; }
+[end]
+```
+
+Self-closing — for short inline values:
+
+```ini
+[cdata = "Hello & World" !]
+[cdata = text: "Hello & World" !]
+```
+
+```xml
+<![CDATA[Hello & World]]>
+```
 
 ---
 
-## 4. Why use SomMark for XML?
+## 4. Compile-Time Logic
 
-1.  **Strict Comma and Quote Security**: XML requires every single attribute to be properly quoted and defined. SomMark manages all attribute escaping, double quoting, and validation automatically, preventing simple structural validation errors.
-2.  **Modular Template Inclusion**: Standard XML lacks native inclusion capabilities. SomMark allows you to organize massive configurations into separate `.smark` templates and dynamically merge them using standard `[import]` and `[$use-module]` components at build-time.
-3.  **Compile-Time Variable Injection**: Inject dynamic data, calculations, or server stats securely into XML configurations at compilation using native sandboxed `static ${ ... }$` blocks.
-4.  **Automatic Entity Escaping**: SomMark automatically escapes active XML characters (such as `&` to `&amp;` and `<` to `&lt;`) in body text nodes, ensuring your output never fails standard schema validation.
-5.  **Compile-Time JS Execution**: Run sandboxed JavaScript at compile-time to dynamically fetch external API data, calculate complex values, or inject build timestamps into your XML.
+Use `${}$` to compute values at build time (`static` keyword is optional):
+
+```ini
+[feed]
+  [lastBuildDate]${ new Date().toUTCString() }$[end]
+  [generator]SomMark v5[end]
+[end:feed]
+```
+
+```xml
+<feed>
+  <lastBuildDate>Fri, 20 Jun 2026 12:00:00 GMT</lastBuildDate>
+  <generator>SomMark v5</generator>
+</feed>
+```
+
+---
+
+## 5. File Splitting
+
+Split large XML files across multiple `.smark` files and merge them at build time:
+
+```ini
+[import = header: "./xml-header.smark" !]
+
+[root]
+  [$use-module = "header" !]
+  [item]First entry[end]
+[end:root]
+```

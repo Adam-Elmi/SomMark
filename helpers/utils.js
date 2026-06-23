@@ -90,9 +90,9 @@ export function matchedValue(outputs, targetId) {
  * @param {any} [options.fallBack=null] - Value to return if resolution or validation fails.
  * @returns {any} - The resolved argument value or the fallback.
  */
-export function safeArg({ args, index, key, type = null, setType = null, fallBack = null }) {
-        if (typeof args !== 'object' || args === null) {
-                sommarkError([`{line}<$red:TypeError:$> <$yellow:args must be an object$>{line}`]);
+export function safeArg({ props, index, key, type = null, setType = null, fallBack = null }) {
+        if (typeof props !== 'object' || props === null) {
+                sommarkError([`{line}<$red:TypeError:$> <$yellow:props must be an object$>{line}`]);
         }
 
         if (index === undefined && key === undefined) {
@@ -102,7 +102,6 @@ export function safeArg({ args, index, key, type = null, setType = null, fallBac
         const validate = value => {
                 if (value === undefined) return false;
 
-                // Handle explicit type check functions (e.g., isObject, isArray)
                 if (typeof type === 'function') {
                         return type(value);
                 }
@@ -112,30 +111,30 @@ export function safeArg({ args, index, key, type = null, setType = null, fallBac
                 return typeof evaluated === type;
         };
 
-        if (index !== undefined && validate(args[index])) {
-                return args[index];
+        if (index !== undefined && validate(props[index])) {
+                return props[index];
         }
 
-        if (key !== undefined && validate(args[key])) {
-                return args[key];
+        if (key !== undefined && validate(props[key])) {
+                return props[key];
         }
 
         return fallBack;
 }
 
 /**
- * Extracts and returns all positional arguments from the Object-based 'args' structure of V4.
- * 
- * @param {Object} args - The AST node's argument object.
- * @returns {Array<any>} - An ordered array of positional argument values.
+ * Extracts positional props from a block node's props object.
+ *
+ * @param {Object} props - The block node's props object.
+ * @returns {Array<any>} - An ordered array of positional prop values.
  */
-export function getPositionalArgs(args) {
-        if (!args) return [];
-        const keys = Object.keys(args);
+export function getPositionalArgs(props) {
+        if (!props) return [];
+        const keys = Object.keys(props);
         const result = keys
                 .filter(k => !isNaN(parseInt(k)))
                 .sort((a, b) => parseInt(a) - parseInt(b))
-                .map(k => args[k]);
+                .map(k => props[k]);
 
         return result;
 }

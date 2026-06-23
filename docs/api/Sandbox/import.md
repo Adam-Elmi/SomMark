@@ -57,7 +57,7 @@ Embeds translation maps directly into the target runtime script:
     const translations = SomMark.import("./locales.json");
     console.log("Active Greeting:", translations.hello);
   }$
-[end]
+[end:div]
 ```
 
 **locales.json:**

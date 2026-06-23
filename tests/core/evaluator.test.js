@@ -153,8 +153,8 @@ describe("SomMark Core Sandbox Evaluator Tests", () => {
 
 			// Register custom tag
 			await evaluator.execute(`
-				SomMark.register("custom-card", ({ args, content }) => {
-					return SomMark.tag("div").attributes({ class: args.theme }).body(content);
+				SomMark.register("custom-card", ({ props, content }) => {
+					return SomMark.tag("div").attributes({ class: props.theme }).body(content);
 				});
 			`);
 
@@ -162,7 +162,7 @@ describe("SomMark Core Sandbox Evaluator Tests", () => {
 
 			// Execute Dynamic tag inside VM
 			const renderResult = await evaluator.executeDynamicTag("custom-card", {
-				args: { theme: "glass" },
+				props: { theme: "glass" },
 				content: "Hello Card"
 			});
 			expect(renderResult).toBe('<div class="glass">Hello Card</div>');
@@ -226,7 +226,7 @@ describe("SomMark Core Sandbox Evaluator Tests", () => {
 
 		it("enforces allowed fetch whitelisted origins and extension types validations", async () => {
 			await evaluator.init(process.cwd(), {
-				allowedOrigins: ["https://api.github.com"],
+				allowedOrigins: ["https://jsonplaceholder.typicode.com"],
 				allowedExtensions: [".json"]
 			});
 
@@ -234,13 +234,13 @@ describe("SomMark Core Sandbox Evaluator Tests", () => {
 			await expect(evaluator.execute("await SomMark.fetch('https://api.gitlab.com/data.json');")).rejects.toThrow("Origin 'https://api.gitlab.com' is not whitelisted.");
 
 			// Blocked by non-whitelisted extension type
-			await expect(evaluator.execute("await SomMark.fetch('https://api.github.com/avatar.png');")).rejects.toThrow("Extension '.png' is not whitelisted.");
+			await expect(evaluator.execute("await SomMark.fetch('https://jsonplaceholder.typicode.com/avatar.png');")).rejects.toThrow("Extension '.png' is not whitelisted.");
 		});
 
 		it("enforces fetch adapter disablement boundaries", async () => {
 			await evaluator.init(process.cwd(), { allowFetch: false });
 
-			await expect(evaluator.execute("await SomMark.fetch('https://api.github.com/data.json');")).rejects.toThrow("fetch is disabled in this environment.");
+			await expect(evaluator.execute("await SomMark.fetch('https://jsonplaceholder.typicode.com/users/1');")).rejects.toThrow("fetch is disabled in this environment.");
 		});
 
 		it("terminates infinite loop executions immediately enforcing sandboxed timer interrupt safety", async () => {
@@ -328,9 +328,9 @@ static \${ typeof blockVar === "undefined" ? "cleaned" : "leak" }\$
 		it("supports secure asynchronous fetch requests inside static template blocks", async () => {
 			const src = `
 static \${
-	const res = await SomMark.fetch("https://api.github.com/users/Adam-Elmi");
+	const res = await SomMark.fetch("https://jsonplaceholder.typicode.com/users/1");
 	const user = await res.json();
-	return user.login;
+	return user.username;
 }\$
 			`.trim();
 
@@ -339,12 +339,12 @@ static \${
 				format: "html",
 				security: {
 					allowFetch: true,
-					allowedOrigins: ["https://api.github.com"]
+					allowedOrigins: ["https://jsonplaceholder.typicode.com"]
 				}
 			});
 
 			const output = await smark.transpile();
-			expect(output).toBe("Adam-Elmi");
+			expect(output).toBe("Bret");
 		});
 
 		it("enforces top-level return statement nesting checks, raising syntax errors on invalid returns", async () => {
@@ -360,20 +360,6 @@ static \${
 			await expect(smark.transpile()).rejects.toThrow();
 		});
 
-		it("resolves js{} native JavaScript objects and passes them as arguments to host mappers", async () => {
-			const src = '[custom-tag = items: js{ ["Item A", "Item B"] }][end]';
-			const smark = new SomMark({ src, format: "html" });
-
-			// Register custom tag directly on the SomMark compiler instance
-			smark.register("custom-tag", function ({ args }) {
-				expect(Array.isArray(args.items)).toBe(true);
-				expect(args.items).toEqual(["Item A", "Item B"]);
-				return `items count: ${args.items.length}`;
-			});
-
-			const output = await smark.transpile();
-			expect(output).toBe("items count: 2");
-		});
 	});
 
 	describe("Step 7: Sandbox Preprocessed Runtime Logic", () => {

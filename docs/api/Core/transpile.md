@@ -13,7 +13,7 @@ transpile(options)
 import { transpile } from "sommark";
 
 const output = await transpile({
-    src: "[h1]Hello World[end]",
+    src: "[h1]Hello World[end:h1]",
     format: "markdown"
 });
 ```
@@ -28,7 +28,7 @@ Enforce the target `format` and feed raw templates:
 import { transpile } from "sommark";
 
 const html = await transpile({
-    src: "[div = class: \"card\"]Content[end]",
+    src: "[div = class: \"card\"]Content[end:div]",
     format: "html"
 });
 console.log(html);
@@ -46,7 +46,7 @@ const customAst = [
     {
         type: "Block",
         id: "h1",
-        args: {},
+        props: {},
         body: [
             {
                 type: "Text",
@@ -73,7 +73,7 @@ import { transpile } from "sommark";
 
 // Throws error: Missing Target Format
 try {
-  await transpile({ src: "[h1]Hello[end]" });
+  await transpile({ src: "[h1]Hello[end:h1]" });
 } catch (error) {
   console.error(error);
   // Output: [Runtime Error]: Missing Target Format: The 'format' parameter is required for transpilation...
@@ -98,7 +98,7 @@ try {
 | `src` | `string` | `null` | The raw Smark source code (Required if `ast` is not provided). |
 | `ast` | `Array` | `null` | A pre-built AST array (Required if `src` is not provided). |
 | `format` | `string` | **Required** | Target format (`html`, `markdown`, `mdx`, `json`, `xml`, etc.). |
-| `mapperFile` | `Mapper` | `null` | A custom Mapper instance containing tag definitions. |
+| `mapperFile` | `Mapper` | `null` | A custom Mapper instance containing block definitions. |
 | `filename` | `string` | `"anonymous"` | File path identifier used in error contexts. |
 | `baseDir` | `string` | `null` | Root path (or URL) for resolving `[import = ...]` module paths. See [baseDir.md](baseDir.md). |
 | `files` | `object` | `null` | In-memory file map used instead of disk/fetch. See [files.md](files.md). |

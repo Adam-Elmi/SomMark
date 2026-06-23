@@ -1,68 +1,8 @@
 import Mapper from "../mapper.js";
 import HTML from "./html.js";
 import { registerSharedOutputs } from "../shared/index.js";
-import { BLOCK, TEXT, INLINE, STATIC_LOGIC } from "../../core/labels.js";
+import { BLOCK, TEXT, FOR_EACH } from "../../core/labels.js";
 import { VOID_ELEMENTS } from "../../constants/void_elements.js";
-import evaluator from "../../core/evaluator.js";
-import { matchedValue } from "../../helpers/utils.js";
-
-/**
- * Helper to manually render AST children inside handleAst blocks,
- * avoiding the need to call the core transpiler recursively.
- */
-async function renderNodeAst(astArray, mapperFile) {
-	if (!astArray || !Array.isArray(astArray)) return "";
-	let result = "";
-	for (const node of astArray) {
-		if (node.type === TEXT) {
-			const text = String(node.text || "");
-			result += mapperFile.text(text);
-		} else if (node.type === INLINE) {
-			let target = matchedValue(mapperFile.outputs, node.id) || mapperFile.getUnknownTag(node);
-			if (target) {
-				let inlineValue = String(node.value || "").trim();
-				inlineValue = mapperFile.inlineText(inlineValue, target.options);
-				result += await target.render.call(mapperFile, {
-					nodeType: node.type,
-					args: node.args || {},
-					content: inlineValue,
-					ast: node
-				});
-			} else {
-				result += mapperFile.inlineText(node.value || "", {});
-			}
-		} else if (node.type === STATIC_LOGIC) {
-			try {
-				const val = await evaluator.execute(node.code);
-				if (val !== undefined && typeof val !== "object") {
-					result += mapperFile.text(String(val));
-				}
-			} catch (e) {
-				console.error(`\x1b[31mLogic Error in Markdown mapper:\x1b[0m ${e.message}`);
-			}
-		} else if (node.type === BLOCK) {
-			let target = matchedValue(mapperFile.outputs, node.id) || mapperFile.getUnknownTag(node);
-			if (target) {
-				const isSelfClosing = node.isSelfClosing || false;
-				let content = "";
-				evaluator.pushScope();
-				if (!target.options?.handleAst && node.body) {
-					content = await renderNodeAst(node.body, mapperFile);
-				}
-				const output = await target.render.call(mapperFile, {
-					nodeType: node.type,
-					args: node.args || {},
-					content,
-					ast: node,
-					isSelfClosing
-				});
-				await evaluator.popScope();
-				result += output;
-			}
-		}
-	}
-	return result;
-}
 
 /**
  * The Markdown Mapper used for generating Markdown text.
@@ -89,75 +29,28 @@ const MARKDOWN = Mapper.define({
 	},
 
 	/**
-	 * Formats inline content before rendering.
-	 */
-	inlineText(text, options) {
-		if (options?.escape !== false) {
-			// Use smartEscaper to protect special characters
-			let out = text;
-			if (this.md && this.md.smartEscaper) out = this.md.smartEscaper(out);
-			return out;
-		}
-		return text;
-	},
-
-	/**
-	 * Formats the literal content inside AtBlocks.
-	 */
-	atBlockBody(text, options) {
-		if (options?.escape === false) return text;
-		// Escaping with smartEscaper
-		let out = text;
-		if (this.md && this.md.smartEscaper) out = this.md.smartEscaper(out);
-		return out;
-	},
-
-	/**
 	 * Provides a fallback for unknown tags by using the HTML mapper instead.
 	 */
 	getUnknownTag(node) {
-		const isBlock = node.type === BLOCK;
 		const id = node.id.toLowerCase();
 
 		return {
-			render: async (ctx) => {
-				const { args, ast, isSelfClosing } = ctx;
-				const body = ast && ast.body ? ast.body : [];
-				const meaningful = body.filter(c => c.type !== TEXT || c.text.trim());
-				const childCount = meaningful.length;
-				const element = this.tag(id).smartAttributes(args, this.customProps, this.options);
+			render: async ({ props, ast, isSelfClosing, renderChild }) => {
+				const element = this.tag(id).smartAttributes(props, this.customProps, this.options);
+				if (isSelfClosing || VOID_ELEMENTS.has(id)) return element.selfClose();
 
-				// Use the transpiler to format the children if any, otherwise use direct content
-				let rawContent;
-				if (node.type === "AtBlock") {
-					rawContent = node.content || "";
-					rawContent = this.atBlockBody(rawContent, ctx);
-				} else if (node.type === "Inline") {
-					rawContent = node.value || "";
-					rawContent = this.inlineText(rawContent, ctx);
-				} else {
-					rawContent = (await renderNodeAst(body, this)).trim();
+				let rawContent = "";
+				for (const child of (ast.body || [])) {
+					if (child.type === TEXT) rawContent += this.text(child.text);
+					else if (child.type === BLOCK) rawContent += await renderChild(child);
 				}
+				rawContent = rawContent.trim();
 
-				if (isSelfClosing || VOID_ELEMENTS.has(id)) {
-					return element.selfClose();
-				}
-
-				let finalContent;
-				if (childCount <= 1) {
-					// COMPACT PASS: Single child or empty
-					finalContent = rawContent;
-				} else {
-					// MULTILINE PASS: Enforce \n prefix/suffix for multiple children
-					finalContent = `\n${rawContent}\n`;
-				}
-
+				const meaningful = (ast.body || []).filter(c => c.type !== TEXT || c.text.trim());
+				const finalContent = meaningful.length <= 1 ? rawContent : `\n${rawContent}\n`;
 				return element.body(finalContent);
 			},
-			options: {
-				type: isBlock ? "Block" : (node.type === "AtBlock" ? "AtBlock" : "Inline"),
-				handleAst: true
-			}
+			options: { handleAst: true }
 		};
 	}
 });
@@ -169,105 +62,114 @@ registerSharedOutputs(MARKDOWN);
 /**
  * Quote - Renders blockquote content or GFM alerts.
  */
-MARKDOWN.register("quote", ({ args, content }) => {
-	const type = safeArg({ args, index: 0, key: "type", fallBack: "" });
+MARKDOWN.register("quote", ({ props, content }) => {
+	const type = safeArg({ props, index: 0, key: "type", fallBack: "" });
 	return md.quote(content, type);
-}, { type: "Block", resolve: true });
+}, { resolve: true });
 
 /**
  * Headings - Renders H1-H6 block headings.
  */
 ["h1", "h2", "h3", "h4", "h5", "h6"].forEach(heading => {
-	MARKDOWN.register(heading, function ({ args, content, isSelfClosing }) {
-		const format = safeArg({ args, key: "format", type: "string", fallBack: "" });
+	MARKDOWN.register(heading, function ({ props, content, isSelfClosing }) {
+		const format = safeArg({ props, key: "format", type: "string", fallBack: "" });
 		const lvl = heading[1] && !isNaN(Number(heading[1])) ? Number(heading[1]) : 1;
 		if (format.toLowerCase() === "html") {
-			delete args.format;
-			const el = this.tag(heading).smartAttributes(args);
+			delete props.format;
+			const el = this.tag(heading).smartAttributes(props);
 			if (isSelfClosing) return el.selfClose();
 			return el.body(content);
 		}
 		return this.md.heading(content, lvl);
-	}, { type: "Block" });
+	});
 });
 
 /**
  * Bold - Renders bold text (**text**).
+ * Self-closing: [bold = "text" !] or [bold = text: "text" !]
  */
-MARKDOWN.register(["bold", "b"], ({ content }) => {
-	return md.bold(content);
-}, { type: ["Block", "Inline"] });
+MARKDOWN.register(["bold", "b"], ({ props, content, isSelfClosing }) => {
+	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+	return md.bold(text);
+});
 
 /**
  * Italic - Renders italic text (*text*).
+ * Self-closing: [italic = "text" !] or [italic = text: "text" !]
  */
-MARKDOWN.register(["italic", "i"], ({ content }) => {
-	return md.italic(content);
-}, { type: ["Block", "Inline"] });
+MARKDOWN.register(["italic", "i"], ({ props, content, isSelfClosing }) => {
+	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+	return md.italic(text);
+});
 
 /**
  * Emphasis - Renders bold-italic text (***text***).
+ * Self-closing: [emphasis = "text" !] or [emphasis = text: "text" !]
  */
-MARKDOWN.register(["emphasis", "em"], ({ content }) => {
-	return md.emphasis(content);
-}, { type: ["Block", "Inline"] });
+MARKDOWN.register(["emphasis", "em"], ({ props, content, isSelfClosing }) => {
+	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+	return md.emphasis(text);
+});
 
 /**
  * Strike - Renders strikethrough text (~~text~~).
+ * Self-closing: [strike = "text" !] or [strike = text: "text" !]
  */
-MARKDOWN.register(["strike", "s"], ({ content }) => {
-	return md.strike(content);
-}, { type: ["Block", "Inline"] });
+MARKDOWN.register(["strike", "s"], ({ props, content, isSelfClosing }) => {
+	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+	return md.strike(text);
+});
 
 /**
  * Code - Renders inline or fenced code blocks.
  */
 MARKDOWN.register(
 	["Code", "code"],
-	({ args, content, nodeType }) => {
-		if (nodeType === "Inline") {
-			return `\`${content}\``;
+	({ props, content, isSelfClosing }) => {
+		if (isSelfClosing) {
+			const text = safeArg({ props, index: 0, key: "text", fallBack: "" });
+			return `\`${text}\``;
 		}
-		const lang = safeArg({ args, index: 0, key: "lang", fallBack: "text" });
+		const lang = safeArg({ props, index: 0, key: "lang", fallBack: "" });
 		return md.codeBlock(content, lang);
 	},
-	{
-		escape: false,
-		type: ["AtBlock", "Inline"]
-	}
+	{ escape: false }
 );
 
 /**
  * Link - Renders Markdown links [text](url).
+ * Body form:       [link = src: "url", title: "..."]text[end]
+ * Self-closing:    [link = "text", "url" !] or [link = text: "...", src: "...", title: "..." !]
  */
 MARKDOWN.register(
 	"link",
-	({ args, content }) => {
-		const src = safeArg({ args, index: 0, key: "src", fallBack: "" });
-		const title = safeArg({ args, index: 1, key: "title", fallBack: "" });
+	({ props, content, isSelfClosing }) => {
+		if (isSelfClosing) {
+			const text  = safeArg({ props, index: 0, key: "text",  fallBack: "" });
+			const src   = safeArg({ props, index: 1, key: "src",   fallBack: "" });
+			const title = safeArg({ props, index: 2, key: "title", fallBack: "" });
+			return md.url("link", text, src, title);
+		}
+		const src   = safeArg({ props, index: 0, key: "src",   fallBack: "" });
+		const title = safeArg({ props, index: 1, key: "title", fallBack: "" });
 		return md.url("link", content, src, title);
 	},
-	{
-		type: ["Block", "Inline"],
-		rules: { is_empty_body: false }
-	}
+	{ rules: { is_empty_body: false } }
 );
 
 /**
  * Image - Renders Markdown images ![alt](url).
+ * [image = "alt", "src", "title" !] or [image = alt: "...", src: "...", title: "..." !]
  */
 MARKDOWN.register(
 	"image",
-	({ args }) => {
-		const alt = safeArg({ args, index: 0, key: "alt", fallBack: "" });
-		const src = safeArg({ args, index: 1, key: "src", fallBack: "" });
-		const title = safeArg({ args, index: 2, key: "title", fallBack: "" });
+	({ props }) => {
+		const alt = safeArg({ props, index: 0, key: "alt", fallBack: "" });
+		const src = safeArg({ props, index: 1, key: "src", fallBack: "" });
+		const title = safeArg({ props, index: 2, key: "title", fallBack: "" });
 		return md.url("image", alt, src, title);
 	},
-	{
-		type: "Block",
-		rules: { is_empty_body: true }
-	}
+	{ rules: { is_empty_body: true } }
 );
 
 /**
@@ -275,170 +177,151 @@ MARKDOWN.register(
  */
 MARKDOWN.register(
 	"hr",
-	({ args }) => {
-		const fmt = safeArg({ args, index: 0, fallBack: "-" });
+	({ props }) => {
+		const fmt = safeArg({ props, index: 0, fallBack: "-" });
 		return md.horizontal(fmt);
 	},
-	{
-		type: "Block",
-		rules: { is_empty_body: true }
-	}
+	{ rules: { is_empty_body: true } }
 );
 
 /**
  * Escape - Escapes special Markdown characters.
+ * Self-closing: [escape = "text" !] or [escape = text: "text" !]
  */
-MARKDOWN.register(["escape", "e"], function ({ content }) {
-	return this.md.escape(content);
-}, { type: ["Block", "Inline"], resolve: true });
+MARKDOWN.register(["escape", "e"], function ({ props, content, isSelfClosing }) {
+	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+	return this.md.escape(text);
+}, { resolve: true });
+
+const ROW_SEP = "\x1E";
+const CELL_SEP = "\x1F";
 
 /**
  * Table - Authoritative Native AST Table resolution.
  * Processes Header/Body sections with Row/Cell nesting.
+ * Supports [for-each] inside [body] for dynamic rows.
  */
 MARKDOWN.register(
 	"Table",
-	async function ({ ast }) {
+	async function ({ ast, renderChild }) {
 		const headers = [];
 		const rows = [];
 
-		const extractCells = async (node) => {
-			const cells = [];
-			if (!node || !node.body) return cells;
-			// Trim empty spaces while keeping line breaks
-			const cellAst = node.body.map(n => n.type === TEXT ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
-				.filter(n => n.type !== TEXT || n.text);
-
-			for (const child of cellAst) {
-				if (child.type === BLOCK && (child.id.toLowerCase() === "cell" || child.id.toLowerCase() === "th" || child.id.toLowerCase() === "td")) {
-					const cellContent = await renderNodeAst(child.body, this);
-					cells.push(cellContent.trim());
-				}
-			}
-			return cells;
-		};
-
 		const extractRows = async (sectionNode) => {
-			if (!sectionNode || !sectionNode.body) return [];
 			const sectionRows = [];
-			// Trim empty spaces while keeping line breaks
-			const rowAst = sectionNode.body.map(n => n.type === TEXT ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
-				.filter(n => n.type !== TEXT || n.text);
-			for (const rowNode of rowAst) {
-				if (rowNode.type === BLOCK && rowNode.id.toLowerCase() === "row") {
-					const rowData = await extractCells(rowNode);
-					if (rowData.length > 0) sectionRows.push(rowData);
-				} else if (rowNode.type === STATIC_LOGIC) {
-					try { await evaluator.execute(rowNode.code); } catch (e) { console.error(`Logic Error: ${e.message}`); }
+			for (const child of (sectionNode.body || [])) {
+				if (child.type === BLOCK && child.id?.toLowerCase() === "row") {
+					const rendered = await renderChild(child, { inTable: true });
+					const cells = rendered.split(ROW_SEP)[0]?.split(CELL_SEP).filter(c => c !== "") ?? [];
+					if (cells.length > 0) sectionRows.push(cells);
+				} else if (child.type === FOR_EACH) {
+					const rendered = await renderChild(child, { inTable: true });
+					for (const row of rendered.split(ROW_SEP)) {
+						const cells = row.split(CELL_SEP).filter(c => c !== "");
+						if (cells.length > 0) sectionRows.push(cells);
+					}
 				}
 			}
 			return sectionRows;
 		};
 
-		const processTable = async () => {
-			// Remove empty text blocks
-			const tableNodes = ast.body.filter(n => n.type !== TEXT || n.text.trim());
-			for (const node of tableNodes) {
-				if (node.type === STATIC_LOGIC) {
-					try { await evaluator.execute(node.code); } catch (e) { console.error(`Logic Error: ${e.message}`); }
-					continue;
-				}
-				if (node.type !== BLOCK) continue;
-
-				const id = node.id.toLowerCase();
-				if (id === "header") {
-					const headerRows = await extractRows(node);
-					if (headerRows.length > 0) {
-						headers.push(...headerRows[0]);
-					}
-				} else if (id === "body") {
-					const bodyRows = await extractRows(node);
-					rows.push(...bodyRows);
-				}
+		for (const node of ast.body) {
+			if (node.type !== BLOCK) continue;
+			const id = node.id.toLowerCase();
+			if (id === "header") {
+				const headerRows = await extractRows(node);
+				if (headerRows.length > 0) headers.push(...headerRows[0]);
+			} else if (id === "body") {
+				rows.push(...(await extractRows(node)));
 			}
-			return md.table(headers, rows);
-		};
+		}
 
-		return processTable();
+		return md.table(headers, rows);
 	},
-	{
-		escape: true,
-		type: "Block",
-		handleAst: true,
-		trimAndWrapBlocks: false
-	}
+	{ escape: true, handleAst: true, trimAndWrapBlocks: false }
 );
 
 /**
  * Table Helpers - Internal tags for table structural organization.
  */
-MARKDOWN.register(["header", "body", "row", "cell"], ({ content }) => content);
+MARKDOWN.register(["header", "body"], ({ content }) => content);
+
+MARKDOWN.register("row", async function ({ ast, renderChild, inTable }) {
+	if (!inTable) {
+		let result = "";
+		for (const child of ast.body) {
+			if (child.type === TEXT) result += this.text(child.text);
+			else if (child.type === BLOCK) result += await renderChild(child);
+		}
+		return result;
+	}
+	let cells = "";
+	for (const child of ast.body) {
+		if (child.type !== BLOCK) continue;
+		const id = child.id?.toLowerCase();
+		if (id === "cell" || id === "th" || id === "td") {
+			cells += await renderChild(child, { inTable: true });
+		}
+	}
+	return cells + ROW_SEP;
+}, { handleAst: true });
+
+MARKDOWN.register(["cell", "th", "td"], ({ content, inTable }) => {
+	return inTable ? content.trim() + CELL_SEP : content;
+});
 
 /**
  * Lists - Authoritative Native AST List resolution.
  * Supports Ordered (Number) and Unordered (Dotlex) lists with deep nesting.
  */
-MARKDOWN.register(["list", "List"], async function ({ ast, args }) {
+MARKDOWN.register(["list", "List"], async function ({ ast, props, renderChild }) {
+	const indicator = safeArg({ props, index: 0, fallBack: "dot" });
+	const isOrdered = indicator === "number" || indicator === "ol";
+	const marker = isOrdered ? "" : (indicator === "dot" ? "-" : indicator);
 	const items = [];
 
-	// Determine list type (dot/unordered vs number/ordered)
-	const indicator = safeArg({ args, index: 0, fallBack: "dot" });
-	const isOrdered = indicator === "number" || indicator === "ol";
-	let marker = "-";
-
-	if (!isOrdered) {
-		if (indicator === "dot") marker = "-";
-		else marker = indicator; // Custom symbol like "*" or "+"
-	}
-
-	// Remove empty spaces from the start and end of strings
-	const itemNodes = ast.body.map(n => n.type === TEXT ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
-		.filter(n => n.type !== TEXT || n.text);
-
-	for (const node of itemNodes) {
+	for (const node of ast.body) {
+		if (node.type !== BLOCK) continue;
 		const id = node.id?.toLowerCase();
-		if (node.type === BLOCK && (id === "item")) {
-			// Trim spaces inside the list item
-			const itemBody = node.body.map(n => n.type === TEXT ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
-				.filter(n => n.type !== TEXT || n.text);
-			const itemContent = await renderNodeAst(itemBody, this);
-			items.push(itemContent.trim());
-		} else if (node.type === BLOCK && (id === "list")) {
-			// Add nested lists to the latest item
-			if (items.length > 0) {
-				const listContent = await renderNodeAst([node], this);
-				items[items.length - 1] += "\n" + listContent;
-			}
+		if (id === "item") {
+			items.push((await renderChild(node)).trim());
 		}
 	}
 
-	const result = isOrdered
-		? md.orderedList(items, 0)
-		: md.unorderedList(items, 0, marker);
-
-	return result;
-}, { type: "Block", handleAst: true, trimAndWrapBlocks: false });
+	return isOrdered ? md.orderedList(items, 0) : md.unorderedList(items, 0, marker);
+}, { handleAst: true, trimAndWrapBlocks: false });
 
 /**
  * List Helpers - Internal tags for list structural organization.
  */
-MARKDOWN.register(["item", "Item"], async function ({ ast }) {
-	// Trim whitespace but keep line breaks
-	const bodyAst = ast.body.map(n => n.type === TEXT ? { ...n, text: n.text.replace(/^[ ]+|[ ]+$/gm, "") } : n)
-		.filter(n => n.type !== TEXT || n.text);
-	return await renderNodeAst(bodyAst, this);
-}, { type: "Block", handleAst: true, trimAndWrapBlocks: false });
+MARKDOWN.register(["item", "Item"], async function ({ ast, renderChild }) {
+	let result = "";
+	for (const child of ast.body) {
+		if (child.type === TEXT) result += this.text(child.text);
+		else if (child.type === BLOCK) result += await renderChild(child);
+	}
+	return result.trim();
+}, { handleAst: true, trimAndWrapBlocks: false });
 
 /**
  * Todo - Renders task list items with status markers.
+ *
+ * Supported forms:
+ *   [todo = task: "Add feature", status: "x" !]   named self-closing
+ *   [todo = "Add feature", "x" !]                 positional self-closing (task, status)
+ *   [todo = "x"]Add feature[end]                  status in prop, task in body
  */
-MARKDOWN.register("todo", ({ args, content }) => {
-	const statusMarkers = ["done", "x", "-", ""].map(s => s.toLowerCase());
+MARKDOWN.register("todo", ({ props, content, isSelfClosing }) => {
+	let status, task;
 
-	const isInlineStatus = statusMarkers.includes(content.toLowerCase());
-	const status = isInlineStatus ? content : (args[0] || "");
-	const task = isInlineStatus ? (args[0] || "") : content;
+	if (isSelfClosing) {
+		task   = safeArg({ props, index: 0, key: "task",   fallBack: "" });
+		status = safeArg({ props, index: 1, key: "status", fallBack: "" });
+	} else {
+		status = safeArg({ props, index: 0, fallBack: "" });
+		task   = content;
+	}
 
 	return md.todo(status, task);
-}, { type: "Block", trimAndWrapBlocks: false });
+}, { trimAndWrapBlocks: false });
 export default MARKDOWN;

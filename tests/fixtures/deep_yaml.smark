@@ -1,0 +1,48 @@
+[doc-start !]
+
+[str = "project", "SomMark" !]
+[str = "version", "5.0.0" !]
+[bool = "stable", "true" !]
+
+[mapping = "metadata"]
+  [str = "author", "Adam Elmi" !]
+  [str = "license", "MIT" !]
+  [int = "year", "2024" !]
+[end]
+
+[seq = "tags"]
+  [str = "yaml" !]
+  [str = "sommark" !]
+  [str = "transpiler" !]
+[end]
+
+[mapping = "dependencies"]
+  [for-each = ${ packages }$, as: "p"]
+    [str = ${ p.name }$, ${ p.version }$ !]
+  [end]
+[end]
+
+[seq = "servers"]
+  [for-each = ${ packages }$, as: "p"]
+    [map-item]
+      [str = "name", ${ p.name }$ !]
+      [str = "version", ${ p.version }$ !]
+      [bool = "optional", ${ p.optional }$ !]
+    [end]
+  [end]
+[end]
+
+[mapping = "config"]
+  [literal = "script"]
+    set -euo pipefail
+    echo "Building project"
+    cargo build --release
+  [end]
+  [folded = "description"]
+    This is a folded
+    multi-line description
+    that wraps into a single paragraph.
+  [end]
+[end]
+
+[doc-end !]

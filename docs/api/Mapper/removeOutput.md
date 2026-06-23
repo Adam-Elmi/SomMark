@@ -1,6 +1,6 @@
 # removeOutput()
 
-Removes a specific identifier (tag name or alias) from the mapper's registered outputs.
+Removes a specific identifier (block name or alias) from the mapper's registered outputs.
 
 ---
 
@@ -14,7 +14,7 @@ mapper.removeOutput(id)
 import { MARKDOWN } from "sommark";
 const mapper = MARKDOWN.clone();
 
-// Removes horizontal rule [hr] tag from registered tags
+// Removes horizontal rule [hr] block from registered blocks
 mapper.removeOutput("hr");
 ```
 
@@ -22,7 +22,7 @@ mapper.removeOutput("hr");
 
 ### Example: Surgical Alias Removal
 
-If a tag is registered with multiple aliases (e.g., `["bold", "b"]`), removing one alias keeps the remaining ones active:
+If a block is registered with multiple aliases (e.g., `["bold", "b"]`), removing one alias keeps the remaining ones active:
 
 ```js
 import { MARKDOWN } from "sommark";
@@ -37,30 +37,30 @@ console.log(mapper.includesId(["bold"])); // true
 
 ---
 
-### Example: Removing Multiple Tags
+### Example: Removing Multiple Blocks
 
-Since `removeOutput()` accepts a single string parameter, use array iteration to remove multiple tags at once:
+Since `removeOutput()` accepts a single string parameter, use array iteration to remove multiple blocks at once:
 
 ```js
 import { HTML } from "sommark";
 const mapper = HTML.clone();
 
-const tagsToRemove = ["script", "style", "iframe"];
-tagsToRemove.forEach(tag => mapper.removeOutput(tag));
+const blocksToRemove = ["script", "style", "iframe"];
+blocksToRemove.forEach(id => mapper.removeOutput(id));
 ```
 
 ---
 
 ### Example: Creating a Restricted Mapper
 
-Surgically strip sensitive tags from a cloned mapper instance:
+Surgically strip sensitive blocks from a cloned mapper instance:
 
 ```js
 import { HTML } from "sommark";
 
 const safeHTML = HTML.clone();
 
-// Strip scripting and styling tags
+// Strip scripting and styling blocks
 safeHTML.removeOutput("script");
 safeHTML.removeOutput("style");
 safeHTML.removeOutput("iframe");
@@ -69,4 +69,4 @@ safeHTML.removeOutput("iframe");
 ---
 
 > [!NOTE]
-> SomMark's engine automatically calls `removeOutput()` behind the scenes in `.register()` and `.inherit()` to prevent duplicate tag registrations.
+> SomMark's engine automatically calls `removeOutput()` behind the scenes in `.register()` and `.inherit()` to prevent duplicate block registrations.

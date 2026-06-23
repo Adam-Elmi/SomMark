@@ -8,6 +8,9 @@ export const mdxFormat = "mdx";
 export const jsonFormat = "json";
 export const jsoncFormat = "jsonc";
 export const xmlFormat = "xml";
+export const csvFormat = "csv";
+export const tomlFormat = "toml";
+export const yamlFormat = "yaml";
 
 const formats = {
 	textFormat,
@@ -16,7 +19,10 @@ const formats = {
 	mdxFormat,
 	jsonFormat,
 	jsoncFormat,
-	xmlFormat
+	xmlFormat,
+	csvFormat,
+	tomlFormat,
+	yamlFormat
 };
 
 export default formats;

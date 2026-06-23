@@ -53,8 +53,7 @@ const myMapper = Mapper.define({
 
 *   **`text(text, options)`**: Processes plain text.
 *   **`comment(text)`**: Processes Smark comments.
-*   **`getUnknownTag(node)`**: Handles tags that are not found in the `outputs` registry.
-*   **`inlineText(text, options)`**: Custom helper often used by the engine for inline-only content.
+*   **`getUnknownTag(node)`**: Handles blocks that are not found in the `outputs` registry.
 
 ---
 
@@ -77,11 +76,11 @@ const MARKDOWN = Mapper.define({
         return this.md.smartEscaper(text);
     },
 
-    // Custom Error/Unknown tag logic
+    // Custom fallback for unregistered blocks
     getUnknownTag(node) {
         return {
             render: ({ content }) => `<unknown>${content}</unknown>`,
-            options: { type: "Inline" }
+            options: { type: "Block" }
         };
     }
 });
@@ -93,10 +92,10 @@ const MARKDOWN = Mapper.define({
 
 | Feature | `Mapper.define()` | `mapper.register()` |
 | :--- | :--- | :--- |
-| **Purpose** | Sets up the mapper's "DNA" and defaults. | Adds specific tags (labels) to the registry. |
+| **Purpose** | Sets up the mapper's "DNA" and defaults. | Adds specific blocks to the registry. |
 | **Timing** | Happens at creation. | Happens after creation. |
 | **Storage** | Attached directly to the instance. | Pushed into the `outputs` array. |
-| **Scope** | Global (affects all rendering). | Local (affects specific tags). |
+| **Scope** | Global (affects all rendering). | Local (affects specific blocks). |
 
 ---
 

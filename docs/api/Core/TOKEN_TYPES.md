@@ -34,18 +34,16 @@ if (token.type === TOKEN_TYPES.EXCLAMATION_MARK) {
 | `QUOTE` | `"`, `'` | Wraps argument strings |
 | `COLON` | `:` | Separates keys and values |
 | `COMMA` | `,` | Separates multiple block arguments |
-| `THIN_ARROW` | `->` | Maps inline content to an inline tag |
-| `OPEN_PAREN` | `(` | Starts inline content or tag definitions |
-| `CLOSE_PAREN` | `)` | Ends inline content or tag definitions |
-| `OPEN_AT` | `@_` | Starts an At-Block boundary |
-| `CLOSE_AT` | `_@` | Ends an At-Block boundary |
-| `SEMICOLON` | `;` | Separates At-Block headers from their body |
-| `PREFIX_P` | `p{user}` | Dynamic public placeholder layer |
-| `PREFIX_V` | `v{item}` | Local variables layer |
-| `PREFIX_JS` | `js{obj}` | Native JavaScript object/array layer |
-| `STATIC_KEYWORD` | `static` | Evaluates isolated JS once during compile-time |
-| `RUNTIME_KEYWORD` | `runtime` | Marks code blocks for execution at target runtime |
-| `LOGIC` | `${ code }$` | Raw JavaScript logic sandboxed inside the VM |
+| `PREFIX_P` | `p{user}` | Injects a global placeholder value |
+| `PREFIX_V` | `v{item}` | Injects a local component variable |
+| `PREFIX_OPEN` | `{` | Opens a `p{}` or `v{}` prefix argument |
+| `PREFIX_CLOSE` | `}` | Closes a `p{}` or `v{}` prefix argument |
+| `PIPELINE` | `\|` | Separates a prefix key from its fallback value |
+| `STATIC_KEYWORD` | `static` | Marks a compile-time block (optional — `${` alone is equivalent) |
+| `RUNTIME_KEYWORD` | `runtime` | Marks a runtime block for execution in the browser |
+| `LOGIC_OPEN` | `${` | Opens a logic block |
+| `LOGIC` | `/* code */` | The JavaScript body inside a `${ }$` block |
+| `LOGIC_CLOSE` | `}$` | Closes a logic block |
 | `FOR_EACH` | `for-each` | Standard block iteration loop |
 | `SLOT_KEYWORD` | `slot` | Reserves template placeholder content injection |
 | `IMPORT` | `import` | The import statement for files and modules |
@@ -94,19 +92,20 @@ Output:
 
 ### Example: Logic Block Tokenization
 
-Tokenizing compile-time static script blocks:
+Tokenizing a compile-time block (`static` is optional — `${ }$` alone is equivalent):
 
 ```javascript
 import { lexSync } from "sommark";
 
-const tokens = lexSync('static ${ "Hello Smark" }$');
+const tokens = lexSync('${ "Hello Smark" }$');
 console.log(tokens.map(t => ({ type: t.type, value: t.value })));
 /*
 Output:
 [
-  { type: "STATIC_KEYWORD", value: "static" },
-  { type: "WHITESPACE",     value: " " },
+  { type: "STATIC_KEYWORD", value: "static" },  // auto-emitted when static keyword is omitted
+  { type: "LOGIC_OPEN",     value: "${" },
   { type: "LOGIC",          value: " \"Hello Smark\" " },
+  { type: "LOGIC_CLOSE",    value: "}$" },
   { type: "EOF",            value: "" }
 ]
 */

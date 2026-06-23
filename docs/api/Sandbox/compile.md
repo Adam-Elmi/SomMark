@@ -18,7 +18,7 @@ The one exception is `security`: it is always **inherited** from the parent comp
 **Usage:**
 ```js
 static ${ 
-  const content = await SomMark.compile("[p]Dynamic content[end]", { format: "html" });
+  const content = await SomMark.compile("[p]Dynamic content[end:p]", { format: "html" });
   return SomMark.raw(content);
 }$ 
 ```
@@ -33,7 +33,7 @@ Generates structural markup dynamically based on compile-time math or logic:
 ```js
 static ${
     const items = ["Apple", "Banana", "Cherry"];
-    const markup = `[list]${items.map(item => `[item]${item}[end]`).join("")}[end]`;
+    const markup = `[list]${items.map(item => `[item]${item}[end:item]`).join("")}[end:list]`;
     
     const output = await SomMark.compile(markup, { format: "html" });
     return SomMark.raw(output);
@@ -57,8 +57,8 @@ Import raw `.smark` templates dynamically and compile them while injecting varia
 - `userCard.smark`:
 ```ini
 [div = class: "card"]
-  [h3]Hello static ${ username }$![end]
-[end]
+  [h3]Hello static ${ username }$![end:h3]
+[end:div]
 ```
 - `template.smark`:
 ```js

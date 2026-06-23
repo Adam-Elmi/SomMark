@@ -143,15 +143,15 @@ import SomMark, { Mapper } from "sommark";
 
 const gfmMapper = new Mapper();
 
-// 1. GFM Alerts (e.g., [alert = "TIP"]Stay hydrated![end])
-gfmMapper.register("alert", function({ args, content }) {
-  const type = args.type || args[0] || "NOTE";
+// 1. GFM Alerts (e.g., [alert = "TIP"]Stay hydrated![end:alert])
+gfmMapper.register("alert", function({ props, content }) {
+  const type = props.type || props["0"] || "NOTE";
   return this.md.quote(content, type);
 });
 
-// 2. GFM Task List Items (e.g., [task = "x"]Build compiler[end])
-gfmMapper.register("task", function({ args, content }) {
-  const status = args.status || args[0] || "";
+// 2. GFM Task List Items (e.g., [task = "x"]Build compiler[end:task])
+gfmMapper.register("task", function({ props, content }) {
+  const status = props.status || props["0"] || "";
   return this.md.todo(status, content);
 });
 
@@ -159,10 +159,10 @@ gfmMapper.register("task", function({ args, content }) {
 const src = `
 [alert = "TIP"]
 Pass types via arguments for cleaner GFM alerts!
-[end]
+[end:alert]
 
-[task = "x"]Core engine stability[end]
-[task = ""]Rich GFM documentation examples[end]
+[task = "x"]Core engine stability[end:task]
+[task = ""]Rich GFM documentation examples[end:task]
 `;
 
 console.log(await SomMark.transpile({

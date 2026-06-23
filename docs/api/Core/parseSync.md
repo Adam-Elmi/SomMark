@@ -15,7 +15,7 @@ parseSync(src, filename?)
 ```js
 import { parseSync } from "sommark";
 
-const ast = parseSync("[h1]Hello[end]");
+const ast = parseSync("[h1]Hello[end:h1]");
 ```
 
 ---
@@ -27,14 +27,14 @@ Generates a stateless syntax tree instantly on the CPU thread, ideal for CLI too
 ```javascript
 import { parseSync } from "sommark";
 
-const ast = parseSync("[p]Welcome[end]", "index.smark");
+const ast = parseSync("[p]Welcome[end:p]", "index.smark");
 console.log(ast[0]);
 /*
 Output:
 {
   type: "BLOCK",
   id: "p",
-  args: {},
+  props: {},
   body: [
     { type: "TEXT", text: "Welcome", ... }
   ],

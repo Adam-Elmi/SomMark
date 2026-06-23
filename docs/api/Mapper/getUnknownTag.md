@@ -1,6 +1,6 @@
 # getUnknownTag()
 
-The fallback method called by the transpiler when a tag is not found in the mapper's `outputs` registry. 
+The fallback method called by the transpiler when a block is not found in the mapper's `outputs` registry. 
 
 ---
 
@@ -14,7 +14,7 @@ mapper.getUnknownTag(node)
 import { Mapper } from "sommark";
 const mapper = new Mapper();
 
-// Set up custom fallback behavior for any unrecognized tag
+// Set up custom fallback behavior for any unrecognized block
 mapper.getUnknownTag = function(node) {
     return {
         render({ content }) {
@@ -35,7 +35,7 @@ import SomMark, { HTML } from "sommark";
 const mapper = HTML.clone();
 
 const html = await SomMark.transpile({
-    src: "[card = class: \"premium\"] Hello [end]",
+    src: "[card = class: \"premium\"] Hello [end:card]",
     format: "html",
     mapperFile: mapper
 });
@@ -57,7 +57,7 @@ strictMapper.getUnknownTag = () => null;
 
 try {
     await SomMark.transpile({
-        src: "[secret]Content[end]",
+        src: "[secret]Content[end:secret]",
         format: "html",
         mapperFile: strictMapper
     });
@@ -71,7 +71,7 @@ try {
 
 ### Example: Custom Dynamic Fallback
 
-Override `getUnknownTag()` to wrap any unrecognized tag in a styled `<span>` with a `data-tag` attribute:
+Override `getUnknownTag()` to wrap any unrecognized block in a styled `<span>` with a `data-tag` attribute:
 
 ```js
 import { Mapper } from "sommark";
@@ -87,7 +87,7 @@ mapper.getUnknownTag = function(node) {
                 .body(content);
         },
         options: {
-            type: ["Block", "Inline"]
+            type: "Block"
         }
     };
 };

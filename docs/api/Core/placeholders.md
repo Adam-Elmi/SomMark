@@ -17,7 +17,7 @@ transpile({ src, format, placeholders })
 import { transpile } from "sommark";
 
 const output = await transpile({
-  src: "[h1]Hello p{username}[end]",
+  src: "[h1]Hello p{username}[end:h1]",
   format: "html",
   placeholders: { username: "Adam" }
 });
@@ -34,7 +34,7 @@ Placeholders are resolved at parsing time. If a placeholder is omitted or unreso
 ```javascript
 import { transpile } from "sommark";
 
-const template = "[p]Created by p{author} in p{city}[end]";
+const template = "[p]Created by p{author} in p{city}[end:p]";
 
 const output = await transpile({
   src: template,

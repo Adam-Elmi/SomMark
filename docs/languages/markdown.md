@@ -1,25 +1,35 @@
-# Markdown Mapping Guide
+# Markdown Mapper
 
-The **Markdown Mapper** transforms SomMark structures into clean, professional-grade Markdown. It ensures your documents are fully compatible with platforms like GitHub, GitLab, Obsidian, and others, while providing an accurate safety net and seamless hybrid rendering fallbacks.
+The Markdown Mapper converts SomMark blocks into clean Markdown that works with GitHub, GitLab, Obsidian, and any tool that reads GitHub Flavored Markdown.
 
 ---
 
-## 1. Lossless Hybrid Rendering
+## Advantages over Raw Markdown
 
-Unlike standard transpilers that lose attributes or nested layout blocks during Markdown conversion, SomMark uses a **Lossless Inheritance** model from the HTML Mapper.
+| Feature | SomMark | Raw Markdown |
+| :--- | :--- | :--- |
+| **Module system** | `[import]` lets you split your content into separate files | No file imports |
+| **Component system** | `[slot]` + `[import]` = reusable layouts where you choose what content goes inside | No components |
+| **Placeholder blocks** | `p{key}` injects data at build time | No variables |
+| **Compile-time logic** | `${}$` runs JS at build time in a safe separate environment (`static` keyword is optional) | No logic |
+| **Looping** | `[for-each]` generates repeated content at build time | No looping |
+| **Full prop system** | Any block accepts named props (`[h2 = id: "x", class: "y"]`) | Very limited attribute support |
+| **Multiple output formats** | Same source compiles to HTML, XML, JSON, MDX, text | Markdown only outputs HTML |
 
-*   **HTML Fallback**: If a tag is not a natively supported Markdown structure (like `[section]`, `[div]`, or `[details]`), the mapper automatically falls back to rendering clean, semantic HTML.
-*   **Automatic Attribute Upgrades**: Standard Markdown markers (like headings or paragraphs) do not natively support attributes like `id` or `class`. If you attach attributes to these tags, SomMark automatically "upgrades" the output to standard HTML tags to preserve your custom metadata.
+---
 
-**SomMark Source:**
+## 1. HTML Fallback
+
+Unknown / unregistered blocks (like `[section]` or `[div]`), SomMark outputs it as an HTML element instead. This keeps structure that Markdown cannot express.
+
+If a heading block (like `[h1]`) has props attached, SomMark outputs it as an HTML element to keep the props:
+
 ```ini
-# Standard Heading
 [h1]Project Overview[end]
 
-# Upgraded Heading (preserves custom attributes)
 [h2 = id: "setup", class: "header-accent"]Installation Guide[end]
 ```
-**Markdown Result:**
+
 ```markdown
 # Project Overview
 
@@ -28,211 +38,270 @@ Unlike standard transpilers that lose attributes or nested layout blocks during 
 
 ---
 
-## 2. Core Text Styles & Formatting
+## 2. Text Formatting
 
-SomMark's text styling tags are highly flexible and can be applied as either **Blocks** (for large text segments) or **Inlines** (for inline styling using arrow syntax).
+These blocks wrap their body text in Markdown formatting. All of them support a self-closing form where the text is passed as a prop instead of a body.
 
-### 1. Bold (`bold` / `b`)
-- **Type**: Block, Inline
-- **Purpose**: Applies bold formatting to the wrapped content.
-- **Example (Block)**: `[bold]Important notice[end]` or `[b]Important notice[end]`
-- **Example (Inline)**: `Make this (text)->(b) bold.`
-- **Output Markdown**: `**Important notice**` / `Make this **text** bold.`
+### `bold` / `b`
 
-### 2. Italic (`italic` / `i`)
-- **Type**: Block, Inline
-- **Purpose**: Applies italic formatting to the wrapped content.
-- **Example (Block)**: `[italic]Subtle emphasis[end]` or `[i]Subtle emphasis[end]`
-- **Example (Inline)**: `Make this (text)->(i) italic.`
-- **Output Markdown**: `*Subtle emphasis*` / `Make this *text* italic.`
+```ini
+[bold]Important notice[end:bold]
+[bold = "Important notice" !]
+[bold = text: "Important notice" !]
+```
 
-### 3. Emphasis (`emphasis` / `em`)
-- **Type**: Block, Inline
-- **Purpose**: Applies both bold and italic formatting simultaneously.
-- **Example (Block)**: `[emphasis]Extremely important[end]`
-- **Example (Inline)**: `Make this (text)->(em) stand out.`
-- **Output Markdown**: `***Extremely important***` / `Make this ***text*** stand out.`
+```markdown
+**Important notice**
+```
 
-### 4. Strikethrough (`strike` / `s`)
-- **Type**: Block, Inline
-- **Purpose**: Draws a horizontal line through the wrapped content.
-- **Example (Block)**: `[strike]Outdated information[end]`
-- **Example (Inline)**: `This is (wrong)->(s) correct.`
-- **Output Markdown**: `~~Outdated information~~` / `This is ~~wrong~~ correct.`
+### `italic` / `i`
 
-### 5. Code (`code` / `Code`)
-- **Type**: Inline, AtBlock (Unescaped)
-- **Purpose**: Formats code. Renders inline backticks for inline text, or fenced code blocks for AtBlocks.
-- **Example (Inline)**: `Refer to (const val = 1)->(code).`
-- **Example (AtBlock)**:
-  ```ini
-  @_code_@: lang: "js";
-    console.log("Hello, World!");
-  @_end_@
-  ```
-- **Output Markdown**:
-  `` Refer to `const val = 1`. ``
-  
-  ```js
-  console.log("Hello, World!");
-  ```
+```ini
+[italic]Subtle emphasis[end:italic]
+[italic = "Subtle emphasis" !]
+```
 
-### 6. Escape / Literal (`escape` / `e`)
-- **Type**: Block, Inline
-- **Purpose**: Escapes special Markdown formatting characters within the enclosed content to output them as literal characters.
-- **Example (Block)**: `[escape]*This will not be italic*[end]`
-- **Example (Inline)**: `This is a literal (\*starred\* text)->(e).`
-- **Output Markdown**: `\*This will not be italic\*` / `This is a literal \*starred\* text.`
+```markdown
+*Subtle emphasis*
+```
+
+### `emphasis` / `em`
+
+Bold and italic combined.
+
+```ini
+[emphasis]Extremely important[end:emphasis]
+[emphasis = "Extremely important" !]
+```
+
+```markdown
+***Extremely important***
+```
+
+### `strike` / `s`
+
+```ini
+[strike]Outdated information[end:strike]
+[strike = "Outdated information" !]
+```
+
+```markdown
+~~Outdated information~~
+```
+
+### `code` / `Code`
+
+Wraps body text in backticks.
+
+```ini
+[code]const val = 1[end:code]
+```
+
+```markdown
+`const val = 1`
+```
+
+### `escape` / `e`
+
+Stops Markdown from treating special characters as formatting.
+
+```ini
+[escape]*This will not be italic*[end]
+[escape = "*This will not be italic*" !]
+```
+
+```markdown
+\*This will not be italic\*
+```
 
 ---
 
 ## 3. Links & Images
 
-The mapper provides dedicated tags to render clean Markdown links and images with optional title parameters.
+### `link`
 
-### 1. Links (`link`)
-- **Type**: Block, Inline
-- **Purpose**: Generates standard Markdown hyperlinks.
-- **Example (Block)**: `[link = src: "https://example.com", title: "Go Home"]Visit Website[end]`
-- **Example (Inline)**: `Visit our (Website)->(link: "https://example.com").`
-- **Output Markdown**: `[Visit Website](https://example.com "Go Home")` / `Visit our [Website](https://example.com).`
+Body form — link text in body, `src` and `title` in props:
 
-### 2. Images (`image`)
-- **Type**: Block (Self-closing)
-- **Purpose**: Renders Markdown image embeddings. This tag is strictly self-closing and forbids an internal body.
-- **Example**: `[image = alt: "Logo", src: "images/logo.png", title: "Brand Logo"][end]`
-- **Output Markdown**: `![Logo](images/logo.png "Brand Logo")`
+```ini
+[link = src: "https://example.com", title: "Go Home"]Visit Website[end:link]
+```
+
+Self-closing — all in props, text comes first:
+
+```ini
+[link = "Visit Website", "https://example.com" !]
+[link = text: "Visit Website", src: "https://example.com", title: "Go Home" !]
+```
+
+```markdown
+[Visit Website](https://example.com)
+[Visit Website](https://example.com "Go Home")
+```
+
+### `image`
+
+Always self-closing. Supports both positional and named props:
+
+```ini
+[image = "Logo", "images/logo.png", "Brand Logo" !]
+[image = alt: "Logo", src: "images/logo.png", title: "Brand Logo" !]
+```
+
+```markdown
+![Logo](images/logo.png "Brand Logo")
+```
 
 ---
 
 ## 4. Structural Content
 
-Structural elements like tables, nested lists, and thematic breaks are strictly validated and formatted to avoid the standard syntax fragility of raw Markdown.
+### `hr`
 
-### 1. Horizontal Rule (`hr`)
-- **Type**: Block (Self-closing)
-- **Purpose**: Inserts a horizontal thematic break. Supports custom rule markers (like `-`, `*`, or `_`).
-- **Example**: `[hr = "*"][end]`
-- **Output Markdown**: `***`
+```ini
+[hr = "*" !]
+```
 
-### 2. Tables (`Table`, `header`, `body`, `row`, `cell`, `th`, `td`)
-- **Type**: Block (Structural)
-- **Purpose**: Authoritative compilation of GFM table structures, organizing headers, rows, and cells cleanly.
-- **Example**:
-  ```ini
-  [Table]
-    [header]
-      [row]
-        [cell]Feature[end]
-        [cell]Status[end]
-      [row][end]
-    [end]
-    [body]
-      [row]
-        [cell]Imports[end]
-        [cell]Stable[end]
-      [end]
-    [end]
+```markdown
+***
+```
+
+### Tables (`Table`, `header`, `body`, `row`, `cell`, `th`, `td`)
+
+```ini
+[Table]
+  [header]
+    [row]
+      [cell]Feature[end]
+      [cell]Status[end]
+    [end:row]
+  [end:header]
+  [body]
+    [row]
+      [cell]Imports[end]
+      [cell]Stable[end]
+    [end:row]
+  [end:body]
+[end:Table]
+```
+
+```markdown
+| Feature | Status |
+| --- | --- |
+| Imports | Stable |
+```
+
+### Lists (`List` / `list`, `item` / `Item`)
+
+Unordered lists use a symbol (`dot`, `*`, `+`). Ordered lists use `number` or `ol`.
+
+```ini
+[List = "dot"]
+  [item]Main Item 1
+    [List = "dot"]
+      [item]Sub Item A[end]
+    [end:List]
   [end]
-  ```
-- **Output Markdown**:
-  ```markdown
-  | Feature | Status |
-  | --- | --- |
-  | Imports | Stable |
-  ```
+  [item]Main Item 2[end]
+[end:List]
+```
 
-### 3. Lists (`List` / `list`, `item` / `Item`)
-- **Type**: Block (Structural)
-- **Purpose**: Renders clean unordered lists (using symbols like `dot`, `*`, `+`) or ordered lists (`number` or `ol`) with deep nested list capabilities.
-- **Example (Unordered with nesting)**:
-  ```ini
-  [List = "dot"]
-    [item] Main Item 1
-      [List = "dot"]
-        [item] Sub Item A [end]
-      [end]
-    [end]
-    [item] Main Item 2 [end]
-  [end]
-  ```
-- **Output Markdown**:
-  ```markdown
-  - Main Item 1
-    - Sub Item A
-  - Main Item 2
-  ```
+```markdown
+- Main Item 1
+  - Sub Item A
+- Main Item 2
+```
 
 ---
 
-## 5. GitHub Flavored Markdown (GFM) Features
+## 5. GitHub Flavored Markdown (GFM)
 
-The mapper implements specialized GFM layout additions to produce modern docs structures.
+### Alerts & Quotes (`quote`)
 
-### 1. Alerts & Quotes (`quote`)
-- **Type**: Block
-- **Purpose**: Generates standard blockquotes, supporting modern GitHub alert syntax types (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION`).
-- **Example (Alert)**:
-  ```ini
-  [quote = "TIP"]
-    Keep your mappers lightweight and modular.
-  [end]
-  ```
-- **Example (Standard Quote)**:
-  ```ini
-  [quote]
-    Simplicity is the ultimate sophistication.
-  [end]
-  ```
-- **Output Markdown**:
-  ```markdown
-  > [!TIP]
-  > Keep your mappers lightweight and modular.
-  ```
-  ```markdown
-  > Simplicity is the ultimate sophistication.
-  ```
+Standard blockquotes and GitHub alert types (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`).
 
-### 2. Task Lists (`todo`)
-- **Type**: Block
-- **Purpose**: Generates interactive checklist markdown blocks. Pass `x`, `done`, or `-` to signify a completed task.
-- **Example**:
-  ```ini
-  [List]
-    [item] [todo = "x"] Core Documentation [end] [end]
-    [item] [todo = ""] API References [end] [end]
-  [end]
-  ```
-- **Output Markdown**:
-  ```markdown
-  - [x] Core Documentation
-  - [ ] API References
-  ```
+```ini
+[quote = "TIP"]
+  Keep your mappers lightweight and modular.
+[end:quote]
 
----
+[quote]
+  Simplicity is the ultimate sophistication.
+[end:quote]
+```
 
-## 6. Utility Outputs
+```markdown
+> [!TIP]
+> Keep your mappers lightweight and modular.
 
-### 1. `raw` AtBlock
-- **Type**: AtBlock (Unescaped)
-- **Purpose**: Bypasses the Markdown escaping layer and parser entirely to output raw, unescaped text or HTML markup. This is extremely useful for inserting raw platform-specific snippets or advanced formatting that should not be touched by the mapper.
-- **Example**:
-  ```ini
-  @_raw_@;
-    <details><summary>Click to Expand</summary>Hidden Details</details>
-  @_end_@
-  ```
-- **Output Markdown**:
-  ```html
-  <details><summary>Click to Expand</summary>Hidden Details</details>
-  ```
+> Simplicity is the ultimate sophistication.
+```
+
+### Task Lists (`todo`)
+
+Pass `x` or `done` to mark a task done, `""` or `-` to leave it unchecked.
+
+Body form — status in prop, task text in body:
+
+```ini
+[todo = "x"]Core Documentation[end]
+[todo = ""]API References[end]
+```
+
+Self-closing — task and status both in props:
+
+```ini
+[todo = "Core Documentation", "x" !]
+[todo = task: "Core Documentation", status: "x" !]
+```
+
+```markdown
+- [x] Core Documentation
+- [ ] API References
+```
+
+Inside a list:
+
+```ini
+[List]
+  [item][todo = "Core Documentation", "x" !][end:item]
+  [item][todo = "API References", "" !][end:item]
+[end:List]
+```
 
 ---
 
-## 7. The Smart Escaper
+## 6. Auto-Escaping
 
-SomMark uses an intelligent, context-aware protection engine to guard special characters against causing unexpected formatting bugs in downstream Markdown parsers:
+SomMark protects text from being accidentally formatted by Markdown using backslash escapes:
 
-*   **Start-of-Line Escaping**: Special character sequences at the start of a line (such as `#`, `-`, `+`, `*`, or digit sequences like `1.`) are automatically escaped with backslashes so they are printed as literal text instead of triggering unwanted headings or lists.
-*   **Math & Special Symbols**: Protects special constructs and mathematical symbols from being parsed as italic boundaries.
-*   **HTML Tag Safety**: Raw HTML-like brackets (`<tags>`) inside standard text nodes are automatically encoded to HTML entities (`&lt;tags&gt;`) to ensure editors and platforms render them as literal readable text rather than trying to parse them as DOM elements.
+- **Emphasis markers** — `*text*`, `**text**`, `_text_`, `~~text~~` are escaped so they print as literal characters instead of triggering bold, italic, or strikethrough.
+- **List triggers** — `-`, `+`, `*`, or `1.` at the start of a line are escaped so they don't become list items.
+- **Horizontal rule triggers** — `---`, `***`, `___` on their own line are escaped.
+- **HTML-like brackets** — `<tag>` in text is encoded to `&lt;tag&gt;` so it prints as literal characters.
+- **Ampersands and quotes** — `&`, `"`, `'` are encoded to HTML entities.
+
+Backslash escapes work here because Markdown parsers strip the `\` and show the literal character. The MDX mapper uses a different approach — HTML entities instead of backslashes — because MDX renderers do not re-parse JSX text children as Markdown. See [MDX Auto-Escaping](mdx.md#5-auto-escaping).
+
+---
+
+## 7. The `#` Symbol
+
+`#` is SomMark's comment character — not Markdown's heading syntax. Any `#` in a template starts a SomMark comment and is removed from the output entirely:
+
+```ini
+# this is a SomMark comment — it disappears from the output
+[p]Hello[end:p]
+```
+
+This means you cannot write `# Heading` as plain text in a SomMark template. Use the `[h1]` to `[h6]` blocks instead:
+
+```ini
+[h1]My Heading[end:h1]
+[h2]Sub Heading[end:h2]
+```
+
+```markdown
+# My Heading
+
+## Sub Heading
+```

@@ -21,7 +21,7 @@ const output = await transpile({
     {
       type: "Block",
       id: "h1",
-      args: {},
+      props: {},
       body: [{ type: "Text", text: "Hello AST!" }]
     }
   ],
@@ -41,12 +41,12 @@ Providing a pre-built `ast` overrides `src` entirely, allowing programmatic cont
 import SomMark from "sommark";
 
 const smark = new SomMark({
-  src: "[p]This will be ignored[end]",
+  src: "[p]This will be ignored[end:p]",
   ast: [
     {
       type: "Block",
       id: "p",
-      args: {},
+      props: {},
       body: [{ type: "Text", text: "Dynamic injected body" }]
     }
   ],

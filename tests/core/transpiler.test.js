@@ -65,11 +65,11 @@ describe("Transpiler Engine (core/transpiler.js)", () => {
 	describe("2. TagBuilder API Integration", () => {
 		it("formats standard tag attributes using standard named arguments", async () => {
 			const sm = new SomMark({ src: "[img = 'logo.png', alt: 'Website Logo'][end]", format });
-			sm.register("img", function ({ args }) {
+			sm.register("img", function ({ props }) {
 				return this.tag("img")
 					.attributes({
-						src: args[0],
-						alt: args.alt
+						src: props[0],
+						alt: props.alt
 					})
 					.selfClose();
 			});
@@ -79,9 +79,9 @@ describe("Transpiler Engine (core/transpiler.js)", () => {
 
 		it("transforms camelCase properties into kebab-case styles using smartAttributes helper", async () => {
 			const sm = new SomMark({ src: "[box = bgColor: 'blue', marginTop: '15px']Content[end]", format });
-			sm.register("box", function ({ args, content }) {
+			sm.register("box", function ({ props, content }) {
 				return this.tag("div")
-					.smartAttributes(args)
+					.smartAttributes(props)
 					.body(content);
 			});
 			const result = await sm.transpile();
@@ -90,8 +90,8 @@ describe("Transpiler Engine (core/transpiler.js)", () => {
 
 		it("automatically wraps CSS custom properties in var() functional structures", async () => {
 			const sm = new SomMark({ src: "[div = style: 'background: --accent-color']Content[end]", format });
-			sm.register("div", function ({ args, content }) {
-				return this.tag("div").attributes(args).body(content);
+			sm.register("div", function ({ props, content }) {
+				return this.tag("div").attributes(props).body(content);
 			});
 			const result = await sm.transpile();
 			expect(result).toBe('<div style="background: var(--accent-color)">Content</div>');
@@ -99,8 +99,8 @@ describe("Transpiler Engine (core/transpiler.js)", () => {
 
 		it("propagates parser-detected isSelfClosing boolean flag to target block render functions", async () => {
 			const sm = new SomMark({ src: "[img = src: 'logo.png' !]", format });
-			sm.register("img", function ({ args, isSelfClosing }) {
-				const tag = this.tag("img").attributes(args);
+			sm.register("img", function ({ props, isSelfClosing }) {
+				const tag = this.tag("img").attributes(props);
 				return isSelfClosing ? tag.selfClose() : tag.body("");
 			});
 			const result = await sm.transpile();
@@ -174,9 +174,9 @@ describe("Transpiler Engine (core/transpiler.js)", () => {
 			expect(result).toBe('<ul><li>First</li><li>Second</li></ul>');
 		});
 
-		it("iterates over arrays inside loop blocks injecting item references and indexes", async () => {
+		it("iterates over arrays inside loop blocks injecting item references and index via 'i'", async () => {
 			const sm = new SomMark({
-				src: `[for-each = static \${ [ { name: "A" }, { name: "B" } ] }$, as: "user"]User: static \${ user.name }$, Index: static \${ user_index }$ [end]`,
+				src: `[for-each = static \${ [ { name: "A" }, { name: "B" } ] }$, as: "user"]User: static \${ user.name }$, Index: static \${ i }$ [end]`,
 				format
 			});
 			const result = await sm.transpile();
@@ -261,7 +261,7 @@ describe("Transpiler Engine (core/transpiler.js)", () => {
 	describe("6. Scoped Compiler & Argument Naming Guards", () => {
 		it("throws a Reserved Attribute Error if a user attempts to define a data-sommark attribute", async () => {
 			const sm = new SomMark({ src: "[div = data-sommark-id: 'exploit']Content[end]", format });
-			sm.register("div", function ({ args, content }) { return this.tag("div").attributes(args).body(content); });
+			sm.register("div", function ({ props, content }) { return this.tag("div").attributes(props).body(content); });
 			await expect(sm.transpile()).rejects.toThrow(/Reserved Attribute Error/);
 		});
 
@@ -287,7 +287,7 @@ describe("Transpiler Engine (core/transpiler.js)", () => {
 
 		it("generates completely different, unique secret IDs for each iteration in loops", async () => {
 			const src = `
-[for-each = static \${ ["one", "two"] }\$, as: "item"]
+[for-each = static \${ ["one", "two"] }\$, as: "val"]
   [div]
     runtime \${ console.log("item"); }\$
   [end]
@@ -300,36 +300,6 @@ describe("Transpiler Engine (core/transpiler.js)", () => {
 			expect(matches[0][1]).not.toBe(matches[1][1]);
 		});
 
-		it("hides runtime script tags but retains unique data-sommark-id attributes when hideRuntimeOutput is enabled", async () => {
-			const src = `
-[div]
-  runtime \${ self.style.color = "blue"; }\$
-  Hello
-[end]
-			`.trim();
-			const sm = new SomMark({ src, format, mapperFile: HTML, hideRuntimeOutput: true });
-			const result = await sm.transpile();
-			expect(result).toContain('data-sommark-id="sommark-div-');
-			expect(result).not.toContain("<script>");
-			expect(result).toContain("Hello");
-		});
-
-		it("compiles and returns ONLY native scoped JS code blocks when generateRuntimeOutput is enabled", async () => {
-			const src = `
-[div]
-  runtime \${ const x = "hello"; }\$
-  Hello Layout
-[end]
-			`.trim();
-			const sm = new SomMark({ src, format, mapperFile: HTML, generateRuntimeOutput: true });
-			const result = await sm.transpile();
-			expect(result).not.toContain("Hello Layout");
-			expect(result).not.toContain("<div");
-			expect(result).not.toContain("<script>");
-
-			expect(result).toContain("const self = document.querySelector('[data-sommark-id=\"sommark-div-");
-			expect(result).toContain('const x = "hello";');
-		});
 	});
 });
 

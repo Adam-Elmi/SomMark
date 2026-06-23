@@ -27,7 +27,7 @@ import { FORMATS } from "sommark";
 import { transpile, FORMATS } from "sommark";
 
 const output = await transpile({
-  src: "[h1]Hello World[end]",
+  src: "[h1]Hello World[end:h1]",
   format: FORMATS.htmlFormat
 });
 console.log(output);
@@ -47,13 +47,13 @@ import { transpile, FORMATS } from "sommark";
 
 // Prevents guessing "md" vs "markdown"
 await transpile({
-  src: "[h1]Hello World[end]",
+  src: "[h1]Hello World[end:h1]",
   format: FORMATS.markdownFormat // Safely resolves to "markdown"
 });
 
 // Prevents guessing "plain-text" vs "text"
 await transpile({
-  src: "[h1]Hello World[end]",
+  src: "[h1]Hello World[end:h1]",
   format: FORMATS.textFormat // Safely resolves to "text"
 });
 ```

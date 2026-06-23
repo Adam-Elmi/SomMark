@@ -17,7 +17,7 @@ transpile({ src, format, customProps })
 import { transpile } from "sommark";
 
 const output = await transpile({
-  src: '[button theme: "dark" columns: 4]Click[end]',
+  src: '[button = theme: "dark", columns: 4]Click[end:button]',
   format: "html",
   customProps: ["theme", "columns"]
 });
@@ -30,15 +30,15 @@ console.log(output);
 ## 1. The Real-World Problem
 
 Built-in mappers (like HTML and Markdown) use the `smartAttributes` method. This lets developers use CSS properties as global parameters directly on blocks:
-*   Instead of writing: `[span = style: "color:red;"]Hello[end]`
-*   You can write: `[span = color: "red"]Hello[end]`
+*   Instead of writing: `[span = style: "color:red;"]Hello[end:span]`
+*   You can write: `[span = color: "red"]Hello[end:span]`
 
 Because of this, any attribute that is **not** a standard native HTML property (like `id` or `class`) or a data/aria property is automatically converted into an inline CSS style or a CSS class (depending on the `fallbackTarget` setting).
 
 This causes issues when you want to pass actual custom properties (e.g. for custom elements or web components).
 
 ### Example WITHOUT customProps:
-*   **SomMark**: `[div = theme: "dark"]Content[end]`
+*   **SomMark**: `[div = theme: "dark"]Content[end:div]`
 *   **Compiled Output**: `<div style="theme:dark;">Content</div>` (Invalid CSS)
 
 ---
@@ -51,7 +51,7 @@ By adding `"theme"` to the `customProps` array, you explicitly whitelist it. The
 import { transpile } from "sommark";
 
 const output = await transpile({
-  src: '[div = theme: "dark"]Content[end]',
+  src: '[div = theme: "dark"]Content[end:div]',
   format: "html",
   customProps: ["theme"]
 });
