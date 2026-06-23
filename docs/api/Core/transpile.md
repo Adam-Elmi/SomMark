@@ -103,7 +103,7 @@ try {
 | `baseDir` | `string` | `null` | Root path (or URL) for resolving `[import = ...]` module paths. See [baseDir.md](baseDir.md). |
 | `files` | `object` | `null` | In-memory file map used instead of disk/fetch. See [files.md](files.md). |
 | `placeholders` | `object` | `{}` | Global data injected for `p{key}` placeholders. |
-| `fallbackTarget` | `string\|false` | `"style"` | Styling fallbacks target (`"style"`, `"class"`, or `false`). |
+| `fallbackTarget` | `boolean` | `true` | Styling fallback for unrecognized attributes. `true` → inline style, `false` → render as attributes. |
 | `removeComments` | `boolean` | `true` | Strips comments and blocks from the output. |
 | `customProps` | `Array<string>` | `[]` | Whitelisted attributes allowed to pass untouched. |
 | `importAliases` | `object` | `{}` | Custom path aliases for module imports. See [importAliases.md](importAliases.md). |

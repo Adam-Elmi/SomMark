@@ -13,7 +13,7 @@ tag.smartAttributes(props, customProps, options)
 | :--- | :--- | :--- |
 | `props` | `Object` | The props passed to the block (e.g. `{ class: "card", color: "red" }`). |
 | `customProps` | `Set<string>` | Optional. A set of extra prop names to treat as standard HTML attributes instead of falling back. Comes from the `customProps` option. |
-| `options` | `Object` | Optional. Accepts `fallbackTarget: "style" \| "class" \| false`. Default is `"style"`. |
+| `options` | `Object` | Optional. Accepts `fallbackTarget: true \| false`. Default is `true`. |
 
 ---
 
@@ -46,15 +46,11 @@ The fallback is what makes it convenient to write CSS shorthand directly on a bl
 The `fallbackTarget` option controls where unrecognised props end up:
 
 ```js
-// Default — falls back to style (same as not passing options at all)
-tag.smartAttributes(props, customProps, { fallbackTarget: "style" });
+// true (default) — falls back to inline style
+tag.smartAttributes(props, customProps, { fallbackTarget: true });
 // Output: <div style="color:red;">
 
-// Falls back to a CSS class name
-tag.smartAttributes(props, customProps, { fallbackTarget: "class" });
-// Output: <div class="color-red">
-
-// No fallback — unrecognised props are still rendered as attributes
+// false — no fallback, unrecognised props are rendered as standard attributes
 tag.smartAttributes(props, customProps, { fallbackTarget: false });
 // Output: <div color="red">
 ```

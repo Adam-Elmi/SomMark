@@ -23,7 +23,7 @@ sommark init
 | `placeholders` | `object` | `{}` | Global values for `p{key}` placeholders |
 | `importAliases` | `object` | `{ "@": "./" }` | Short path aliases for module imports (e.g. `@/Button` → `./Button`) |
 | `customProps` | `array` | `[]` | Extra HTML attributes to allow on blocks |
-| `fallbackTarget` | `string\|false` | `"style"` | Where unrecognized block attributes go: `"style"` (inline CSS) or `false` to disable |
+| `fallbackTarget` | `boolean` | `true` | Where unrecognized block attributes go: `true` (inline CSS) or `false` (render as attributes) |
 | `baseDir` | `string\|null` | `null` | Base folder for resolving relative module imports |
 | `mapperFile` | `Mapper\|null` | `null` | Custom Mapper instance to use instead of the built-in one |
 | `outputValidator` | `function\|null` | `null` | Callback to validate or post-process the output: `async (output) => { ... }` |
@@ -76,7 +76,7 @@ export default {
     importAliases: {             // Custom path aliases for modules (e.g. { "@": "./src/components" })
         "@": "./"
     },
-    fallbackTarget: "style",     // Where unrecognized attributes go: "style" (inline CSS) or false to disable
+    fallbackTarget: true,        // Where unrecognized attributes go: true (inline CSS) or false (render as attributes)
     outputValidator: null,       // Custom callback: async (transpiledOutput) => { ... }
     baseDir: null,               // Base directory for resolving relative module imports
     showSpinner: true,           // Display a spinner in the terminal during transpilation

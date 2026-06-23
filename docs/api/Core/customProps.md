@@ -33,7 +33,7 @@ Built-in mappers (like HTML and Markdown) use the `smartAttributes` method. This
 *   Instead of writing: `[span = style: "color:red;"]Hello[end:span]`
 *   You can write: `[span = color: "red"]Hello[end:span]`
 
-Because of this, any attribute that is **not** a standard native HTML property (like `id` or `class`) or a data/aria property is automatically converted into an inline CSS style or a CSS class (depending on the `fallbackTarget` setting).
+Because of this, any attribute that is **not** a standard native HTML property (like `id` or `class`) or a data/aria property is automatically converted into an inline CSS style when `fallbackTarget` is `true` (the default), or rendered as a plain HTML attribute when `fallbackTarget` is `false`.
 
 This causes issues when you want to pass actual custom properties (e.g. for custom elements or web components).
 
