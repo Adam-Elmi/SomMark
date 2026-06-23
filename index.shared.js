@@ -74,7 +74,7 @@ class SomMark {
 	 * @param {string} [options.baseDir=null] - The base directory for resolving relative paths.
 	 */
 	constructor(options = {}) {
-		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = "style", outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, dualOutput = false, moduleIdentityToken = null } = options;
+		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = true, outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, dualOutput = false, moduleIdentityToken = null } = options;
 		this.rawSettings = options;
 		this.src = src;
 		this.ast = ast;
@@ -90,15 +90,15 @@ class SomMark {
 			|| (options.files ? new VirtualFS(options.files) : null)
 			|| (isURL(options.baseDir) ? new FetchFS(options.baseDir) : defaultFs);
 
-		// Validate fallbackTarget
-		const VALID_FALLBACK_TARGETS = new Set(["style", "class", false]);
+		// Validate fallbackTarget — "style" is accepted as an alias for true (backward compat)
+		const VALID_FALLBACK_TARGETS = new Set([true, false, "style"]);
 		if (!VALID_FALLBACK_TARGETS.has(fallbackTarget)) {
 			runtimeError([
 				`{line}<$red:Invalid fallbackTarget$>: <$green:'${fallbackTarget}'$> <$yellow:is not a valid value.$>`,
-				`{N}<$yellow:Use$> <$green:'style'$><$yellow:,$> <$green:'class'$><$yellow:, or$> <$green:false$><$yellow:.$>{line}`
+				`{N}<$yellow:Use$> <$green:true$> <$yellow:or$> <$green:false$><$yellow:.$>{line}`
 			]);
 		}
-		this.fallbackTarget = fallbackTarget;
+		this.fallbackTarget = fallbackTarget === "style" ? true : fallbackTarget;
 		this.outputValidator = outputValidator;
 		this.importAliases = importAliases;
 		this.importStack = importStack;
