@@ -83,7 +83,7 @@ export async function findAndLoadConfig(targetPath) {
 		placeholders: {},
 		customProps: [],
 		importAliases: {},
-		fallbackTarget: "style",
+		fallbackTarget: true,
 		outputValidator: null,
 		baseDir: null,
 		showSpinner: true,
