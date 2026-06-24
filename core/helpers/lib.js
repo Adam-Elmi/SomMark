@@ -18,7 +18,7 @@ export function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const version = "5.0.2";
+const version = "5.0.3";
 
 const SomMark = {
     version,

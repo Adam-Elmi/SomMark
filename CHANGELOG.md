@@ -1,5 +1,13 @@
 # Changelog
 
+## v5.0.3 (2026-06-24)
+
+### Fixed
+
+- **`${ }$` no longer implicitly adds `static` keyword** — bare `${ }$` blocks are now treated as static directly, without the lexer appending a hidden `static` token.
+
+---
+
 ## v5.0.2 (2026-06-24)
 
 ### Fixed
