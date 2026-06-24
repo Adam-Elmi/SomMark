@@ -85,6 +85,24 @@ describe('smark-raw prop (raw body)', () => {
         });
     });
 
+    describe('smark-raw with dualOutput', () => {
+        it("does not leak raw block content into JS runtime output", async () => {
+            const src = `[pre = smark-raw: true]\n[div]Hello\\[end]\n[end]`;
+            const sm = new SomMark({ src, format: "html", dualOutput: true });
+            const [html, js] = await sm.transpile();
+            expect(html).toContain("<pre>");
+            expect(html).toContain("[div]Hello[end]");
+            expect(js).toBe("");
+        });
+
+        it("does not include runtime blocks inside smark-raw in JS output", async () => {
+            const src = `[pre = smark-raw: true]runtime \${alert(1)}$\\[end][end]`;
+            const sm = new SomMark({ src, format: "html", dualOutput: true });
+            const [, js] = await sm.transpile();
+            expect(js).toBe("");
+        });
+    });
+
     describe('smark-raw with other args', () => {
         it("works when smark-raw comes after other args", async () => {
             const sm = new SomMark({ src: '[x = class: "a", smark-raw: true]<b>ok</b>[end]', format: "html" });

@@ -452,7 +452,12 @@ function lexer(src, filename = "anonymous") {
 		if (char === "$" && next === "{") {
 			{
 				const hasExplicitKeyword = last_non_junk_type === TOKEN_TYPES.STATIC_KEYWORD || last_non_junk_type === TOKEN_TYPES.RUNTIME_KEYWORD;
-				if (!hasExplicitKeyword) addToken(TOKEN_TYPES.STATIC_KEYWORD, "static");
+				if (!hasExplicitKeyword) {
+						// Zero-width: synthetic token has no source presence, must not shift position
+						tokens.push({ type: TOKEN_TYPES.STATIC_KEYWORD, value: "static", source: filename, range: { start: { line, character }, end: { line, character } } });
+						TOKEN_TYPES.STATIC_KEYWORD;
+						last_non_junk_type = TOKEN_TYPES.STATIC_KEYWORD;
+					}
 				addToken(TOKEN_TYPES.LOGIC_OPEN, "${");
 				i += 2;
 

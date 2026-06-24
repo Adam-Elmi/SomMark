@@ -1,5 +1,13 @@
 # Changelog
 
+## v5.0.2 (2026-06-24)
+
+### Fixed
+
+- **`smark-raw` block leaked into `dualOutput` JS output** — when `dualOutput: true` is set, the transpiler generates two passes: one for HTML, one for the JS runtime. The `smark-raw` handler was executing unconditionally — it ran the mapper render (which returns HTML) even during the JS-only pass. The HTML then ended up in the JS module, causing Vite's import-analysis parser to fail with an invalid JS syntax error. The fix returns an empty string for `smark-raw` blocks in runtime-output mode, since raw blocks contain no runtime logic by definition.
+
+---
+
 ## v5.0.1 (2026-06-23)
 
 ### Changed

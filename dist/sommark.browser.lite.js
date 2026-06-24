@@ -802,7 +802,12 @@ function lexer(src, filename = "anonymous") {
 		if (char === "$" && next === "{") {
 			{
 				const hasExplicitKeyword = last_non_junk_type === TOKEN_TYPES.STATIC_KEYWORD || last_non_junk_type === TOKEN_TYPES.RUNTIME_KEYWORD;
-				if (!hasExplicitKeyword) addToken(TOKEN_TYPES.STATIC_KEYWORD, "static");
+				if (!hasExplicitKeyword) {
+						// Zero-width: synthetic token has no source presence, must not shift position
+						tokens.push({ type: TOKEN_TYPES.STATIC_KEYWORD, value: "static", source: filename, range: { start: { line, character }, end: { line, character } } });
+						TOKEN_TYPES.STATIC_KEYWORD;
+						last_non_junk_type = TOKEN_TYPES.STATIC_KEYWORD;
+					}
 				addToken(TOKEN_TYPES.LOGIC_OPEN, "${");
 				i += 2;
 
@@ -9062,6 +9067,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	// smark-raw block — body collected verbatim by lexer, bypasses normal body processing pipeline
 	if (node.type === BLOCK && (node.props?.["smark-raw"] === "true" || node.props?.["smark-raw"] === true)) {
+		if (generateRuntimeOutput) return "";
 		const rawContent = node.body?.map(n => String(n.text || "")).join("") || "";
 		const { "smark-raw": _, ...cleanArgs } = node.props;
 		const transpiledArgs = await transpileArgs(cleanArgs);
