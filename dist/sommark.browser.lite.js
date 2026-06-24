@@ -801,13 +801,6 @@ function lexer(src, filename = "anonymous") {
 		// LOGIC BLOCKS (${ ... }$) — explicit: static/runtime ${ }$  shorthand: ${ }$ = static ${ }$
 		if (char === "$" && next === "{") {
 			{
-				const hasExplicitKeyword = last_non_junk_type === TOKEN_TYPES.STATIC_KEYWORD || last_non_junk_type === TOKEN_TYPES.RUNTIME_KEYWORD;
-				if (!hasExplicitKeyword) {
-						// Zero-width: synthetic token has no source presence, must not shift position
-						tokens.push({ type: TOKEN_TYPES.STATIC_KEYWORD, value: "static", source: filename, range: { start: { line, character }, end: { line, character } } });
-						TOKEN_TYPES.STATIC_KEYWORD;
-						last_non_junk_type = TOKEN_TYPES.STATIC_KEYWORD;
-					}
 				addToken(TOKEN_TYPES.LOGIC_OPEN, "${");
 				i += 2;
 
@@ -1762,6 +1755,22 @@ function parseValue(tokens, i, placeholders = {}, variables = {}, allowLogic = t
 		}
 
 		return [node, nextI, false];
+	} else if (current_token(tokens, i).type === TOKEN_TYPES.LOGIC_OPEN) {
+		if (!allowLogic) {
+			parserError(errorMessage(tokens, i, "literal value", "", "Logic blocks are not allowed in this context."));
+		}
+		let nextI = i + 1;
+		const logicToken = current_token(tokens, nextI);
+		const node = makeLogicNode(STATIC_LOGIC);
+		node.code = logicToken ? logicToken.value : "";
+		node.range = logicToken ? logicToken.range : current_token(tokens, i).range;
+		nextI++;
+
+		if (current_token(tokens, nextI) && current_token(tokens, nextI).type === TOKEN_TYPES.LOGIC_CLOSE) {
+			nextI++;
+		}
+
+		return [node, nextI, false];
 	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_V) {
 		i++; // consume PREFIX_V keyword
 		const [vKey, vFallback, vNextI] = readPrefixKeyFallback(tokens, i, "v");
@@ -2262,6 +2271,27 @@ function parseNode(tokens, i, filename = null, placeholders = {}, variables = {}
 		nextI++;
 
 		// Consume LOGIC_CLOSE if present
+		if (current_token(tokens, nextI) && current_token(tokens, nextI).type === TOKEN_TYPES.LOGIC_CLOSE) {
+			nextI++;
+		}
+
+		return [node, nextI];
+	}
+	// ========================================================================== //
+	//  Bare Logic Block (${ }$ without explicit static/runtime — defaults to static)
+	// ========================================================================== //
+	else if (current_token(tokens, i) && current_token(tokens, i).type === TOKEN_TYPES.LOGIC_OPEN) {
+		let nextI = i + 1;
+		const logicToken = current_token(tokens, nextI);
+		const node = makeLogicNode(STATIC_LOGIC);
+		node.code = logicToken ? logicToken.value : "";
+		node.depth = depth;
+		node.range = {
+			start: current_token(tokens, i).range.start,
+			end: logicToken ? logicToken.range.end : current_token(tokens, i).range.end
+		};
+		nextI++;
+
 		if (current_token(tokens, nextI) && current_token(tokens, nextI).type === TOKEN_TYPES.LOGIC_CLOSE) {
 			nextI++;
 		}
