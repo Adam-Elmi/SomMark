@@ -1,5 +1,23 @@
 # Changelog
 
+## v5.0.4 (2026-06-25)
+
+### Fixed
+
+- **`v{key | "fallback"}` fallback ignored at module parse time** — the parser baked the fallback into the AST before the caller could provide a value. Fallback is now encoded in the envelope and applied at instantiation. Closes #13.
+
+- **`v{}` not resolved when embedded inside a prop string** — envelopes inside compound values like `"btn btn--v{variant}"` were passed through unchanged. They are now replaced in-place; unresolved ones collapse to `""`. Closes #12.
+
+- **`${ }$` blocks in imported modules used the wrong `baseDir`** — logic nodes resolved paths relative to the main file instead of their own module. Each logic node is now stamped with its source module's directory before caching. Closes #11.
+
+- **Concurrent `transpile()` calls crashed due to shared evaluator state** — the evaluator singleton's instance stack was shared across concurrent calls, causing corruption. Each call now gets its own isolated stack via `AsyncLocalStorage`. Closes #10.
+
+- **`v{}` fallback ignored when transpiling a file directly** — fallbacks only applied inside module instantiation. `applyVariableFallbacks()` is now called in `transpile()` so standalone files also use fallbacks. Bare unresolved envelopes (no fallback) remain visible as a debugging signal.
+
+- **Custom filesystems not propagated to nested module instances** — sub-`SomMark` instances created during module resolution fell back to the default Node.js `fs`, breaking `VirtualFS` and `FetchFS` for nested imports. Both creation sites now forward `fs: context.instance.fs`.
+
+---
+
 ## v5.0.3 (2026-06-24)
 
 ### Fixed

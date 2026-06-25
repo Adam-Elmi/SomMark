@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+
 let _lazyMatch = () => { var __lib__=(()=>{var m=Object.defineProperty,V=Object.getOwnPropertyDescriptor,G=Object.getOwnPropertyNames,T=Object.prototype.hasOwnProperty,q=(r,e)=>{for(var n in e)m(r,n,{get:e[n],enumerable:true});},H=(r,e,n,a)=>{if(e&&typeof e=="object"||typeof e=="function")for(let t of G(e))!T.call(r,t)&&t!==n&&m(r,t,{get:()=>e[t],enumerable:!(a=V(e,t))||a.enumerable});return r},J=r=>H(m({},"__esModule",{value:true}),r),w={};q(w,{default:()=>re});var A=r=>Array.isArray(r),d=r=>typeof r=="function",Q=r=>r.length===0,W=r=>typeof r=="number",K=r=>typeof r=="object"&&r!==null,X=r=>r instanceof RegExp,b=r=>typeof r=="string",h=r=>r===void 0,Y=r=>{const e=new Map;return n=>{const a=e.get(n);if(a)return a;const t=r(n);return e.set(n,t),t}},rr=(r,e,n={})=>{const a={cache:{},input:r,index:0,indexMax:0,options:n,output:[]};if(v(e)(a)&&a.index===r.length)return a.output;throw new Error(`Failed to parse at index ${a.indexMax}`)},i=(r,e)=>A(r)?er(r,e):b(r)?ar(r,e):nr(r,e),er=(r,e)=>{const n={};for(const a of r){if(a.length!==1)throw new Error(`Invalid character: "${a}"`);const t=a.charCodeAt(0);n[t]=true;}return a=>{const t=a.index,o=a.input;for(;a.index<o.length&&o.charCodeAt(a.index)in n;)a.index+=1;const u=a.index;if(u>t){if(!h(e)&&!a.options.silent){const s=a.input.slice(t,u),c=d(e)?e(s,o,String(t)):e;h(c)||a.output.push(c);}a.indexMax=Math.max(a.indexMax,a.index);}return  true}},nr=(r,e)=>{const n=r.source,a=r.flags.replace(/y|$/,"y"),t=new RegExp(n,a);return g(o=>{t.lastIndex=o.index;const u=t.exec(o.input);if(u){if(!h(e)&&!o.options.silent){const s=d(e)?e(...u,o.input,String(o.index)):e;h(s)||o.output.push(s);}return o.index+=u[0].length,o.indexMax=Math.max(o.indexMax,o.index),true}else return  false})},ar=(r,e)=>n=>{if(n.input.startsWith(r,n.index)){if(!h(e)&&!n.options.silent){const t=d(e)?e(r,n.input,String(n.index)):e;h(t)||n.output.push(t);}return n.index+=r.length,n.indexMax=Math.max(n.indexMax,n.index),true}else return  false},C=(r,e,n,a)=>{const t=v(r);return g(_(M(o=>{let u=0;for(;u<n;){const s=o.index;if(!t(o)||(u+=1,o.index===s))break}return u>=e})))},tr=(r,e)=>C(r,0,1),f=(r,e)=>C(r,0,1/0),x=(r,e)=>{const n=r.map(v);return g(_(M(a=>{for(let t=0,o=n.length;t<o;t++)if(!n[t](a))return  false;return  true})))},l=(r,e)=>{const n=r.map(v);return g(_(a=>{for(let t=0,o=n.length;t<o;t++)if(n[t](a))return  true;return  false}))},M=(r,e=false)=>{const n=v(r);return a=>{const t=a.index,o=a.output.length,u=n(a);return (!u||e)&&(a.index=t,a.output.length!==o&&(a.output.length=o)),u}},_=(r,e)=>{const n=v(r);return n},g=(()=>{let r=0;return e=>{const n=v(e),a=r+=1;return t=>{var o;if(t.options.memoization===false)return n(t);const u=t.index,s=(o=t.cache)[a]||(o[a]=new Map),c=s.get(u);if(c===false)return  false;if(W(c))return t.index=c,true;if(c)return t.index=c.index,c.output?.length&&t.output.push(...c.output),true;{const Z=t.output.length;if(n(t)){const D=t.index,U=t.output.length;if(U>Z){const ee=t.output.slice(Z,U);s.set(u,{index:D,output:ee});}else s.set(u,D);return  true}else return s.set(u,false),false}}}})(),E=r=>{let e;return n=>(e||(e=v(r())),e(n))},v=Y(r=>{if(d(r))return Q(r)?E(r):r;if(b(r)||X(r))return i(r);if(A(r))return x(r);if(K(r))return l(Object.values(r));throw new Error("Invalid rule")}),P="abcdefghijklmnopqrstuvwxyz",ir=r=>{let e="";for(;r>0;){const n=(r-1)%26;e=P[n]+e,r=Math.floor((r-1)/26);}return e},O=r=>{let e=0;for(let n=0,a=r.length;n<a;n++)e=e*26+P.indexOf(r[n])+1;return e},S=(r,e)=>{if(e<r)return S(e,r);const n=[];for(;r<=e;)n.push(r++);return n},or=(r,e,n)=>S(r,e).map(a=>String(a).padStart(n,"0")),R=(r,e)=>S(O(r),O(e)).map(ir),p=r=>r,z=r=>ur(e=>rr(e,r,{memoization:false}).join("")),ur=r=>{const e={};return n=>e[n]??(e[n]=r(n))},sr=i(/^\*\*\/\*$/,".*"),cr=i(/^\*\*\/(\*)?([ a-zA-Z0-9._-]+)$/,(r,e,n)=>`.*${e?"":"(?:^|/)"}${n.replaceAll(".","\\.")}`),lr=i(/^\*\*\/(\*)?([ a-zA-Z0-9._-]*)\{([ a-zA-Z0-9._-]+(?:,[ a-zA-Z0-9._-]+)*)\}$/,(r,e,n,a)=>`.*${e?"":"(?:^|/)"}${n.replaceAll(".","\\.")}(?:${a.replaceAll(",","|").replaceAll(".","\\.")})`),y=i(/\\./,p),pr=i(/[$.*+?^(){}[\]\|]/,r=>`\\${r}`),vr=i(/./,p),hr=i(/^(?:!!)*!(.*)$/,(r,e)=>`(?!^${L(e)}$).*?`),dr=i(/^(!!)+/,""),fr=l([hr,dr]),xr=i(/\/(\*\*\/)+/,"(?:/.+/|/)"),gr=i(/^(\*\*\/)+/,"(?:^|.*/)"),mr=i(/\/(\*\*)$/,"(?:/.*|$)"),_r=i(/\*\*/,".*"),j=l([xr,gr,mr,_r]),Sr=i(/\*\/(?!\*\*\/)/,"[^/]*/"),yr=i(/\*/,"[^/]*"),N=l([Sr,yr]),k=i("?","[^/]"),$r=i("[",p),wr=i("]",p),Ar=i(/[!^]/,"^/"),br=i(/[a-z]-[a-z]|[0-9]-[0-9]/i,p),Cr=i(/[$.*+?^(){}[\|]/,r=>`\\${r}`),Mr=i(/[^\]]/,p),Er=l([y,Cr,br,Mr]),B=x([$r,tr(Ar),f(Er),wr]),Pr=i("{","(?:"),Or=i("}",")"),Rr=i(/(\d+)\.\.(\d+)/,(r,e,n)=>or(+e,+n,Math.min(e.length,n.length)).join("|")),zr=i(/([a-z]+)\.\.([a-z]+)/,(r,e,n)=>R(e,n).join("|")),jr=i(/([A-Z]+)\.\.([A-Z]+)/,(r,e,n)=>R(e.toLowerCase(),n.toLowerCase()).join("|").toUpperCase()),Nr=l([Rr,zr,jr]),I=x([Pr,Nr,Or]),kr=i("{","(?:"),Br=i("}",")"),Ir=i(",","|"),Fr=i(/[$.*+?^(){[\]\|]/,r=>`\\${r}`),Lr=i(/[^}]/,p),Zr=E(()=>F),Dr=l([j,N,k,B,I,Zr,y,Fr,Ir,Lr]),F=x([kr,f(Dr),Br]),Ur=f(l([sr,cr,lr,fr,j,N,k,B,I,F,y,pr,vr])),Vr=Ur,Gr=z(Vr),L=Gr,Tr=i(/\\./,p),qr=i(/./,p),Hr=i(/\*\*\*+/,"*"),Jr=i(/([^/{[(!])\*\*/,(r,e)=>`${e}*`),Qr=i(/(^|.)\*\*(?=[^*/)\]}])/,(r,e)=>`${e}*`),Wr=f(l([Tr,Hr,Jr,Qr,qr])),Kr=Wr,Xr=z(Kr),Yr=Xr,$=(r,e)=>{const n=Array.isArray(r)?r:[r];if(!n.length)return  false;const a=n.map($.compile),t=n.every(s=>/(\/(?:\*\*)?|\[\/\])$/.test(s)),o=e.replace(/[\\\/]+/g,"/").replace(/\/$/,t?"/":"");return a.some(s=>s.test(o))};$.compile=r=>new RegExp(`^${L(Yr(r))}$`,"s");var re=$;return J(w)})();
  return __lib__.default || __lib__; };
 let _match;
@@ -1786,7 +1788,9 @@ function parseValue(tokens, i, placeholders = {}, variables = {}, allowLogic = t
 			}
 			variables.__consumed__.add(vKey);
 		} else {
-			val = vFallback !== undefined ? vFallback : getPrefixValue('v', vKey);
+			// Encode fallback in the envelope key so resolveAstVariables can apply it
+			// at instantiation time instead of baking it in now.
+			val = getPrefixValue('v', vFallback !== undefined ? `${vKey}|${vFallback}` : vKey);
 		}
 		return [val, i, false];
 	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_P) {
@@ -2180,7 +2184,8 @@ function parseText(tokens, i, placeholders = {}, variables = {}, depth = 0, opti
 				}
 				variables.__consumed__.add(tvKey);
 			} else {
-				textNode.text += tvFallback !== undefined ? tvFallback : getPrefixValue('v', tvKey);
+				// Encode fallback in envelope so resolveAstVariables can apply it later.
+				textNode.text += getPrefixValue('v', tvFallback !== undefined ? `${tvKey}|${tvFallback}` : tvKey);
 			}
 		} else {
 			break;
@@ -8622,7 +8627,7 @@ function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const version = "5.0.3";
+const version = "5.0.4";
 
 const SomMark$1 = {
     version,
@@ -8672,6 +8677,17 @@ const SomMark$1 = {
 
 // Freeze the entire Standard Library to make it completely immutable and tamper-proof
 Object.freeze(SomMark$1);
+
+// Each transpile() call gets its own isolated EvaluatorState stack via async context.
+const evaluatorStorage = new AsyncLocalStorage();
+
+/**
+ * Runs fn inside an isolated evaluator context.
+ * Concurrent transpile() calls each get their own stack — no cross-contamination.
+ */
+function withEvaluator(fn) {
+    return evaluatorStorage.run([], fn);
+}
 
 // Global tracker to ensure deep recursive Smark compilation never exceeds safe boundaries
 let globalCompilationDepth = 0;
@@ -9399,8 +9415,10 @@ class EvaluatorState {
         this.expose(vars);
     }
 
-    async execute(code) {
+    async execute(code, baseDir = null) {
         if (!this.context) throw new Error("Evaluator not initialized");
+        const prevBaseDir = this.baseDir;
+        if (baseDir) this.baseDir = baseDir;
 
         const timeout = this.security?.timeout ?? 5000;
         this.deadline = Date.now() + timeout;
@@ -9634,6 +9652,7 @@ class EvaluatorState {
         } finally {
             this.deadline = 0;
             clearInterval(interval);
+            if (baseDir) this.baseDir = prevBaseDir;
         }
     }
 
@@ -9670,30 +9689,42 @@ class EvaluatorState {
 
 class Evaluator {
     constructor() {
-        this.instances = [];
+        // Fallback stack for callers that use init() outside withEvaluator() (e.g. tests).
+        this._fallbackStack = [];
     }
+
+    _getStack() {
+        return evaluatorStorage.getStore() ?? this._fallbackStack;
+    }
+
+    // Expose the active stack so tests can check .instances.length
+    get instances() { return this._getStack(); }
 
     setDefaultFs(fs) {
         defaultFs$1 = fs;
     }
 
     get active() {
-        if (this.instances.length === 0) {
+        const stack = this._getStack();
+        if (stack.length === 0) {
             throw new Error("No active EvaluatorState instance. Did you call init()?");
         }
-        return this.instances[this.instances.length - 1];
+        return stack[stack.length - 1];
     }
+
+    // Forward .runtime to the active state so tests can assert on it
+    get runtime() { return this.active?.runtime ?? null; }
 
     async init(baseDir = null, security = {}, settings = {}, mapperFile = null) {
         const state = new EvaluatorState();
         await state.init(baseDir, security, settings, mapperFile);
-        this.instances.push(state);
+        this._getStack().push(state);
     }
 
     destroy() {
-        if (this.instances.length > 0) {
-            const state = this.instances.pop();
-            state.destroy();
+        const stack = this._getStack();
+        if (stack.length > 0) {
+            stack.pop().destroy();
         }
     }
 
@@ -9709,8 +9740,8 @@ class Evaluator {
         this.active.inject(vars);
     }
 
-    async execute(code) {
-        return await this.active.execute(code);
+    async execute(code, baseDir = null) {
+        return await this.active.execute(code, baseDir);
     }
 
     hasDynamicTag(id) {
@@ -10075,7 +10106,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	if (node.type === STATIC_LOGIC) {
 		try {
-			const result = await Evaluator$1.execute(node.code);
+			const result = await Evaluator$1.execute(node.code, node.baseDir || null);
 			if (generateRuntimeOutput) return "";
 			if (result && typeof result === "object" && result.__raw !== undefined) {
 				if (security?.allowRaw === false) {
@@ -10281,7 +10312,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 						}
 					} else if (child.type === STATIC_LOGIC) {
 						try {
-							const val = await Evaluator$1.execute(child.code);
+							const val = await Evaluator$1.execute(child.code, child.baseDir || null);
 							if (val !== undefined && typeof val !== "object") richText += String(val);
 						} catch (err) {
 							transpilerError([
@@ -10398,7 +10429,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 					case STATIC_LOGIC:
 						try {
-							const result = await Evaluator$1.execute(body_node.code);
+							const result = await Evaluator$1.execute(body_node.code, body_node.baseDir || null);
 							if (result && typeof result === "object" && result.__raw !== undefined) {
 								if (security?.allowRaw === false) {
 									bodyOutput = mapper_file ? mapper_file.text(String(result.__raw)) : String(result.__raw);
@@ -10512,109 +10543,108 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 	})();
 
 	const dualOutput = optionsOrAst?.dualOutput || false;
-
-	// Initialize Logic Sandbox
-	await Evaluator$1.init(fileBaseDir, security, settings, targetMapper);
-	// Inject global data
 	const placeholders = optionsOrAst?.placeholders || settings?.placeholders || {};
 	const variables = optionsOrAst?.variables || settings?.variables || {};
 	warnDroppedVariables(variables);
-	Evaluator$1.inject(placeholders);
-	Evaluator$1.inject(variables);
 
-	let output = "";
-	let prev_body_node = null;
-	let prev_was_silent = false;
-
-	if (dualOutput) {
-		const idState = { mode: 'record', ids: [], idx: 0 };
-
-		// HTML pass — generate HTML, record element IDs for runtime blocks
-		let htmlOutput = "";
-		try {
-			for (let i = 0; i < body.length; i++) {
-				const node = body[i];
-				const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, true, instance, idState);
-				let finalBlockOutput = blockOutput;
-				if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
-				if (finalBlockOutput) {
-					htmlOutput += finalBlockOutput;
-					prev_was_silent = false;
-				} else {
-					prev_was_silent = true;
-					if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
-						const nextNode = body[i + 1];
-						if (nextNode && nextNode.type === TEXT$1 && (nextNode.text === "\n" || nextNode.text === "\r\n")) i++;
-					}
-				}
-			}
-		} finally {
-			Evaluator$1.destroy();
-		}
-
-		// JS pass — replay the same IDs so querySelector targets match HTML
-		idState.mode = 'replay';
-		idState.idx = 0;
-		prev_was_silent = false;
-
+	return withEvaluator(async () => {
+		// Initialize Logic Sandbox inside isolated async context
 		await Evaluator$1.init(fileBaseDir, security, settings, targetMapper);
 		Evaluator$1.inject(placeholders);
 		Evaluator$1.inject(variables);
 
-		let jsOutput = "";
+		let output = "";
+		let prev_body_node = null;
+		let prev_was_silent = false;
+
+		if (dualOutput) {
+			const idState = { mode: 'record', ids: [], idx: 0 };
+
+			// HTML pass — generate HTML, record element IDs for runtime blocks
+			let htmlOutput = "";
+			try {
+				for (let i = 0; i < body.length; i++) {
+					const node = body[i];
+					const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, true, instance, idState);
+					let finalBlockOutput = blockOutput;
+					if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+					if (finalBlockOutput) {
+						htmlOutput += finalBlockOutput;
+						prev_was_silent = false;
+					} else {
+						prev_was_silent = true;
+						if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
+							const nextNode = body[i + 1];
+							if (nextNode && nextNode.type === TEXT$1 && (nextNode.text === "\n" || nextNode.text === "\r\n")) i++;
+						}
+					}
+				}
+			} finally {
+				Evaluator$1.destroy();
+			}
+
+			// JS pass — replay the same IDs so querySelector targets match HTML
+			idState.mode = 'replay';
+			idState.idx = 0;
+			prev_was_silent = false;
+
+			await Evaluator$1.init(fileBaseDir, security, settings, targetMapper);
+			Evaluator$1.inject(placeholders);
+			Evaluator$1.inject(variables);
+
+			let jsOutput = "";
+			try {
+				for (let i = 0; i < body.length; i++) {
+					const node = body[i];
+					const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, true, false, instance, idState);
+					let finalBlockOutput = blockOutput;
+					if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+					if (finalBlockOutput) {
+						jsOutput += finalBlockOutput;
+						prev_was_silent = false;
+					} else {
+						prev_was_silent = true;
+					}
+				}
+			} finally {
+				Evaluator$1.destroy();
+			}
+
+			return [htmlOutput.trim(), jsOutput.trim()];
+		}
+
 		try {
 			for (let i = 0; i < body.length; i++) {
 				const node = body[i];
-				const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, true, false, instance, idState);
+				const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, false, instance);
+
 				let finalBlockOutput = blockOutput;
-				if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+				if (prev_was_silent && node.type === TEXT$1) {
+					finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+				}
+
 				if (finalBlockOutput) {
-					jsOutput += finalBlockOutput;
+					output += finalBlockOutput;
 					prev_was_silent = false;
+					if (node.type !== TEXT$1 || node.text.trim().length > 0) {
+						prev_body_node = node;
+					}
 				} else {
 					prev_was_silent = true;
+					if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
+						const nextNode = body[i + 1];
+						if (nextNode && nextNode.type === TEXT$1 && (nextNode.text === "\n" || nextNode.text === "\r\n")) {
+							i++;
+						}
+					}
 				}
 			}
 		} finally {
 			Evaluator$1.destroy();
 		}
 
-		return [htmlOutput.trim(), jsOutput.trim()];
-	}
-
-	try {
-		for (let i = 0; i < body.length; i++) {
-			const node = body[i];
-			const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, false, instance);
-
-			let finalBlockOutput = blockOutput;
-			if (prev_was_silent && node.type === TEXT$1) {
-				finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
-			}
-
-			if (finalBlockOutput) {
-				output += finalBlockOutput;
-				prev_was_silent = false;
-				if (node.type !== TEXT$1 || node.text.trim().length > 0) {
-					prev_body_node = node;
-				}
-			} else {
-				prev_was_silent = true;
-				if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
-					// If a comment is removed, check the next node.
-					// If it's just a blank line, skip it so we don't have extra gaps in the output.
-					const nextNode = body[i + 1];
-					if (nextNode && nextNode.type === TEXT$1 && (nextNode.text === "\n" || nextNode.text === "\r\n")) {
-						i++; // Skip the next newline node
-					}
-				}
-			}
-		}
-	} finally {
-		Evaluator$1.destroy();
-	}
-
-	return output.trim();
+		return output.trim();
+	});
 }
 
 /**
@@ -10637,7 +10667,7 @@ async function transpileArgs(props) {
 				result[key] = "";
 			} else if (value.type === STATIC_LOGIC) {
 				try {
-					result[key] = await Evaluator$1.execute(value.code);
+					result[key] = await Evaluator$1.execute(value.code, value.baseDir || null);
 				} catch (err) {
 					transpilerError([
 						`<$red:Logic Error (Argument):$> ${err.message}{line}`,
@@ -13275,7 +13305,10 @@ const resolveAstVariables = (nodes, variables) => {
 	for (const node of nodes) {
 		if (node.type === TEXT$1) {
 			if (node.text.includes(VAR_PREFIX)) {
-				node.text = node.text.replace(VAR_PATTERN, (match, key) => {
+				node.text = node.text.replace(VAR_PATTERN, (match, keyAndFallback) => {
+					const pipeIdx = keyAndFallback.indexOf('|');
+					const key = pipeIdx >= 0 ? keyAndFallback.slice(0, pipeIdx) : keyAndFallback;
+					const fallback = pipeIdx >= 0 ? keyAndFallback.slice(pipeIdx + 1) : undefined;
 					if (variables[key] !== undefined) {
 						if (!variables.__consumed__) {
 							Object.defineProperty(variables, "__consumed__", {
@@ -13288,14 +13321,21 @@ const resolveAstVariables = (nodes, variables) => {
 						variables.__consumed__.add(key);
 						return String(variables[key]);
 					}
+					if (fallback !== undefined) return fallback;
 					return match;
 				});
 			}
 		} else if (node.type === BLOCK) {
 			// Resolve any unresolved variables in block arguments
 			for (const [argKey, argVal] of Object.entries(node.props)) {
-				if (typeof argVal === "string" && argVal.startsWith(VAR_PREFIX) && argVal.endsWith(VAR_SUFFIX)) {
-					const varKey = argVal.slice(VAR_PREFIX.length, -VAR_SUFFIX.length);
+				if (typeof argVal !== "string" || !argVal.includes(VAR_PREFIX)) continue;
+
+				if (argVal.startsWith(VAR_PREFIX) && argVal.endsWith(VAR_SUFFIX)) {
+					// Entire value is an envelope — resolve to scalar or fallback
+					const keyAndFallback = argVal.slice(VAR_PREFIX.length, -VAR_SUFFIX.length);
+					const pipeIdx = keyAndFallback.indexOf('|');
+					const varKey = pipeIdx >= 0 ? keyAndFallback.slice(0, pipeIdx) : keyAndFallback;
+					const fallback = pipeIdx >= 0 ? keyAndFallback.slice(pipeIdx + 1) : undefined;
 					if (variables[varKey] !== undefined) {
 						node.props[argKey] = variables[varKey];
 						if (!variables.__consumed__) {
@@ -13307,7 +13347,31 @@ const resolveAstVariables = (nodes, variables) => {
 							});
 						}
 						variables.__consumed__.add(varKey);
+					} else if (fallback !== undefined) {
+						node.props[argKey] = fallback;
 					}
+				} else {
+					// Envelope embedded inside a larger string — replace in-place.
+					// Unresolved envelopes become "" so they don't pollute class names etc.
+					node.props[argKey] = argVal.replace(VAR_PATTERN, (match, keyAndFallback) => {
+						const pipeIdx = keyAndFallback.indexOf('|');
+						const key = pipeIdx >= 0 ? keyAndFallback.slice(0, pipeIdx) : keyAndFallback;
+						const fallback = pipeIdx >= 0 ? keyAndFallback.slice(pipeIdx + 1) : undefined;
+						if (variables[key] !== undefined) {
+							if (!variables.__consumed__) {
+								Object.defineProperty(variables, "__consumed__", {
+									value: new Set(),
+									writable: true,
+									enumerable: false,
+									configurable: true
+								});
+							}
+							variables.__consumed__.add(key);
+							return String(variables[key]);
+						}
+						if (fallback !== undefined) return fallback;
+						return "";
+					});
 				}
 			}
 			if (node.body) {
@@ -13337,6 +13401,7 @@ const cloneAst = (nodes) => {
 		if (node.id !== undefined) nodeCopy.id = node.id;
 		if (node.code !== undefined) nodeCopy.code = node.code;
 		if (node.isSelfClosing !== undefined) nodeCopy.isSelfClosing = node.isSelfClosing;
+		if (node.baseDir !== undefined) nodeCopy.baseDir = node.baseDir;
 		if (node.props !== undefined) {
 			nodeCopy.props = { ...node.props };
 		}
@@ -13346,6 +13411,20 @@ const cloneAst = (nodes) => {
 		copy[i] = nodeCopy;
 	}
 	return copy;
+};
+
+/**
+ * Tags all STATIC_LOGIC and RUNTIME_LOGIC nodes in a subtree with their
+ * source module's baseDir so the evaluator can resolve imports correctly.
+ */
+const tagLogicNodes = (nodes, baseDir) => {
+	if (!nodes) return;
+	for (const node of nodes) {
+		if ((node.type === STATIC_LOGIC || node.type === RUNTIME_LOGIC) && !node.baseDir) {
+			node.baseDir = baseDir;
+		}
+		if (node.body) tagLogicNodes(node.body, baseDir);
+	}
 };
 
 /**
@@ -13521,6 +13600,7 @@ async function resolveModules(ast, context) {
 						format: context.format,
 						filename: mod.path,
 						baseDir: posix.dirname(mod.localPath),
+						fs: context.instance.fs,
 						mapperFile: context.instance.mapperFile,
 						placeholders: context.instance.placeholders,
 						variables: {},
@@ -13536,6 +13616,7 @@ async function resolveModules(ast, context) {
 					});
 
 					const subAst = await subSmark.parse();
+					tagLogicNodes(subAst, posix.dirname(mod.localPath));
 					context.instance.moduleCache.set(mod.localPath, subAst);
 					expandedNodes = trimAst(subAst);
 				}
@@ -13579,6 +13660,7 @@ async function resolveModules(ast, context) {
 						format: context.format,
 						filename: mod.path,
 						baseDir: posix.dirname(mod.localPath),
+						fs: context.instance.fs,
 						mapperFile: context.instance.mapperFile,
 						placeholders: context.instance.placeholders,
 						variables: {}, // Parse without variables to keep the cached AST pure
@@ -13594,6 +13676,7 @@ async function resolveModules(ast, context) {
 					});
 
 					subAst = await subSmark.parse();
+					tagLogicNodes(subAst, posix.dirname(mod.localPath));
 					context.instance.moduleCache.set(mod.localPath, subAst);
 					subAst = cloneAst(subAst);
 				}
@@ -13662,6 +13745,13 @@ async function resolveModules(ast, context) {
 
 	return ast;
 }
+
+/**
+ * After full transpilation of the top-level file, apply any v{} fallbacks that
+ * remain unresolved. Envelopes with no fallback are kept as-is (debugging signal).
+ * Must NOT be called on sub-module ASTs — only on the final top-level AST.
+ */
+const applyVariableFallbacks = (ast) => resolveAstVariables(ast, {});
 
 /**
  * SomMark Rules Validator
@@ -14157,6 +14247,7 @@ class SomMark {
 		if (this.showSpinner) startSpinner();
 		try {
 			const ast = this.ast || await this.parse(src);
+			applyVariableFallbacks(ast);
 			let result = await transpiler({
 				ast,
 				format: this.targetFormat,

@@ -1,7 +1,7 @@
 import path from "pathe";
 import { fileURLToPath } from "./helpers/url.js";
 import { runtimeError } from "./errors.js";
-import { IMPORT, USE_MODULE, TEXT, BLOCK, COMMENT, SLOT } from "./labels.js";
+import { IMPORT, USE_MODULE, TEXT, BLOCK, COMMENT, SLOT, STATIC_LOGIC, RUNTIME_LOGIC } from "./labels.js";
 
 /**
  * Resolves a module path relative to a base directory.
@@ -52,7 +52,10 @@ const resolveAstVariables = (nodes, variables) => {
 	for (const node of nodes) {
 		if (node.type === TEXT) {
 			if (node.text.includes(VAR_PREFIX)) {
-				node.text = node.text.replace(VAR_PATTERN, (match, key) => {
+				node.text = node.text.replace(VAR_PATTERN, (match, keyAndFallback) => {
+					const pipeIdx = keyAndFallback.indexOf('|');
+					const key = pipeIdx >= 0 ? keyAndFallback.slice(0, pipeIdx) : keyAndFallback;
+					const fallback = pipeIdx >= 0 ? keyAndFallback.slice(pipeIdx + 1) : undefined;
 					if (variables[key] !== undefined) {
 						if (!variables.__consumed__) {
 							Object.defineProperty(variables, "__consumed__", {
@@ -65,14 +68,21 @@ const resolveAstVariables = (nodes, variables) => {
 						variables.__consumed__.add(key);
 						return String(variables[key]);
 					}
+					if (fallback !== undefined) return fallback;
 					return match;
 				});
 			}
 		} else if (node.type === BLOCK) {
 			// Resolve any unresolved variables in block arguments
 			for (const [argKey, argVal] of Object.entries(node.props)) {
-				if (typeof argVal === "string" && argVal.startsWith(VAR_PREFIX) && argVal.endsWith(VAR_SUFFIX)) {
-					const varKey = argVal.slice(VAR_PREFIX.length, -VAR_SUFFIX.length);
+				if (typeof argVal !== "string" || !argVal.includes(VAR_PREFIX)) continue;
+
+				if (argVal.startsWith(VAR_PREFIX) && argVal.endsWith(VAR_SUFFIX)) {
+					// Entire value is an envelope — resolve to scalar or fallback
+					const keyAndFallback = argVal.slice(VAR_PREFIX.length, -VAR_SUFFIX.length);
+					const pipeIdx = keyAndFallback.indexOf('|');
+					const varKey = pipeIdx >= 0 ? keyAndFallback.slice(0, pipeIdx) : keyAndFallback;
+					const fallback = pipeIdx >= 0 ? keyAndFallback.slice(pipeIdx + 1) : undefined;
 					if (variables[varKey] !== undefined) {
 						node.props[argKey] = variables[varKey];
 						if (!variables.__consumed__) {
@@ -84,7 +94,31 @@ const resolveAstVariables = (nodes, variables) => {
 							});
 						}
 						variables.__consumed__.add(varKey);
+					} else if (fallback !== undefined) {
+						node.props[argKey] = fallback;
 					}
+				} else {
+					// Envelope embedded inside a larger string — replace in-place.
+					// Unresolved envelopes become "" so they don't pollute class names etc.
+					node.props[argKey] = argVal.replace(VAR_PATTERN, (match, keyAndFallback) => {
+						const pipeIdx = keyAndFallback.indexOf('|');
+						const key = pipeIdx >= 0 ? keyAndFallback.slice(0, pipeIdx) : keyAndFallback;
+						const fallback = pipeIdx >= 0 ? keyAndFallback.slice(pipeIdx + 1) : undefined;
+						if (variables[key] !== undefined) {
+							if (!variables.__consumed__) {
+								Object.defineProperty(variables, "__consumed__", {
+									value: new Set(),
+									writable: true,
+									enumerable: false,
+									configurable: true
+								});
+							}
+							variables.__consumed__.add(key);
+							return String(variables[key]);
+						}
+						if (fallback !== undefined) return fallback;
+						return "";
+					});
 				}
 			}
 			if (node.body) {
@@ -114,6 +148,7 @@ const cloneAst = (nodes) => {
 		if (node.id !== undefined) nodeCopy.id = node.id;
 		if (node.code !== undefined) nodeCopy.code = node.code;
 		if (node.isSelfClosing !== undefined) nodeCopy.isSelfClosing = node.isSelfClosing;
+		if (node.baseDir !== undefined) nodeCopy.baseDir = node.baseDir;
 		if (node.props !== undefined) {
 			nodeCopy.props = { ...node.props };
 		}
@@ -123,6 +158,20 @@ const cloneAst = (nodes) => {
 		copy[i] = nodeCopy;
 	}
 	return copy;
+};
+
+/**
+ * Tags all STATIC_LOGIC and RUNTIME_LOGIC nodes in a subtree with their
+ * source module's baseDir so the evaluator can resolve imports correctly.
+ */
+const tagLogicNodes = (nodes, baseDir) => {
+	if (!nodes) return;
+	for (const node of nodes) {
+		if ((node.type === STATIC_LOGIC || node.type === RUNTIME_LOGIC) && !node.baseDir) {
+			node.baseDir = baseDir;
+		}
+		if (node.body) tagLogicNodes(node.body, baseDir);
+	}
 };
 
 /**
@@ -298,6 +347,7 @@ export async function resolveModules(ast, context) {
 						format: context.format,
 						filename: mod.path,
 						baseDir: path.dirname(mod.localPath),
+						fs: context.instance.fs,
 						mapperFile: context.instance.mapperFile,
 						placeholders: context.instance.placeholders,
 						variables: {},
@@ -313,6 +363,7 @@ export async function resolveModules(ast, context) {
 					});
 
 					const subAst = await subSmark.parse();
+					tagLogicNodes(subAst, path.dirname(mod.localPath));
 					context.instance.moduleCache.set(mod.localPath, subAst);
 					expandedNodes = trimAst(subAst);
 				}
@@ -356,6 +407,7 @@ export async function resolveModules(ast, context) {
 						format: context.format,
 						filename: mod.path,
 						baseDir: path.dirname(mod.localPath),
+						fs: context.instance.fs,
 						mapperFile: context.instance.mapperFile,
 						placeholders: context.instance.placeholders,
 						variables: {}, // Parse without variables to keep the cached AST pure
@@ -371,6 +423,7 @@ export async function resolveModules(ast, context) {
 					});
 
 					subAst = await subSmark.parse();
+					tagLogicNodes(subAst, path.dirname(mod.localPath));
 					context.instance.moduleCache.set(mod.localPath, subAst);
 					subAst = cloneAst(subAst);
 				}
@@ -441,3 +494,10 @@ export async function resolveModules(ast, context) {
 
 	return ast;
 }
+
+/**
+ * After full transpilation of the top-level file, apply any v{} fallbacks that
+ * remain unresolved. Envelopes with no fallback are kept as-is (debugging signal).
+ * Must NOT be called on sub-module ASTs — only on the final top-level AST.
+ */
+export const applyVariableFallbacks = (ast) => resolveAstVariables(ast, {});

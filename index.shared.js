@@ -19,7 +19,7 @@ import { runtimeError } from "./core/errors.js";
 import FORMATS, { textFormat, htmlFormat, markdownFormat, mdxFormat, jsonFormat, jsoncFormat, xmlFormat, csvFormat, tomlFormat, yamlFormat } from "./core/formats.js";
 import TOKEN_TYPES from "./core/tokenTypes.js";
 import * as labels from "./core/labels.js";
-import { resolveModules } from "./core/modules.js";
+import { resolveModules, applyVariableFallbacks } from "./core/modules.js";
 import { validateAST } from "./core/validator.js";
 import { enableColor } from "./helpers/colorize.js";
 import { safeArg } from "./helpers/utils.js";
@@ -292,6 +292,7 @@ class SomMark {
 		if (this.showSpinner) startSpinner();
 		try {
 			const ast = this.ast || await this.parse(src);
+			applyVariableFallbacks(ast);
 			let result = await transpiler({
 				ast,
 				format: this.targetFormat,

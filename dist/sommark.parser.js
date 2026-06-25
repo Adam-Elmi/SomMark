@@ -1341,7 +1341,9 @@ function parseValue(tokens, i, placeholders = {}, variables = {}, allowLogic = t
 			}
 			variables.__consumed__.add(vKey);
 		} else {
-			val = vFallback !== undefined ? vFallback : getPrefixValue('v', vKey);
+			// Encode fallback in the envelope key so resolveAstVariables can apply it
+			// at instantiation time instead of baking it in now.
+			val = getPrefixValue('v', vFallback !== undefined ? `${vKey}|${vFallback}` : vKey);
 		}
 		return [val, i, false];
 	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_P) {
@@ -1735,7 +1737,8 @@ function parseText(tokens, i, placeholders = {}, variables = {}, depth = 0, opti
 				}
 				variables.__consumed__.add(tvKey);
 			} else {
-				textNode.text += tvFallback !== undefined ? tvFallback : getPrefixValue('v', tvKey);
+				// Encode fallback in envelope so resolveAstVariables can apply it later.
+				textNode.text += getPrefixValue('v', tvFallback !== undefined ? `${tvKey}|${tvFallback}` : tvKey);
 			}
 		} else {
 			break;

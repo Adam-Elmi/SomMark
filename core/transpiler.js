@@ -1,6 +1,6 @@
 import { BLOCK, TEXT, COMMENT, COMMENT_BLOCK, STATIC_LOGIC, RUNTIME_LOGIC, FOR_EACH } from "./labels.js";
 import { transpilerError } from "./errors.js";
-import evaluator from "./evaluator.js";
+import evaluator, { withEvaluator } from "./evaluator.js";
 import { matchedValue } from "../helpers/utils.js";
 import { dedentBy } from "../helpers/dedent.js";
 import { preprocessRuntimeLogic } from "./helpers/preprocessor.js";
@@ -107,7 +107,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	if (node.type === STATIC_LOGIC) {
 		try {
-			const result = await evaluator.execute(node.code);
+			const result = await evaluator.execute(node.code, node.baseDir || null);
 			if (generateRuntimeOutput) return "";
 			if (result && typeof result === "object" && result.__raw !== undefined) {
 				if (security?.allowRaw === false) {
@@ -313,7 +313,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 						}
 					} else if (child.type === STATIC_LOGIC) {
 						try {
-							const val = await evaluator.execute(child.code);
+							const val = await evaluator.execute(child.code, child.baseDir || null);
 							if (val !== undefined && typeof val !== "object") richText += String(val);
 						} catch (err) {
 							transpilerError([
@@ -431,7 +431,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 					case STATIC_LOGIC:
 						try {
-							const result = await evaluator.execute(body_node.code);
+							const result = await evaluator.execute(body_node.code, body_node.baseDir || null);
 							if (result && typeof result === "object" && result.__raw !== undefined) {
 								if (security?.allowRaw === false) {
 									bodyOutput = mapper_file ? mapper_file.text(String(result.__raw)) : String(result.__raw);
@@ -545,109 +545,108 @@ export async function transpiler(optionsOrAst, format, mapperFile) {
 	})();
 
 	const dualOutput = optionsOrAst?.dualOutput || false;
-
-	// Initialize Logic Sandbox
-	await evaluator.init(fileBaseDir, security, settings, targetMapper);
-	// Inject global data
 	const placeholders = optionsOrAst?.placeholders || settings?.placeholders || {};
 	const variables = optionsOrAst?.variables || settings?.variables || {};
 	warnDroppedVariables(variables);
-	evaluator.inject(placeholders);
-	evaluator.inject(variables);
 
-	let output = "";
-	let prev_body_node = null;
-	let prev_was_silent = false;
-
-	if (dualOutput) {
-		const idState = { mode: 'record', ids: [], idx: 0 };
-
-		// HTML pass — generate HTML, record element IDs for runtime blocks
-		let htmlOutput = "";
-		try {
-			for (let i = 0; i < body.length; i++) {
-				const node = body[i];
-				const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, true, instance, idState);
-				let finalBlockOutput = blockOutput;
-				if (prev_was_silent && node.type === TEXT) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
-				if (finalBlockOutput) {
-					htmlOutput += finalBlockOutput;
-					prev_was_silent = false;
-				} else {
-					prev_was_silent = true;
-					if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
-						const nextNode = body[i + 1];
-						if (nextNode && nextNode.type === TEXT && (nextNode.text === "\n" || nextNode.text === "\r\n")) i++;
-					}
-				}
-			}
-		} finally {
-			evaluator.destroy();
-		}
-
-		// JS pass — replay the same IDs so querySelector targets match HTML
-		idState.mode = 'replay';
-		idState.idx = 0;
-		prev_was_silent = false;
-
+	return withEvaluator(async () => {
+		// Initialize Logic Sandbox inside isolated async context
 		await evaluator.init(fileBaseDir, security, settings, targetMapper);
 		evaluator.inject(placeholders);
 		evaluator.inject(variables);
 
-		let jsOutput = "";
+		let output = "";
+		let prev_body_node = null;
+		let prev_was_silent = false;
+
+		if (dualOutput) {
+			const idState = { mode: 'record', ids: [], idx: 0 };
+
+			// HTML pass — generate HTML, record element IDs for runtime blocks
+			let htmlOutput = "";
+			try {
+				for (let i = 0; i < body.length; i++) {
+					const node = body[i];
+					const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, true, instance, idState);
+					let finalBlockOutput = blockOutput;
+					if (prev_was_silent && node.type === TEXT) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+					if (finalBlockOutput) {
+						htmlOutput += finalBlockOutput;
+						prev_was_silent = false;
+					} else {
+						prev_was_silent = true;
+						if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
+							const nextNode = body[i + 1];
+							if (nextNode && nextNode.type === TEXT && (nextNode.text === "\n" || nextNode.text === "\r\n")) i++;
+						}
+					}
+				}
+			} finally {
+				evaluator.destroy();
+			}
+
+			// JS pass — replay the same IDs so querySelector targets match HTML
+			idState.mode = 'replay';
+			idState.idx = 0;
+			prev_was_silent = false;
+
+			await evaluator.init(fileBaseDir, security, settings, targetMapper);
+			evaluator.inject(placeholders);
+			evaluator.inject(variables);
+
+			let jsOutput = "";
+			try {
+				for (let i = 0; i < body.length; i++) {
+					const node = body[i];
+					const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, true, false, instance, idState);
+					let finalBlockOutput = blockOutput;
+					if (prev_was_silent && node.type === TEXT) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+					if (finalBlockOutput) {
+						jsOutput += finalBlockOutput;
+						prev_was_silent = false;
+					} else {
+						prev_was_silent = true;
+					}
+				}
+			} finally {
+				evaluator.destroy();
+			}
+
+			return [htmlOutput.trim(), jsOutput.trim()];
+		}
+
 		try {
 			for (let i = 0; i < body.length; i++) {
 				const node = body[i];
-				const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, true, false, instance, idState);
+				const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, false, instance);
+
 				let finalBlockOutput = blockOutput;
-				if (prev_was_silent && node.type === TEXT) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+				if (prev_was_silent && node.type === TEXT) {
+					finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+				}
+
 				if (finalBlockOutput) {
-					jsOutput += finalBlockOutput;
+					output += finalBlockOutput;
 					prev_was_silent = false;
+					if (node.type !== TEXT || node.text.trim().length > 0) {
+						prev_body_node = node;
+					}
 				} else {
 					prev_was_silent = true;
+					if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
+						const nextNode = body[i + 1];
+						if (nextNode && nextNode.type === TEXT && (nextNode.text === "\n" || nextNode.text === "\r\n")) {
+							i++;
+						}
+					}
 				}
 			}
 		} finally {
 			evaluator.destroy();
 		}
 
-		return [htmlOutput.trim(), jsOutput.trim()];
-	}
-
-	try {
-		for (let i = 0; i < body.length; i++) {
-			const node = body[i];
-			const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, false, instance);
-
-			let finalBlockOutput = blockOutput;
-			if (prev_was_silent && node.type === TEXT) {
-				finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
-			}
-
-			if (finalBlockOutput) {
-				output += finalBlockOutput;
-				prev_was_silent = false;
-				if (node.type !== TEXT || node.text.trim().length > 0) {
-					prev_body_node = node;
-				}
-			} else {
-				prev_was_silent = true;
-				if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
-					// If a comment is removed, check the next node.
-					// If it's just a blank line, skip it so we don't have extra gaps in the output.
-					const nextNode = body[i + 1];
-					if (nextNode && nextNode.type === TEXT && (nextNode.text === "\n" || nextNode.text === "\r\n")) {
-						i++; // Skip the next newline node
-					}
-				}
-			}
-		}
-	} finally {
-		evaluator.destroy();
-	}
-
-	return output.trim();
+		return output.trim();
+	});
 }
 
 /**
@@ -670,7 +669,7 @@ async function transpileArgs(props) {
 				result[key] = "";
 			} else if (value.type === STATIC_LOGIC) {
 				try {
-					result[key] = await evaluator.execute(value.code);
+					result[key] = await evaluator.execute(value.code, value.baseDir || null);
 				} catch (err) {
 					transpilerError([
 						`<$red:Logic Error (Argument):$> ${err.message}{line}`,

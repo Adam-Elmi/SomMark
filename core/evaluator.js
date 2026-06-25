@@ -1,8 +1,20 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { getQuickJS } from "quickjs-emscripten";
 import path from "pathe";
 import * as acorn from "acorn";
 import SomMark, { registerHostCompile, registerHostSettings } from "./helpers/lib.js";
 import { formatMessage } from "./errors.js";
+
+// Each transpile() call gets its own isolated EvaluatorState stack via async context.
+const evaluatorStorage = new AsyncLocalStorage();
+
+/**
+ * Runs fn inside an isolated evaluator context.
+ * Concurrent transpile() calls each get their own stack — no cross-contamination.
+ */
+export function withEvaluator(fn) {
+    return evaluatorStorage.run([], fn);
+}
 
 // Global tracker to ensure deep recursive Smark compilation never exceeds safe boundaries
 let globalCompilationDepth = 0;
@@ -730,8 +742,10 @@ class EvaluatorState {
         this.expose(vars);
     }
 
-    async execute(code) {
+    async execute(code, baseDir = null) {
         if (!this.context) throw new Error("Evaluator not initialized");
+        const prevBaseDir = this.baseDir;
+        if (baseDir) this.baseDir = baseDir;
 
         const timeout = this.security?.timeout ?? 5000;
         this.deadline = Date.now() + timeout;
@@ -965,6 +979,7 @@ class EvaluatorState {
         } finally {
             this.deadline = 0;
             clearInterval(interval);
+            if (baseDir) this.baseDir = prevBaseDir;
         }
     }
 
@@ -1001,30 +1016,42 @@ class EvaluatorState {
 
 class Evaluator {
     constructor() {
-        this.instances = [];
+        // Fallback stack for callers that use init() outside withEvaluator() (e.g. tests).
+        this._fallbackStack = [];
     }
+
+    _getStack() {
+        return evaluatorStorage.getStore() ?? this._fallbackStack;
+    }
+
+    // Expose the active stack so tests can check .instances.length
+    get instances() { return this._getStack(); }
 
     setDefaultFs(fs) {
         defaultFs = fs;
     }
 
     get active() {
-        if (this.instances.length === 0) {
+        const stack = this._getStack();
+        if (stack.length === 0) {
             throw new Error("No active EvaluatorState instance. Did you call init()?");
         }
-        return this.instances[this.instances.length - 1];
+        return stack[stack.length - 1];
     }
+
+    // Forward .runtime to the active state so tests can assert on it
+    get runtime() { return this.active?.runtime ?? null; }
 
     async init(baseDir = null, security = {}, settings = {}, mapperFile = null) {
         const state = new EvaluatorState();
         await state.init(baseDir, security, settings, mapperFile);
-        this.instances.push(state);
+        this._getStack().push(state);
     }
 
     destroy() {
-        if (this.instances.length > 0) {
-            const state = this.instances.pop();
-            state.destroy();
+        const stack = this._getStack();
+        if (stack.length > 0) {
+            stack.pop().destroy();
         }
     }
 
@@ -1040,8 +1067,8 @@ class Evaluator {
         this.active.inject(vars);
     }
 
-    async execute(code) {
-        return await this.active.execute(code);
+    async execute(code, baseDir = null) {
+        return await this.active.execute(code, baseDir);
     }
 
     hasDynamicTag(id) {

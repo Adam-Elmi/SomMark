@@ -1786,7 +1786,9 @@ function parseValue(tokens, i, placeholders = {}, variables = {}, allowLogic = t
 			}
 			variables.__consumed__.add(vKey);
 		} else {
-			val = vFallback !== undefined ? vFallback : getPrefixValue('v', vKey);
+			// Encode fallback in the envelope key so resolveAstVariables can apply it
+			// at instantiation time instead of baking it in now.
+			val = getPrefixValue('v', vFallback !== undefined ? `${vKey}|${vFallback}` : vKey);
 		}
 		return [val, i, false];
 	} else if (current_token(tokens, i).type === TOKEN_TYPES.PREFIX_P) {
@@ -2180,7 +2182,8 @@ function parseText(tokens, i, placeholders = {}, variables = {}, depth = 0, opti
 				}
 				variables.__consumed__.add(tvKey);
 			} else {
-				textNode.text += tvFallback !== undefined ? tvFallback : getPrefixValue('v', tvKey);
+				// Encode fallback in envelope so resolveAstVariables can apply it later.
+				textNode.text += getPrefixValue('v', tvFallback !== undefined ? `${tvKey}|${tvFallback}` : tvKey);
 			}
 		} else {
 			break;
@@ -2383,6 +2386,7 @@ function parser(tokens, filename = null, placeholders = {}, variables = {}) {
 const LITE_ERROR =
     "[SomMark lite] static ${}$ and runtime ${}$ blocks are not supported in lite mode. " +
     "Use the full SomMark bundle to enable JS evaluation.";
+function withEvaluator(fn) { return fn(); }
 
 class EvaluatorStub {
     setDefaultFs(_fs) {}
@@ -8984,7 +8988,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	if (node.type === STATIC_LOGIC) {
 		try {
-			const result = await Evaluator.execute(node.code);
+			const result = await Evaluator.execute(node.code, node.baseDir || null);
 			if (generateRuntimeOutput) return "";
 			if (result && typeof result === "object" && result.__raw !== undefined) {
 				if (security?.allowRaw === false) {
@@ -9190,7 +9194,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 						}
 					} else if (child.type === STATIC_LOGIC) {
 						try {
-							const val = await Evaluator.execute(child.code);
+							const val = await Evaluator.execute(child.code, child.baseDir || null);
 							if (val !== undefined && typeof val !== "object") richText += String(val);
 						} catch (err) {
 							transpilerError([
@@ -9307,7 +9311,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 					case STATIC_LOGIC:
 						try {
-							const result = await Evaluator.execute(body_node.code);
+							const result = await Evaluator.execute(body_node.code, body_node.baseDir || null);
 							if (result && typeof result === "object" && result.__raw !== undefined) {
 								if (security?.allowRaw === false) {
 									bodyOutput = mapper_file ? mapper_file.text(String(result.__raw)) : String(result.__raw);
@@ -9421,109 +9425,108 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 	})();
 
 	const dualOutput = optionsOrAst?.dualOutput || false;
-
-	// Initialize Logic Sandbox
-	await Evaluator.init(fileBaseDir, security, settings, targetMapper);
-	// Inject global data
 	const placeholders = optionsOrAst?.placeholders || settings?.placeholders || {};
 	const variables = optionsOrAst?.variables || settings?.variables || {};
 	warnDroppedVariables(variables);
-	Evaluator.inject(placeholders);
-	Evaluator.inject(variables);
 
-	let output = "";
-	let prev_body_node = null;
-	let prev_was_silent = false;
-
-	if (dualOutput) {
-		const idState = { mode: 'record', ids: [], idx: 0 };
-
-		// HTML pass — generate HTML, record element IDs for runtime blocks
-		let htmlOutput = "";
-		try {
-			for (let i = 0; i < body.length; i++) {
-				const node = body[i];
-				const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, true, instance, idState);
-				let finalBlockOutput = blockOutput;
-				if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
-				if (finalBlockOutput) {
-					htmlOutput += finalBlockOutput;
-					prev_was_silent = false;
-				} else {
-					prev_was_silent = true;
-					if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
-						const nextNode = body[i + 1];
-						if (nextNode && nextNode.type === TEXT$1 && (nextNode.text === "\n" || nextNode.text === "\r\n")) i++;
-					}
-				}
-			}
-		} finally {
-			Evaluator.destroy();
-		}
-
-		// JS pass — replay the same IDs so querySelector targets match HTML
-		idState.mode = 'replay';
-		idState.idx = 0;
-		prev_was_silent = false;
-
+	return withEvaluator(async () => {
+		// Initialize Logic Sandbox inside isolated async context
 		await Evaluator.init(fileBaseDir, security, settings, targetMapper);
 		Evaluator.inject(placeholders);
 		Evaluator.inject(variables);
 
-		let jsOutput = "";
+		let output = "";
+		let prev_body_node = null;
+		let prev_was_silent = false;
+
+		if (dualOutput) {
+			const idState = { mode: 'record', ids: [], idx: 0 };
+
+			// HTML pass — generate HTML, record element IDs for runtime blocks
+			let htmlOutput = "";
+			try {
+				for (let i = 0; i < body.length; i++) {
+					const node = body[i];
+					const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, true, instance, idState);
+					let finalBlockOutput = blockOutput;
+					if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+					if (finalBlockOutput) {
+						htmlOutput += finalBlockOutput;
+						prev_was_silent = false;
+					} else {
+						prev_was_silent = true;
+						if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
+							const nextNode = body[i + 1];
+							if (nextNode && nextNode.type === TEXT$1 && (nextNode.text === "\n" || nextNode.text === "\r\n")) i++;
+						}
+					}
+				}
+			} finally {
+				Evaluator.destroy();
+			}
+
+			// JS pass — replay the same IDs so querySelector targets match HTML
+			idState.mode = 'replay';
+			idState.idx = 0;
+			prev_was_silent = false;
+
+			await Evaluator.init(fileBaseDir, security, settings, targetMapper);
+			Evaluator.inject(placeholders);
+			Evaluator.inject(variables);
+
+			let jsOutput = "";
+			try {
+				for (let i = 0; i < body.length; i++) {
+					const node = body[i];
+					const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, true, false, instance, idState);
+					let finalBlockOutput = blockOutput;
+					if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+					if (finalBlockOutput) {
+						jsOutput += finalBlockOutput;
+						prev_was_silent = false;
+					} else {
+						prev_was_silent = true;
+					}
+				}
+			} finally {
+				Evaluator.destroy();
+			}
+
+			return [htmlOutput.trim(), jsOutput.trim()];
+		}
+
 		try {
 			for (let i = 0; i < body.length; i++) {
 				const node = body[i];
-				const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, true, false, instance, idState);
+				const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, false, instance);
+
 				let finalBlockOutput = blockOutput;
-				if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+				if (prev_was_silent && node.type === TEXT$1) {
+					finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+				}
+
 				if (finalBlockOutput) {
-					jsOutput += finalBlockOutput;
+					output += finalBlockOutput;
 					prev_was_silent = false;
+					if (node.type !== TEXT$1 || node.text.trim().length > 0) {
+						prev_body_node = node;
+					}
 				} else {
 					prev_was_silent = true;
+					if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
+						const nextNode = body[i + 1];
+						if (nextNode && nextNode.type === TEXT$1 && (nextNode.text === "\n" || nextNode.text === "\r\n")) {
+							i++;
+						}
+					}
 				}
 			}
 		} finally {
 			Evaluator.destroy();
 		}
 
-		return [htmlOutput.trim(), jsOutput.trim()];
-	}
-
-	try {
-		for (let i = 0; i < body.length; i++) {
-			const node = body[i];
-			const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, false, false, instance);
-
-			let finalBlockOutput = blockOutput;
-			if (prev_was_silent && node.type === TEXT$1) {
-				finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
-			}
-
-			if (finalBlockOutput) {
-				output += finalBlockOutput;
-				prev_was_silent = false;
-				if (node.type !== TEXT$1 || node.text.trim().length > 0) {
-					prev_body_node = node;
-				}
-			} else {
-				prev_was_silent = true;
-				if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
-					// If a comment is removed, check the next node.
-					// If it's just a blank line, skip it so we don't have extra gaps in the output.
-					const nextNode = body[i + 1];
-					if (nextNode && nextNode.type === TEXT$1 && (nextNode.text === "\n" || nextNode.text === "\r\n")) {
-						i++; // Skip the next newline node
-					}
-				}
-			}
-		}
-	} finally {
-		Evaluator.destroy();
-	}
-
-	return output.trim();
+		return output.trim();
+	});
 }
 
 /**
@@ -9546,7 +9549,7 @@ async function transpileArgs(props) {
 				result[key] = "";
 			} else if (value.type === STATIC_LOGIC) {
 				try {
-					result[key] = await Evaluator.execute(value.code);
+					result[key] = await Evaluator.execute(value.code, value.baseDir || null);
 				} catch (err) {
 					transpilerError([
 						`<$red:Logic Error (Argument):$> ${err.message}{line}`,
@@ -12184,7 +12187,10 @@ const resolveAstVariables = (nodes, variables) => {
 	for (const node of nodes) {
 		if (node.type === TEXT$1) {
 			if (node.text.includes(VAR_PREFIX)) {
-				node.text = node.text.replace(VAR_PATTERN, (match, key) => {
+				node.text = node.text.replace(VAR_PATTERN, (match, keyAndFallback) => {
+					const pipeIdx = keyAndFallback.indexOf('|');
+					const key = pipeIdx >= 0 ? keyAndFallback.slice(0, pipeIdx) : keyAndFallback;
+					const fallback = pipeIdx >= 0 ? keyAndFallback.slice(pipeIdx + 1) : undefined;
 					if (variables[key] !== undefined) {
 						if (!variables.__consumed__) {
 							Object.defineProperty(variables, "__consumed__", {
@@ -12197,14 +12203,21 @@ const resolveAstVariables = (nodes, variables) => {
 						variables.__consumed__.add(key);
 						return String(variables[key]);
 					}
+					if (fallback !== undefined) return fallback;
 					return match;
 				});
 			}
 		} else if (node.type === BLOCK) {
 			// Resolve any unresolved variables in block arguments
 			for (const [argKey, argVal] of Object.entries(node.props)) {
-				if (typeof argVal === "string" && argVal.startsWith(VAR_PREFIX) && argVal.endsWith(VAR_SUFFIX)) {
-					const varKey = argVal.slice(VAR_PREFIX.length, -VAR_SUFFIX.length);
+				if (typeof argVal !== "string" || !argVal.includes(VAR_PREFIX)) continue;
+
+				if (argVal.startsWith(VAR_PREFIX) && argVal.endsWith(VAR_SUFFIX)) {
+					// Entire value is an envelope — resolve to scalar or fallback
+					const keyAndFallback = argVal.slice(VAR_PREFIX.length, -VAR_SUFFIX.length);
+					const pipeIdx = keyAndFallback.indexOf('|');
+					const varKey = pipeIdx >= 0 ? keyAndFallback.slice(0, pipeIdx) : keyAndFallback;
+					const fallback = pipeIdx >= 0 ? keyAndFallback.slice(pipeIdx + 1) : undefined;
 					if (variables[varKey] !== undefined) {
 						node.props[argKey] = variables[varKey];
 						if (!variables.__consumed__) {
@@ -12216,7 +12229,31 @@ const resolveAstVariables = (nodes, variables) => {
 							});
 						}
 						variables.__consumed__.add(varKey);
+					} else if (fallback !== undefined) {
+						node.props[argKey] = fallback;
 					}
+				} else {
+					// Envelope embedded inside a larger string — replace in-place.
+					// Unresolved envelopes become "" so they don't pollute class names etc.
+					node.props[argKey] = argVal.replace(VAR_PATTERN, (match, keyAndFallback) => {
+						const pipeIdx = keyAndFallback.indexOf('|');
+						const key = pipeIdx >= 0 ? keyAndFallback.slice(0, pipeIdx) : keyAndFallback;
+						const fallback = pipeIdx >= 0 ? keyAndFallback.slice(pipeIdx + 1) : undefined;
+						if (variables[key] !== undefined) {
+							if (!variables.__consumed__) {
+								Object.defineProperty(variables, "__consumed__", {
+									value: new Set(),
+									writable: true,
+									enumerable: false,
+									configurable: true
+								});
+							}
+							variables.__consumed__.add(key);
+							return String(variables[key]);
+						}
+						if (fallback !== undefined) return fallback;
+						return "";
+					});
 				}
 			}
 			if (node.body) {
@@ -12246,6 +12283,7 @@ const cloneAst = (nodes) => {
 		if (node.id !== undefined) nodeCopy.id = node.id;
 		if (node.code !== undefined) nodeCopy.code = node.code;
 		if (node.isSelfClosing !== undefined) nodeCopy.isSelfClosing = node.isSelfClosing;
+		if (node.baseDir !== undefined) nodeCopy.baseDir = node.baseDir;
 		if (node.props !== undefined) {
 			nodeCopy.props = { ...node.props };
 		}
@@ -12255,6 +12293,20 @@ const cloneAst = (nodes) => {
 		copy[i] = nodeCopy;
 	}
 	return copy;
+};
+
+/**
+ * Tags all STATIC_LOGIC and RUNTIME_LOGIC nodes in a subtree with their
+ * source module's baseDir so the evaluator can resolve imports correctly.
+ */
+const tagLogicNodes = (nodes, baseDir) => {
+	if (!nodes) return;
+	for (const node of nodes) {
+		if ((node.type === STATIC_LOGIC || node.type === RUNTIME_LOGIC) && !node.baseDir) {
+			node.baseDir = baseDir;
+		}
+		if (node.body) tagLogicNodes(node.body, baseDir);
+	}
 };
 
 /**
@@ -12430,6 +12482,7 @@ async function resolveModules(ast, context) {
 						format: context.format,
 						filename: mod.path,
 						baseDir: posix.dirname(mod.localPath),
+						fs: context.instance.fs,
 						mapperFile: context.instance.mapperFile,
 						placeholders: context.instance.placeholders,
 						variables: {},
@@ -12445,6 +12498,7 @@ async function resolveModules(ast, context) {
 					});
 
 					const subAst = await subSmark.parse();
+					tagLogicNodes(subAst, posix.dirname(mod.localPath));
 					context.instance.moduleCache.set(mod.localPath, subAst);
 					expandedNodes = trimAst(subAst);
 				}
@@ -12488,6 +12542,7 @@ async function resolveModules(ast, context) {
 						format: context.format,
 						filename: mod.path,
 						baseDir: posix.dirname(mod.localPath),
+						fs: context.instance.fs,
 						mapperFile: context.instance.mapperFile,
 						placeholders: context.instance.placeholders,
 						variables: {}, // Parse without variables to keep the cached AST pure
@@ -12503,6 +12558,7 @@ async function resolveModules(ast, context) {
 					});
 
 					subAst = await subSmark.parse();
+					tagLogicNodes(subAst, posix.dirname(mod.localPath));
 					context.instance.moduleCache.set(mod.localPath, subAst);
 					subAst = cloneAst(subAst);
 				}
@@ -12571,6 +12627,13 @@ async function resolveModules(ast, context) {
 
 	return ast;
 }
+
+/**
+ * After full transpilation of the top-level file, apply any v{} fallbacks that
+ * remain unresolved. Envelopes with no fallback are kept as-is (debugging signal).
+ * Must NOT be called on sub-module ASTs — only on the final top-level AST.
+ */
+const applyVariableFallbacks = (ast) => resolveAstVariables(ast, {});
 
 /**
  * SomMark Rules Validator
@@ -13066,6 +13129,7 @@ class SomMark {
 		if (this.showSpinner) startSpinner();
 		try {
 			const ast = this.ast || await this.parse(src);
+			applyVariableFallbacks(ast);
 			let result = await transpiler({
 				ast,
 				format: this.targetFormat,

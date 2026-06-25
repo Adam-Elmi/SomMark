@@ -6,6 +6,7 @@ const LITE_ERROR =
     "Use the full SomMark bundle to enable JS evaluation.";
 
 export function setCompilerClass(_cls) {}
+export function withEvaluator(fn) { return fn(); }
 
 class EvaluatorStub {
     setDefaultFs(_fs) {}
