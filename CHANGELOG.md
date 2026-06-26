@@ -1,5 +1,11 @@
 # Changelog
 
+## v5.0.5 (2026-06-26)
+
+## Fixed
+
+- Prevent `smark-raw` directive from leaking onto root element
+
 ## v5.0.4 (2026-06-25)
 
 ### Fixed
