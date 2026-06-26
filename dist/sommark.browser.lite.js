@@ -12576,6 +12576,7 @@ async function resolveModules(ast, context) {
 						Object.entries(node.props).filter(([key]) => {
 							if (key === "__consumed__") return false;
 							if (consumed.has(key)) return false; // THE FIX: Filter if hit by v{}
+							if (key === "smark-raw") return false; // directive — must not leak onto root element
 							return true;
 						})
 					);
