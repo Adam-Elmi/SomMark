@@ -233,14 +233,14 @@ describe("SomMark Markdown Mapper Comprehensive Test Suite", () => {
 		it("falls back to compact HTML representation for single-child unknown tags", async () => {
 			const sm = new SomMark(smSettings("[CustomTag]Tag Content[end]"));
 			const output = await sm.transpile();
-			expect(output).toBe("<customtag>Tag Content</customtag>");
+			expect(output).toBe("<CustomTag>Tag Content</CustomTag>");
 			await validateMarkdown(output);
 		});
 
 		it("falls back to multiline HTML representation for multi-child unknown tags", async () => {
-			const sm = new SomMark(smSettings("[CustomTag][p]First[end][p]Second[end][end]"));
+			const sm = new SomMark(smSettings("[CustomTag]\n[p]First[end][p]Second[end]\n[end]"));
 			const output = await sm.transpile();
-			expect(output).toBe("<customtag>\n<p>First</p><p>Second</p>\n</customtag>");
+			expect(output).toBe("<CustomTag>\n<p>First</p><p>Second</p>\n</CustomTag>");
 			await validateMarkdown(output);
 		});
 

@@ -37,6 +37,19 @@ function wasmAssets() {
     };
 }
 
+// Redirect node:async_hooks to the browser shim so the evaluator
+// works in environments where Node built-ins are unavailable.
+function asyncHooksShim() {
+    const shimPath = nodePath.resolve("./async-hooks.js");
+    return {
+        name: "async-hooks-shim",
+        resolveId(id) {
+            if (id === "node:async_hooks") return shimPath;
+            return null;
+        },
+    };
+}
+
 export default {
     input: "index.browser.js",
     output: {
@@ -49,6 +62,7 @@ export default {
         moduleSideEffects: (id) => id.includes("quickjs") || id.includes("@jitl/"),
     },
     plugins: [
+        asyncHooksShim(),
         commonjs(),
         nodeResolve({ browser: true }),
         wasmAssets(),

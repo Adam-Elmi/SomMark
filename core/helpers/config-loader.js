@@ -52,19 +52,24 @@ export async function findAndLoadConfig(targetPath) {
 		}
 	}
 
-	// 2. Check the Target Directory (Highest Priority)
+	// 2. Walk up from startDir looking for the config file
 	if (!configPath) {
-		const targetConfig = path.join(startDir, CONFIG_FILE_NAME);
-		try {
-			await fs.access(targetConfig);
-			configPath = targetConfig;
-		} catch {
-			// No config found in target dir
+		let dir = startDir;
+		const root = path.parse(dir).root;
+		while (dir !== root) {
+			const candidate = path.join(dir, CONFIG_FILE_NAME);
+			try {
+				await fs.access(candidate);
+				configPath = candidate;
+				break;
+			} catch {
+				dir = path.dirname(dir);
+			}
 		}
 	}
 
 	// 3. Check the Current Working Directory (Fallback)
-	// We only check CWD if it's different from the Target Directory
+	// We only check CWD if it's different from the Target Directory and walk didn't find anything
 	if (!configPath && startDir !== cwd) {
 		const cwdConfig = path.join(cwd, CONFIG_FILE_NAME);
 		try {
@@ -102,10 +107,25 @@ export async function findAndLoadConfig(targetPath) {
 				mapperFile: finalMapper,
 				resolvedConfigPath: configPath
 			};
+
+			const configDir = path.dirname(configPath);
+
 			if (loadedConfig.outputDir) {
-				const configDir = path.dirname(configPath);
 				finalConfig.outputDir = path.resolve(configDir, loadedConfig.outputDir);
 			}
+
+			// Resolve relative alias paths against the config file's directory so that
+			// "./node_modules/..." in a nested config resolves correctly regardless of cwd
+			if (loadedConfig.importAliases) {
+				const resolved = {};
+				for (const [key, val] of Object.entries(loadedConfig.importAliases)) {
+					resolved[key] = (val.startsWith("./") || val.startsWith("../"))
+						? path.resolve(configDir, val)
+						: val;
+				}
+				finalConfig.importAliases = resolved;
+			}
+
 			return finalConfig;
 		}
 	}

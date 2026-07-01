@@ -2,6 +2,7 @@ import * as esbuild from "esbuild";
 import { readFileSync, writeFileSync, cpSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
+import { sommarkEsbuild } from "sommark/esbuild";
 
 const isWatch = process.argv.includes("--watch");
 const outdir = "dist-esbuild";
@@ -67,7 +68,7 @@ function copyStaticFiles() {
             build.onEnd(({ errors }) => {
                 if (errors.length > 0) return;
                 writeFileSync(join(outdir, "index.html"), readFileSync("index.html"));
-                cpSync("public", outdir, { recursive: true });
+                cpSync("public", join(outdir, "public"), { recursive: true });
                 cpSync("templates", join(outdir, "templates"), { recursive: true });
             });
         },
@@ -84,7 +85,7 @@ const config = {
     chunkNames: "[name]-[hash]",
     assetNames: "[name]-[hash]",
     platform: "browser",
-    plugins: [wasmAssets(), copyStaticFiles()],
+    plugins: [sommarkEsbuild(), wasmAssets(), copyStaticFiles()],
 };
 
 if (isWatch) {

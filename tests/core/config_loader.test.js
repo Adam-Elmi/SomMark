@@ -134,6 +134,43 @@ export default {
 		});
 	});
 
+	describe("Step 3b: Walk-Up Config Discovery", () => {
+		it("finds smark.config.js in a parent directory when none exists in the target directory", async () => {
+			const rootDir = path.join(tempDir, "walkup-root");
+			const childDir = path.join(rootDir, "components");
+			fs.mkdirSync(childDir, { recursive: true });
+
+			fs.writeFileSync(path.join(rootDir, "smark.config.js"), `
+export default { outputFile: "root-config" };
+			`, "utf-8");
+			fs.writeFileSync(path.join(childDir, "button.smark"), "", "utf-8");
+
+			const config = await findAndLoadConfig(path.join(childDir, "button.smark"));
+
+			expect(config.outputFile).toBe("root-config");
+			expect(config.resolvedConfigPath).toBe(path.join(rootDir, "smark.config.js"));
+		});
+
+		it("uses the nearest config when both the target directory and a parent directory have smark.config.js", async () => {
+			const rootDir = path.join(tempDir, "walkup-nearest");
+			const childDir = path.join(rootDir, "components");
+			fs.mkdirSync(childDir, { recursive: true });
+
+			fs.writeFileSync(path.join(rootDir, "smark.config.js"), `
+export default { outputFile: "root-config" };
+			`, "utf-8");
+			fs.writeFileSync(path.join(childDir, "smark.config.js"), `
+export default { outputFile: "components-config" };
+			`, "utf-8");
+			fs.writeFileSync(path.join(childDir, "button.smark"), "", "utf-8");
+
+			const config = await findAndLoadConfig(path.join(childDir, "button.smark"));
+
+			expect(config.outputFile).toBe("components-config");
+			expect(config.resolvedConfigPath).toBe(path.join(childDir, "smark.config.js"));
+		});
+	});
+
 	describe("Step 4: CWD Fallback Resolution", () => {
 		it("falls back to loading smark.config.js from CWD if not found in the empty target folder", async () => {
 			// Create empty sub-directory in temp_configs

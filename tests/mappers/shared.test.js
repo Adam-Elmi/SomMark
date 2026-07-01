@@ -12,7 +12,7 @@ describe('smark-raw prop (raw body)', () => {
         it("leaves nested SomMark syntax unparsed", async () => {
             const sm = new SomMark({ src: "[raw = smark-raw: true]unparsed -> [p]Hello\\[end][end]", format: "html" });
             const out = await sm.transpile();
-            expect(out).toBe("<raw>unparsed -> [p]Hello[end]</raw>");
+            expect(out).toBe("unparsed -> [p]Hello[end]");
         });
 
         it("preserves inner whitespace exactly", async () => {

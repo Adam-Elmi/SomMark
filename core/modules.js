@@ -192,34 +192,48 @@ export async function resolveModules(ast, context) {
 	const baseDir = context.instance.baseDir || ((filename === "anonymous") ? absFilename : path.dirname(absFilename));
 
 	// 1. Helper: Trim AST to remove file-boundary whitespace and "ghost" newlines
-	const trimAst = (nodes) => {
+	const trimAst = (nodes, trimBoundaries = true) => {
 		if (!nodes) return [];
 
-		// 1. Filter out internal whitespace-only nodes that are adjacent to non-rendering nodes
-		// (Comments, Imports, etc. shouldn't leave "ghost" newlines)
+		// 1. Filter out whitespace-only text nodes adjacent (directly or through other whitespace)
+		// to non-rendering nodes (Comments, Imports, USE_MODULE).
 		const nonRenderingTypes = [COMMENT, IMPORT, USE_MODULE];
 		let res = nodes.filter((node, idx) => {
 			if (node.type !== TEXT || node.text.trim() !== "") return true;
 
-			const prev = nodes[idx - 1];
-			const next = nodes[idx + 1];
-			const isAdjacentToNonRendering =
-				(prev && nonRenderingTypes.includes(prev.type)) ||
-				(next && nonRenderingTypes.includes(next.type));
+			// Walk backwards through consecutive whitespace nodes to find prev non-whitespace
+			let prevIsNonRendering = false;
+			for (let j = idx - 1; j >= 0; j--) {
+				if (nodes[j].type === TEXT && nodes[j].text.trim() === "") continue;
+				prevIsNonRendering = nonRenderingTypes.includes(nodes[j].type);
+				break;
+			}
 
-			return !isAdjacentToNonRendering;
+			// Walk forwards through consecutive whitespace nodes to find next non-whitespace
+			let nextIsNonRendering = false;
+			for (let j = idx + 1; j < nodes.length; j++) {
+				if (nodes[j].type === TEXT && nodes[j].text.trim() === "") continue;
+				nextIsNonRendering = nonRenderingTypes.includes(nodes[j].type);
+				break;
+			}
+
+			return !(prevIsNonRendering || nextIsNonRendering);
 		});
 
-		// 2. Final pass: trim leading/trailing newlines from the remaining boundary text nodes
-		if (res.length > 0 && res[0].type === TEXT) {
-			res[0].text = res[0].text.replace(/^[\r\n]+/, "");
-		}
-		if (res.length > 0 && res[res.length - 1].type === TEXT) {
-			res[res.length - 1].text = res[res.length - 1].text.replace(/[\r\n]+\s*$/, "");
+		if (trimBoundaries) {
+			// 2. Final pass: trim leading/trailing newlines from the remaining boundary text nodes
+			if (res.length > 0 && res[0].type === TEXT) {
+				res[0].text = res[0].text.replace(/^[\r\n]+/, "");
+			}
+			if (res.length > 0 && res[res.length - 1].type === TEXT) {
+				res[res.length - 1].text = res[res.length - 1].text.replace(/[\r\n]+\s*$/, "");
+			}
+
+			// 3. Remove any nodes that became purely empty after trimming
+			res = res.filter(node => node.type !== TEXT || node.text !== "");
 		}
 
-		// 3. Remove any nodes that became purely empty after trimming
-		return res.filter(node => node.type !== TEXT || node.text !== "");
+		return res;
 	};
 
 	// 2. Helper: Inject Slots with Indentation Propagation

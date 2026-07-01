@@ -4,6 +4,7 @@ import { readFileSync, existsSync } from "node:fs";
 import nodePath from "node:path";
 import serve from "rollup-plugin-serve";
 import livereload from "rollup-plugin-livereload";
+import { sommarkRollup } from "sommark/rollup";
 
 const isWatch = process.env.ROLLUP_WATCH === "true";
 
@@ -78,11 +79,8 @@ export default {
         entryFileNames: "bundle.js",
         chunkFileNames: "[name]-[hash].js",
     },
-    // Prevent tree-shaking from removing Emscripten env/importObject setup in quickjs packages
-    treeshake: {
-        moduleSideEffects: (id) => id.includes("quickjs") || id.includes("@jitl/"),
-    },
     plugins: [
+        sommarkRollup(),
         commonjs(),
         nodeResolve({ browser: true }),
         wasmAssets(),

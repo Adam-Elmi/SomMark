@@ -7,6 +7,11 @@
 		"index.js",
 		"index.browser.js",
 		"index.shared.js",
+		"async-hooks.js",
+		"vite.js",
+		"rollup.js",
+		"esbuild.js",
+		"webpack.cjs",
 		"core/",
 		"mappers/",
 		"helpers/",
@@ -25,7 +30,14 @@
 	"type": "module",
 	"exports": {
 		".": "./index.js",
-		"./browser": "./index.browser.js"
+		"./browser": "./index.browser.js",
+		"./vite": "./vite.js",
+		"./rollup": "./rollup.js",
+		"./esbuild": "./esbuild.js",
+		"./webpack": "./webpack.cjs"
+	},
+	"browser": {
+		"node:async_hooks": "./async-hooks.js"
 	},
 	"scripts": {
 		"test": "vitest",

@@ -1,15 +1,14 @@
 import { defineConfig } from "vite";
+import { sommarkVite } from "sommark/vite";
 
 export default defineConfig({
-    build: {
-        target: "esnext" // enables top-level await
-    },
-    server: {
-        fs: {
-            allow: [".."] // allow serving files from parent (SomMark source)
-        }
-    },
-    optimizeDeps: {
-        exclude: ["quickjs-emscripten"] // WASM package — don't pre-bundle
-    }
+	build: {
+		target: "esnext"
+	},
+	server: {
+		fs: {
+			allow: [".."]
+		}
+	},
+	plugins: [sommarkVite()],
 });

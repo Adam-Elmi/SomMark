@@ -546,15 +546,20 @@ class EvaluatorState {
         }
         setupRes.value.dispose();
 
-        // Configure module loader using virtual FS implementation
+        // Configure module loader using virtual FS implementation.
+        // The normalizer resolves every import to an absolute path so the module
+        // cache key is always absolute — <smark> (the eval module name) can never
+        // be reached by any user import regardless of what the file is named.
         this.runtime.setModuleLoader((moduleName) => {
             try {
                 const isRaw = moduleName.endsWith("?raw");
                 const cleanModuleName = isRaw ? moduleName.slice(0, -4) : moduleName;
-                const resolvedPath = /^https?:\/\//.test(this.baseDir)
-                    ? new URL(cleanModuleName, this.baseDir.endsWith("/") ? this.baseDir : this.baseDir + "/").href
+                // moduleName is already an absolute path (supplied by the normalizer below),
+                // so resolve() is a no-op for absolute paths and a safe fallback for URLs.
+                const resolvedPath = /^https?:\/\//.test(cleanModuleName)
+                    ? cleanModuleName
                     : path.resolve(this.baseDir, cleanModuleName);
-                
+
                 const fsImpl = this.settings?.fs || this.settings?.instance?.fs || this.nodeFs;
                 if (!fsImpl) {
                     throw new Error("No filesystem implementation available.");
@@ -587,6 +592,17 @@ class EvaluatorState {
             } catch (err) {
                 throw err;
             }
+        }, (baseName, moduleName) => {
+            // Resolve every import to an absolute path so no user import can ever
+            // normalize to <smark> (or any other virtual eval module name).
+            const isRaw = moduleName.endsWith("?raw");
+            const clean = isRaw ? moduleName.slice(0, -4) : moduleName;
+            if (/^https?:\/\//.test(clean)) return moduleName;
+            const baseDir = (baseName === "<smark>" || !path.isAbsolute(baseName))
+                ? this.baseDir
+                : path.dirname(baseName);
+            const resolved = path.resolve(baseDir, clean);
+            return isRaw ? resolved + "?raw" : resolved;
         });
     }
 
@@ -823,7 +839,7 @@ class EvaluatorState {
 
             let result;
             if (isModule) {
-                const evalRes = this.context.evalCode(finalCode, "main.js", { type: 'module' });
+                const evalRes = this.context.evalCode(finalCode, "<smark>", { type: 'module' });
                 if (evalRes.error) {
                     const err = this.context.dump(evalRes.error);
                     evalRes.error.dispose();
@@ -892,7 +908,7 @@ class EvaluatorState {
                 }
 
                 const defaultValue = this.context.dump(resolvedDefaultHandle);
-                
+
                 if (isPromise) {
                     resolvedDefaultHandle.dispose();
                 }
@@ -932,7 +948,7 @@ class EvaluatorState {
                     result = res;
                 }
             } else {
-                const evalRes = this.context.evalCode(code, "main.js");
+                const evalRes = this.context.evalCode(code, "<smark>");
                 if (evalRes.error) {
                     const err = this.context.dump(evalRes.error);
                     evalRes.error.dispose();
@@ -968,7 +984,7 @@ class EvaluatorState {
             return result;
         } catch (error) {
             const stack = error.stack || "";
-            const match = stack.match(/main\.js:(\d+):(\d+)/) || stack.match(/:(\d+):(\d+)/);
+            const match = stack.match(/__smark__\.js:(\d+):(\d+)/) || stack.match(/:(\d+):(\d+)/);
 
             const err = new Error(error.message || error);
             if (match) {
