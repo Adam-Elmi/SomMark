@@ -29,28 +29,17 @@ const MARKDOWN = Mapper.define({
 	},
 
 	/**
-	 * Provides a fallback for unknown tags by using the HTML mapper instead.
-	 */
+	 * Provides a fallback for unknown tags by rendering them as HTML elements.
+	 * Passes child nodes to the transpiler, which handles all node types (such as ForEach).
+	 **/
 	getUnknownTag(node) {
 		const id = node.id.toLowerCase();
-
 		return {
-			render: async ({ props, ast, isSelfClosing, renderChild }) => {
+			render: ({ props, content, isSelfClosing }) => {
 				const element = this.tag(id).smartAttributes(props, this.customProps, this.options);
 				if (isSelfClosing || VOID_ELEMENTS.has(id)) return element.selfClose();
-
-				let rawContent = "";
-				for (const child of (ast.body || [])) {
-					if (child.type === TEXT) rawContent += this.text(child.text);
-					else if (child.type === BLOCK) rawContent += await renderChild(child);
-				}
-				rawContent = rawContent.trim();
-
-				const meaningful = (ast.body || []).filter(c => c.type !== TEXT || c.text.trim());
-				const finalContent = meaningful.length <= 1 ? rawContent : `\n${rawContent}\n`;
-				return element.body(finalContent);
-			},
-			options: { handleAst: true }
+				return element.body(content);
+			}
 		};
 	}
 });
@@ -62,10 +51,14 @@ registerSharedOutputs(MARKDOWN);
 /**
  * Quote - Renders blockquote content or GFM alerts.
  */
-MARKDOWN.register("quote", ({ props, content }) => {
-	const type = safeArg({ props, index: 0, key: "type", fallBack: "" });
-	return md.quote(content, type);
-}, { resolve: true });
+MARKDOWN.register(
+	"quote",
+	({ props, content }) => {
+		const type = safeArg({ props, index: 0, key: "type", fallBack: "" });
+		return md.quote(content, type);
+	},
+	{ resolve: true }
+);
 
 /**
  * Headings - Renders H1-H6 block headings.
@@ -145,12 +138,12 @@ MARKDOWN.register(
 	"link",
 	({ props, content, isSelfClosing }) => {
 		if (isSelfClosing) {
-			const text  = safeArg({ props, index: 0, key: "text",  fallBack: "" });
-			const src   = safeArg({ props, index: 1, key: "src",   fallBack: "" });
+			const text = safeArg({ props, index: 0, key: "text", fallBack: "" });
+			const src = safeArg({ props, index: 1, key: "src", fallBack: "" });
 			const title = safeArg({ props, index: 2, key: "title", fallBack: "" });
 			return md.url("link", text, src, title);
 		}
-		const src   = safeArg({ props, index: 0, key: "src",   fallBack: "" });
+		const src = safeArg({ props, index: 0, key: "src", fallBack: "" });
 		const title = safeArg({ props, index: 1, key: "title", fallBack: "" });
 		return md.url("link", content, src, title);
 	},
@@ -188,10 +181,14 @@ MARKDOWN.register(
  * Escape - Escapes special Markdown characters.
  * Self-closing: [escape = "text" !] or [escape = text: "text" !]
  */
-MARKDOWN.register(["escape", "e"], function ({ props, content, isSelfClosing }) {
-	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
-	return this.md.escape(text);
-}, { resolve: true });
+MARKDOWN.register(
+	["escape", "e"],
+	function ({ props, content, isSelfClosing }) {
+		const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+		return this.md.escape(text);
+	},
+	{ resolve: true }
+);
 
 const ROW_SEP = "\x1E";
 const CELL_SEP = "\x1F";
@@ -207,12 +204,16 @@ MARKDOWN.register(
 		const headers = [];
 		const rows = [];
 
-		const extractRows = async (sectionNode) => {
+		const extractRows = async sectionNode => {
 			const sectionRows = [];
-			for (const child of (sectionNode.body || [])) {
+			for (const child of sectionNode.body || []) {
 				if (child.type === BLOCK && child.id?.toLowerCase() === "row") {
 					const rendered = await renderChild(child, { inTable: true });
-					const cells = rendered.split(ROW_SEP)[0]?.split(CELL_SEP).filter(c => c !== "") ?? [];
+					const cells =
+						rendered
+							.split(ROW_SEP)[0]
+							?.split(CELL_SEP)
+							.filter(c => c !== "") ?? [];
 					if (cells.length > 0) sectionRows.push(cells);
 				} else if (child.type === FOR_EACH) {
 					const rendered = await renderChild(child, { inTable: true });
@@ -246,25 +247,29 @@ MARKDOWN.register(
  */
 MARKDOWN.register(["header", "body"], ({ content }) => content);
 
-MARKDOWN.register("row", async function ({ ast, renderChild, inTable }) {
-	if (!inTable) {
-		let result = "";
+MARKDOWN.register(
+	"row",
+	async function ({ ast, renderChild, inTable }) {
+		if (!inTable) {
+			let result = "";
+			for (const child of ast.body) {
+				if (child.type === TEXT) result += this.text(child.text);
+				else if (child.type === BLOCK) result += await renderChild(child);
+			}
+			return result;
+		}
+		let cells = "";
 		for (const child of ast.body) {
-			if (child.type === TEXT) result += this.text(child.text);
-			else if (child.type === BLOCK) result += await renderChild(child);
+			if (child.type !== BLOCK) continue;
+			const id = child.id?.toLowerCase();
+			if (id === "cell" || id === "th" || id === "td") {
+				cells += await renderChild(child, { inTable: true });
+			}
 		}
-		return result;
-	}
-	let cells = "";
-	for (const child of ast.body) {
-		if (child.type !== BLOCK) continue;
-		const id = child.id?.toLowerCase();
-		if (id === "cell" || id === "th" || id === "td") {
-			cells += await renderChild(child, { inTable: true });
-		}
-	}
-	return cells + ROW_SEP;
-}, { handleAst: true });
+		return cells + ROW_SEP;
+	},
+	{ handleAst: true }
+);
 
 MARKDOWN.register(["cell", "th", "td"], ({ content, inTable }) => {
 	return inTable ? content.trim() + CELL_SEP : content;
@@ -274,34 +279,42 @@ MARKDOWN.register(["cell", "th", "td"], ({ content, inTable }) => {
  * Lists - Authoritative Native AST List resolution.
  * Supports Ordered (Number) and Unordered (Dotlex) lists with deep nesting.
  */
-MARKDOWN.register(["list", "List"], async function ({ ast, props, renderChild }) {
-	const indicator = safeArg({ props, index: 0, fallBack: "dot" });
-	const isOrdered = indicator === "number" || indicator === "ol";
-	const marker = isOrdered ? "" : (indicator === "dot" ? "-" : indicator);
-	const items = [];
+MARKDOWN.register(
+	["list", "List"],
+	async function ({ ast, props, renderChild }) {
+		const indicator = safeArg({ props, index: 0, fallBack: "dot" });
+		const isOrdered = indicator === "number" || indicator === "ol";
+		const marker = isOrdered ? "" : indicator === "dot" ? "-" : indicator;
+		const items = [];
 
-	for (const node of ast.body) {
-		if (node.type !== BLOCK) continue;
-		const id = node.id?.toLowerCase();
-		if (id === "item") {
-			items.push((await renderChild(node)).trim());
+		for (const node of ast.body) {
+			if (node.type !== BLOCK) continue;
+			const id = node.id?.toLowerCase();
+			if (id === "item") {
+				items.push((await renderChild(node)).trim());
+			}
 		}
-	}
 
-	return isOrdered ? md.orderedList(items, 0) : md.unorderedList(items, 0, marker);
-}, { handleAst: true, trimAndWrapBlocks: false });
+		return isOrdered ? md.orderedList(items, 0) : md.unorderedList(items, 0, marker);
+	},
+	{ handleAst: true, trimAndWrapBlocks: false }
+);
 
 /**
  * List Helpers - Internal tags for list structural organization.
  */
-MARKDOWN.register(["item", "Item"], async function ({ ast, renderChild }) {
-	let result = "";
-	for (const child of ast.body) {
-		if (child.type === TEXT) result += this.text(child.text);
-		else if (child.type === BLOCK) result += await renderChild(child);
-	}
-	return result.trim();
-}, { handleAst: true, trimAndWrapBlocks: false });
+MARKDOWN.register(
+	["item", "Item"],
+	async function ({ ast, renderChild }) {
+		let result = "";
+		for (const child of ast.body) {
+			if (child.type === TEXT) result += this.text(child.text);
+			else if (child.type === BLOCK) result += await renderChild(child);
+		}
+		return result.trim();
+	},
+	{ handleAst: true, trimAndWrapBlocks: false }
+);
 
 /**
  * Todo - Renders task list items with status markers.
@@ -311,17 +324,21 @@ MARKDOWN.register(["item", "Item"], async function ({ ast, renderChild }) {
  *   [todo = "Add feature", "x" !]                 positional self-closing (task, status)
  *   [todo = "x"]Add feature[end]                  status in prop, task in body
  */
-MARKDOWN.register("todo", ({ props, content, isSelfClosing }) => {
-	let status, task;
+MARKDOWN.register(
+	"todo",
+	({ props, content, isSelfClosing }) => {
+		let status, task;
 
-	if (isSelfClosing) {
-		task   = safeArg({ props, index: 0, key: "task",   fallBack: "" });
-		status = safeArg({ props, index: 1, key: "status", fallBack: "" });
-	} else {
-		status = safeArg({ props, index: 0, fallBack: "" });
-		task   = content;
-	}
+		if (isSelfClosing) {
+			task = safeArg({ props, index: 0, key: "task", fallBack: "" });
+			status = safeArg({ props, index: 1, key: "status", fallBack: "" });
+		} else {
+			status = safeArg({ props, index: 0, fallBack: "" });
+			task = content;
+		}
 
-	return md.todo(status, task);
-}, { trimAndWrapBlocks: false });
+		return md.todo(status, task);
+	},
+	{ trimAndWrapBlocks: false }
+);
 export default MARKDOWN;
