@@ -290,6 +290,10 @@ export async function resolveModules(ast, context) {
 				// 1b. Resolve relative to current base (FS)
 				const absolutePath = resolveModulePath(resolvedPath, currentBaseDir);
 
+				if (!context.instance.fs) {
+					runtimeError([`<$red:Module Error:$> Cannot import <$magenta:${filePath}$> — no filesystem is available.{N}In browser mode, pass a URL-based <$cyan:baseDir$> or a <$cyan:files$> map to enable module loading.`]);
+				}
+
 				// Local Path Resolution with Auto-Extension
 				let localPath = absolutePath;
 				if (!await context.instance.fs.exists(localPath) && !localPath.endsWith(".smark")) {
