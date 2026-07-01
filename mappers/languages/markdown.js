@@ -33,8 +33,9 @@ const MARKDOWN = Mapper.define({
 	 * Passes child nodes to the transpiler, which handles all node types (such as ForEach).
 	 **/
 	getUnknownTag(node) {
-		const id = node.id.toLowerCase();
+		const id = node.id;
 		return {
+			options: { trimAndWrapBlocks: true },
 			render: ({ props, content, isSelfClosing }) => {
 				const element = this.tag(id).smartAttributes(props, this.customProps, this.options);
 				if (isSelfClosing || VOID_ELEMENTS.has(id)) return element.selfClose();
