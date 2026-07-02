@@ -1,5 +1,55 @@
 # Changelog
 
+## v5.1.0 (2026-07-02)
+
+### Added
+
+- **`join` prop in `[for-each]`** — inserts a separator string between each iteration's output. The separator is not appended after the last item, matching the behavior of `Array.prototype.join()`.
+  ```ini
+  [for-each = ${ ["Python", "Lua", "Javascript"] }$, join: ", "]
+    ${ value }$
+  [end:for-each]
+  ```
+  Output: `Python, Lua, Javascript`
+
+- **`length` variable in `[for-each]`** — exposes the total number of items in the array as a reserved variable alongside `i`. Useful for conditional logic on the first or last item.
+  ```ini
+  [for-each = ${ [1, 2, 3] }$]
+    ${ value }$${ i < length - 1 ? ", " : "" }$
+  [end:for-each]
+  ```
+  `length` is now reserved — `as: "length"` throws an error.
+
+- **Directive props (`smark-*`)** — any prop prefixed with `smark-` is stripped from the rendered output and exposed to custom mappers via `node.directives` with the prefix removed.
+
+- **Bundler plugins now self-contained** — `sommarkRollup()` and `sommarkEsbuild()` handle QuickJS WASM asset copying and URL rewriting internally. Users no longer need a separate `wasmAssets()` call in their config. `sommarkVite()` added for Vite projects.
+
+- **`[raw]` block** — available across all mappers (except `json`, `jsonc` and `text` mappers) as a universal passthrough container.
+
+- **Missing array prop error in `[for-each]`** — omitting the required array prop now throws a clear compile-time error instead of silently producing no output.
+
+### Fixed
+
+- **`${ }$` blocks in imported modules used the wrong `baseDir`** — logic nodes resolved paths relative to the main file instead of their own module's directory. Each logic node is now stamped with its source module's directory before caching. Closes #11.
+
+- **`v{}` not resolved when embedded inside a prop string** — envelopes inside compound values like `"btn btn--v{variant}"` were passed through unchanged. They are now replaced in-place; unresolved ones collapse to `""`. Closes #12.
+
+- **`v{key | "fallback"}` fallback ignored at module parse time** — the parser baked the fallback into the AST before the caller could provide a value. Fallback is now encoded in the envelope and applied at instantiation. Closes #13.
+
+- **Crash when `[import]` is used without a filesystem** — compiling in environments with no `fs` (browser, virtual) crashed when a template contained an `[import]` block. The module resolver now gracefully handles missing filesystem contexts. Closes #14.
+
+- **Evaluator module filename conflict** — eval'd code blocks used a shared filename key that collided across concurrent compilations, causing stale cached modules to be returned for unrelated blocks. Each block now gets a unique key. Closes #15.
+
+- **Config loader failed to find `smark.config.js`** — the config search walked the directory tree incorrectly under certain working directory setups, silently falling back to defaults. The traversal logic has been corrected. Closes #16.
+
+- **Markdown mapper lowercased unknown tag names** — unrecognized tags passed through `getUnknownTag` had their name lowercased unconditionally, turning custom PascalCase component tags into invalid lowercase ones. Case is now preserved. Closes #17.
+
+- **`sommark/browser` entry broken in bundlers** — the `browser` field in `package.json` mapped `node:async_hooks` to a shim that wasn't needed (the browser entry already imports `./async-hooks.js` directly), causing bundlers to incorrectly redirect internal imports. The field has been removed.
+
+- **`SomMark.fetch()` response missing fields** — the response object now includes `type`, `redirected`, and `clone()` to match the standard Fetch API shape.
+
+---
+
 ## v5.0.5 (2026-06-26)
 
 ## Fixed
