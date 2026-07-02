@@ -4,7 +4,7 @@ import SomMark, { transpile } from "./index.js";
 const src = await fs.readFile("./debug.smark", "utf-8");
 let smark = new SomMark({
     src,
-    format: "html",
+    format: "text",
 });
 
 const out = await smark.transpile();

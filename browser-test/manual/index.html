@@ -21,6 +21,7 @@
     from "../../dist/sommark.browser.js";
 
   const src = await fetch("./main.smark").then(r => r.text());
+  console.log(src);
   const engine = new SomMark({
     src,
     format: "html",
