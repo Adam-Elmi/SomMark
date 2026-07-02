@@ -1,5 +1,8 @@
-import SomMark, { setDefaultFs, setDefaultCwd, setDefaultFindAndLoadConfig, setDefaultResolvePath } from "./index.shared.js";
+import SomMark, { setDefaultFs, setDefaultCwd, setDefaultFindAndLoadConfig, setDefaultResolvePath, setDefaultEnv, setDefaultAsyncLocalStorage } from "./index.shared.js";
+import { AsyncLocalStorage } from "node:async_hooks";
 export * from "./index.shared.js";
+
+setDefaultAsyncLocalStorage(AsyncLocalStorage);
 
 // Node-specific filesystem import
 let nodeFs = null;
@@ -31,5 +34,33 @@ if (typeof process !== "undefined" && process.versions?.node) {
 	} catch (e) {}
 }
 setDefaultFindAndLoadConfig(findAndLoadConfigFn);
+
+// Load .env file from cwd and merge with process.env (process.env wins)
+{
+	let mergedEnv = { ...process.env };
+	if (nodeFs) {
+		try {
+			const dotenvPath = nodeFs.promises
+				? await nodeFs.promises.readFile(process.cwd() + "/.env", "utf8")
+				: null;
+			if (dotenvPath) {
+				for (const line of dotenvPath.split("\n")) {
+					const trimmed = line.trim();
+					if (!trimmed || trimmed.startsWith("#")) continue;
+					const eq = trimmed.indexOf("=");
+					if (eq === -1) continue;
+					const key = trimmed.slice(0, eq).trim();
+					let val = trimmed.slice(eq + 1).trim();
+					if ((val.startsWith('"') && val.endsWith('"')) ||
+						(val.startsWith("'") && val.endsWith("'"))) {
+						val = val.slice(1, -1);
+					}
+					if (!(key in mergedEnv)) mergedEnv[key] = val;
+				}
+			}
+		} catch { /* .env file is optional */ }
+	}
+	setDefaultEnv(mergedEnv);
+}
 
 export default SomMark;

@@ -96,6 +96,7 @@ function makeBlockNode() {
 		structure: "Block",
 		id: "",
 		props: {},
+		directives: {},
 		body: [],
 		depth: 0,
 		range: {
@@ -633,9 +634,11 @@ function parseBlock(tokens, i, filename = null, placeholders = {}, variables = {
 			i = valueIndex;
 
 			// Store Argument
-			blockNode.props[String(argIndex++)] = v;
-			if (k) {
-				blockNode.props[k] = v;
+			if (k && k.startsWith("smark-")) {
+				blockNode.directives[k.slice(6)] = v; // strip "smark-" prefix
+			} else {
+				blockNode.props[String(argIndex++)] = v;
+				if (k) blockNode.props[k] = v;
 			}
 			k = "";
 			v = "";

@@ -140,7 +140,26 @@ export async function preprocessRuntimeLogic(code, filename = null, security = {
 				if (filename && filename !== "anonymous") {
 					baseDir = path.dirname(path.resolve(filename));
 				}
+
+				// Block absolute paths — path.resolve would ignore baseDir entirely
+				if (path.isAbsolute(argValue)) {
+					transpilerError([
+						`<$red:Security Error:$> Absolute import paths are not allowed: <$magenta:${argValue}$>{line}`,
+						`<$yellow:Use a path relative to the template file, e.g.$> <$green:SomMark.import("./data.json")$> <$yellow:or$> <$green:SomMark.import("../shared/data.json")$><$yellow:.$>{line}`,
+						`<$yellow:Base directory:$> <$blue:${baseDir}$>{line}`
+					]);
+				}
+
 				const resolvedPath = path.resolve(baseDir, argValue);
+
+				// Block path traversal — resolved path must stay inside baseDir
+				const safeBases = baseDir.endsWith(path.sep) ? baseDir : baseDir + path.sep;
+				if (!resolvedPath.startsWith(safeBases) && resolvedPath !== baseDir) {
+					transpilerError([
+						`<$red:Security Error:$> Import path escapes the project directory: <$magenta:${argValue}$>{line}`,
+						`<$yellow:Resolved Path:$> <$blue:${resolvedPath}$>{line}`
+					]);
+				}
 
 				const fsImpl = instance?.fs || await getNodeFs();
 

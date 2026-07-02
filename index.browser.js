@@ -1,8 +1,11 @@
-import SomMark, { setDefaultFs, setDefaultCwd } from "./index.shared.js";
+import SomMark, { setDefaultFs, setDefaultCwd, setDefaultEnv, setDefaultAsyncLocalStorage } from "./index.shared.js";
+import { AsyncLocalStorage } from "./async-hooks.js";
 export * from "./index.shared.js";
 
 setDefaultFs(null);
 setDefaultCwd("/");
+setDefaultEnv(null);
+setDefaultAsyncLocalStorage(AsyncLocalStorage);
 
 /**
  * Resolves a relative path into a full URL using the current document location.

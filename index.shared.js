@@ -42,6 +42,14 @@ export function setDefaultFs(fs) {
 	Evaluator.setDefaultFs(fs);
 }
 
+export function setDefaultEnv(env) {
+	Evaluator.setDefaultEnv(env);
+}
+
+export function setDefaultAsyncLocalStorage(cls) {
+	Evaluator.setDefaultAsyncLocalStorage(cls);
+}
+
 export function setDefaultResolvePath(fn) {
 	defaultResolvePath = fn;
 }
@@ -113,7 +121,8 @@ class SomMark {
 			allowFetch: security?.allowFetch !== false,
 			allowHttp: security?.allowHttp === true,
 			allowedOrigins: Array.isArray(security?.allowedOrigins) ? security.allowedOrigins.map(o => o.toLowerCase()) : null,
-			allowedExtensions: Array.isArray(security?.allowedExtensions) ? security.allowedExtensions.map(e => e.toLowerCase()) : null
+			allowedExtensions: Array.isArray(security?.allowedExtensions) ? security.allowedExtensions.map(e => e.toLowerCase()) : null,
+			env: Array.isArray(security?.env) ? security.env : []
 		};
 		this.warnings = [];
 		this._prepared = false;

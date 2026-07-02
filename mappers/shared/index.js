@@ -11,7 +11,7 @@ export function registerSharedOutputs(mapper) {
 		},
     {
       escape: false, rules: {
-      required_args: ["smark-raw"]
+      required_directives: ["raw"]
 		} }
 	);
 }

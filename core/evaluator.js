@@ -1,18 +1,22 @@
-import { AsyncLocalStorage } from "node:async_hooks";
 import { getQuickJS } from "quickjs-emscripten";
 import path from "pathe";
 import * as acorn from "acorn";
 import SomMark, { registerHostCompile, registerHostSettings } from "./helpers/lib.js";
 import { formatMessage } from "./errors.js";
 
-// Each transpile() call gets its own isolated EvaluatorState stack via async context.
-const evaluatorStorage = new AsyncLocalStorage();
+// Set by index.js (Node.js) or index.browser.js (shim) — never imported directly.
+let evaluatorStorage = null;
+
+export function setDefaultAsyncLocalStorage(cls) {
+    evaluatorStorage = cls ? new cls() : null;
+}
 
 /**
  * Runs fn inside an isolated evaluator context.
  * Concurrent transpile() calls each get their own stack — no cross-contamination.
  */
 export function withEvaluator(fn) {
+    if (!evaluatorStorage) return fn();
     return evaluatorStorage.run([], fn);
 }
 
@@ -170,6 +174,7 @@ const customCompileAdapter = async (src, options, parentSecurity = {}) => {
 registerHostCompile(customCompileAdapter);
 
 let defaultFs = null;
+let defaultEnv = null;
 let quickJSInstance = null;
 async function getQuickJSModule() {
     if (!quickJSInstance) {
@@ -191,6 +196,16 @@ function objectToHandle(context, obj) {
     parseHandle.dispose();
     jsonHandle.dispose();
     return result.unwrap();
+}
+
+function isPlainData(value, seen = new Set()) {
+    if (value === null || value === undefined) return true;
+    if (typeof value === "function") return false;
+    if (typeof value !== "object") return true;
+    if (seen.has(value)) return false;
+    seen.add(value);
+    if (Array.isArray(value)) return value.every(v => isPlainData(v, seen));
+    return Object.values(value).every(v => isPlainData(v, seen));
 }
 
 function expose(context, vars, pendingDeferreds) {
@@ -313,6 +328,18 @@ class EvaluatorState {
         });
 
         this.expose({
+            __hostEnv: (key) => {
+                if (defaultEnv === null) {
+                    throw new Error(
+                        "[SomMark] SomMark.env() is not available in browser mode.\n" +
+                        "Environment variables are a server-side concept.\n" +
+                        "Read env values at build time and pass them as placeholders instead."
+                    );
+                }
+                const allowlist = this.security?.env;
+                if (!Array.isArray(allowlist) || !allowlist.includes(key)) return undefined;
+                return defaultEnv[key] ?? undefined;
+            },
             __hostSomMarkVersion: SomMark.version,
             __hostSomMarkSettings: () => {
                 const clean = { ...SomMark.settings };
@@ -524,6 +551,12 @@ class EvaluatorState {
                         throw new Error("SomMark.static Error: Argument must be a string.");
                     }
                     return globalThis.eval(expr);
+                },
+                env: (key) => {
+                    if (typeof key !== "string" || !key) {
+                        throw new Error("SomMark.env Error: Key must be a non-empty string.");
+                    }
+                    return __hostEnv(key);
                 }
             };
 
@@ -600,8 +633,13 @@ class EvaluatorState {
             if (/^https?:\/\//.test(clean)) return moduleName;
             const baseDir = (baseName === "<smark>" || !path.isAbsolute(baseName))
                 ? this.baseDir
-                : path.dirname(baseName);
-            const resolved = path.resolve(baseDir, clean);
+                : (/^https?:\/\//.test(baseName) ? baseName : path.dirname(baseName));
+            let resolved;
+            if (/^https?:\/\//.test(baseDir)) {
+                resolved = new URL(clean, baseDir).href;
+            } else {
+                resolved = path.resolve(baseDir, clean);
+            }
             return isRaw ? resolved + "?raw" : resolved;
         });
     }
@@ -753,9 +791,17 @@ class EvaluatorState {
 
     inject(vars) {
         if (!this.context) return;
+        const safe = {};
+        for (const [key, value] of Object.entries(vars)) {
+            if (!isPlainData(value)) {
+                console.warn(`[SomMark] Security: "${key}" contains functions and was blocked. Only plain data can be injected. Use SomMark built-ins for host capabilities.`);
+                continue;
+            }
+            safe[key] = value;
+        }
         const currentScope = this.scopes[this.scopes.length - 1];
-        Object.assign(currentScope, vars);
-        this.expose(vars);
+        Object.assign(currentScope, safe);
+        this.expose(safe);
     }
 
     async execute(code, baseDir = null) {
@@ -1045,6 +1091,14 @@ class Evaluator {
 
     setDefaultFs(fs) {
         defaultFs = fs;
+    }
+
+    setDefaultEnv(env) {
+        defaultEnv = env;
+    }
+
+    setDefaultAsyncLocalStorage(cls) {
+        setDefaultAsyncLocalStorage(cls);
     }
 
     get active() {

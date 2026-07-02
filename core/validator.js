@@ -55,10 +55,7 @@ const runValidations = (node, target, instance) => {
 	const isStructural = node.type === "Block";
 	if (isStructural && rules.required_args && Array.isArray(rules.required_args)) {
 		const missingArgs = rules.required_args.filter(arg => {
-			// Check if the argument exists in named args or as a positional arg (if arg is a number)
-			if (typeof arg === "number") {
-				return node.props[arg] === undefined;
-			}
+			if (typeof arg === "number") return node.props[arg] === undefined;
 			return node.props[arg] === undefined;
 		});
 
@@ -68,6 +65,22 @@ const runValidations = (node, target, instance) => {
 					"{N}",
 					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is missing required arguments:$> <$red:${missingArgs.join(", ")}$>{N}`,
 					`<$blue:Please ensure these arguments are provided in the template usage.$>`
+				],
+				context
+			);
+		}
+	}
+
+	// -- Directives Validation (Required Directives) ----------------------- //
+	if (isStructural && rules.required_directives && Array.isArray(rules.required_directives)) {
+		const missingDirectives = rules.required_directives.filter(key => node.directives?.[key] === undefined);
+
+		if (missingDirectives.length > 0) {
+			transpilerError(
+				[
+					"{N}",
+					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is missing required directive props:$> <$red:${missingDirectives.map(k => `smark-${k}`).join(", ")}$>{N}`,
+					`<$blue:Please ensure these directive props are provided in the template usage.$>`
 				],
 				context
 			);
