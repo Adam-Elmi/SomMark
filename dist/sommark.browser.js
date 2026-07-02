@@ -1,5 +1,3 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
-
 let _lazyMatch = () => { var __lib__=(()=>{var m=Object.defineProperty,V=Object.getOwnPropertyDescriptor,G=Object.getOwnPropertyNames,T=Object.prototype.hasOwnProperty,q=(r,e)=>{for(var n in e)m(r,n,{get:e[n],enumerable:true});},H=(r,e,n,a)=>{if(e&&typeof e=="object"||typeof e=="function")for(let t of G(e))!T.call(r,t)&&t!==n&&m(r,t,{get:()=>e[t],enumerable:!(a=V(e,t))||a.enumerable});return r},J=r=>H(m({},"__esModule",{value:true}),r),w={};q(w,{default:()=>re});var A=r=>Array.isArray(r),d=r=>typeof r=="function",Q=r=>r.length===0,W=r=>typeof r=="number",K=r=>typeof r=="object"&&r!==null,X=r=>r instanceof RegExp,b=r=>typeof r=="string",h=r=>r===void 0,Y=r=>{const e=new Map;return n=>{const a=e.get(n);if(a)return a;const t=r(n);return e.set(n,t),t}},rr=(r,e,n={})=>{const a={cache:{},input:r,index:0,indexMax:0,options:n,output:[]};if(v(e)(a)&&a.index===r.length)return a.output;throw new Error(`Failed to parse at index ${a.indexMax}`)},i=(r,e)=>A(r)?er(r,e):b(r)?ar(r,e):nr(r,e),er=(r,e)=>{const n={};for(const a of r){if(a.length!==1)throw new Error(`Invalid character: "${a}"`);const t=a.charCodeAt(0);n[t]=true;}return a=>{const t=a.index,o=a.input;for(;a.index<o.length&&o.charCodeAt(a.index)in n;)a.index+=1;const u=a.index;if(u>t){if(!h(e)&&!a.options.silent){const s=a.input.slice(t,u),c=d(e)?e(s,o,String(t)):e;h(c)||a.output.push(c);}a.indexMax=Math.max(a.indexMax,a.index);}return  true}},nr=(r,e)=>{const n=r.source,a=r.flags.replace(/y|$/,"y"),t=new RegExp(n,a);return g(o=>{t.lastIndex=o.index;const u=t.exec(o.input);if(u){if(!h(e)&&!o.options.silent){const s=d(e)?e(...u,o.input,String(o.index)):e;h(s)||o.output.push(s);}return o.index+=u[0].length,o.indexMax=Math.max(o.indexMax,o.index),true}else return  false})},ar=(r,e)=>n=>{if(n.input.startsWith(r,n.index)){if(!h(e)&&!n.options.silent){const t=d(e)?e(r,n.input,String(n.index)):e;h(t)||n.output.push(t);}return n.index+=r.length,n.indexMax=Math.max(n.indexMax,n.index),true}else return  false},C=(r,e,n,a)=>{const t=v(r);return g(_(M(o=>{let u=0;for(;u<n;){const s=o.index;if(!t(o)||(u+=1,o.index===s))break}return u>=e})))},tr=(r,e)=>C(r,0,1),f=(r,e)=>C(r,0,1/0),x=(r,e)=>{const n=r.map(v);return g(_(M(a=>{for(let t=0,o=n.length;t<o;t++)if(!n[t](a))return  false;return  true})))},l=(r,e)=>{const n=r.map(v);return g(_(a=>{for(let t=0,o=n.length;t<o;t++)if(n[t](a))return  true;return  false}))},M=(r,e=false)=>{const n=v(r);return a=>{const t=a.index,o=a.output.length,u=n(a);return (!u||e)&&(a.index=t,a.output.length!==o&&(a.output.length=o)),u}},_=(r,e)=>{const n=v(r);return n},g=(()=>{let r=0;return e=>{const n=v(e),a=r+=1;return t=>{var o;if(t.options.memoization===false)return n(t);const u=t.index,s=(o=t.cache)[a]||(o[a]=new Map),c=s.get(u);if(c===false)return  false;if(W(c))return t.index=c,true;if(c)return t.index=c.index,c.output?.length&&t.output.push(...c.output),true;{const Z=t.output.length;if(n(t)){const D=t.index,U=t.output.length;if(U>Z){const ee=t.output.slice(Z,U);s.set(u,{index:D,output:ee});}else s.set(u,D);return  true}else return s.set(u,false),false}}}})(),E=r=>{let e;return n=>(e||(e=v(r())),e(n))},v=Y(r=>{if(d(r))return Q(r)?E(r):r;if(b(r)||X(r))return i(r);if(A(r))return x(r);if(K(r))return l(Object.values(r));throw new Error("Invalid rule")}),P="abcdefghijklmnopqrstuvwxyz",ir=r=>{let e="";for(;r>0;){const n=(r-1)%26;e=P[n]+e,r=Math.floor((r-1)/26);}return e},O=r=>{let e=0;for(let n=0,a=r.length;n<a;n++)e=e*26+P.indexOf(r[n])+1;return e},S=(r,e)=>{if(e<r)return S(e,r);const n=[];for(;r<=e;)n.push(r++);return n},or=(r,e,n)=>S(r,e).map(a=>String(a).padStart(n,"0")),R=(r,e)=>S(O(r),O(e)).map(ir),p=r=>r,z=r=>ur(e=>rr(e,r,{memoization:false}).join("")),ur=r=>{const e={};return n=>e[n]??(e[n]=r(n))},sr=i(/^\*\*\/\*$/,".*"),cr=i(/^\*\*\/(\*)?([ a-zA-Z0-9._-]+)$/,(r,e,n)=>`.*${e?"":"(?:^|/)"}${n.replaceAll(".","\\.")}`),lr=i(/^\*\*\/(\*)?([ a-zA-Z0-9._-]*)\{([ a-zA-Z0-9._-]+(?:,[ a-zA-Z0-9._-]+)*)\}$/,(r,e,n,a)=>`.*${e?"":"(?:^|/)"}${n.replaceAll(".","\\.")}(?:${a.replaceAll(",","|").replaceAll(".","\\.")})`),y=i(/\\./,p),pr=i(/[$.*+?^(){}[\]\|]/,r=>`\\${r}`),vr=i(/./,p),hr=i(/^(?:!!)*!(.*)$/,(r,e)=>`(?!^${L(e)}$).*?`),dr=i(/^(!!)+/,""),fr=l([hr,dr]),xr=i(/\/(\*\*\/)+/,"(?:/.+/|/)"),gr=i(/^(\*\*\/)+/,"(?:^|.*/)"),mr=i(/\/(\*\*)$/,"(?:/.*|$)"),_r=i(/\*\*/,".*"),j=l([xr,gr,mr,_r]),Sr=i(/\*\/(?!\*\*\/)/,"[^/]*/"),yr=i(/\*/,"[^/]*"),N=l([Sr,yr]),k=i("?","[^/]"),$r=i("[",p),wr=i("]",p),Ar=i(/[!^]/,"^/"),br=i(/[a-z]-[a-z]|[0-9]-[0-9]/i,p),Cr=i(/[$.*+?^(){}[\|]/,r=>`\\${r}`),Mr=i(/[^\]]/,p),Er=l([y,Cr,br,Mr]),B=x([$r,tr(Ar),f(Er),wr]),Pr=i("{","(?:"),Or=i("}",")"),Rr=i(/(\d+)\.\.(\d+)/,(r,e,n)=>or(+e,+n,Math.min(e.length,n.length)).join("|")),zr=i(/([a-z]+)\.\.([a-z]+)/,(r,e,n)=>R(e,n).join("|")),jr=i(/([A-Z]+)\.\.([A-Z]+)/,(r,e,n)=>R(e.toLowerCase(),n.toLowerCase()).join("|").toUpperCase()),Nr=l([Rr,zr,jr]),I=x([Pr,Nr,Or]),kr=i("{","(?:"),Br=i("}",")"),Ir=i(",","|"),Fr=i(/[$.*+?^(){[\]\|]/,r=>`\\${r}`),Lr=i(/[^}]/,p),Zr=E(()=>F),Dr=l([j,N,k,B,I,Zr,y,Fr,Ir,Lr]),F=x([kr,f(Dr),Br]),Ur=f(l([sr,cr,lr,fr,j,N,k,B,I,F,y,pr,vr])),Vr=Ur,Gr=z(Vr),L=Gr,Tr=i(/\\./,p),qr=i(/./,p),Hr=i(/\*\*\*+/,"*"),Jr=i(/([^/{[(!])\*\*/,(r,e)=>`${e}*`),Qr=i(/(^|.)\*\*(?=[^*/)\]}])/,(r,e)=>`${e}*`),Wr=f(l([Tr,Hr,Jr,Qr,qr])),Kr=Wr,Xr=z(Kr),Yr=Xr,$=(r,e)=>{const n=Array.isArray(r)?r:[r];if(!n.length)return  false;const a=n.map($.compile),t=n.every(s=>/(\/(?:\*\*)?|\[\/\])$/.test(s)),o=e.replace(/[\\\/]+/g,"/").replace(/\/$/,t?"/":"");return a.some(s=>s.test(o))};$.compile=r=>new RegExp(`^${L(Yr(r))}$`,"s");var re=$;return J(w)})();
  return __lib__.default || __lib__; };
 let _match;
@@ -1476,6 +1474,7 @@ function makeBlockNode() {
 		structure: "Block",
 		id: "",
 		props: {},
+		directives: {},
 		body: [],
 		depth: 0,
 		range: {
@@ -1961,9 +1960,11 @@ function parseBlock(tokens, i, filename = null, placeholders = {}, variables = {
 			i = valueIndex;
 
 			// Store Argument
-			blockNode.props[String(argIndex++)] = v;
-			if (k) {
-				blockNode.props[k] = v;
+			if (k && k.startsWith("smark-")) {
+				blockNode.directives[k.slice(6)] = v; // strip "smark-" prefix
+			} else {
+				blockNode.props[String(argIndex++)] = v;
+				if (k) blockNode.props[k] = v;
 			}
 			k = "";
 			v = "";
@@ -8627,7 +8628,7 @@ function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const version = "5.0.5";
+const version = "5.1.0";
 
 const SomMark$1 = {
     version,
@@ -8678,14 +8679,19 @@ const SomMark$1 = {
 // Freeze the entire Standard Library to make it completely immutable and tamper-proof
 Object.freeze(SomMark$1);
 
-// Each transpile() call gets its own isolated EvaluatorState stack via async context.
-const evaluatorStorage = new AsyncLocalStorage();
+// Set by index.js (Node.js) or index.browser.js (shim) — never imported directly.
+let evaluatorStorage = null;
+
+function setDefaultAsyncLocalStorage$1(cls) {
+    evaluatorStorage = cls ? new cls() : null;
+}
 
 /**
  * Runs fn inside an isolated evaluator context.
  * Concurrent transpile() calls each get their own stack — no cross-contamination.
  */
 function withEvaluator(fn) {
+    if (!evaluatorStorage) return fn();
     return evaluatorStorage.run([], fn);
 }
 
@@ -8843,6 +8849,7 @@ const customCompileAdapter = async (src, options, parentSecurity = {}) => {
 registerHostCompile(customCompileAdapter);
 
 let defaultFs$1 = null;
+let defaultEnv = null;
 let quickJSInstance = null;
 async function getQuickJSModule() {
     if (!quickJSInstance) {
@@ -8864,6 +8871,16 @@ function objectToHandle(context, obj) {
     parseHandle.dispose();
     jsonHandle.dispose();
     return result.unwrap();
+}
+
+function isPlainData(value, seen = new Set()) {
+    if (value === null || value === undefined) return true;
+    if (typeof value === "function") return false;
+    if (typeof value !== "object") return true;
+    if (seen.has(value)) return false;
+    seen.add(value);
+    if (Array.isArray(value)) return value.every(v => isPlainData(v, seen));
+    return Object.values(value).every(v => isPlainData(v, seen));
 }
 
 function expose(context, vars, pendingDeferreds) {
@@ -8986,6 +9003,18 @@ class EvaluatorState {
         });
 
         this.expose({
+            __hostEnv: (key) => {
+                if (defaultEnv === null) {
+                    throw new Error(
+                        "[SomMark] SomMark.env() is not available in browser mode.\n" +
+                        "Environment variables are a server-side concept.\n" +
+                        "Read env values at build time and pass them as placeholders instead."
+                    );
+                }
+                const allowlist = this.security?.env;
+                if (!Array.isArray(allowlist) || !allowlist.includes(key)) return undefined;
+                return defaultEnv[key] ?? undefined;
+            },
             __hostSomMarkVersion: SomMark$1.version,
             __hostSomMarkSettings: () => {
                 const clean = { ...SomMark$1.settings };
@@ -9197,6 +9226,12 @@ class EvaluatorState {
                         throw new Error("SomMark.static Error: Argument must be a string.");
                     }
                     return globalThis.eval(expr);
+                },
+                env: (key) => {
+                    if (typeof key !== "string" || !key) {
+                        throw new Error("SomMark.env Error: Key must be a non-empty string.");
+                    }
+                    return __hostEnv(key);
                 }
             };
 
@@ -9219,15 +9254,20 @@ class EvaluatorState {
         }
         setupRes.value.dispose();
 
-        // Configure module loader using virtual FS implementation
+        // Configure module loader using virtual FS implementation.
+        // The normalizer resolves every import to an absolute path so the module
+        // cache key is always absolute — <smark> (the eval module name) can never
+        // be reached by any user import regardless of what the file is named.
         this.runtime.setModuleLoader((moduleName) => {
             try {
                 const isRaw = moduleName.endsWith("?raw");
                 const cleanModuleName = isRaw ? moduleName.slice(0, -4) : moduleName;
-                const resolvedPath = /^https?:\/\//.test(this.baseDir)
-                    ? new URL(cleanModuleName, this.baseDir.endsWith("/") ? this.baseDir : this.baseDir + "/").href
+                // moduleName is already an absolute path (supplied by the normalizer below),
+                // so resolve() is a no-op for absolute paths and a safe fallback for URLs.
+                const resolvedPath = /^https?:\/\//.test(cleanModuleName)
+                    ? cleanModuleName
                     : posix.resolve(this.baseDir, cleanModuleName);
-                
+
                 const fsImpl = this.settings?.fs || this.settings?.instance?.fs || this.nodeFs;
                 if (!fsImpl) {
                     throw new Error("No filesystem implementation available.");
@@ -9260,6 +9300,22 @@ class EvaluatorState {
             } catch (err) {
                 throw err;
             }
+        }, (baseName, moduleName) => {
+            // Resolve every import to an absolute path so no user import can ever
+            // normalize to <smark> (or any other virtual eval module name).
+            const isRaw = moduleName.endsWith("?raw");
+            const clean = isRaw ? moduleName.slice(0, -4) : moduleName;
+            if (/^https?:\/\//.test(clean)) return moduleName;
+            const baseDir = (baseName === "<smark>" || !posix.isAbsolute(baseName))
+                ? this.baseDir
+                : (/^https?:\/\//.test(baseName) ? baseName : posix.dirname(baseName));
+            let resolved;
+            if (/^https?:\/\//.test(baseDir)) {
+                resolved = new URL(clean, baseDir).href;
+            } else {
+                resolved = posix.resolve(baseDir, clean);
+            }
+            return isRaw ? resolved + "?raw" : resolved;
         });
     }
 
@@ -9410,9 +9466,17 @@ class EvaluatorState {
 
     inject(vars) {
         if (!this.context) return;
+        const safe = {};
+        for (const [key, value] of Object.entries(vars)) {
+            if (!isPlainData(value)) {
+                console.warn(`[SomMark] Security: "${key}" contains functions and was blocked. Only plain data can be injected. Use SomMark built-ins for host capabilities.`);
+                continue;
+            }
+            safe[key] = value;
+        }
         const currentScope = this.scopes[this.scopes.length - 1];
-        Object.assign(currentScope, vars);
-        this.expose(vars);
+        Object.assign(currentScope, safe);
+        this.expose(safe);
     }
 
     async execute(code, baseDir = null) {
@@ -9496,7 +9560,7 @@ class EvaluatorState {
 
             let result;
             if (isModule) {
-                const evalRes = this.context.evalCode(finalCode, "main.js", { type: 'module' });
+                const evalRes = this.context.evalCode(finalCode, "<smark>", { type: 'module' });
                 if (evalRes.error) {
                     const err = this.context.dump(evalRes.error);
                     evalRes.error.dispose();
@@ -9565,7 +9629,7 @@ class EvaluatorState {
                 }
 
                 const defaultValue = this.context.dump(resolvedDefaultHandle);
-                
+
                 if (isPromise) {
                     resolvedDefaultHandle.dispose();
                 }
@@ -9605,7 +9669,7 @@ class EvaluatorState {
                     result = res;
                 }
             } else {
-                const evalRes = this.context.evalCode(code, "main.js");
+                const evalRes = this.context.evalCode(code, "<smark>");
                 if (evalRes.error) {
                     const err = this.context.dump(evalRes.error);
                     evalRes.error.dispose();
@@ -9641,7 +9705,7 @@ class EvaluatorState {
             return result;
         } catch (error) {
             const stack = error.stack || "";
-            const match = stack.match(/main\.js:(\d+):(\d+)/) || stack.match(/:(\d+):(\d+)/);
+            const match = stack.match(/__smark__\.js:(\d+):(\d+)/) || stack.match(/:(\d+):(\d+)/);
 
             const err = new Error(error.message || error);
             if (match) {
@@ -9702,6 +9766,14 @@ class Evaluator {
 
     setDefaultFs(fs) {
         defaultFs$1 = fs;
+    }
+
+    setDefaultEnv(env) {
+        defaultEnv = env;
+    }
+
+    setDefaultAsyncLocalStorage(cls) {
+        setDefaultAsyncLocalStorage$1(cls);
     }
 
     get active() {
@@ -9916,7 +9988,26 @@ async function preprocessRuntimeLogic(code, filename = null, security = {}, inst
 				if (filename && filename !== "anonymous") {
 					baseDir = posix.dirname(posix.resolve(filename));
 				}
+
+				// Block absolute paths — path.resolve would ignore baseDir entirely
+				if (posix.isAbsolute(argValue)) {
+					transpilerError([
+						`<$red:Security Error:$> Absolute import paths are not allowed: <$magenta:${argValue}$>{line}`,
+						`<$yellow:Use a path relative to the template file, e.g.$> <$green:SomMark.import("./data.json")$> <$yellow:or$> <$green:SomMark.import("../shared/data.json")$><$yellow:.$>{line}`,
+						`<$yellow:Base directory:$> <$blue:${baseDir}$>{line}`
+					]);
+				}
+
 				const resolvedPath = posix.resolve(baseDir, argValue);
+
+				// Block path traversal — resolved path must stay inside baseDir
+				const safeBases = baseDir.endsWith(posix.sep) ? baseDir : baseDir + posix.sep;
+				if (!resolvedPath.startsWith(safeBases) && resolvedPath !== baseDir) {
+					transpilerError([
+						`<$red:Security Error:$> Import path escapes the project directory: <$magenta:${argValue}$>{line}`,
+						`<$yellow:Resolved Path:$> <$blue:${resolvedPath}$>{line}`
+					]);
+				}
 
 				const fsImpl = instance?.fs || await getNodeFs();
 
@@ -10030,6 +10121,7 @@ const randomBytesHex = (size) => {
 
 const BODY_PLACEHOLDER = `SOMMARKBODYPLACEHOLDER${randomBytesHex(8)}SOMMARK`;
 
+
 /** 
  * Extracts all plain text from a node and its children.
  * 
@@ -10128,6 +10220,17 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	if (node.type === FOR_EACH) {
 		const transpiledArgs = await transpileArgs(node.props);
+
+		if (!node.props || (node.props[0] === undefined && node.props["items"] === undefined)) {
+			const line = node.range?.start?.line + 1 || 1;
+			transpilerError([
+				`<$red:Missing Prop Error in [for-each]:$>{line}`,
+				`[for-each] requires an array as its first prop, e.g. [for-each = \${ array }\$]{line}`,
+				`at line <$yellow:${line}$>{line}`
+			]);
+			return "";
+		}
+
 		const items = mapper_file ? mapper_file.safeArg({ props: transpiledArgs, index: 0, key: "items", fallBack: [] }) : [];
 
 		if (!Array.isArray(items)) {
@@ -10141,11 +10244,11 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 		}
 
 		const asVar = transpiledArgs.as || "value";
-		if (asVar === "i") {
+		if (asVar === "i" || asVar === "length") {
 			const line = node.range?.start?.line + 1 || 1;
 			transpilerError([
 				`<$red:Reserved Variable Error in [for-each]:$>{line}`,
-				`'i' is a reserved variable name for the loop index.{N}Use a different name for the 'as' prop, e.g. as: "item"{line}`,
+				`'${asVar}' is a reserved variable name.{N}Use a different name for the 'as' prop, e.g. as: "item"{line}`,
 				`at line <$yellow:${line}$>{line}`
 			]);
 			return "";
@@ -10175,22 +10278,28 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			}
 		}
 
-		let output = "";
+		const rawJoin = transpiledArgs.join ?? null;
+		const join = rawJoin !== null ? rawJoin.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\r/g, "\r") : null;
+		const parts = [];
 		let idx = 0;
+		const length = items.length;
 		for (const item of items) {
 			Evaluator$1.pushScope();
 			Evaluator$1.inject({
 				[asVar]: item,
-				i: idx++
+				i: idx++,
+				length
 			});
 
+			let iterOutput = "";
 			for (let j = 0; j < cleanedBody.length; j++) {
-				output += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState, extraCtx);
+				iterOutput += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState, extraCtx);
 			}
 
 			await Evaluator$1.popScope();
+			parts.push(iterOutput);
 		}
-		return output;
+		return join !== null ? parts.join(join) : parts.join("");
 	}
 
 	let secretId = null;
@@ -10218,13 +10327,12 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 	}
 
 	// smark-raw block — body collected verbatim by lexer, bypasses normal body processing pipeline
-	if (node.type === BLOCK && (node.props?.["smark-raw"] === "true" || node.props?.["smark-raw"] === true)) {
+	if (node.type === BLOCK && (node.directives?.raw === "true" || node.directives?.raw === true)) {
 		if (generateRuntimeOutput) return "";
 		const rawContent = node.body?.map(n => String(n.text || "")).join("") || "";
-		const { "smark-raw": _, ...cleanArgs } = node.props;
-		const transpiledArgs = await transpileArgs(cleanArgs);
+		const transpiledArgs = await transpileArgs(node.props);
 		if (Evaluator$1.active?.hasDynamicTag?.(node.id)) {
-			return await Evaluator$1.active.executeDynamicTag(node.id, { props: transpiledArgs, content: rawContent, textContent: rawContent });
+			return await Evaluator$1.active.executeDynamicTag(node.id, { props: transpiledArgs, directives: node.directives, content: rawContent, textContent: rawContent });
 		}
 		let rawTarget = mapper_file ? matchedValue(mapper_file.outputs, node.id) : null;
 		if (!rawTarget && mapper_file) rawTarget = mapper_file.getUnknownTag(node);
@@ -10232,6 +10340,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			const isManualMode = !!rawTarget.options?.handleAst;
 			return await rawTarget.render.call(mapper_file, {
 				props: transpiledArgs,
+				directives: node.directives,
 				content: rawContent,
 				textContent: rawContent,
 				ast: isManualMode ? node : undefined,
@@ -10343,6 +10452,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 				return await target.render.call(mapper_file, {
 					props: transpiledArgs,
+					directives: node.directives,
 					content: "",
 					textContent: richText || textContent,
 					ast: cleanAst,
@@ -10361,6 +10471,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 		}
 		result += await target.render.call(mapper_file, {
 			props: transpiledArgs,
+			directives: node.directives,
 			content,
 			textContent,
 			ast: new Proxy({}, {
@@ -11784,11 +11895,20 @@ class Mapper {
 
 /**
  * Registers universal utility blocks shared across all SomMark mappers.
- * These blocks are considered "Format Agnostic."
  *
  * @param {Mapper} mapper - The mapper instance to register tags on.
  */
 function registerSharedOutputs(mapper) {
+	mapper.register(
+		["raw", "Raw"],
+		({ content }) => {
+			return content;
+		},
+    {
+      escape: false, rules: {
+      required_directives: ["raw"]
+		} }
+	);
 }
 
 const SVG_ELEMENTS = new Set([
@@ -11941,6 +12061,7 @@ HTML.register(
 		return "";
 	},
 );
+registerSharedOutputs(HTML);
 
 /**
  * The Markdown Mapper used for generating Markdown text.
@@ -11967,42 +12088,37 @@ const MARKDOWN = Mapper.define({
 	},
 
 	/**
-	 * Provides a fallback for unknown tags by using the HTML mapper instead.
-	 */
+	 * Provides a fallback for unknown tags by rendering them as HTML elements.
+	 * Passes child nodes to the transpiler, which handles all node types (such as ForEach).
+	 **/
 	getUnknownTag(node) {
-		const id = node.id.toLowerCase();
-
+		const id = node.id;
 		return {
-			render: async ({ props, ast, isSelfClosing, renderChild }) => {
+			options: { trimAndWrapBlocks: true },
+			render: ({ props, content, isSelfClosing }) => {
 				const element = this.tag(id).smartAttributes(props, this.customProps, this.options);
 				if (isSelfClosing || VOID_ELEMENTS.has(id)) return element.selfClose();
-
-				let rawContent = "";
-				for (const child of (ast.body || [])) {
-					if (child.type === TEXT$1) rawContent += this.text(child.text);
-					else if (child.type === BLOCK) rawContent += await renderChild(child);
-				}
-				rawContent = rawContent.trim();
-
-				const meaningful = (ast.body || []).filter(c => c.type !== TEXT$1 || c.text.trim());
-				const finalContent = meaningful.length <= 1 ? rawContent : `\n${rawContent}\n`;
-				return element.body(finalContent);
-			},
-			options: { handleAst: true }
+				return element.body(content);
+			}
 		};
 	}
 });
 
 MARKDOWN.inherit(HTML);
 const { md, safeArg } = MARKDOWN;
+registerSharedOutputs(MARKDOWN);
 
 /**
  * Quote - Renders blockquote content or GFM alerts.
  */
-MARKDOWN.register("quote", ({ props, content }) => {
-	const type = safeArg({ props, index: 0, key: "type", fallBack: "" });
-	return md.quote(content, type);
-}, { resolve: true });
+MARKDOWN.register(
+	"quote",
+	({ props, content }) => {
+		const type = safeArg({ props, index: 0, key: "type", fallBack: "" });
+		return md.quote(content, type);
+	},
+	{ resolve: true }
+);
 
 /**
  * Headings - Renders H1-H6 block headings.
@@ -12082,12 +12198,12 @@ MARKDOWN.register(
 	"link",
 	({ props, content, isSelfClosing }) => {
 		if (isSelfClosing) {
-			const text  = safeArg({ props, index: 0, key: "text",  fallBack: "" });
-			const src   = safeArg({ props, index: 1, key: "src",   fallBack: "" });
+			const text = safeArg({ props, index: 0, key: "text", fallBack: "" });
+			const src = safeArg({ props, index: 1, key: "src", fallBack: "" });
 			const title = safeArg({ props, index: 2, key: "title", fallBack: "" });
 			return md.url("link", text, src, title);
 		}
-		const src   = safeArg({ props, index: 0, key: "src",   fallBack: "" });
+		const src = safeArg({ props, index: 0, key: "src", fallBack: "" });
 		const title = safeArg({ props, index: 1, key: "title", fallBack: "" });
 		return md.url("link", content, src, title);
 	},
@@ -12125,10 +12241,14 @@ MARKDOWN.register(
  * Escape - Escapes special Markdown characters.
  * Self-closing: [escape = "text" !] or [escape = text: "text" !]
  */
-MARKDOWN.register(["escape", "e"], function ({ props, content, isSelfClosing }) {
-	const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
-	return this.md.escape(text);
-}, { resolve: true });
+MARKDOWN.register(
+	["escape", "e"],
+	function ({ props, content, isSelfClosing }) {
+		const text = isSelfClosing ? safeArg({ props, index: 0, key: "text", fallBack: "" }) : content;
+		return this.md.escape(text);
+	},
+	{ resolve: true }
+);
 
 const ROW_SEP = "\x1E";
 const CELL_SEP = "\x1F";
@@ -12144,12 +12264,16 @@ MARKDOWN.register(
 		const headers = [];
 		const rows = [];
 
-		const extractRows = async (sectionNode) => {
+		const extractRows = async sectionNode => {
 			const sectionRows = [];
-			for (const child of (sectionNode.body || [])) {
+			for (const child of sectionNode.body || []) {
 				if (child.type === BLOCK && child.id?.toLowerCase() === "row") {
 					const rendered = await renderChild(child, { inTable: true });
-					const cells = rendered.split(ROW_SEP)[0]?.split(CELL_SEP).filter(c => c !== "") ?? [];
+					const cells =
+						rendered
+							.split(ROW_SEP)[0]
+							?.split(CELL_SEP)
+							.filter(c => c !== "") ?? [];
 					if (cells.length > 0) sectionRows.push(cells);
 				} else if (child.type === FOR_EACH) {
 					const rendered = await renderChild(child, { inTable: true });
@@ -12183,25 +12307,29 @@ MARKDOWN.register(
  */
 MARKDOWN.register(["header", "body"], ({ content }) => content);
 
-MARKDOWN.register("row", async function ({ ast, renderChild, inTable }) {
-	if (!inTable) {
-		let result = "";
+MARKDOWN.register(
+	"row",
+	async function ({ ast, renderChild, inTable }) {
+		if (!inTable) {
+			let result = "";
+			for (const child of ast.body) {
+				if (child.type === TEXT$1) result += this.text(child.text);
+				else if (child.type === BLOCK) result += await renderChild(child);
+			}
+			return result;
+		}
+		let cells = "";
 		for (const child of ast.body) {
-			if (child.type === TEXT$1) result += this.text(child.text);
-			else if (child.type === BLOCK) result += await renderChild(child);
+			if (child.type !== BLOCK) continue;
+			const id = child.id?.toLowerCase();
+			if (id === "cell" || id === "th" || id === "td") {
+				cells += await renderChild(child, { inTable: true });
+			}
 		}
-		return result;
-	}
-	let cells = "";
-	for (const child of ast.body) {
-		if (child.type !== BLOCK) continue;
-		const id = child.id?.toLowerCase();
-		if (id === "cell" || id === "th" || id === "td") {
-			cells += await renderChild(child, { inTable: true });
-		}
-	}
-	return cells + ROW_SEP;
-}, { handleAst: true });
+		return cells + ROW_SEP;
+	},
+	{ handleAst: true }
+);
 
 MARKDOWN.register(["cell", "th", "td"], ({ content, inTable }) => {
 	return inTable ? content.trim() + CELL_SEP : content;
@@ -12211,34 +12339,42 @@ MARKDOWN.register(["cell", "th", "td"], ({ content, inTable }) => {
  * Lists - Authoritative Native AST List resolution.
  * Supports Ordered (Number) and Unordered (Dotlex) lists with deep nesting.
  */
-MARKDOWN.register(["list", "List"], async function ({ ast, props, renderChild }) {
-	const indicator = safeArg({ props, index: 0, fallBack: "dot" });
-	const isOrdered = indicator === "number" || indicator === "ol";
-	const marker = isOrdered ? "" : (indicator === "dot" ? "-" : indicator);
-	const items = [];
+MARKDOWN.register(
+	["list", "List"],
+	async function ({ ast, props, renderChild }) {
+		const indicator = safeArg({ props, index: 0, fallBack: "dot" });
+		const isOrdered = indicator === "number" || indicator === "ol";
+		const marker = isOrdered ? "" : indicator === "dot" ? "-" : indicator;
+		const items = [];
 
-	for (const node of ast.body) {
-		if (node.type !== BLOCK) continue;
-		const id = node.id?.toLowerCase();
-		if (id === "item") {
-			items.push((await renderChild(node)).trim());
+		for (const node of ast.body) {
+			if (node.type !== BLOCK) continue;
+			const id = node.id?.toLowerCase();
+			if (id === "item") {
+				items.push((await renderChild(node)).trim());
+			}
 		}
-	}
 
-	return isOrdered ? md.orderedList(items, 0) : md.unorderedList(items, 0, marker);
-}, { handleAst: true, trimAndWrapBlocks: false });
+		return isOrdered ? md.orderedList(items, 0) : md.unorderedList(items, 0, marker);
+	},
+	{ handleAst: true, trimAndWrapBlocks: false }
+);
 
 /**
  * List Helpers - Internal tags for list structural organization.
  */
-MARKDOWN.register(["item", "Item"], async function ({ ast, renderChild }) {
-	let result = "";
-	for (const child of ast.body) {
-		if (child.type === TEXT$1) result += this.text(child.text);
-		else if (child.type === BLOCK) result += await renderChild(child);
-	}
-	return result.trim();
-}, { handleAst: true, trimAndWrapBlocks: false });
+MARKDOWN.register(
+	["item", "Item"],
+	async function ({ ast, renderChild }) {
+		let result = "";
+		for (const child of ast.body) {
+			if (child.type === TEXT$1) result += this.text(child.text);
+			else if (child.type === BLOCK) result += await renderChild(child);
+		}
+		return result.trim();
+	},
+	{ handleAst: true, trimAndWrapBlocks: false }
+);
 
 /**
  * Todo - Renders task list items with status markers.
@@ -12248,19 +12384,23 @@ MARKDOWN.register(["item", "Item"], async function ({ ast, renderChild }) {
  *   [todo = "Add feature", "x" !]                 positional self-closing (task, status)
  *   [todo = "x"]Add feature[end]                  status in prop, task in body
  */
-MARKDOWN.register("todo", ({ props, content, isSelfClosing }) => {
-	let status, task;
+MARKDOWN.register(
+	"todo",
+	({ props, content, isSelfClosing }) => {
+		let status, task;
 
-	if (isSelfClosing) {
-		task   = safeArg({ props, index: 0, key: "task",   fallBack: "" });
-		status = safeArg({ props, index: 1, key: "status", fallBack: "" });
-	} else {
-		status = safeArg({ props, index: 0, fallBack: "" });
-		task   = content;
-	}
+		if (isSelfClosing) {
+			task = safeArg({ props, index: 0, key: "task", fallBack: "" });
+			status = safeArg({ props, index: 1, key: "status", fallBack: "" });
+		} else {
+			status = safeArg({ props, index: 0, fallBack: "" });
+			task = content;
+		}
 
-	return md.todo(status, task);
-}, { trimAndWrapBlocks: false });
+		return md.todo(status, task);
+	},
+	{ trimAndWrapBlocks: false }
+);
 
 /**
  * The MDX Mapper used for generating Markdown with JSX.
@@ -12470,100 +12610,115 @@ Jsonc.register(["Array", "array"], async function ({ props, ast, depth = 0, inAr
 /**
  * Renders a standard XML tag based on the provided identifier and arguments.
  * Ensures strict attribute quoting and handles self-closing tags for empty bodies.
- * 
+ *
  * @param {string} id - The XML tag identifier (case-sensitive).
  * @param {Object} props - Key-value pairs to be rendered as XML attributes.
  * @param {string} content - The rendered inner content of the tag.
  * @returns {string} The fully rendered XML tag string.
  */
 const renderXmlTag = function (id, props, content, isSelfClosing) {
-    // XML is case-sensitive, so we use the exact id provided
-    const element = this.tag(id);
+	// XML is case-sensitive, so we use the exact id provided
+	const element = this.tag(id);
 
-    // Filter out positional indices (numeric keys) for XML attributes
-    const namedArgs = {};
-    Object.keys(props).forEach(key => {
-        if (isNaN(parseInt(key))) {
-            namedArgs[key] = props[key];
-        }
-    });
+	// Filter out positional indices (numeric keys) for XML attributes
+	const namedArgs = {};
+	Object.keys(props).forEach(key => {
+		if (isNaN(parseInt(key))) {
+			namedArgs[key] = props[key];
+		}
+	});
 
-    // In XML, attributes must always have values (strict = true)
-    element.attributes(namedArgs, true);
+	// In XML, attributes must always have values (strict = true)
+	element.attributes(namedArgs, true);
 
-    const hasBody = typeof content === "string" && content.trim().length > 0;
+	const hasBody = typeof content === "string" && content.trim().length > 0;
 
-    if (isSelfClosing || !hasBody) {
-        return element.selfClose();
-    }
+	if (isSelfClosing || !hasBody) {
+		return element.selfClose();
+	}
 
-    return element.body(content);
+	return element.body(content);
 };
 
 /**
  * The XML Mapper used for creating XML pages.
  */
 const XML = Mapper.define({
-    /**
-     * Renders a comment in XML format.
-     * @param {string} text - The comment content.
-     * @returns {string}
-     */
-    comment(text) {
-        return `<!-- ${text} -->`;
-    },
+	/**
+	 * Renders a comment in XML format.
+	 * @param {string} text - The comment content.
+	 * @returns {string}
+	 */
+	comment(text) {
+		return `<!-- ${text} -->`;
+	},
 
-    /**
-     * Resolves unknown tags by preserving their original case and applying XML rules.
-     * @param {Object} node - The AST node representing the unknown tag.
-     * @returns {Object} Renderer definition for the tag.
-     */
-    getUnknownTag(node) {
-        const id = node.id;
-        return {
-            render: ({ props, content, isSelfClosing }) => renderXmlTag.call(this, id, props, content, isSelfClosing),
-            options: {}
-        };
-    }
+	/**
+	 * Resolves unknown tags by preserving their original case and applying XML rules.
+	 * @param {Object} node - The AST node representing the unknown tag.
+	 * @returns {Object} Renderer definition for the tag.
+	 */
+	getUnknownTag(node) {
+		const id = node.id;
+		return {
+			render: ({ props, content, isSelfClosing }) => renderXmlTag.call(this, id, props, content, isSelfClosing),
+			options: {}
+		};
+	},
+	options: {
+		trimAndWrapBlocks: true
+	}
 });
 
 /**
  * Registers the XML declaration as a self-closing block.
  * Usage: [xml = version: "1.0", encoding: "UTF-8"]
  */
-XML.register("xml", ({ props }) => {
-    const version = props.version || "1.0";
-    const encoding = props.encoding || "UTF-8";
-    return `<?xml version="${version}" encoding="${encoding}"?>`;
-}, { rules: { is_empty_body: true } });
+XML.register(
+	"xml",
+	({ props }) => {
+		const version = props.version || "1.0";
+		const encoding = props.encoding || "UTF-8";
+		return `<?xml version="${version}" encoding="${encoding}"?>`;
+	},
+	{ rules: { is_empty_body: true } }
+);
 
 /**
  * Registers the DOCTYPE declaration.
  * Usage: [doctype = root: "note", system: "note.dtd"]
  */
-XML.register(["DOCTYPE", "doctype"], ({ props }) => {
-    const root = props.root || "root";
-    const system = props.system;
-    const pub = props.public || props.fpi;
+XML.register(
+	["DOCTYPE", "doctype"],
+	({ props }) => {
+		const root = props.root || "root";
+		const system = props.system;
+		const pub = props.public || props.fpi;
 
-    if (pub && system) {
-        return `<!DOCTYPE ${root} PUBLIC "${pub}" "${system}">`;
-    } else if (system) {
-        return `<!DOCTYPE ${root} SYSTEM "${system}">`;
-    }
-    return `<!DOCTYPE ${root}>`;
-}, { rules: { is_empty_body: true } });
+		if (pub && system) {
+			return `<!DOCTYPE ${root} PUBLIC "${pub}" "${system}">`;
+		} else if (system) {
+			return `<!DOCTYPE ${root} SYSTEM "${system}">`;
+		}
+		return `<!DOCTYPE ${root}>`;
+	},
+	{ rules: { is_empty_body: true } }
+);
 
 /**
  * Registers the XML stylesheet processing instruction.
  * Usage: [xml-stylesheet = href: "style.xsl"]
  */
-XML.register("xml-stylesheet", ({ props }) => {
-    const type = props.type || "text/xsl";
-    const href = props.href;
-    if (!href) return "";
-    return `<?xml-stylesheet type="${type}" href="${href}"?>`;
-}, { rules: { is_empty_body: true } });
+XML.register(
+	"xml-stylesheet",
+	({ props }) => {
+		const type = props.type || "text/xsl";
+		const href = props.href;
+		if (!href) return "";
+		return `<?xml-stylesheet type="${type}" href="${href}"?>`;
+	},
+	{ rules: { is_empty_body: true } }
+);
 
 /**
  * Registers CDATA sections.
@@ -12571,9 +12726,11 @@ XML.register("xml-stylesheet", ({ props }) => {
  * Self-closing: [cdata = "raw content" !] or [cdata = text: "raw content" !]
  */
 XML.register("cdata", ({ props, content, isSelfClosing }) => {
-    const text = isSelfClosing ? (props[0] ?? props.text ?? "") : content;
-    return `<![CDATA[${text}]]>`;
+	const text = isSelfClosing ? (props[0] ?? props.text ?? "") : content;
+	return `<![CDATA[${text}]]>`;
 });
+
+registerSharedOutputs(XML);
 
 const csvEscape = (value) => {
 	const str = String(value ?? "").trim();
@@ -12630,6 +12787,8 @@ CSV.register(["row", "tr"], renderRow, { handleAst: true });
 CSV.register(["col", "cell", "td"], ({ textContent }) => {
 	return csvEscape(textContent);
 }, { handleAst: true, trimAndWrapBlocks: false });
+
+registerSharedOutputs(CSV);
 
 const isValidInt$1    = (v) => v !== "" && !isNaN(Number(v)) && !v.includes(".");
 const isValidFloat$1  = (v) => v !== "" && !isNaN(Number(v)) && v.includes(".");
@@ -12853,6 +13012,8 @@ TOML.register("array", async ({ props, ast, renderChild }) => {
 	const vals = combined.split(ITEM_SEP$1).filter(v => v.trim() !== "");
 	return `${tomlKey(key)} = [${vals.join(", ")}]\n`;
 }, { handleAst: true });
+
+registerSharedOutputs(TOML);
 
 const isValidInt    = (v) => v !== "" && !isNaN(Number(v)) && !v.includes(".");
 const isValidFloat  = (v) => v !== "" && !isNaN(Number(v)) && v.includes(".");
@@ -13169,6 +13330,8 @@ YAML.register("doc-start", () => "---\n", { rules: { is_empty_body: true } });
  */
 YAML.register("doc-end", () => "...\n", { rules: { is_empty_body: true } });
 
+registerSharedOutputs(YAML);
+
 /**
  * The Text Mapper used for plain-text extraction.
  */
@@ -13445,34 +13608,48 @@ async function resolveModules(ast, context) {
 	const baseDir = context.instance.baseDir || ((filename === "anonymous") ? absFilename : posix.dirname(absFilename));
 
 	// 1. Helper: Trim AST to remove file-boundary whitespace and "ghost" newlines
-	const trimAst = (nodes) => {
+	const trimAst = (nodes, trimBoundaries = true) => {
 		if (!nodes) return [];
 
-		// 1. Filter out internal whitespace-only nodes that are adjacent to non-rendering nodes
-		// (Comments, Imports, etc. shouldn't leave "ghost" newlines)
+		// 1. Filter out whitespace-only text nodes adjacent (directly or through other whitespace)
+		// to non-rendering nodes (Comments, Imports, USE_MODULE).
 		const nonRenderingTypes = [COMMENT, IMPORT, USE_MODULE];
 		let res = nodes.filter((node, idx) => {
 			if (node.type !== TEXT$1 || node.text.trim() !== "") return true;
 
-			const prev = nodes[idx - 1];
-			const next = nodes[idx + 1];
-			const isAdjacentToNonRendering =
-				(prev && nonRenderingTypes.includes(prev.type)) ||
-				(next && nonRenderingTypes.includes(next.type));
+			// Walk backwards through consecutive whitespace nodes to find prev non-whitespace
+			let prevIsNonRendering = false;
+			for (let j = idx - 1; j >= 0; j--) {
+				if (nodes[j].type === TEXT$1 && nodes[j].text.trim() === "") continue;
+				prevIsNonRendering = nonRenderingTypes.includes(nodes[j].type);
+				break;
+			}
 
-			return !isAdjacentToNonRendering;
+			// Walk forwards through consecutive whitespace nodes to find next non-whitespace
+			let nextIsNonRendering = false;
+			for (let j = idx + 1; j < nodes.length; j++) {
+				if (nodes[j].type === TEXT$1 && nodes[j].text.trim() === "") continue;
+				nextIsNonRendering = nonRenderingTypes.includes(nodes[j].type);
+				break;
+			}
+
+			return !(prevIsNonRendering || nextIsNonRendering);
 		});
 
-		// 2. Final pass: trim leading/trailing newlines from the remaining boundary text nodes
-		if (res.length > 0 && res[0].type === TEXT$1) {
-			res[0].text = res[0].text.replace(/^[\r\n]+/, "");
-		}
-		if (res.length > 0 && res[res.length - 1].type === TEXT$1) {
-			res[res.length - 1].text = res[res.length - 1].text.replace(/[\r\n]+\s*$/, "");
+		if (trimBoundaries) {
+			// 2. Final pass: trim leading/trailing newlines from the remaining boundary text nodes
+			if (res.length > 0 && res[0].type === TEXT$1) {
+				res[0].text = res[0].text.replace(/^[\r\n]+/, "");
+			}
+			if (res.length > 0 && res[res.length - 1].type === TEXT$1) {
+				res[res.length - 1].text = res[res.length - 1].text.replace(/[\r\n]+\s*$/, "");
+			}
+
+			// 3. Remove any nodes that became purely empty after trimming
+			res = res.filter(node => node.type !== TEXT$1 || node.text !== "");
 		}
 
-		// 3. Remove any nodes that became purely empty after trimming
-		return res.filter(node => node.type !== TEXT$1 || node.text !== "");
+		return res;
 	};
 
 	// 2. Helper: Inject Slots with Indentation Propagation
@@ -13542,6 +13719,10 @@ async function resolveModules(ast, context) {
 
 				// 1b. Resolve relative to current base (FS)
 				const absolutePath = resolveModulePath(resolvedPath, currentBaseDir);
+
+				if (!context.instance.fs) {
+					runtimeError([`<$red:Module Error:$> Cannot import <$magenta:${filePath}$> — no filesystem is available.{N}In browser mode, pass a URL-based <$cyan:baseDir$> or a <$cyan:files$> map to enable module loading.`]);
+				}
 
 				// Local Path Resolution with Auto-Extension
 				let localPath = absolutePath;
@@ -13694,7 +13875,6 @@ async function resolveModules(ast, context) {
 						Object.entries(node.props).filter(([key]) => {
 							if (key === "__consumed__") return false;
 							if (consumed.has(key)) return false; // THE FIX: Filter if hit by v{}
-							if (key === "smark-raw") return false; // directive — must not leak onto root element
 							return true;
 						})
 					);
@@ -13809,10 +13989,7 @@ const runValidations = (node, target, instance) => {
 	const isStructural = node.type === "Block";
 	if (isStructural && rules.required_args && Array.isArray(rules.required_args)) {
 		const missingArgs = rules.required_args.filter(arg => {
-			// Check if the argument exists in named args or as a positional arg (if arg is a number)
-			if (typeof arg === "number") {
-				return node.props[arg] === undefined;
-			}
+			if (typeof arg === "number") return node.props[arg] === undefined;
 			return node.props[arg] === undefined;
 		});
 
@@ -13822,6 +13999,22 @@ const runValidations = (node, target, instance) => {
 					"{N}",
 					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is missing required arguments:$> <$red:${missingArgs.join(", ")}$>{N}`,
 					`<$blue:Please ensure these arguments are provided in the template usage.$>`
+				],
+				context
+			);
+		}
+	}
+
+	// -- Directives Validation (Required Directives) ----------------------- //
+	if (isStructural && rules.required_directives && Array.isArray(rules.required_directives)) {
+		const missingDirectives = rules.required_directives.filter(key => node.directives?.[key] === undefined);
+
+		if (missingDirectives.length > 0) {
+			transpilerError(
+				[
+					"{N}",
+					`<$yellow:Identifier$> <$blue:'${id}'$> <$yellow:is missing required directive props:$> <$red:${missingDirectives.map(k => `smark-${k}`).join(", ")}$>{N}`,
+					`<$blue:Please ensure these directive props are provided in the template usage.$>`
 				],
 				context
 			);
@@ -13998,6 +14191,14 @@ function setDefaultFs(fs) {
 	Evaluator$1.setDefaultFs(fs);
 }
 
+function setDefaultEnv(env) {
+	Evaluator$1.setDefaultEnv(env);
+}
+
+function setDefaultAsyncLocalStorage(cls) {
+	Evaluator$1.setDefaultAsyncLocalStorage(cls);
+}
+
 function setDefaultResolvePath(fn) {
 	defaultResolvePath = fn;
 }
@@ -14069,7 +14270,8 @@ class SomMark {
 			allowFetch: security?.allowFetch !== false,
 			allowHttp: security?.allowHttp === true,
 			allowedOrigins: Array.isArray(security?.allowedOrigins) ? security.allowedOrigins.map(o => o.toLowerCase()) : null,
-			allowedExtensions: Array.isArray(security?.allowedExtensions) ? security.allowedExtensions.map(e => e.toLowerCase()) : null
+			allowedExtensions: Array.isArray(security?.allowedExtensions) ? security.allowedExtensions.map(e => e.toLowerCase()) : null,
+			env: Array.isArray(security?.env) ? security.env : []
 		};
 		this.warnings = [];
 		this._prepared = false;
@@ -14381,8 +14583,24 @@ async function findAndLoadConfig(targetPath) {
 }
 setCompilerClass(SomMark);
 
+class AsyncLocalStorage {
+  #store = undefined;
+  run(store, fn) {
+    const prev = this.#store;
+    this.#store = store;
+    try { return fn(); }
+    finally { this.#store = prev; }
+  }
+  getStore() { return this.#store; }
+  exit(fn) { return fn(); }
+  enterWith(store) { this.#store = store; }
+  disable() {}
+}
+
 setDefaultFs(null);
 setDefaultCwd("/");
+setDefaultEnv(null);
+setDefaultAsyncLocalStorage(AsyncLocalStorage);
 
 /**
  * Resolves a relative path into a full URL using the current document location.
@@ -14464,4 +14682,4 @@ function renderCompiledHTML(container, html) {
     }
 }
 
-export { CSV, Evaluator$1 as Evaluator, formats as FORMATS, HTML, Json, Jsonc, MARKDOWN, MDX, Mapper, TOKEN_TYPES, TOML, XML, YAML, SomMark as default, enableColor, findAndLoadConfig, labels, lex, lexSync, parse, parseSync, preprocessRuntimeLogic, registerSharedOutputs, renderCompiledHTML, resolveBaseDir, safeArg$1 as safeArg, setDefaultCwd, setDefaultFindAndLoadConfig, setDefaultFs, setDefaultResolvePath, transpile };
+export { CSV, Evaluator$1 as Evaluator, formats as FORMATS, HTML, Json, Jsonc, MARKDOWN, MDX, Mapper, TOKEN_TYPES, TOML, XML, YAML, SomMark as default, enableColor, findAndLoadConfig, labels, lex, lexSync, parse, parseSync, preprocessRuntimeLogic, registerSharedOutputs, renderCompiledHTML, resolveBaseDir, safeArg$1 as safeArg, setDefaultAsyncLocalStorage, setDefaultCwd, setDefaultEnv, setDefaultFindAndLoadConfig, setDefaultFs, setDefaultResolvePath, transpile };
