@@ -9,16 +9,16 @@ SomMark can compile templates directly in the browser. No Node.js is needed. It 
 Load SomMark directly in any HTML page using a `<script type="module">` tag:
 
 ```html
+<div id="output"></div>
 <script type="module">
-  import SomMark, { resolveBaseDir, renderCompiledHTML }
-    from "https://cdn.jsdelivr.net/npm/sommark@4.3.0/dist/sommark.browser.js";
+  import SomMark, { renderCompiledHTML }
+    from "https://cdn.jsdelivr.net/npm/sommark@5.1.0/dist/sommark.browser.js";
 
-  const src = await fetch("./main.smark").then(r => r.text());
+  const src = "[h1 = color: green]Compiled successfully ✓[end:h1]";
 
   const engine = new SomMark({
     src,
     format: "html",
-    baseDir: resolveBaseDir("./templates/"),
   });
 
   renderCompiledHTML(document.getElementById("output"), await engine.transpile());
@@ -29,12 +29,17 @@ Load SomMark directly in any HTML page using a `<script type="module">` tag:
 
 | Provider  | URL |
 |-----------|-----|
-| jsDelivr  | `https://cdn.jsdelivr.net/npm/sommark@4.3.0/dist/sommark.browser.js` |
-| unpkg     | `https://unpkg.com/sommark@4.3.0/dist/sommark.browser.js` |
+| jsDelivr  | `https://cdn.jsdelivr.net/npm/sommark@5.1.0/dist/sommark.browser.js` |
+| unpkg     | `https://unpkg.com/sommark@5.1.0/dist/sommark.browser.js` |
 
-> Replace `4.3.0` with the version you want. The `dist/sommark.browser.js` file is the pre-bundled build — all dependencies are included. WASM files are served from the same `dist/` directory automatically via `import.meta.url`.
+> Replace `5.1.0` with the version you want. The `dist/sommark.browser.js` file is the pre-bundled build — all dependencies are included. WASM files are served from the same `dist/` directory automatically via `import.meta.url`.
 >
 > The `index.browser.js` entry is for use with a bundler (Vite, Webpack, etc.) and will not work directly in a browser.
+
+> [!WARNING]
+> **Avoid versions 5.0.4 and 5.0.5** — these are broken due to an internal bug and will not work correctly in the browser. **Versions 5.0.0 through 5.0.3** may appear to work but contain hidden bugs that can surface unexpectedly.
+>
+> **Use version 5.1.0** — this is the first stable browser release. All known issues from the 5.0.x line are fixed.
 
 ---
 
@@ -306,14 +311,14 @@ new SomMark({
 
 ## Bundler Notes
 
-| Bundler | Works out of the box |
-|---------|----------------------|
-| Vite    | Yes |
-| Webpack | Yes |
-| Rollup  | Yes — needs a WASM asset plugin for QuickJS |
-| esbuild | Yes — needs a WASM asset plugin for QuickJS |
+| Bundler | Plugin | What it handles |
+|---------|--------|----------------|
+| Vite    | `sommark/vite` | Excludes QuickJS from dep optimization |
+| Rollup  | `sommark/rollup` | Tree-shaking fix + WASM asset handling |
+| esbuild | `sommark/esbuild` | WASM asset handling |
+| Webpack | none needed | Enable `asyncWebAssembly` + `topLevelAwait` experiments |
 
-See `browser-test/` in the repo for working config examples for each bundler.
+See [`docs/bundlers/`](bundlers/overview.md) for full setup guides, or `browser-test/` in the repo for working config examples.
 
 ---
 
