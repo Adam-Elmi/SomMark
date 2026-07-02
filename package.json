@@ -1,6 +1,6 @@
 {
 	"name": "sommark",
-	"version": "5.0.5",
+	"version": "5.1.0",
 	"description": "SomMark is a template language that compiles to multiple output formats — HTML, JSON, YAML, TOML, CSV, Markdown, XML, and more.",
 	"main": "index.js",
 	"files": [
@@ -11,7 +11,6 @@
 		"vite.js",
 		"rollup.js",
 		"esbuild.js",
-		"webpack.cjs",
 		"core/",
 		"mappers/",
 		"helpers/",
@@ -33,11 +32,7 @@
 		"./browser": "./index.browser.js",
 		"./vite": "./vite.js",
 		"./rollup": "./rollup.js",
-		"./esbuild": "./esbuild.js",
-		"./webpack": "./webpack.cjs"
-	},
-	"browser": {
-		"node:async_hooks": "./async-hooks.js"
+		"./esbuild": "./esbuild.js"
 	},
 	"scripts": {
 		"test": "vitest",

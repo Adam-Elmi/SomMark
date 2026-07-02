@@ -1,6 +1,6 @@
 const path = require("path");
+const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
-const { SomMarkWebpackPlugin } = require("sommark/webpack");
 
 module.exports = {
     mode: process.env.NODE_ENV === "production" ? "production" : "development",
@@ -14,8 +14,17 @@ module.exports = {
         asyncWebAssembly: true,
         topLevelAwait: true,
     },
+    resolve: {
+        fallback: {
+            // preprocessor.js does a dynamic import("node:fs") at runtime — stub it out
+            fs: false,
+        },
+    },
     plugins: [
-        new SomMarkWebpackPlugin(),
+        // Webpack does not understand the node: URI scheme — strip it so fallbacks apply
+        new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+            resource.request = resource.request.replace(/^node:/, "");
+        }),
         new HtmlWebpackPlugin({ template: "./index.html" }),
     ],
     module: {
