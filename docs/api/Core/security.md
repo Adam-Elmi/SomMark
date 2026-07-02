@@ -1,6 +1,7 @@
 # security
 
 A configuration object that defines sandboxing and resource restrictions for compilation.
+
 ---
 
 **Syntax:**
@@ -21,6 +22,7 @@ transpile({ src, format, security })
 *   `allowHttp` (`boolean`, default: `false`): If `false`, only `https` URLs can be fetched.
 *   `allowedOrigins` (`Array<string>`, default: `null`): Whitelisted domains allowed to be fetched.
 *   `allowedExtensions` (`Array<string>`, default: `null`): Whitelisted file extensions permitted in local imports (`SomMark.import`) and network fetch URL paths (`SomMark.fetch`).
+*   `env` (`Array<string>`, default: `null`): Allowlist of environment variable names that `SomMark.env()` is permitted to read. Any key not listed returns `undefined`, even if it exists in the environment.
 
 ---
 

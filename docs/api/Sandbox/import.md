@@ -1,6 +1,7 @@
 # import()
 
-Loads, parses, and serializes a local server-side file synchronously at compile-time, baking its contents directly into the target output script.
+Loads a local file at compile time and splices its content directly into the runtime script block as a literal value.
+
 ---
 
 **Syntax:**
@@ -11,81 +12,107 @@ SomMark.import(filePath);
 **Usage:**
 ```javascript
 runtime ${
-  // Imports locales.json synchronously at compile-time and embeds it directly as a JSON object literal
   const locales = SomMark.import("./locales.json");
   console.log("Greeting:", locales.welcome);
-}$ 
+}$
 ```
 
 ---
 
 ### How It Works
 
-1. **Scans the calls:** The preprocessor scans `runtime ${ ... }$` blocks before compiling to locate `SomMark.import(...)` calls.
-2. **Resolves the path:** Resolves the specified path relative to the template file's active folder (or `process.cwd()` if compiling anonymously).
-3. **Parses & Serializes:** 
-   - **JSON Files (`.json`):** Parses the content and serializes it as a native JavaScript **Object Literal** (loaded and available immediately in the runtime environment).
-   - **Text & Smark Files (`.txt`, `.smark`):** Reads the content and serializes it as a single, JSON-escaped **String Literal** (preserving newlines and quotes safely).
-4. **Replaces inline:** Splicing the serialized content directly into the runtime script block. This enables **instant, synchronous access** to the data at run-time without requiring asynchronous fetches or runtime promises.
+1. **Scans the block:** The preprocessor scans `runtime ${ ... }$` blocks before compilation to locate `SomMark.import(...)` calls.
+2. **Resolves the path:** The path is resolved relative to the template file's directory (or `process.cwd()` if compiling anonymously).
+3. **Reads and serializes:**
+   - **`.json` files** — parsed and serialized as a JavaScript object literal, available synchronously at runtime.
+   - **All other files** — read as text and serialized as a JSON-escaped string literal.
+4. **Splices inline:** The serialized value replaces the `SomMark.import(...)` call in the script before the `<script>` tag is written.
+
+The result is synchronous access to file data at runtime with no `fetch` or `await` needed.
 
 ---
 
-### Important Guidelines
+### Path Rules
 
-*   **Runtime blocks only:** `SomMark.import` is designed and preprocessed strictly inside `runtime ${ ... }$` blocks. Calling it inside a `static ${ ... }$` block will throw a `Logic Error: not a function` exception.
-*   **Static argument:** The file path must be passed as a static string literal (e.g. `'./config.json'`). Dynamic runtime variables cannot be resolved at build-time.
-*   **Security Whitelisting:** Respects the active compiler security whitelists (such as `allowedExtensions`). If an import targets an unauthorized extension, Smark aborts compilation immediately with a security exception.
+- **Relative paths only** — absolute paths (`/etc/data.json`) are blocked and throw a security error.
+- **No path traversal** — paths that escape the template's directory (`../../secret.json`) are blocked.
+- **Static string required** — the path must be a string literal or a static template literal. Dynamic expressions cannot be resolved at compile time.
 
-> [!IMPORTANT]
-> **Static Block Alternatives:**
-> Inside `static ${ ... }$` blocks, you can load local files synchronously using standard **JavaScript ES Module Imports** instead, thanks to Smark's native VM module loader:
-> ```javascript
-> static ${
->   import pkg from "./package.json";
->   return pkg.version;
-> }$
-> ```
+```js
+SomMark.import("./data.json")        // ✓
+SomMark.import(`./data.json`)        // ✓ static template literal
+SomMark.import("/etc/passwd")        // ✗ blocked — absolute path
+SomMark.import("../../secret.json")  // ✗ blocked — path traversal
+SomMark.import(`./\${name}.json`)    // ✗ not resolvable at compile time
+```
 
-### Example: Importing Local Configurations
+---
 
-Embeds translation maps directly into the target runtime script:
+### Security
 
-**File:** `index.smark`
+- **`allowedExtensions`** — if set in `security`, only the listed file extensions can be imported. Any other extension throws a security error.
+- Absolute paths and path traversal are always blocked regardless of security settings.
+
+---
+
+### Important: Runtime Blocks Only
+
+`SomMark.import` is preprocessed only inside `runtime ${ ... }$` blocks. Calling it inside a `static ${ ... }$` block throws an error because the static sandbox has no preprocessor.
+
+Inside `static ${ ... }$` blocks, use native ES module imports instead:
+
+```js
+static ${
+  import pkg from "./package.json";
+  return pkg.version;
+}$
+```
+
+---
+
+### Example: Embedding a JSON Config
+
+**locales.json:**
+```json
+{ "hello": "Welcome to SomMark!" }
+```
+
+**index.smark:**
 ```ini
 [div = class: "app"]
   runtime ${
-    const translations = SomMark.import("./locales.json");
-    console.log("Active Greeting:", translations.hello);
+    const locales = SomMark.import("./locales.json");
+    console.log(locales.hello);
   }$
 [end:div]
 ```
 
-**locales.json:**
-```json
-{
-  "hello": "Welcome to Smark!"
-}
-```
-
-**Via CLI:**
-```sh
-sommark --html -p index.smark
-```
-
 **Output:**
 ```html
-<div class="app" data-sommark-id="sommark-div-a12b">
+<div class="app">
   <script>
     /* global SomMark */
     if (typeof globalThis.SomMark === 'undefined') { globalThis.SomMark = { static: (c) => c, import: (c) => c }; }
     (async function(){
-      const self = document.querySelector('[data-sommark-id="sommark-div-a12b"]');
-      const translations = {"hello": "Welcome to Smark!"};
-      console.log("Active Greeting:", translations.hello);
+      const locales = {"hello":"Welcome to SomMark!"};
+      console.log(locales.hello);
     })();
   </script>
 </div>
 ```
+
+---
+
+### Example: Embedding a Text File
+
+```js
+runtime ${
+  const readme = SomMark.import("./README.md");
+  document.getElementById("docs").textContent = readme;
+}$
+```
+
+`readme` is a plain string containing the raw file contents.
 
 ---
 

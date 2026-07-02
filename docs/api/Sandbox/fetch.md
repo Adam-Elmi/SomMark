@@ -1,6 +1,7 @@
 # fetch()
 
 Asynchronously fetches external resources over HTTPS securely inside the sandboxed environment.
+
 ---
 
 **Syntax:**
@@ -73,12 +74,16 @@ The custom response returned by `SomMark.fetch()` mimics the standard Fetch API:
     - `status` (number)
     - `statusText` (string)
     - `url` (string)
+    - `type` (string — e.g. `"basic"`, `"cors"`, `"opaque"`)
+    - `redirected` (boolean)
 *   **Headers:**
     - `headers.get(name)` (case-insensitive retrieval)
     - `headers.forEach(callback)`
 *   **Body Methods:**
     - `await res.text()` (returns raw string)
     - `await res.json()` (returns parsed JSON object)
+*   **Other:**
+    - `clone()` — returns a shallow copy of the response object
 
 ---
 

@@ -32,6 +32,24 @@ If a script runs too long — due to an infinite loop or a very slow request —
 
 ---
 
+## 5. Environment Variable Access
+
+`SomMark.env(key)` lets templates read environment variables at compile time. Because templates run in a sandbox that has no access to `process.env` by default, you must explicitly list the variable names you want to expose:
+
+```javascript
+await transpile({
+    src: 'API: static ${ SomMark.env("API_URL") }$',
+    format: "html",
+    security: {
+        env: ["API_URL"]   // only this key is readable inside templates
+    }
+});
+```
+
+Any key not in the list returns `undefined`. This is not available in browser mode.
+
+---
+
 ## Configuration
 
 All security settings go in the `security` option:
@@ -51,7 +69,8 @@ const compiler = new SomMark({
         allowFetch: true,                       // Allow SomMark.fetch()
         allowHttp: false,                       // Block plain HTTP (HTTPS only)
         allowedOrigins: ["api.site.com"],       // Only allow this domain
-        allowedExtensions: [".json"]            // Only allow .json files
+        allowedExtensions: [".json"],           // Only allow .json files
+        env: ["API_URL", "SITE_TITLE"]          // Only expose these env vars
     }
 });
 
