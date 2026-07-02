@@ -1,6 +1,7 @@
 # Runtime Blocks
 
 Preserves JavaScript logic blocks intact inside the target document to be executed in the target client runtime environment (such as the browser or specialized scripts). It includes full support for scope isolation, compile-time variable baking, and local file imports.
+
 ---
 
 **Syntax:**

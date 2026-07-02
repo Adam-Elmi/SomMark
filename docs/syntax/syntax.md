@@ -123,21 +123,31 @@ Keeps the JavaScript in the final output to run in the browser:
 
 ---
 
-## 5. Raw Body Blocks `smark-raw`
+## 5. Directive Props (`smark-*`)
 
-The `smark-raw` prop tells SomMark to skip parsing the block's body. Everything between the opening and closing tag is passed to the render function as `content`, exactly as written.
+Directive props start with `smark-`. They control how a block is processed. The parser separates them from regular props into a dedicated `directives` object — they never appear in `props` or in rendered output.
 
-* **Syntax**: `[name = smark-raw: true] raw body [end:name]`
-* **Use cases**: embedding literal markup, fenced code blocks, CDATA, or any content that contains `[` characters that should not be treated as SomMark.
-* **Example**:
-  ```ini
-  [code = lang: "js", smark-raw: true]
-  const nums = [1, 2, 3];
-  [end]
-  ```
-* Use `\[` to write a literal `[` that would otherwise be read as `[end]`.
-* The `smark-raw` prop is stripped before reaching the render function. All other props are passed through normally.
-* **Reference**: See the [smark-raw Guide](smark-raw.md) for full details.
+| Prop | Level | What it does |
+|------|-------|--------------|
+| `smark-raw` | Engine | Skip body parsing — pass the body to your render function as plain text |
+| `smark-syntax` | Tooling | Tell the editor which language the raw body is in (no build effect) |
+| any `smark-*` | Mapper | Instruct your mapper how to render the block — available as `directives["key"]` |
+
+**`smark-raw` example:**
+```ini
+[code = lang: "js", smark-raw: true]
+const nums = [1, 2, 3];
+[end]
+```
+
+**`smark-raw` + `smark-syntax` together:**
+```ini
+[style = smark-raw: true, smark-syntax: "css"]
+body { margin: 0; }
+[end]
+```
+
+* **Reference**: See the [Directive Props Guide](directive-props.md) for full details.
 
 ---
 

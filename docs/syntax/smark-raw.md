@@ -22,7 +22,7 @@ Both `true` (unquoted) and `"true"` (quoted) are accepted:
 ## How It Works
 
 - The body is collected **at the lexer level** — SomMark does not parse blocks, run expressions, or process anything inside it.
-- The `smark-raw` prop is **removed** before your render function is called — it does not appear in `props` and will never show up as an attribute in the mapper's output (e.g. an HTML or MDX attribute). All other props are passed through normally.
+- The `smark-raw` prop does **not** appear in `props` — it will never show up as an attribute. It is available as `directives["raw"]` in your render function if you need to check it (e.g. to decide whether to apply escaping). All other props and directives are passed through normally.
 - `content` and `textContent` both receive the raw body string exactly as written.
 - The block is still closed with `[end]` or `[end:name]` as normal.
 - **No mapper escaping is applied.** Each mapper (html, mdx, markdown, xml…) normally runs the body through its own escape logic before passing it to the render function. With `smark-raw`, that step is skipped entirely. If your render function outputs the content into an escape-sensitive format, handle escaping yourself inside the function.
