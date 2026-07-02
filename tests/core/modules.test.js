@@ -18,7 +18,7 @@ const tempFiles = {
 	"temp_rec4.smark": `[import = r: "./temp_rec5.smark"][end]\n[$use-module = r][end]`,
 	"temp_rec5.smark": `[import = r: "./temp_rec6.smark"][end]\n[$use-module = r][end]`,
 	"temp_rec6.smark": "[span]Deep[end]",
-	"temp_scoped.smark": `[div = class: "card"]v{smark-title}[end]`,
+	"temp_scoped.smark": `[div = class: "card"]v{title}[end]`,
 	"temp_indent.smark": `[div = class: "wrapper"]\n    [slot][end]\n[end]`,
 	"temp_fallback.smark": `[div = class: "alert"]\n    [slot]Default Warning[end]\n[end]`,
 	"temp_self_closing.smark": `[div = class: "placeholder"]\n    [slot!]\n[end]`,
@@ -122,7 +122,7 @@ describe("SomMark Module System Tests", () => {
 		it("maps named attributes into target v{key} variables inside components", async () => {
 			const src = `
 [import = card: "./modules/temp_scoped.smark"][end]
-[card = smark-title: "Product Title"][end]
+[card = title: "Product Title"][end]
 			`.trim();
 
 			const smark = new SomMark({ src, format: "html", filename: __filename });
@@ -144,18 +144,18 @@ describe("SomMark Module System Tests", () => {
 		it("applies scope privacy filtering, removing consumed attributes from cascaded root-tag attributes", async () => {
 			const src = `
 [import = card: "./modules/temp_scoped.smark"][end]
-[card = smark-title: "Privacy Test", id: "main-card", style: "border: 1px;"][end]
+[card = title: "Privacy Test", id: "main-card", style: "border: 1px;"][end]
 			`.trim();
 
 			const smark = new SomMark({ src, format: "html", filename: __filename });
 			const output = await smark.transpile();
 
-			// 'smark-title' was consumed, so it should NOT be rendered as smark-title="..." on the outer div.
+			// 'title' was consumed, so it should NOT be rendered as title="..." on the outer div.
 			// 'id' and 'style' were not consumed, so they must be merged onto the outer div.
 			expect(output).toContain('class="card"');
 			expect(output).toContain('id="main-card"');
 			expect(output).toContain('style="border: 1px;"');
-			expect(output).not.toContain('smark-title="Privacy Test"');
+			expect(output).not.toContain('title="Privacy Test"');
 			expect(output).toContain('>Privacy Test</div>');
 		});
 
@@ -167,7 +167,7 @@ describe("SomMark Module System Tests", () => {
 
 			const smark = new SomMark({ src, format: "html", filename: __filename });
 			const output = await smark.transpile();
-			expect(output).toBe('<div class="card">SOMMARK_UNRESOLVED_v_smark-title_SOMMARK</div>');
+			expect(output).toBe('<div class="card">SOMMARK_UNRESOLVED_v_title_SOMMARK</div>');
 		});
 	});
 
@@ -175,7 +175,7 @@ describe("SomMark Module System Tests", () => {
 		it("injects caller body content dynamically at slot injection targets", async () => {
 			const src = `
 [import = card: "./modules/Card.smark"][end]
-[card = smark-title: "Slot Body Title"]
+[card = title: "Slot Body Title"]
     Inside Content
 [end]
 			`.trim();
@@ -276,8 +276,8 @@ describe("SomMark Module System Tests", () => {
 		it("ensures cloned AST isolation, preventing variable substitution from bleeding between component instances", async () => {
 			const src = `
 [import = card: "./modules/temp_scoped.smark"][end]
-[card = smark-title: "First Instance"][end]
-[card = smark-title: "Second Instance"][end]
+[card = title: "First Instance"][end]
+[card = title: "Second Instance"][end]
 			`.trim();
 
 			const smark = new SomMark({ src, format: "html", filename: __filename });

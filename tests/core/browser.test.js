@@ -82,4 +82,26 @@ const data = SomMark.import("./data.json");
     it("resolveBaseDir throws when called outside a browser environment", () => {
         expect(() => resolveBaseDir("./templates/")).toThrow(/browser environment/);
     });
+
+    // ─── Issue #14 ────────────────────────────────────────────────────────────
+    // When [import] was used in browser mode without a files map or a URL-based
+    // baseDir, SomMark threw an internal null-dereference instead of a clear error.
+
+    it("Issue #14: throws a clear error when [import] is used without a filesystem in browser mode", async () => {
+        const sm = new SomMark({
+            src: '[import = Card: "./components/Card.smark" !]',
+            format: "html",
+            showSpinner: false
+        });
+        await expect(sm.transpile()).rejects.toThrow("no filesystem is available");
+    });
+
+    it("Issue #14: the error message mentions how to enable module loading in browser mode", async () => {
+        const sm = new SomMark({
+            src: '[import = Layout: "./layouts/Layout.smark" !]',
+            format: "html",
+            showSpinner: false
+        });
+        await expect(sm.transpile()).rejects.toThrow(/baseDir|files/i);
+    });
 });

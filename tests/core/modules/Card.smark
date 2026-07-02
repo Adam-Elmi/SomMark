@@ -1,5 +1,5 @@
 [div = class: "card"]
-    [h3]v{smark-title}[end]
+    [h3]v{title}[end]
     [div = class: "card-body"]
         [slot][end]
     [end]
