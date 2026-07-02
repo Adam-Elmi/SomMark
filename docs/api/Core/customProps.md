@@ -1,6 +1,7 @@
 # customProps
 
 An array of whitelisted custom attribute names that should be rendered as standard HTML/XML attributes.
+
 ---
 
 **Syntax:**

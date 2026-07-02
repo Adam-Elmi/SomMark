@@ -1,6 +1,7 @@
 # raw()
 
 Marks a value to bypass the transpiler's output escaping stage.
+
 ---
 
 **Syntax:**

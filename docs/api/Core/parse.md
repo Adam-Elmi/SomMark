@@ -1,6 +1,7 @@
 # parse()
 
 Turns raw SomMark source code into an Abstract Syntax Tree (AST) asynchronously, resolving external modules and imports.
+
 ---
 
 **Syntax:**

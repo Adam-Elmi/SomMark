@@ -1,6 +1,7 @@
 # placeholders
 
 An object of key-value pairs representing dynamic build-time placeholders.
+
 ---
 
 **Syntax:**

@@ -1,6 +1,7 @@
 # register()
 
 Registers a custom dynamic block programmatically inside the sandboxed environment.
+
 ---
 
 **Syntax:**

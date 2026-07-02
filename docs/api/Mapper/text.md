@@ -1,6 +1,7 @@
 # text()
 
 Filters and processes the raw content of every plain text node.
+
 ---
 
 **Syntax:**

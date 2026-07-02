@@ -1,6 +1,7 @@
 # mapperFile
 
 A custom `Mapper` instance that defines block compilation rules for the engine.
+
 ---
 
 **Syntax:**

@@ -1,6 +1,7 @@
 # removeComments
 
 Controls whether comments are stripped or preserved in the final output.
+
 ---
 
 **Syntax:**

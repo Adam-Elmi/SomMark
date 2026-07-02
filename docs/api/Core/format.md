@@ -1,6 +1,7 @@
 # format
 
 The target compilation output format.
+
 ---
 
 **Syntax:**

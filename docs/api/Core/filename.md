@@ -1,6 +1,7 @@
 # filename
 
 The name of the active file, used for providing detailed error logs and resolution contexts.
+
 ---
 
 **Syntax:**

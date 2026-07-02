@@ -1,6 +1,7 @@
 # clear()
 
 Clears the `outputs` registry of a mapper.
+
 ---
 
 **Syntax:**

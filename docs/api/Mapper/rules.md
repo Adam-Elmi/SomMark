@@ -1,6 +1,7 @@
 # rules
 
 Defines structural and argument validation constraints enforced automatically by the compiler.
+
 ---
 
 **Syntax:**

@@ -1,6 +1,7 @@
 # src
 
 The raw, uncompiled SomMark template string.
+
 ---
 
 **Syntax:**

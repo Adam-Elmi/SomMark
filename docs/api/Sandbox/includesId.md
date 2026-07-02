@@ -1,6 +1,7 @@
 # includesId()
 
 Checks if any of the provided block names/IDs are registered in the active environment.
+
 ---
 
 **Syntax:**

@@ -1,6 +1,7 @@
 # SomMark.compile()
 
 Securely compiles SomMark source dynamically inside the sandboxed environment.
+
 ---
 
 **Syntax:**

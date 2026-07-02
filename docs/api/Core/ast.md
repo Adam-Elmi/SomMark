@@ -1,6 +1,7 @@
 # ast
 
 A pre-built Abstract Syntax Tree (AST) array that bypasses the lexer and parser.
+
 ---
 
 **Syntax:**

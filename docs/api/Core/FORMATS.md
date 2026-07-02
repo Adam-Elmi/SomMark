@@ -1,6 +1,7 @@
 # FORMATS
 
 An object containing the set of officially supported output formats for the SomMark compiler.
+
 ---
 
 **Syntax:**

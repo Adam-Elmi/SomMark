@@ -1,6 +1,7 @@
 # get()
 
 Retrieves the options and render reference of any registered block.
+
 ---
 
 **Syntax:**

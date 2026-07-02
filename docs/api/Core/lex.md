@@ -1,6 +1,7 @@
 # lex()
 
 Breaks raw SomMark source code into a list of tokens asynchronously.
+
 ---
 
 **Syntax:**

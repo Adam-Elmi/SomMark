@@ -1,6 +1,7 @@
 # tag()
 
 Creates and returns a new **TagBuilder** instance used to programmatically generate HTML, XML, or JSX elements using a chainable builder pattern.
+
 ---
 
 **Syntax:**

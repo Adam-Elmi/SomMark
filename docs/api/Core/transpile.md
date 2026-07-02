@@ -1,6 +1,7 @@
 # transpile()
 
 Turns raw SomMark source code or a pre-built AST into final formatted outputs (HTML, Markdown, MDX, XML, JSON, etc.).
+
 ---
 
 **Syntax:**

@@ -1,6 +1,7 @@
 # removeOutput()
 
 Unregisters a dynamic block, removing it from the output mappings.
+
 ---
 
 **Syntax:**

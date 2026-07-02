@@ -1,6 +1,7 @@
 # lexSync()
 
 Breaks raw SomMark source code into a list of tokens synchronously.
+
 ---
 
 **Syntax:**

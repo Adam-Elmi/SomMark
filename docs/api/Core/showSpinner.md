@@ -1,6 +1,7 @@
 # showSpinner
 
 A configuration setting that controls whether Smark displays an interactive build progress spinner in the terminal during compilation.
+
 ---
 
 **Syntax:**

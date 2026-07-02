@@ -1,6 +1,7 @@
 # SomMark.settings
 
 Returns a read-only object containing the active compiler settings.
+
 ---
 
 **Syntax:**

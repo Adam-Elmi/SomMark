@@ -1,6 +1,7 @@
 # trimAndWrapBlocks
 
 Cleans up extra empty lines at the start and end of blocks, and wraps multi-line blocks in newlines so they form a beautiful, structured, and safe layout in MDX and HTML.
+
 ---
 
 ## 1. Why it is useful: Safe & Beautiful Structure
