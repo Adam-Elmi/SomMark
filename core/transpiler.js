@@ -31,6 +31,7 @@ const randomBytesHex = (size) => {
 
 const BODY_PLACEHOLDER = `SOMMARKBODYPLACEHOLDER${randomBytesHex(8)}SOMMARK`;
 
+
 /** 
  * Extracts all plain text from a node and its children.
  * 
@@ -129,6 +130,17 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 	if (node.type === FOR_EACH) {
 		const transpiledArgs = await transpileArgs(node.props);
+
+		if (!node.props || (node.props[0] === undefined && node.props["items"] === undefined)) {
+			const line = node.range?.start?.line + 1 || 1;
+			transpilerError([
+				`<$red:Missing Prop Error in [for-each]:$>{line}`,
+				`[for-each] requires an array as its first prop, e.g. [for-each = \${ array }\$]{line}`,
+				`at line <$yellow:${line}$>{line}`
+			]);
+			return "";
+		}
+
 		const items = mapper_file ? mapper_file.safeArg({ props: transpiledArgs, index: 0, key: "items", fallBack: [] }) : [];
 
 		if (!Array.isArray(items)) {
@@ -142,11 +154,11 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 		}
 
 		const asVar = transpiledArgs.as || "value";
-		if (asVar === "i") {
+		if (asVar === "i" || asVar === "length") {
 			const line = node.range?.start?.line + 1 || 1;
 			transpilerError([
 				`<$red:Reserved Variable Error in [for-each]:$>{line}`,
-				`'i' is a reserved variable name for the loop index.{N}Use a different name for the 'as' prop, e.g. as: "item"{line}`,
+				`'${asVar}' is a reserved variable name.{N}Use a different name for the 'as' prop, e.g. as: "item"{line}`,
 				`at line <$yellow:${line}$>{line}`
 			]);
 			return "";
@@ -176,22 +188,28 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			}
 		}
 
-		let output = "";
+		const rawJoin = transpiledArgs.join ?? null;
+		const join = rawJoin !== null ? rawJoin.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\r/g, "\r") : null;
+		const parts = [];
 		let idx = 0;
+		const length = items.length;
 		for (const item of items) {
 			evaluator.pushScope();
 			evaluator.inject({
 				[asVar]: item,
-				i: idx++
+				i: idx++,
+				length
 			});
 
+			let iterOutput = "";
 			for (let j = 0; j < cleanedBody.length; j++) {
-				output += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState, extraCtx);
+				iterOutput += await generateOutput(cleanedBody, j, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState, extraCtx);
 			}
 
 			await evaluator.popScope();
+			parts.push(iterOutput);
 		}
-		return output;
+		return join !== null ? parts.join(join) : parts.join("");
 	}
 
 	let secretId = null;
@@ -219,13 +237,12 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 	}
 
 	// smark-raw block — body collected verbatim by lexer, bypasses normal body processing pipeline
-	if (node.type === BLOCK && (node.props?.["smark-raw"] === "true" || node.props?.["smark-raw"] === true)) {
+	if (node.type === BLOCK && (node.directives?.raw === "true" || node.directives?.raw === true)) {
 		if (generateRuntimeOutput) return "";
 		const rawContent = node.body?.map(n => String(n.text || "")).join("") || "";
-		const { "smark-raw": _, ...cleanArgs } = node.props;
-		const transpiledArgs = await transpileArgs(cleanArgs);
+		const transpiledArgs = await transpileArgs(node.props);
 		if (evaluator.active?.hasDynamicTag?.(node.id)) {
-			return await evaluator.active.executeDynamicTag(node.id, { props: transpiledArgs, content: rawContent, textContent: rawContent });
+			return await evaluator.active.executeDynamicTag(node.id, { props: transpiledArgs, directives: node.directives, content: rawContent, textContent: rawContent });
 		}
 		let rawTarget = mapper_file ? matchedValue(mapper_file.outputs, node.id) : null;
 		if (!rawTarget && mapper_file) rawTarget = mapper_file.getUnknownTag(node);
@@ -233,6 +250,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			const isManualMode = !!rawTarget.options?.handleAst;
 			return await rawTarget.render.call(mapper_file, {
 				props: transpiledArgs,
+				directives: node.directives,
 				content: rawContent,
 				textContent: rawContent,
 				ast: isManualMode ? node : undefined,
@@ -344,6 +362,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 
 				return await target.render.call(mapper_file, {
 					props: transpiledArgs,
+					directives: node.directives,
 					content: "",
 					textContent: richText || textContent,
 					ast: cleanAst,
@@ -362,6 +381,7 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 		}
 		result += await target.render.call(mapper_file, {
 			props: transpiledArgs,
+			directives: node.directives,
 			content,
 			textContent,
 			ast: new Proxy({}, {
