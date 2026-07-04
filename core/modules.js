@@ -296,13 +296,34 @@ export async function resolveModules(ast, context) {
 				let resolvedPath = filePath;
 				for (const [prefix, replacement] of Object.entries(importAliases)) {
 					if (filePath.startsWith(prefix)) {
-						resolvedPath = path.resolve(context.instance.cwd || "/", filePath.replace(prefix, replacement));
+						const replaced = filePath.replace(prefix, replacement);
+						// Preserve scheme prefixes (pkg:, http:, etc.) — don't path.resolve them
+						resolvedPath = replaced.startsWith("pkg:") || replaced.startsWith("http://") || replaced.startsWith("https://")
+							? replaced
+							: path.resolve(context.instance.cwd || "/", replaced);
 						break;
 					}
 				}
 
-				// 1b. Resolve relative to current base (FS)
-				const absolutePath = resolveModulePath(resolvedPath, currentBaseDir);
+				// 1b. pkg: — resolve from node_modules at project root
+				let absolutePath;
+				if (resolvedPath.startsWith("pkg:")) {
+					if (!context.instance.fs?.__isNodeFs) {
+						runtimeError([`<$red:Module Error:$> <$cyan:pkg:$> imports are not supported in browser or virtual filesystem mode at line <$yellow:${node.range.start.line + 1}$>`]);
+					}
+					const pkgPath = resolvedPath.slice(4);
+					if (!pkgPath || pkgPath.trim() === "") {
+						runtimeError([`<$red:Module Error:$> <$cyan:pkg:$> path cannot be empty at line <$yellow:${node.range.start.line + 1}$>`]);
+					}
+					const nodeModulesRoot = path.resolve(context.instance.cwd || "/", "node_modules");
+					absolutePath = path.resolve(nodeModulesRoot, pkgPath);
+					if (!absolutePath.startsWith(nodeModulesRoot + path.sep) && absolutePath !== nodeModulesRoot) {
+						runtimeError([`<$red:Module Security Error:$> <$cyan:pkg:${pkgPath}$> resolves outside node_modules — path traversal is not allowed at line <$yellow:${node.range.start.line + 1}$>`]);
+					}
+				} else {
+					// 1c. Resolve relative to current base (FS)
+					absolutePath = resolveModulePath(resolvedPath, currentBaseDir);
+				}
 
 				if (!context.instance.fs) {
 					runtimeError([`<$red:Module Error:$> Cannot import <$magenta:${filePath}$> — no filesystem is available.{N}In browser mode, pass a URL-based <$cyan:baseDir$> or a <$cyan:files$> map to enable module loading.`]);
