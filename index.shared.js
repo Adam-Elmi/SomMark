@@ -82,7 +82,7 @@ class SomMark {
 	 * @param {string} [options.baseDir=null] - The base directory for resolving relative paths.
 	 */
 	constructor(options = {}) {
-		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = true, outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, dualOutput = false, moduleIdentityToken = null } = options;
+		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = true, outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, dualOutput = false, webOutputs = false, moduleIdentityToken = null } = options;
 		this.rawSettings = options;
 		this.src = src;
 		this.ast = ast;
@@ -93,6 +93,7 @@ class SomMark {
 		this.placeholders = placeholders;
 		this.customProps = customProps;
 		this.dualOutput = dualOutput;
+		this.webOutputs = webOutputs;
 		this.cwd = options.baseDir || (options.files ? "/" : defaultCwd);
 		this.fs = options.fs
 			|| (options.files ? new VirtualFS(options.files) : null)
@@ -309,6 +310,7 @@ class SomMark {
 				security: this.security,
 				settings: this.rawSettings,
 				dualOutput: this.dualOutput,
+				webOutputs: this.webOutputs,
 				instance: this
 			});
 
