@@ -1,6 +1,6 @@
 {
 	"name": "sommark",
-	"version": "5.1.0",
+	"version": "5.2.0",
 	"description": "SomMark is a template language that compiles to multiple output formats — HTML, JSON, YAML, TOML, CSV, Markdown, XML, and more.",
 	"main": "index.js",
 	"files": [
@@ -39,11 +39,12 @@
 		"test:run": "vitest run --pool=forks --maxWorkers=1",
 		"test:watch": "vitest watch",
 		"test:html": "vitest run tests/html",
+		"build:pathe": "node scripts/build-pathe.js",
 		"build:browser": "rollup -c rollup.browser.config.js",
 		"build:lite": "rollup -c rollup.browser.lite.config.js",
 		"build:lexer": "rollup -c rollup.browser.lexer.config.js",
 		"build:parser": "rollup -c rollup.browser.parser.config.js",
-		"build:all": "npm run build:browser && npm run build:lite && npm run build:lexer && npm run build:parser",
+		"build:all": "npm run build:pathe && npm run build:browser && npm run build:lite && npm run build:lexer && npm run build:parser",
 		"prepublishOnly": "npm run build:all"
 	},
 	"bin": {
