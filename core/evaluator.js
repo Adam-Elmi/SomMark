@@ -3,6 +3,9 @@ import path from "pathe";
 import * as acorn from "acorn";
 import SomMark, { registerHostCompile, registerHostSettings } from "./helpers/lib.js";
 import { formatMessage } from "./errors.js";
+import { patheBundleCode } from "./pathe-bundle.js";
+import lexer from "./lexer.js";
+import parser from "./parser.js";
 
 // Set by index.js (Node.js) or index.browser.js (shim) — never imported directly.
 let evaluatorStorage = null;
@@ -145,7 +148,7 @@ const customFetchAdapter = async (input, init, security = {}) => {
     };
 };
 
-const customCompileAdapter = async (src, options, parentSecurity = {}) => {
+const customCompileAdapter = async (src, options, parentSecurity = {}, parentFs = null, parentBaseDir = null) => {
     const maxDepth = parentSecurity?.maxDepth ?? 5;
     if (globalCompilationDepth >= maxDepth) {
         throw new Error(`Recursion Guard: Maximum Smark compilation depth exceeded (limit is ${maxDepth}).`);
@@ -161,7 +164,9 @@ const customCompileAdapter = async (src, options, parentSecurity = {}) => {
             ...cleanOptions,
             src,
             format: cleanOptions.format || "html",
-            security: parentSecurity
+            security: parentSecurity,
+            fs: parentFs ?? undefined,
+            baseDir: cleanOptions.baseDir || parentBaseDir || undefined,
         };
         const sm = new compilerClass(compilerOptions);
         return await sm.transpile();
@@ -302,6 +307,7 @@ class EvaluatorState {
         } else {
             this.baseDir = "/";
         }
+        this.rootDir = settings?.instance?.cwd || this.baseDir;
         this.scopes = [{}];
         this.dynamicTagsStack = [new Map()];
         this.security = security;
@@ -348,7 +354,14 @@ class EvaluatorState {
                 return JSON.stringify(clean);
             }, 
             __hostCompile: async (src, options) => {
-                return await customCompileAdapter(src, options, this.security);
+                return await customCompileAdapter(src, options, this.security, this.nodeFs, this.baseDir);
+            },
+            __hostLexer: (src, filename) => {
+                return JSON.stringify(lexer(src, filename || "anonymous"));
+            },
+            __hostParser: (src, filename) => {
+                const tokens = lexer(src, filename || "anonymous");
+                return JSON.stringify(parser(tokens, filename || "anonymous"));
             },
             __hostFetch: async (input, initStr) => {
                 const init = initStr ? JSON.parse(initStr) : undefined;
@@ -375,6 +388,41 @@ class EvaluatorState {
                 if (!target) return "";
                 const payload = JSON.parse(payloadStr);
                 return await target.render.call(this.mapperFile, payload);
+            },
+            __hostFileRead: async (filePath) => {
+                if (!this.nodeFs) {
+                    throw new Error(
+                        "[SomMark] fileHandler is not available in browser mode.\n" +
+                        "File access is a server-side concept."
+                    );
+                }
+                const abs = path.resolve(this.rootDir, filePath);
+                if (!abs.startsWith(this.rootDir)) {
+                    throw new Error(
+                        `[SomMark] fileHandler.read: path traversal outside project root is not allowed.\n` +
+                        `Attempted path: ${abs}`
+                    );
+                }
+                return this.nodeFs.readFile(abs, "utf-8");
+            },
+            __hostFileExists: async (filePath) => {
+                if (!this.nodeFs) return false;
+                const abs = path.resolve(this.rootDir, filePath);
+                if (!abs.startsWith(this.rootDir)) return false;
+                return this.nodeFs.exists(abs);
+            },
+            __hostFileGlob: async (pattern) => {
+                if (!this.nodeFs) throw new Error("[SomMark] fileHandler.glob is not available in browser mode.\nFile access is a server-side concept.");
+                if (!this.nodeFs.glob) throw new Error("[SomMark] fileHandler.glob requires Node.js 22 or later.");
+                const files = await this.nodeFs.glob(pattern, { cwd: this.rootDir });
+                return JSON.stringify(files);
+            },
+            __hostFileLastModified: async (filePath) => {
+                if (!this.nodeFs) throw new Error("[SomMark] fileHandler.lastModified is not available in browser mode.");
+                const abs = path.resolve(this.rootDir, filePath);
+                if (!abs.startsWith(this.rootDir)) throw new Error("[SomMark] fileHandler.lastModified: path traversal outside project root is not allowed.");
+                const stat = await this.nodeFs.stat(abs);
+                return stat.mtimeMs;
             },
             __allowRaw: this.security.allowRaw !== false
         });
@@ -528,6 +576,18 @@ class EvaluatorState {
                     }
                     return await __hostCompile(src, options);
                 },
+                lexer: (src, filename) => {
+                    if (typeof src !== "string") {
+                        throw new Error("SomMark.lexer Error: Source must be a string.");
+                    }
+                    return JSON.parse(__hostLexer(src, filename));
+                },
+                parser: (src, filename) => {
+                    if (typeof src !== "string") {
+                        throw new Error("SomMark.parser Error: Source must be a string.");
+                    }
+                    return JSON.parse(__hostParser(src, filename));
+                },
                 raw: (html) => {
                     if (typeof __allowRaw !== "undefined" && !__allowRaw) {
                         throw new Error("Security Error: SomMark.raw is disabled in this environment.");
@@ -568,6 +628,19 @@ class EvaluatorState {
                 configurable: false
             });
 
+            Object.defineProperty(globalThis, "Smark", {
+                value: SomMark,
+                writable: false,
+                configurable: false
+            });
+
+            globalThis.fileHandler = Object.freeze({
+                read: async (path) => await __hostFileRead(path),
+                exists: async (path) => await __hostFileExists(path),
+                glob: async (pattern) => JSON.parse(await __hostFileGlob(pattern)),
+                lastModified: async (path) => await __hostFileLastModified(path)
+            });
+
             delete globalThis.fetch;
             delete globalThis.process;
         `);
@@ -578,6 +651,13 @@ class EvaluatorState {
             throw new Error("VM initialization failed: " + JSON.stringify(err));
         }
         setupRes.value.dispose();
+
+        const patheRes = this.context.evalCode(patheBundleCode);
+        if (patheRes.error) {
+            patheRes.error.dispose();
+        } else {
+            patheRes.value.dispose();
+        }
 
         // Configure module loader using virtual FS implementation.
         // The normalizer resolves every import to an absolute path so the module
@@ -793,10 +873,23 @@ class EvaluatorState {
         if (!this.context) return;
         const safe = {};
         for (const [key, value] of Object.entries(vars)) {
-            if (!isPlainData(value)) {
-                console.warn(`[SomMark] Security: "${key}" contains functions and was blocked. Only plain data can be injected. Use SomMark built-ins for host capabilities.`);
+            if (typeof value === "function") {
+                // Bridge functions are exposed as native QuickJS callables that
+                // invoke the host function. Mark with Symbol.for("sommark.bridge").
+                if (value[Symbol.for("sommark.bridge")]) {
+                    this.expose({ [key]: value });
+                    continue;
+                }
+                const src = value.toString();
+                if (src.includes("SomMark.")) {
+                    console.warn(`[SomMark] variables.${key}: references 'SomMark' which bundlers may rename. Use 'Smark' instead.`);
+                }
+                const res = this.context.evalCode(`globalThis[${JSON.stringify(key)}] = ${src}`);
+                if (res.error) res.error.dispose();
+                else res.value.dispose();
                 continue;
             }
+            if (!isPlainData(value)) continue;
             safe[key] = value;
         }
         const currentScope = this.scopes[this.scopes.length - 1];
@@ -871,7 +964,16 @@ class EvaluatorState {
                     }
                 }
             } catch (err) {
-                // Ignore parsing errors and fallback to raw code
+                // Parse failed as a statement — try as a parenthesised expression.
+                // This handles object/array literals like {a: 1} or [1, 2] which are
+                // ambiguous in statement context but valid when wrapped in parens.
+                try {
+                    const trimmed = code.trim();
+                    acorn.parse(`(${trimmed})`, { ecmaVersion: 'latest', sourceType: 'module' });
+                    finalCode = `export default (${trimmed});`;
+                } catch {
+                    // Give up — let QuickJS surface the error.
+                }
             }
 
             if (autoExportedNames.length > 0 && !hasExplicitExports) {

@@ -1,4 +1,6 @@
-# @lsp format: text 
-[raw]
-Test
+[style]
+body { margin: 0; }
+.hello { color: green; }
 [end]
+
+[p]Hello[end:p]

@@ -4,6 +4,21 @@
 
 ### Added
 
+- **`SomMark.env()`** lets your template read values from the server's environment (like `process.env`) while it is being compiled.
+
+```js
+import { transpile } from "sommark";
+
+const output = await transpile({
+    src: 'Endpoint: static ${ SomMark.env("API_URL") }$',
+    format: "html",
+    security: {
+        env: ["API_URL"]   // only this key is readable
+    }
+});
+// Output: Endpoint: https://api.example.com
+```
+
 - **`join` prop in `[for-each]`** — inserts a separator string between each iteration's output. The separator is not appended after the last item, matching the behavior of `Array.prototype.join()`.
   ```ini
   [for-each = ${ ["Python", "Lua", "Javascript"] }$, join: ", "]
