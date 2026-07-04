@@ -1,5 +1,102 @@
 # Changelog
 
+## v5.2.0 (2026-07-04)
+
+### Added
+
+- **`webOutputs: true`** — a new compilation mode that returns a `[html, css, js]` 3-tuple instead of a single string. All `[style]` blocks (including those nested inside other blocks or `[head]`) are extracted and concatenated into the `css` slot; runtime logic is collected into the `js` slot; the `html` slot contains clean markup with no `<style>` tags. CSS variables declared on `[Root]` are also extracted. Cannot be used together with `dualOutput`.
+
+  ```js
+  const [html, css, js] = await new SomMark({
+      src: `[style = smark-raw: true]\nbody { margin: 0; }\n[end:style]\n[h1]Hello[end:h1]`,
+      format: "html",
+      webOutputs: true,
+  }).transpile();
+  // html → "<h1>Hello</h1>"
+  // css  → "body { margin: 0; }"
+  // js   → ""
+  ```
+
+- **`pkg:` import protocol** — an explicit prefix for importing `.smark` components from npm packages installed in `node_modules`. Resolves from the project root, supports auto-extension, and composes with `importAliases` (the alias replacement preserves the `pkg:` scheme).
+
+  ```ini
+  [import = Card: "pkg:sommark-ui/components/Card" !]
+  [Card = title: "Hello" !]
+  ```
+
+  With an alias:
+  ```js
+  importAliases: { "pkg:@ui": "pkg:sommark-ui/components" }
+  ```
+  ```ini
+  [import = Card: "pkg:@ui/Card" !]
+  ```
+
+  `pkg:` requires a real Node.js filesystem and is blocked in browser and virtual filesystem environments. Path traversal (`pkg:../../…`) and empty paths (`pkg:`) are rejected with a clear error.
+
+- **`fileHandler` — sandbox global and named export** — provides `read`, `exists`, `glob`, and `stat` inside static blocks, all with path traversal protection. Also exported from `sommark` for use in Node.js directly. `stat` returns `{ size, mtime, ctime, atime, isFile, isDirectory }` or `null` if the file does not exist.
+
+  ```js
+  // Inside a static block
+  static ${
+      const content = await fileHandler.read("data/posts.json");
+      const posts = JSON.parse(content);
+      return posts.length + " posts";
+  }$
+
+  // Node.js
+  import { fileHandler } from "sommark";
+  const content = await fileHandler.read("data/posts.json");
+  const info = await fileHandler.stat("data/posts.json");
+  // info → { size: 1024, mtime: 1720000000000, isFile: true, ... }
+  ```
+
+- **`pathHandler` — sandbox global (pathe)** — the full [pathe](https://github.com/unjs/pathe) library is available as `pathHandler` inside static blocks: `join`, `resolve`, `dirname`, `basename`, `extname`, `normalize`, `relative`, `isAbsolute`.
+
+  ```js
+  static ${ return pathHandler.join("src", "pages", "index.smark"); }$
+  ```
+
+- **`SomMark.lexer()` and `SomMark.parser()` in static blocks** — both are now callable inside `static ${ … }$` blocks for AST-level inspection without triggering a full compile pass.
+
+  ```js
+  static ${
+      const nodes = SomMark.parser("[h1]Title[end:h1][p]Body[end:p]");
+      const headings = nodes.filter(n => /^h[1-6]$/.test(n.id));
+      return headings.length + " headings";
+  }$
+  ```
+
+- **Plain JS functions in `variables`** — functions passed via the `variables` option are now callable from static blocks. Previously all functions were silently dropped. For functions that need Node.js data (e.g. database calls), pre-compute the data on the host side and pass it as plain data alongside a pure lookup function:
+
+  ```js
+  // Plain function — serialized into the sandbox
+  new SomMark({
+      src: 'static ${ return greet("World"); }$',
+      format: "html",
+      variables: { greet: (name) => `Hello, ${name}!` }
+  });
+
+  // Pre-computed data + pure lookup — use for Node.js data sources
+  const posts = await fetchPostsFromDatabase();
+  new SomMark({
+    src: 'static ${ const posts = getData("posts"); return posts.length; }$',
+      format: "html",
+      variables: {
+          __data: { posts },
+          getData: (key) => __data[key] || [],
+      }
+  });
+  ```
+
+- **`Smark` alias in sandbox** — `Smark` is a stable alias for the `SomMark` global inside static blocks. Use it instead of `SomMark` to avoid bundler minification renaming the identifier.
+
+### Fixed
+
+- **`SomMark.settings` leaked `security` config and `src` into the sandbox** — a template could read `SomMark.settings.security.env` to discover which environment variable names are whitelisted, or read its own `src` string. `SomMark.settings` now exposes only safe display-level keys: `format`, `dev`, `removeComments`, `allowRaw`, `dualOutput`, `webOutputs`. It remains readonly (frozen).
+
+- **Object literal as StaticLogic prop value threw "expecting ';'"** — using an object literal `${ {key: "val"} }$` as a prop value caused a parse error because the parser misread the inner `{` as a block opener. Closes #18.
+
 ## v5.1.0 (2026-07-02)
 
 ### Added
