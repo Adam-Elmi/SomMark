@@ -348,11 +348,16 @@ class EvaluatorState {
             },
             __hostSomMarkVersion: SomMark.version,
             __hostSomMarkSettings: () => {
-                const clean = { ...SomMark.settings };
-                delete clean.instance;
-                delete clean.fs;
-                return JSON.stringify(clean);
-            }, 
+                const s = SomMark.settings;
+                return JSON.stringify({
+                    format:        s.format        ?? null,
+                    dev:           s.dev           ?? false,
+                    removeComments:s.removeComments ?? false,
+                    allowRaw:      s.allowRaw      ?? true,
+                    dualOutput:    s.dualOutput     ?? false,
+                    webOutputs:    s.webOutputs     ?? false,
+                });
+            },
             __hostCompile: async (src, options) => {
                 return await customCompileAdapter(src, options, this.security, this.nodeFs, this.baseDir);
             },
@@ -423,6 +428,24 @@ class EvaluatorState {
                 if (!abs.startsWith(this.rootDir)) throw new Error("[SomMark] fileHandler.lastModified: path traversal outside project root is not allowed.");
                 const stat = await this.nodeFs.stat(abs);
                 return stat.mtimeMs;
+            },
+            __hostFileStat: async (filePath) => {
+                if (!this.nodeFs) throw new Error("[SomMark] fileHandler.stat is not available in browser mode.\nFile access is a server-side concept.");
+                const abs = path.resolve(this.rootDir, filePath);
+                if (!abs.startsWith(this.rootDir)) throw new Error(`[SomMark] fileHandler.stat: path traversal outside project root is not allowed.\nAttempted path: ${abs}`);
+                try {
+                    const s = await this.nodeFs.stat(abs);
+                    return JSON.stringify({
+                        size: s.size,
+                        mtime: s.mtimeMs,
+                        ctime: s.ctimeMs,
+                        atime: s.atimeMs,
+                        isFile: s.isFile(),
+                        isDirectory: s.isDirectory(),
+                    });
+                } catch {
+                    return null;
+                }
             },
             __allowRaw: this.security.allowRaw !== false
         });
@@ -638,7 +661,8 @@ class EvaluatorState {
                 read: async (path) => await __hostFileRead(path),
                 exists: async (path) => await __hostFileExists(path),
                 glob: async (pattern) => JSON.parse(await __hostFileGlob(pattern)),
-                lastModified: async (path) => await __hostFileLastModified(path)
+                lastModified: async (path) => await __hostFileLastModified(path),
+                stat: async (path) => { const r = await __hostFileStat(path); return r ? JSON.parse(r) : null; },
             });
 
             delete globalThis.fetch;
@@ -874,12 +898,6 @@ class EvaluatorState {
         const safe = {};
         for (const [key, value] of Object.entries(vars)) {
             if (typeof value === "function") {
-                // Bridge functions are exposed as native QuickJS callables that
-                // invoke the host function. Mark with Symbol.for("sommark.bridge").
-                if (value[Symbol.for("sommark.bridge")]) {
-                    this.expose({ [key]: value });
-                    continue;
-                }
                 const src = value.toString();
                 if (src.includes("SomMark.")) {
                     console.warn(`[SomMark] variables.${key}: references 'SomMark' which bundlers may rename. Use 'Smark' instead.`);
