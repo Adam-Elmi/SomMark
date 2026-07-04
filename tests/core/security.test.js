@@ -32,12 +32,14 @@ describe("SomMark Security Model Tests", () => {
 	});
 
 	describe("Step 1: Function Injection Blocking", () => {
-		it("silently drops function values from inject() leaving the key undefined in the sandbox", async () => {
+		it("serializes plain functions into the sandbox and exposes them as callable globals", async () => {
 			await evaluator.init(process.cwd());
-			evaluator.inject({ safeValue: "hello", callback: () => "blocked" });
+			evaluator.inject({ safeValue: "hello", callback: () => "serialized" });
 
 			expect(await evaluator.execute("safeValue;")).toBe("hello");
-			expect(await evaluator.execute("typeof callback === 'undefined';")).toBe(true);
+			// Plain functions are serialized via .toString() and injected — NOT dropped
+			expect(await evaluator.execute("typeof callback;")).toBe("function");
+			expect(await evaluator.execute("callback();")).toBe("serialized");
 		});
 
 		it("blocks entire objects that contain nested function values", async () => {
@@ -138,7 +140,88 @@ describe("SomMark Security Model Tests", () => {
 		});
 	});
 
-	describe("Step 3: SomMark.import Path Security", () => {
+	describe("Step 3: SomMark.settings Sandbox Exposure", () => {
+		it("exposes only safe display-level keys — not security, src, fs, or importAliases", async () => {
+			const sm = new SomMark({
+				src: "static ${ Object.keys(SomMark.settings).sort().join(','); }$",
+				format: "html",
+				security: { env: ["SECRET_KEY"] },
+				importAliases: { "@": "./src" },
+			});
+			const output = await sm.transpile();
+			expect(output).toContain("format");
+			expect(output).toContain("dev");
+			expect(output).not.toContain("security");
+			expect(output).not.toContain("src");
+			expect(output).not.toContain("fs");
+			expect(output).not.toContain("importAliases");
+			expect(output).not.toContain("instance");
+			expect(output).not.toContain("variables");
+		});
+
+		it("does not reveal security.env allowlist key names to the template", async () => {
+			const sm = new SomMark({
+				src: "static ${ JSON.stringify(SomMark.settings.security); }$",
+				format: "html",
+				security: { env: ["DB_PASSWORD", "API_SECRET"] },
+			});
+			const output = await sm.transpile();
+			expect(output).not.toContain("DB_PASSWORD");
+			expect(output).not.toContain("API_SECRET");
+		});
+
+		it("does not expose the template src string to the sandbox", async () => {
+			const sm = new SomMark({
+				src: "static ${ typeof SomMark.settings.src; }$",
+				format: "html",
+			});
+			const output = await sm.transpile();
+			expect(output).toBe("undefined");
+		});
+
+		it("SomMark.settings is readonly — mutations throw in strict mode", async () => {
+			const sm = new SomMark({
+				src: "static ${ (function(){ try { SomMark.settings.format = 'json'; return 'mutated'; } catch(e) { return 'readonly'; } })(); }$",
+				format: "html",
+			});
+			const output = await sm.transpile();
+			expect(output).toBe("readonly");
+		});
+
+		it("exposes correct values for the whitelisted keys", async () => {
+			const sm = new SomMark({
+				src: "static ${ SomMark.settings.format + ':' + SomMark.settings.dev; }$",
+				format: "html",
+				dev: true,
+			});
+			const output = await sm.transpile();
+			expect(output).toBe("html:true");
+		});
+	});
+
+	describe("Step 4: SomMark.compile Security Boundaries", () => {
+		it("compile() ignores security option passed by template — always inherits parent security", async () => {
+			evaluator.setDefaultEnv({ BLOCKED_VAR: "secret" });
+
+			const sm = new SomMark({
+				src: "static ${ SomMark.compile('static ${ SomMark.env(\"BLOCKED_VAR\"); }$', { format: 'html', security: { env: ['BLOCKED_VAR'] } }); }$",
+				format: "html",
+				security: { env: [] },
+			});
+			const output = await sm.transpile();
+			expect(output).not.toContain("secret");
+		});
+
+		it("compile() ignores fs option passed by template — always inherits parent fs", async () => {
+			const sm = new SomMark({
+				src: "static ${ SomMark.raw(await SomMark.compile('[p]ok[end]', { format: 'html', fs: null })); }$",
+				format: "html",
+			});
+			await expect(sm.transpile()).resolves.toContain("<p>ok</p>");
+		});
+	});
+
+	describe("Step 5: SomMark.import Path Security", () => {
 		it("rejects absolute paths with a Security Error", async () => {
 			await evaluator.init(tempDir);
 			const code = "const x = SomMark.import('/etc/passwd');";

@@ -229,4 +229,48 @@ describe("SomMark Regression Tests (Issues #10–#17)", () => {
 		});
 
 	});
+
+	// ─── Issue #18 ────────────────────────────────────────────────────────────
+	// Object literal `${ {key: "val"} }$` as a StaticLogic prop value threw
+	// "expecting ';'" because the parser misread the `{` as a block boundary.
+
+	describe("Issue #18: Object literal as StaticLogic prop value", () => {
+		it("parses an object literal in a prop value without throwing", async () => {
+			const sm = new SomMark({
+				src: '[User = info: ${ {name: "Adam", id: 101} }$ !]',
+				format: "html",
+			});
+			await expect(sm.transpile()).resolves.toBeDefined();
+		});
+
+		it("serializes the object into the prop attribute as JSON", async () => {
+			const sm = new SomMark({
+				src: '[User = info: ${ {name: "Adam", id: 101} }$ !]',
+				format: "html",
+			});
+			const output = await sm.transpile();
+			// Object is JSON-stringified and HTML-escaped into the attribute value
+			expect(output).toContain("Adam");
+			expect(output).toContain("101");
+		});
+
+		it("works when the object literal prop is used alongside a plain string prop", async () => {
+			const sm = new SomMark({
+				src: '[Card = title: "Hello", meta: ${ {author: "Adam"} }$ !]',
+				format: "html",
+			});
+			const output = await sm.transpile();
+			expect(output).toContain("Hello");
+			expect(output).toContain("Adam");
+		});
+
+		it("handles nested object literals in StaticLogic prop without throwing", async () => {
+			const sm = new SomMark({
+				src: '[Card = config: ${ {theme: {color: "red"}} }$ !]',
+				format: "html",
+			});
+			const output = await sm.transpile();
+			expect(output).toContain("red");
+		});
+	});
 });
