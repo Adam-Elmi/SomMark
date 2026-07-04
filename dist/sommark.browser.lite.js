@@ -8917,7 +8917,7 @@ function warnDroppedVariables(variables) {
 		} else if (value !== null && typeof value === "object" && !Array.isArray(value)) {
 			for (const [nestedKey, nestedVal] of Object.entries(value)) {
 				if (typeof nestedVal === "function") {
-					console.warn(`[SomMark] variables.${key}.${nestedKey} is a function nested inside an object and will be ignored. Move it to the top level: variables.${nestedKey}`);
+					console.warn(`[SomMark] variables.${key}.${nestedKey}: nested functions inside objects are not supported. Define it as a top-level function instead: variables.${nestedKey}`);
 				} else if (nestedVal === undefined) {
 					console.warn(`[SomMark] variables.${key}.${nestedKey} is undefined and will be ignored.`);
 				}
@@ -9024,9 +9024,11 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			const out = (result !== undefined && typeof result !== "object") ? String(result) : "";
 			return mapper_file ? mapper_file.text(out) : out;
 		} catch (err) {
+			const line = node.range?.start?.line + 1 || 1;
 			transpilerError([
 				`<$red:Logic Error:$> ${err.message}{line}`,
-				`<$yellow:Code:$> <$blue:${node.code}$>{line}`
+				`<$yellow:Code:$> <$blue:${node.code}$>{line}`,
+				`at line <$yellow:${line}$>{line}`
 			]);
 		}
 	}
@@ -9237,9 +9239,11 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 							const val = await Evaluator.execute(child.code, child.baseDir || null);
 							if (val !== undefined && typeof val !== "object") richText += String(val);
 						} catch (err) {
+							const line = child.range?.start?.line + 1 || 1;
 							transpilerError([
 								`<$red:Logic Error:$> ${err.message}{line}`,
-								`<$yellow:Code:$> <$blue:${child.code}$>{line}`
+								`<$yellow:Code:$> <$blue:${child.code}$>{line}`,
+								`at line <$yellow:${line}$>{line}`
 							]);
 						}
 					} else if (child.type === COMMENT) {
@@ -9366,9 +9370,11 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 								bodyOutput = mapper_file ? mapper_file.text(out, { ...target?.options, escape: parentEscape }) : out;
 							}
 						} catch (err) {
+							const line = body_node.range?.start?.line + 1 || 1;
 							transpilerError([
 								`<$red:Logic Error:$> ${err.message}{line}`,
-								`<$yellow:Code:$> <$blue:${body_node.code}$>{line}`
+								`<$yellow:Code:$> <$blue:${body_node.code}$>{line}`,
+								`at line <$yellow:${line}$>{line}`
 							]);
 						}
 						break;
@@ -9467,6 +9473,10 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 	})();
 
 	const dualOutput = optionsOrAst?.dualOutput || false;
+	const webOutputs = optionsOrAst?.webOutputs || false;
+	if (webOutputs && dualOutput) {
+		throw new Error("[SomMark] Cannot use both 'webOutputs' and 'dualOutput' at the same time. Use 'webOutputs' (returns [html, css, js]) or 'dualOutput' (returns [html, js]).");
+	}
 	const placeholders = optionsOrAst?.placeholders || settings?.placeholders || {};
 	const variables = optionsOrAst?.variables || settings?.variables || {};
 	warnDroppedVariables(variables);
@@ -9480,6 +9490,89 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 		let output = "";
 		let prev_body_node = null;
 		let prev_was_silent = false;
+
+		if (webOutputs) {
+			// Use unique markers so [style] content is extracted precisely —
+			// no <style> regex on the final HTML, works with static logic inside [style].
+			const CSS_OPEN  = `SOMMARKCSSOPEN${randomBytesHex(8)}SOMMARK`;
+			const CSS_CLOSE = `SOMMARKCSSCLOSE${randomBytesHex(8)}SOMMARK`;
+
+			const webMapper = targetMapper.clone();
+			webMapper.register("style", function ({ content }) {
+				return `${CSS_OPEN}${content}${CSS_CLOSE}`;
+			}, { escape: false });
+			// [head] injects CSS variables as a raw <style> string via this.cssVariables —
+			// override it so those variables go through markers too.
+			webMapper.register("head", function ({ content }) {
+				const varsMarker = this.cssVariables
+					? `${CSS_OPEN}:root { ${this.cssVariables} }${CSS_CLOSE}\n`
+					: "";
+				return this.tag("head").body(`${varsMarker}${content}`);
+			}, { escape: false });
+
+			const idState = { mode: 'record', ids: [], idx: 0 };
+
+			// HTML pass — [style] blocks emit markers instead of <style> tags
+			let htmlOutput = "";
+			try {
+				for (let i = 0; i < body.length; i++) {
+					const node = body[i];
+					const blockOutput = await generateOutput(body, i, targetFormat, webMapper, security, null, false, true, instance, idState);
+					let finalBlockOutput = blockOutput;
+					if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+					if (finalBlockOutput) {
+						htmlOutput += finalBlockOutput;
+						prev_was_silent = false;
+					} else {
+						prev_was_silent = true;
+						if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
+							const nextNode = body[i + 1];
+							if (nextNode && nextNode.type === TEXT$1 && (nextNode.text === "\n" || nextNode.text === "\r\n")) i++;
+						}
+					}
+				}
+			} finally {
+				Evaluator.destroy();
+			}
+
+			// Extract CSS from markers — exact, no HTML regex
+			const cssChunks = [];
+			const markerRe = new RegExp(`${CSS_OPEN}([\\s\\S]*?)${CSS_CLOSE}`, "g");
+			htmlOutput = htmlOutput.replace(markerRe, (_, chunk) => {
+				cssChunks.push(chunk.trim());
+				return "";
+			});
+			const css = cssChunks.join("\n").trim();
+
+			// JS pass — replay IDs so querySelector targets match HTML
+			idState.mode = 'replay';
+			idState.idx = 0;
+			prev_was_silent = false;
+
+			await Evaluator.init(fileBaseDir, security, settings, targetMapper);
+			Evaluator.inject(placeholders);
+			Evaluator.inject(variables);
+
+			let jsOutput = "";
+			try {
+				for (let i = 0; i < body.length; i++) {
+					const node = body[i];
+					const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, true, false, instance, idState);
+					let finalBlockOutput = blockOutput;
+					if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+					if (finalBlockOutput) {
+						jsOutput += finalBlockOutput;
+						prev_was_silent = false;
+					} else {
+						prev_was_silent = true;
+					}
+				}
+			} finally {
+				Evaluator.destroy();
+			}
+
+			return [htmlOutput.trim(), css, jsOutput.trim()];
+		}
 
 		if (dualOutput) {
 			const idState = { mode: 'record', ids: [], idx: 0 };
@@ -9593,9 +9686,11 @@ async function transpileArgs(props) {
 				try {
 					result[key] = await Evaluator.execute(value.code, value.baseDir || null);
 				} catch (err) {
+					const line = value.range?.start?.line + 1 || 1;
 					transpilerError([
 						`<$red:Logic Error (Argument):$> ${err.message}{line}`,
-						`<$yellow:Code:$> <$blue:${value.code}$>{line}`
+						`<$yellow:Code:$> <$blue:${value.code}$>{line}`,
+						`at line <$yellow:${line}$>{line}`
 					]);
 				}
 			} else {
@@ -12525,13 +12620,34 @@ async function resolveModules(ast, context) {
 				let resolvedPath = filePath;
 				for (const [prefix, replacement] of Object.entries(importAliases)) {
 					if (filePath.startsWith(prefix)) {
-						resolvedPath = posix.resolve(context.instance.cwd || "/", filePath.replace(prefix, replacement));
+						const replaced = filePath.replace(prefix, replacement);
+						// Preserve scheme prefixes (pkg:, http:, etc.) — don't path.resolve them
+						resolvedPath = replaced.startsWith("pkg:") || replaced.startsWith("http://") || replaced.startsWith("https://")
+							? replaced
+							: posix.resolve(context.instance.cwd || "/", replaced);
 						break;
 					}
 				}
 
-				// 1b. Resolve relative to current base (FS)
-				const absolutePath = resolveModulePath(resolvedPath, currentBaseDir);
+				// 1b. pkg: — resolve from node_modules at project root
+				let absolutePath;
+				if (resolvedPath.startsWith("pkg:")) {
+					if (!context.instance.fs?.__isNodeFs) {
+						runtimeError([`<$red:Module Error:$> <$cyan:pkg:$> imports are not supported in browser or virtual filesystem mode at line <$yellow:${node.range.start.line + 1}$>`]);
+					}
+					const pkgPath = resolvedPath.slice(4);
+					if (!pkgPath || pkgPath.trim() === "") {
+						runtimeError([`<$red:Module Error:$> <$cyan:pkg:$> path cannot be empty at line <$yellow:${node.range.start.line + 1}$>`]);
+					}
+					const nodeModulesRoot = posix.resolve(context.instance.cwd || "/", "node_modules");
+					absolutePath = posix.resolve(nodeModulesRoot, pkgPath);
+					if (!absolutePath.startsWith(nodeModulesRoot + posix.sep) && absolutePath !== nodeModulesRoot) {
+						runtimeError([`<$red:Module Security Error:$> <$cyan:pkg:${pkgPath}$> resolves outside node_modules — path traversal is not allowed at line <$yellow:${node.range.start.line + 1}$>`]);
+					}
+				} else {
+					// 1c. Resolve relative to current base (FS)
+					absolutePath = resolveModulePath(resolvedPath, currentBaseDir);
+				}
 
 				if (!context.instance.fs) {
 					runtimeError([`<$red:Module Error:$> Cannot import <$magenta:${filePath}$> — no filesystem is available.{N}In browser mode, pass a URL-based <$cyan:baseDir$> or a <$cyan:files$> map to enable module loading.`]);
@@ -13044,7 +13160,7 @@ class SomMark {
 	 * @param {string} [options.baseDir=null] - The base directory for resolving relative paths.
 	 */
 	constructor(options = {}) {
-		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = true, outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, dualOutput = false, moduleIdentityToken = null } = options;
+		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = true, outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, dualOutput = false, webOutputs = false, moduleIdentityToken = null } = options;
 		this.rawSettings = options;
 		this.src = src;
 		this.ast = ast;
@@ -13055,6 +13171,7 @@ class SomMark {
 		this.placeholders = placeholders;
 		this.customProps = customProps;
 		this.dualOutput = dualOutput;
+		this.webOutputs = webOutputs;
 		this.cwd = options.baseDir || (options.files ? "/" : defaultCwd);
 		this.fs = options.fs
 			|| (options.files ? new VirtualFS(options.files) : null)
@@ -13271,6 +13388,7 @@ class SomMark {
 				security: this.security,
 				settings: this.rawSettings,
 				dualOutput: this.dualOutput,
+				webOutputs: this.webOutputs,
 				instance: this
 			});
 

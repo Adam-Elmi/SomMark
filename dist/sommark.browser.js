@@ -8628,7 +8628,7 @@ function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const version = "5.1.0";
+const version = "5.2.0";
 
 const SomMark$1 = {
     version,
@@ -8678,6 +8678,8 @@ const SomMark$1 = {
 
 // Freeze the entire Standard Library to make it completely immutable and tamper-proof
 Object.freeze(SomMark$1);
+
+const patheBundleCode = "let _lazyMatch = () => { var __lib__=(()=>{var m=Object.defineProperty,V=Object.getOwnPropertyDescriptor,G=Object.getOwnPropertyNames,T=Object.prototype.hasOwnProperty,q=(r,e)=>{for(var n in e)m(r,n,{get:e[n],enumerable:true});},H=(r,e,n,a)=>{if(e&&typeof e==\"object\"||typeof e==\"function\")for(let t of G(e))!T.call(r,t)&&t!==n&&m(r,t,{get:()=>e[t],enumerable:!(a=V(e,t))||a.enumerable});return r},J=r=>H(m({},\"__esModule\",{value:true}),r),w={};q(w,{default:()=>re});var A=r=>Array.isArray(r),d=r=>typeof r==\"function\",Q=r=>r.length===0,W=r=>typeof r==\"number\",K=r=>typeof r==\"object\"&&r!==null,X=r=>r instanceof RegExp,b=r=>typeof r==\"string\",h=r=>r===void 0,Y=r=>{const e=new Map;return n=>{const a=e.get(n);if(a)return a;const t=r(n);return e.set(n,t),t}},rr=(r,e,n={})=>{const a={cache:{},input:r,index:0,indexMax:0,options:n,output:[]};if(v(e)(a)&&a.index===r.length)return a.output;throw new Error(`Failed to parse at index ${a.indexMax}`)},i=(r,e)=>A(r)?er(r,e):b(r)?ar(r,e):nr(r,e),er=(r,e)=>{const n={};for(const a of r){if(a.length!==1)throw new Error(`Invalid character: \"${a}\"`);const t=a.charCodeAt(0);n[t]=true;}return a=>{const t=a.index,o=a.input;for(;a.index<o.length&&o.charCodeAt(a.index)in n;)a.index+=1;const u=a.index;if(u>t){if(!h(e)&&!a.options.silent){const s=a.input.slice(t,u),c=d(e)?e(s,o,String(t)):e;h(c)||a.output.push(c);}a.indexMax=Math.max(a.indexMax,a.index);}return  true}},nr=(r,e)=>{const n=r.source,a=r.flags.replace(/y|$/,\"y\"),t=new RegExp(n,a);return g(o=>{t.lastIndex=o.index;const u=t.exec(o.input);if(u){if(!h(e)&&!o.options.silent){const s=d(e)?e(...u,o.input,String(o.index)):e;h(s)||o.output.push(s);}return o.index+=u[0].length,o.indexMax=Math.max(o.indexMax,o.index),true}else return  false})},ar=(r,e)=>n=>{if(n.input.startsWith(r,n.index)){if(!h(e)&&!n.options.silent){const t=d(e)?e(r,n.input,String(n.index)):e;h(t)||n.output.push(t);}return n.index+=r.length,n.indexMax=Math.max(n.indexMax,n.index),true}else return  false},C=(r,e,n,a)=>{const t=v(r);return g(_(M(o=>{let u=0;for(;u<n;){const s=o.index;if(!t(o)||(u+=1,o.index===s))break}return u>=e})))},tr=(r,e)=>C(r,0,1),f=(r,e)=>C(r,0,1/0),x=(r,e)=>{const n=r.map(v);return g(_(M(a=>{for(let t=0,o=n.length;t<o;t++)if(!n[t](a))return  false;return  true})))},l=(r,e)=>{const n=r.map(v);return g(_(a=>{for(let t=0,o=n.length;t<o;t++)if(n[t](a))return  true;return  false}))},M=(r,e=false)=>{const n=v(r);return a=>{const t=a.index,o=a.output.length,u=n(a);return (!u||e)&&(a.index=t,a.output.length!==o&&(a.output.length=o)),u}},_=(r,e)=>{const n=v(r);return n},g=(()=>{let r=0;return e=>{const n=v(e),a=r+=1;return t=>{var o;if(t.options.memoization===false)return n(t);const u=t.index,s=(o=t.cache)[a]||(o[a]=new Map),c=s.get(u);if(c===false)return  false;if(W(c))return t.index=c,true;if(c)return t.index=c.index,c.output?.length&&t.output.push(...c.output),true;{const Z=t.output.length;if(n(t)){const D=t.index,U=t.output.length;if(U>Z){const ee=t.output.slice(Z,U);s.set(u,{index:D,output:ee});}else s.set(u,D);return  true}else return s.set(u,false),false}}}})(),E=r=>{let e;return n=>(e||(e=v(r())),e(n))},v=Y(r=>{if(d(r))return Q(r)?E(r):r;if(b(r)||X(r))return i(r);if(A(r))return x(r);if(K(r))return l(Object.values(r));throw new Error(\"Invalid rule\")}),P=\"abcdefghijklmnopqrstuvwxyz\",ir=r=>{let e=\"\";for(;r>0;){const n=(r-1)%26;e=P[n]+e,r=Math.floor((r-1)/26);}return e},O=r=>{let e=0;for(let n=0,a=r.length;n<a;n++)e=e*26+P.indexOf(r[n])+1;return e},S=(r,e)=>{if(e<r)return S(e,r);const n=[];for(;r<=e;)n.push(r++);return n},or=(r,e,n)=>S(r,e).map(a=>String(a).padStart(n,\"0\")),R=(r,e)=>S(O(r),O(e)).map(ir),p=r=>r,z=r=>ur(e=>rr(e,r,{memoization:false}).join(\"\")),ur=r=>{const e={};return n=>e[n]??(e[n]=r(n))},sr=i(/^\\*\\*\\/\\*$/,\".*\"),cr=i(/^\\*\\*\\/(\\*)?([ a-zA-Z0-9._-]+)$/,(r,e,n)=>`.*${e?\"\":\"(?:^|/)\"}${n.replaceAll(\".\",\"\\\\.\")}`),lr=i(/^\\*\\*\\/(\\*)?([ a-zA-Z0-9._-]*)\\{([ a-zA-Z0-9._-]+(?:,[ a-zA-Z0-9._-]+)*)\\}$/,(r,e,n,a)=>`.*${e?\"\":\"(?:^|/)\"}${n.replaceAll(\".\",\"\\\\.\")}(?:${a.replaceAll(\",\",\"|\").replaceAll(\".\",\"\\\\.\")})`),y=i(/\\\\./,p),pr=i(/[$.*+?^(){}[\\]\\|]/,r=>`\\\\${r}`),vr=i(/./,p),hr=i(/^(?:!!)*!(.*)$/,(r,e)=>`(?!^${L(e)}$).*?`),dr=i(/^(!!)+/,\"\"),fr=l([hr,dr]),xr=i(/\\/(\\*\\*\\/)+/,\"(?:/.+/|/)\"),gr=i(/^(\\*\\*\\/)+/,\"(?:^|.*/)\"),mr=i(/\\/(\\*\\*)$/,\"(?:/.*|$)\"),_r=i(/\\*\\*/,\".*\"),j=l([xr,gr,mr,_r]),Sr=i(/\\*\\/(?!\\*\\*\\/)/,\"[^/]*/\"),yr=i(/\\*/,\"[^/]*\"),N=l([Sr,yr]),k=i(\"?\",\"[^/]\"),$r=i(\"[\",p),wr=i(\"]\",p),Ar=i(/[!^]/,\"^/\"),br=i(/[a-z]-[a-z]|[0-9]-[0-9]/i,p),Cr=i(/[$.*+?^(){}[\\|]/,r=>`\\\\${r}`),Mr=i(/[^\\]]/,p),Er=l([y,Cr,br,Mr]),B=x([$r,tr(Ar),f(Er),wr]),Pr=i(\"{\",\"(?:\"),Or=i(\"}\",\")\"),Rr=i(/(\\d+)\\.\\.(\\d+)/,(r,e,n)=>or(+e,+n,Math.min(e.length,n.length)).join(\"|\")),zr=i(/([a-z]+)\\.\\.([a-z]+)/,(r,e,n)=>R(e,n).join(\"|\")),jr=i(/([A-Z]+)\\.\\.([A-Z]+)/,(r,e,n)=>R(e.toLowerCase(),n.toLowerCase()).join(\"|\").toUpperCase()),Nr=l([Rr,zr,jr]),I=x([Pr,Nr,Or]),kr=i(\"{\",\"(?:\"),Br=i(\"}\",\")\"),Ir=i(\",\",\"|\"),Fr=i(/[$.*+?^(){[\\]\\|]/,r=>`\\\\${r}`),Lr=i(/[^}]/,p),Zr=E(()=>F),Dr=l([j,N,k,B,I,Zr,y,Fr,Ir,Lr]),F=x([kr,f(Dr),Br]),Ur=f(l([sr,cr,lr,fr,j,N,k,B,I,F,y,pr,vr])),Vr=Ur,Gr=z(Vr),L=Gr,Tr=i(/\\\\./,p),qr=i(/./,p),Hr=i(/\\*\\*\\*+/,\"*\"),Jr=i(/([^/{[(!])\\*\\*/,(r,e)=>`${e}*`),Qr=i(/(^|.)\\*\\*(?=[^*/)\\]}])/,(r,e)=>`${e}*`),Wr=f(l([Tr,Hr,Jr,Qr,qr])),Kr=Wr,Xr=z(Kr),Yr=Xr,$=(r,e)=>{const n=Array.isArray(r)?r:[r];if(!n.length)return  false;const a=n.map($.compile),t=n.every(s=>/(\\/(?:\\*\\*)?|\\[\\/\\])$/.test(s)),o=e.replace(/[\\\\\\/]+/g,\"/\").replace(/\\/$/,t?\"/\":\"\");return a.some(s=>s.test(o))};$.compile=r=>new RegExp(`^${L(Yr(r))}$`,\"s\");var re=$;return J(w)})();\n return __lib__.default || __lib__; };\nlet _match;\nconst zeptomatch = (path, pattern) => {\n  if (!_match) {\n    _match = _lazyMatch();\n    _lazyMatch = null;\n  }\n  return _match(path, pattern);\n};\n\nconst _DRIVE_LETTER_START_RE = /^[A-Za-z]:\\//;\nfunction normalizeWindowsPath(input = \"\") {\n  if (!input) {\n    return input;\n  }\n  return input.replace(/\\\\/g, \"/\").replace(_DRIVE_LETTER_START_RE, (r) => r.toUpperCase());\n}\n\nconst _UNC_REGEX = /^[/\\\\]{2}/;\nconst _IS_ABSOLUTE_RE = /^[/\\\\](?![/\\\\])|^[/\\\\]{2}(?!\\.)|^[A-Za-z]:[/\\\\]/;\nconst _DRIVE_LETTER_RE = /^[A-Za-z]:$/;\nconst _ROOT_FOLDER_RE = /^\\/([A-Za-z]:)?$/;\nconst _EXTNAME_RE = /.(\\.[^./]+|\\.)$/;\nconst _PATH_ROOT_RE = /^[/\\\\]|^[a-zA-Z]:[/\\\\]/;\nconst sep = \"/\";\nconst normalize = function(path) {\n  if (path.length === 0) {\n    return \".\";\n  }\n  path = normalizeWindowsPath(path);\n  const isUNCPath = path.match(_UNC_REGEX);\n  const isPathAbsolute = isAbsolute(path);\n  const trailingSeparator = path[path.length - 1] === \"/\";\n  path = normalizeString(path, !isPathAbsolute);\n  if (path.length === 0) {\n    if (isPathAbsolute) {\n      return \"/\";\n    }\n    return trailingSeparator ? \"./\" : \".\";\n  }\n  if (trailingSeparator) {\n    path += \"/\";\n  }\n  if (_DRIVE_LETTER_RE.test(path)) {\n    path += \"/\";\n  }\n  if (isUNCPath) {\n    if (!isPathAbsolute) {\n      return `//./${path}`;\n    }\n    return `//${path}`;\n  }\n  return isPathAbsolute && !isAbsolute(path) ? `/${path}` : path;\n};\nconst join = function(...segments) {\n  let path = \"\";\n  for (const seg of segments) {\n    if (!seg) {\n      continue;\n    }\n    if (path.length > 0) {\n      const pathTrailing = path[path.length - 1] === \"/\";\n      const segLeading = seg[0] === \"/\";\n      const both = pathTrailing && segLeading;\n      if (both) {\n        path += seg.slice(1);\n      } else {\n        path += pathTrailing || segLeading ? seg : `/${seg}`;\n      }\n    } else {\n      path += seg;\n    }\n  }\n  return normalize(path);\n};\nfunction cwd() {\n  if (typeof process !== \"undefined\" && typeof process.cwd === \"function\") {\n    return process.cwd().replace(/\\\\/g, \"/\");\n  }\n  return \"/\";\n}\nconst resolve = function(...arguments_) {\n  arguments_ = arguments_.map((argument) => normalizeWindowsPath(argument));\n  let resolvedPath = \"\";\n  let resolvedAbsolute = false;\n  for (let index = arguments_.length - 1; index >= -1 && !resolvedAbsolute; index--) {\n    const path = index >= 0 ? arguments_[index] : cwd();\n    if (!path || path.length === 0) {\n      continue;\n    }\n    resolvedPath = `${path}/${resolvedPath}`;\n    resolvedAbsolute = isAbsolute(path);\n  }\n  resolvedPath = normalizeString(resolvedPath, !resolvedAbsolute);\n  if (resolvedAbsolute && !isAbsolute(resolvedPath)) {\n    return `/${resolvedPath}`;\n  }\n  return resolvedPath.length > 0 ? resolvedPath : \".\";\n};\nfunction normalizeString(path, allowAboveRoot) {\n  let res = \"\";\n  let lastSegmentLength = 0;\n  let lastSlash = -1;\n  let dots = 0;\n  let char = null;\n  for (let index = 0; index <= path.length; ++index) {\n    if (index < path.length) {\n      char = path[index];\n    } else if (char === \"/\") {\n      break;\n    } else {\n      char = \"/\";\n    }\n    if (char === \"/\") {\n      if (lastSlash === index - 1 || dots === 1) ; else if (dots === 2) {\n        if (res.length < 2 || lastSegmentLength !== 2 || res[res.length - 1] !== \".\" || res[res.length - 2] !== \".\") {\n          if (res.length > 2) {\n            const lastSlashIndex = res.lastIndexOf(\"/\");\n            if (lastSlashIndex === -1) {\n              res = \"\";\n              lastSegmentLength = 0;\n            } else {\n              res = res.slice(0, lastSlashIndex);\n              lastSegmentLength = res.length - 1 - res.lastIndexOf(\"/\");\n            }\n            lastSlash = index;\n            dots = 0;\n            continue;\n          } else if (res.length > 0) {\n            res = \"\";\n            lastSegmentLength = 0;\n            lastSlash = index;\n            dots = 0;\n            continue;\n          }\n        }\n        if (allowAboveRoot) {\n          res += res.length > 0 ? \"/..\" : \"..\";\n          lastSegmentLength = 2;\n        }\n      } else {\n        if (res.length > 0) {\n          res += `/${path.slice(lastSlash + 1, index)}`;\n        } else {\n          res = path.slice(lastSlash + 1, index);\n        }\n        lastSegmentLength = index - lastSlash - 1;\n      }\n      lastSlash = index;\n      dots = 0;\n    } else if (char === \".\" && dots !== -1) {\n      ++dots;\n    } else {\n      dots = -1;\n    }\n  }\n  return res;\n}\nconst isAbsolute = function(p) {\n  return _IS_ABSOLUTE_RE.test(p);\n};\nconst toNamespacedPath = function(p) {\n  return normalizeWindowsPath(p);\n};\nconst extname = function(p) {\n  if (p === \"..\") return \"\";\n  const match = _EXTNAME_RE.exec(normalizeWindowsPath(p));\n  return match && match[1] || \"\";\n};\nconst relative = function(from, to) {\n  const _from = resolve(from).replace(_ROOT_FOLDER_RE, \"$1\").split(\"/\");\n  const _to = resolve(to).replace(_ROOT_FOLDER_RE, \"$1\").split(\"/\");\n  if (_to[0][1] === \":\" && _from[0][1] === \":\" && _from[0] !== _to[0]) {\n    return _to.join(\"/\");\n  }\n  const _fromCopy = [..._from];\n  for (const segment of _fromCopy) {\n    if (_to[0] !== segment) {\n      break;\n    }\n    _from.shift();\n    _to.shift();\n  }\n  return [..._from.map(() => \"..\"), ..._to].join(\"/\");\n};\nconst dirname = function(p) {\n  const segments = normalizeWindowsPath(p).replace(/\\/$/, \"\").split(\"/\").slice(0, -1);\n  if (segments.length === 1 && _DRIVE_LETTER_RE.test(segments[0])) {\n    segments[0] += \"/\";\n  }\n  return segments.join(\"/\") || (isAbsolute(p) ? \"/\" : \".\");\n};\nconst format = function(p) {\n  const ext = p.ext ? p.ext.startsWith(\".\") ? p.ext : `.${p.ext}` : \"\";\n  const segments = [p.root, p.dir, p.base ?? (p.name ?? \"\") + ext].filter(\n    Boolean\n  );\n  return normalizeWindowsPath(\n    p.root ? resolve(...segments) : segments.join(\"/\")\n  );\n};\nconst basename = function(p, extension) {\n  const segments = normalizeWindowsPath(p).split(\"/\");\n  let lastSegment = \"\";\n  for (let i = segments.length - 1; i >= 0; i--) {\n    const val = segments[i];\n    if (val) {\n      lastSegment = val;\n      break;\n    }\n  }\n  return extension && lastSegment.endsWith(extension) ? lastSegment.slice(0, -extension.length) : lastSegment;\n};\nconst parse = function(p) {\n  const root = _PATH_ROOT_RE.exec(p)?.[0]?.replace(/\\\\/g, \"/\") || \"\";\n  const base = basename(p);\n  const extension = extname(base);\n  return {\n    root,\n    dir: dirname(p),\n    base,\n    ext: extension,\n    name: base.slice(0, base.length - extension.length)\n  };\n};\nconst matchesGlob = (path, pattern) => {\n  return zeptomatch(pattern, normalize(path));\n};\n\nconst _path = {\n  __proto__: null,\n  basename: basename,\n  dirname: dirname,\n  extname: extname,\n  format: format,\n  isAbsolute: isAbsolute,\n  join: join,\n  matchesGlob: matchesGlob,\n  normalize: normalize,\n  normalizeString: normalizeString,\n  parse: parse,\n  relative: relative,\n  resolve: resolve,\n  sep: sep,\n  toNamespacedPath: toNamespacedPath\n};\n\nconst delimiter = /* @__PURE__ */ (() => globalThis.process?.platform === \"win32\" ? \";\" : \":\")();\nconst _platforms = { posix: void 0, win32: void 0 };\nconst mix = (del = delimiter) => {\n  return new Proxy(_path, {\n    get(_, prop) {\n      if (prop === \"delimiter\") return del;\n      if (prop === \"posix\") return posix;\n      if (prop === \"win32\") return win32;\n      return _platforms[prop] || _path[prop];\n    }\n  });\n};\nconst posix = /* @__PURE__ */ mix(\":\");\nconst win32 = /* @__PURE__ */ mix(\";\");\n\nvar pathe = /*#__PURE__*/Object.freeze({\n  __proto__: null,\n  basename: basename,\n  default: posix,\n  delimiter: delimiter,\n  dirname: dirname,\n  extname: extname,\n  format: format,\n  isAbsolute: isAbsolute,\n  join: join,\n  matchesGlob: matchesGlob,\n  normalize: normalize,\n  normalizeString: normalizeString,\n  parse: parse,\n  posix: posix,\n  relative: relative,\n  resolve: resolve,\n  sep: sep,\n  toNamespacedPath: toNamespacedPath,\n  win32: win32\n});\n\nglobalThis.pathHandler = pathe;\n";
 
 // Set by index.js (Node.js) or index.browser.js (shim) — never imported directly.
 let evaluatorStorage = null;
@@ -8820,7 +8822,7 @@ const customFetchAdapter = async (input, init, security = {}) => {
     };
 };
 
-const customCompileAdapter = async (src, options, parentSecurity = {}) => {
+const customCompileAdapter = async (src, options, parentSecurity = {}, parentFs = null, parentBaseDir = null) => {
     const maxDepth = parentSecurity?.maxDepth ?? 5;
     if (globalCompilationDepth >= maxDepth) {
         throw new Error(`Recursion Guard: Maximum Smark compilation depth exceeded (limit is ${maxDepth}).`);
@@ -8836,7 +8838,9 @@ const customCompileAdapter = async (src, options, parentSecurity = {}) => {
             ...cleanOptions,
             src,
             format: cleanOptions.format || "html",
-            security: parentSecurity
+            security: parentSecurity,
+            fs: parentFs ?? undefined,
+            baseDir: cleanOptions.baseDir || parentBaseDir || undefined,
         };
         const sm = new compilerClass(compilerOptions);
         return await sm.transpile();
@@ -8977,6 +8981,7 @@ class EvaluatorState {
         } else {
             this.baseDir = "/";
         }
+        this.rootDir = settings?.instance?.cwd || this.baseDir;
         this.scopes = [{}];
         this.dynamicTagsStack = [new Map()];
         this.security = security;
@@ -9017,13 +9022,25 @@ class EvaluatorState {
             },
             __hostSomMarkVersion: SomMark$1.version,
             __hostSomMarkSettings: () => {
-                const clean = { ...SomMark$1.settings };
-                delete clean.instance;
-                delete clean.fs;
-                return JSON.stringify(clean);
-            }, 
+                const s = SomMark$1.settings;
+                return JSON.stringify({
+                    format:        s.format        ?? null,
+                    dev:           s.dev           ?? false,
+                    removeComments:s.removeComments ?? false,
+                    allowRaw:      s.allowRaw      ?? true,
+                    dualOutput:    s.dualOutput     ?? false,
+                    webOutputs:    s.webOutputs     ?? false,
+                });
+            },
             __hostCompile: async (src, options) => {
-                return await customCompileAdapter(src, options, this.security);
+                return await customCompileAdapter(src, options, this.security, this.nodeFs, this.baseDir);
+            },
+            __hostLexer: (src, filename) => {
+                return JSON.stringify(lexer(src, filename || "anonymous"));
+            },
+            __hostParser: (src, filename) => {
+                const tokens = lexer(src, filename || "anonymous");
+                return JSON.stringify(parser(tokens, filename || "anonymous"));
             },
             __hostFetch: async (input, initStr) => {
                 const init = initStr ? JSON.parse(initStr) : undefined;
@@ -9050,6 +9067,59 @@ class EvaluatorState {
                 if (!target) return "";
                 const payload = JSON.parse(payloadStr);
                 return await target.render.call(this.mapperFile, payload);
+            },
+            __hostFileRead: async (filePath) => {
+                if (!this.nodeFs) {
+                    throw new Error(
+                        "[SomMark] fileHandler is not available in browser mode.\n" +
+                        "File access is a server-side concept."
+                    );
+                }
+                const abs = posix.resolve(this.rootDir, filePath);
+                if (!abs.startsWith(this.rootDir)) {
+                    throw new Error(
+                        `[SomMark] fileHandler.read: path traversal outside project root is not allowed.\n` +
+                        `Attempted path: ${abs}`
+                    );
+                }
+                return this.nodeFs.readFile(abs, "utf-8");
+            },
+            __hostFileExists: async (filePath) => {
+                if (!this.nodeFs) return false;
+                const abs = posix.resolve(this.rootDir, filePath);
+                if (!abs.startsWith(this.rootDir)) return false;
+                return this.nodeFs.exists(abs);
+            },
+            __hostFileGlob: async (pattern) => {
+                if (!this.nodeFs) throw new Error("[SomMark] fileHandler.glob is not available in browser mode.\nFile access is a server-side concept.");
+                if (!this.nodeFs.glob) throw new Error("[SomMark] fileHandler.glob requires Node.js 22 or later.");
+                const files = await this.nodeFs.glob(pattern, { cwd: this.rootDir });
+                return JSON.stringify(files);
+            },
+            __hostFileLastModified: async (filePath) => {
+                if (!this.nodeFs) throw new Error("[SomMark] fileHandler.lastModified is not available in browser mode.");
+                const abs = posix.resolve(this.rootDir, filePath);
+                if (!abs.startsWith(this.rootDir)) throw new Error("[SomMark] fileHandler.lastModified: path traversal outside project root is not allowed.");
+                const stat = await this.nodeFs.stat(abs);
+                return stat.mtimeMs;
+            },
+            __hostFileStat: async (filePath) => {
+                if (!this.nodeFs) throw new Error("[SomMark] fileHandler.stat is not available in browser mode.\nFile access is a server-side concept.");
+                const abs = posix.resolve(this.rootDir, filePath);
+                if (!abs.startsWith(this.rootDir)) throw new Error(`[SomMark] fileHandler.stat: path traversal outside project root is not allowed.\nAttempted path: ${abs}`);
+                try {
+                    const s = await this.nodeFs.stat(abs);
+                    return JSON.stringify({
+                        size: s.size,
+                        mtime: s.mtimeMs,
+                        ctime: s.ctimeMs,
+                        atime: s.atimeMs,
+                        isFile: s.isFile(),
+                        isDirectory: s.isDirectory(),
+                    });
+                } catch {
+                    return null;
+                }
             },
             __allowRaw: this.security.allowRaw !== false
         });
@@ -9203,6 +9273,18 @@ class EvaluatorState {
                     }
                     return await __hostCompile(src, options);
                 },
+                lexer: (src, filename) => {
+                    if (typeof src !== "string") {
+                        throw new Error("SomMark.lexer Error: Source must be a string.");
+                    }
+                    return JSON.parse(__hostLexer(src, filename));
+                },
+                parser: (src, filename) => {
+                    if (typeof src !== "string") {
+                        throw new Error("SomMark.parser Error: Source must be a string.");
+                    }
+                    return JSON.parse(__hostParser(src, filename));
+                },
                 raw: (html) => {
                     if (typeof __allowRaw !== "undefined" && !__allowRaw) {
                         throw new Error("Security Error: SomMark.raw is disabled in this environment.");
@@ -9243,6 +9325,20 @@ class EvaluatorState {
                 configurable: false
             });
 
+            Object.defineProperty(globalThis, "Smark", {
+                value: SomMark,
+                writable: false,
+                configurable: false
+            });
+
+            globalThis.fileHandler = Object.freeze({
+                read: async (path) => await __hostFileRead(path),
+                exists: async (path) => await __hostFileExists(path),
+                glob: async (pattern) => JSON.parse(await __hostFileGlob(pattern)),
+                lastModified: async (path) => await __hostFileLastModified(path),
+                stat: async (path) => { const r = await __hostFileStat(path); return r ? JSON.parse(r) : null; },
+            });
+
             delete globalThis.fetch;
             delete globalThis.process;
         `);
@@ -9253,6 +9349,13 @@ class EvaluatorState {
             throw new Error("VM initialization failed: " + JSON.stringify(err));
         }
         setupRes.value.dispose();
+
+        const patheRes = this.context.evalCode(patheBundleCode);
+        if (patheRes.error) {
+            patheRes.error.dispose();
+        } else {
+            patheRes.value.dispose();
+        }
 
         // Configure module loader using virtual FS implementation.
         // The normalizer resolves every import to an absolute path so the module
@@ -9468,10 +9571,17 @@ class EvaluatorState {
         if (!this.context) return;
         const safe = {};
         for (const [key, value] of Object.entries(vars)) {
-            if (!isPlainData(value)) {
-                console.warn(`[SomMark] Security: "${key}" contains functions and was blocked. Only plain data can be injected. Use SomMark built-ins for host capabilities.`);
+            if (typeof value === "function") {
+                const src = value.toString();
+                if (src.includes("SomMark.")) {
+                    console.warn(`[SomMark] variables.${key}: references 'SomMark' which bundlers may rename. Use 'Smark' instead.`);
+                }
+                const res = this.context.evalCode(`globalThis[${JSON.stringify(key)}] = ${src}`);
+                if (res.error) res.error.dispose();
+                else res.value.dispose();
                 continue;
             }
+            if (!isPlainData(value)) continue;
             safe[key] = value;
         }
         const currentScope = this.scopes[this.scopes.length - 1];
@@ -9546,7 +9656,16 @@ class EvaluatorState {
                     }
                 }
             } catch (err) {
-                // Ignore parsing errors and fallback to raw code
+                // Parse failed as a statement — try as a parenthesised expression.
+                // This handles object/array literals like {a: 1} or [1, 2] which are
+                // ambiguous in statement context but valid when wrapped in parens.
+                try {
+                    const trimmed = code.trim();
+                    parse$1(`(${trimmed})`, { ecmaVersion: 'latest', sourceType: 'module' });
+                    finalCode = `export default (${trimmed});`;
+                } catch {
+                    // Give up — let QuickJS surface the error.
+                }
             }
 
             if (autoExportedNames.length > 0 && !hasExplicitExports) {
@@ -10104,7 +10223,7 @@ function warnDroppedVariables(variables) {
 		} else if (value !== null && typeof value === "object" && !Array.isArray(value)) {
 			for (const [nestedKey, nestedVal] of Object.entries(value)) {
 				if (typeof nestedVal === "function") {
-					console.warn(`[SomMark] variables.${key}.${nestedKey} is a function nested inside an object and will be ignored. Move it to the top level: variables.${nestedKey}`);
+					console.warn(`[SomMark] variables.${key}.${nestedKey}: nested functions inside objects are not supported. Define it as a top-level function instead: variables.${nestedKey}`);
 				} else if (nestedVal === undefined) {
 					console.warn(`[SomMark] variables.${key}.${nestedKey} is undefined and will be ignored.`);
 				}
@@ -10211,9 +10330,11 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			const out = (result !== undefined && typeof result !== "object") ? String(result) : "";
 			return mapper_file ? mapper_file.text(out) : out;
 		} catch (err) {
+			const line = node.range?.start?.line + 1 || 1;
 			transpilerError([
 				`<$red:Logic Error:$> ${err.message}{line}`,
-				`<$yellow:Code:$> <$blue:${node.code}$>{line}`
+				`<$yellow:Code:$> <$blue:${node.code}$>{line}`,
+				`at line <$yellow:${line}$>{line}`
 			]);
 		}
 	}
@@ -10424,9 +10545,11 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 							const val = await Evaluator$1.execute(child.code, child.baseDir || null);
 							if (val !== undefined && typeof val !== "object") richText += String(val);
 						} catch (err) {
+							const line = child.range?.start?.line + 1 || 1;
 							transpilerError([
 								`<$red:Logic Error:$> ${err.message}{line}`,
-								`<$yellow:Code:$> <$blue:${child.code}$>{line}`
+								`<$yellow:Code:$> <$blue:${child.code}$>{line}`,
+								`at line <$yellow:${line}$>{line}`
 							]);
 						}
 					} else if (child.type === COMMENT) {
@@ -10553,9 +10676,11 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 								bodyOutput = mapper_file ? mapper_file.text(out, { ...target?.options, escape: parentEscape }) : out;
 							}
 						} catch (err) {
+							const line = body_node.range?.start?.line + 1 || 1;
 							transpilerError([
 								`<$red:Logic Error:$> ${err.message}{line}`,
-								`<$yellow:Code:$> <$blue:${body_node.code}$>{line}`
+								`<$yellow:Code:$> <$blue:${body_node.code}$>{line}`,
+								`at line <$yellow:${line}$>{line}`
 							]);
 						}
 						break;
@@ -10654,6 +10779,10 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 	})();
 
 	const dualOutput = optionsOrAst?.dualOutput || false;
+	const webOutputs = optionsOrAst?.webOutputs || false;
+	if (webOutputs && dualOutput) {
+		throw new Error("[SomMark] Cannot use both 'webOutputs' and 'dualOutput' at the same time. Use 'webOutputs' (returns [html, css, js]) or 'dualOutput' (returns [html, js]).");
+	}
 	const placeholders = optionsOrAst?.placeholders || settings?.placeholders || {};
 	const variables = optionsOrAst?.variables || settings?.variables || {};
 	warnDroppedVariables(variables);
@@ -10667,6 +10796,89 @@ async function transpiler(optionsOrAst, format, mapperFile) {
 		let output = "";
 		let prev_body_node = null;
 		let prev_was_silent = false;
+
+		if (webOutputs) {
+			// Use unique markers so [style] content is extracted precisely —
+			// no <style> regex on the final HTML, works with static logic inside [style].
+			const CSS_OPEN  = `SOMMARKCSSOPEN${randomBytesHex(8)}SOMMARK`;
+			const CSS_CLOSE = `SOMMARKCSSCLOSE${randomBytesHex(8)}SOMMARK`;
+
+			const webMapper = targetMapper.clone();
+			webMapper.register("style", function ({ content }) {
+				return `${CSS_OPEN}${content}${CSS_CLOSE}`;
+			}, { escape: false });
+			// [head] injects CSS variables as a raw <style> string via this.cssVariables —
+			// override it so those variables go through markers too.
+			webMapper.register("head", function ({ content }) {
+				const varsMarker = this.cssVariables
+					? `${CSS_OPEN}:root { ${this.cssVariables} }${CSS_CLOSE}\n`
+					: "";
+				return this.tag("head").body(`${varsMarker}${content}`);
+			}, { escape: false });
+
+			const idState = { mode: 'record', ids: [], idx: 0 };
+
+			// HTML pass — [style] blocks emit markers instead of <style> tags
+			let htmlOutput = "";
+			try {
+				for (let i = 0; i < body.length; i++) {
+					const node = body[i];
+					const blockOutput = await generateOutput(body, i, targetFormat, webMapper, security, null, false, true, instance, idState);
+					let finalBlockOutput = blockOutput;
+					if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+					if (finalBlockOutput) {
+						htmlOutput += finalBlockOutput;
+						prev_was_silent = false;
+					} else {
+						prev_was_silent = true;
+						if ((node.type === COMMENT || node.type === COMMENT_BLOCK) && targetMapper?.options?.removeComments) {
+							const nextNode = body[i + 1];
+							if (nextNode && nextNode.type === TEXT$1 && (nextNode.text === "\n" || nextNode.text === "\r\n")) i++;
+						}
+					}
+				}
+			} finally {
+				Evaluator$1.destroy();
+			}
+
+			// Extract CSS from markers — exact, no HTML regex
+			const cssChunks = [];
+			const markerRe = new RegExp(`${CSS_OPEN}([\\s\\S]*?)${CSS_CLOSE}`, "g");
+			htmlOutput = htmlOutput.replace(markerRe, (_, chunk) => {
+				cssChunks.push(chunk.trim());
+				return "";
+			});
+			const css = cssChunks.join("\n").trim();
+
+			// JS pass — replay IDs so querySelector targets match HTML
+			idState.mode = 'replay';
+			idState.idx = 0;
+			prev_was_silent = false;
+
+			await Evaluator$1.init(fileBaseDir, security, settings, targetMapper);
+			Evaluator$1.inject(placeholders);
+			Evaluator$1.inject(variables);
+
+			let jsOutput = "";
+			try {
+				for (let i = 0; i < body.length; i++) {
+					const node = body[i];
+					const blockOutput = await generateOutput(body, i, targetFormat, targetMapper, security, null, true, false, instance, idState);
+					let finalBlockOutput = blockOutput;
+					if (prev_was_silent && node.type === TEXT$1) finalBlockOutput = finalBlockOutput.replace(/^\n/, "");
+					if (finalBlockOutput) {
+						jsOutput += finalBlockOutput;
+						prev_was_silent = false;
+					} else {
+						prev_was_silent = true;
+					}
+				}
+			} finally {
+				Evaluator$1.destroy();
+			}
+
+			return [htmlOutput.trim(), css, jsOutput.trim()];
+		}
 
 		if (dualOutput) {
 			const idState = { mode: 'record', ids: [], idx: 0 };
@@ -10780,9 +10992,11 @@ async function transpileArgs(props) {
 				try {
 					result[key] = await Evaluator$1.execute(value.code, value.baseDir || null);
 				} catch (err) {
+					const line = value.range?.start?.line + 1 || 1;
 					transpilerError([
 						`<$red:Logic Error (Argument):$> ${err.message}{line}`,
-						`<$yellow:Code:$> <$blue:${value.code}$>{line}`
+						`<$yellow:Code:$> <$blue:${value.code}$>{line}`,
+						`at line <$yellow:${line}$>{line}`
 					]);
 				}
 			} else {
@@ -13712,13 +13926,34 @@ async function resolveModules(ast, context) {
 				let resolvedPath = filePath;
 				for (const [prefix, replacement] of Object.entries(importAliases)) {
 					if (filePath.startsWith(prefix)) {
-						resolvedPath = posix.resolve(context.instance.cwd || "/", filePath.replace(prefix, replacement));
+						const replaced = filePath.replace(prefix, replacement);
+						// Preserve scheme prefixes (pkg:, http:, etc.) — don't path.resolve them
+						resolvedPath = replaced.startsWith("pkg:") || replaced.startsWith("http://") || replaced.startsWith("https://")
+							? replaced
+							: posix.resolve(context.instance.cwd || "/", replaced);
 						break;
 					}
 				}
 
-				// 1b. Resolve relative to current base (FS)
-				const absolutePath = resolveModulePath(resolvedPath, currentBaseDir);
+				// 1b. pkg: — resolve from node_modules at project root
+				let absolutePath;
+				if (resolvedPath.startsWith("pkg:")) {
+					if (!context.instance.fs?.__isNodeFs) {
+						runtimeError([`<$red:Module Error:$> <$cyan:pkg:$> imports are not supported in browser or virtual filesystem mode at line <$yellow:${node.range.start.line + 1}$>`]);
+					}
+					const pkgPath = resolvedPath.slice(4);
+					if (!pkgPath || pkgPath.trim() === "") {
+						runtimeError([`<$red:Module Error:$> <$cyan:pkg:$> path cannot be empty at line <$yellow:${node.range.start.line + 1}$>`]);
+					}
+					const nodeModulesRoot = posix.resolve(context.instance.cwd || "/", "node_modules");
+					absolutePath = posix.resolve(nodeModulesRoot, pkgPath);
+					if (!absolutePath.startsWith(nodeModulesRoot + posix.sep) && absolutePath !== nodeModulesRoot) {
+						runtimeError([`<$red:Module Security Error:$> <$cyan:pkg:${pkgPath}$> resolves outside node_modules — path traversal is not allowed at line <$yellow:${node.range.start.line + 1}$>`]);
+					}
+				} else {
+					// 1c. Resolve relative to current base (FS)
+					absolutePath = resolveModulePath(resolvedPath, currentBaseDir);
+				}
 
 				if (!context.instance.fs) {
 					runtimeError([`<$red:Module Error:$> Cannot import <$magenta:${filePath}$> — no filesystem is available.{N}In browser mode, pass a URL-based <$cyan:baseDir$> or a <$cyan:files$> map to enable module loading.`]);
@@ -14231,7 +14466,7 @@ class SomMark {
 	 * @param {string} [options.baseDir=null] - The base directory for resolving relative paths.
 	 */
 	constructor(options = {}) {
-		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = true, outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, dualOutput = false, moduleIdentityToken = null } = options;
+		const { src, ast = null, format, mapperFile = null, filename = "anonymous", removeComments = true, placeholders = {}, customProps = [], fallbackTarget = true, outputValidator = null, importAliases = {}, importStack = [], baseDir = null, moduleCache = null, showSpinner = true, security = {}, dualOutput = false, webOutputs = false, moduleIdentityToken = null } = options;
 		this.rawSettings = options;
 		this.src = src;
 		this.ast = ast;
@@ -14242,6 +14477,7 @@ class SomMark {
 		this.placeholders = placeholders;
 		this.customProps = customProps;
 		this.dualOutput = dualOutput;
+		this.webOutputs = webOutputs;
 		this.cwd = options.baseDir || (options.files ? "/" : defaultCwd);
 		this.fs = options.fs
 			|| (options.files ? new VirtualFS(options.files) : null)
@@ -14458,6 +14694,7 @@ class SomMark {
 				security: this.security,
 				settings: this.rawSettings,
 				dualOutput: this.dualOutput,
+				webOutputs: this.webOutputs,
 				instance: this
 			});
 
