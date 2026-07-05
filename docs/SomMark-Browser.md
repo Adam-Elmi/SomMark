@@ -12,7 +12,7 @@ Load SomMark directly in any HTML page using a `<script type="module">` tag:
 <div id="output"></div>
 <script type="module">
   import SomMark, { renderCompiledHTML }
-    from "https://cdn.jsdelivr.net/npm/sommark@5.1.0/dist/sommark.browser.js";
+    from "https://cdn.jsdelivr.net/npm/sommark@5.2.0/dist/sommark.browser.js";
 
   const src = "[h1 = color: green]Compiled successfully ✓[end:h1]";
 
@@ -29,18 +29,18 @@ Load SomMark directly in any HTML page using a `<script type="module">` tag:
 
 | Provider  | URL |
 |-----------|-----|
-| jsDelivr  | `https://cdn.jsdelivr.net/npm/sommark@5.1.0/dist/sommark.browser.js` |
-| unpkg     | `https://unpkg.com/sommark@5.1.0/dist/sommark.browser.js` |
+| jsDelivr  | `https://cdn.jsdelivr.net/npm/sommark@5.2.0/dist/sommark.browser.js` |
+| unpkg     | `https://unpkg.com/sommark@5.2.0/dist/sommark.browser.js` |
 
-> Replace `5.1.0` with the version you want. The `dist/sommark.browser.js` file is the pre-bundled build — all dependencies are included. WASM files are served from the same `dist/` directory automatically via `import.meta.url`.
+> Replace `5.2.0` with the version you want. The `dist/sommark.browser.js` file is the pre-bundled build — all dependencies are included. WASM files are served from the same `dist/` directory automatically via `import.meta.url`.
 >
 > The `index.browser.js` entry is for use with a bundler (Vite, Webpack, etc.) and will not work directly in a browser.
 
 > [!WARNING]
 > **Avoid versions 5.0.4 and 5.0.5** — these are broken due to an internal bug and will not work correctly in the browser. **Versions 5.0.0 through 5.0.3** may appear to work but contain hidden bugs that can surface unexpectedly.
 >
-> **Use version 5.1.0** — this is the first stable browser release. All known issues from the 5.0.x line are fixed.
-
+> **Use version 5.2.0** — this is the first stable browser release. All known issues from the 5.0.x line are fixed.
+> Avoid **version 5.1.0**: this version has security issue, it exposes internal compiler settings to the sandbox. Upgrade to v5.2.0 or higher versions.
 ---
 
 ## Local Bundle (no CDN, no bundler)
