@@ -16,6 +16,9 @@
         "preview:rollup": "vite preview --outDir dist-rollup --port 4175",
         "preview:esbuild": "vite preview --outDir dist-esbuild --port 4176"
     },
+    "dependencies": {
+        "sommark": "file:.."
+    },
     "devDependencies": {
         "@rollup/plugin-commonjs": "^29.0.3",
         "@rollup/plugin-node-resolve": "^16.0.3",
