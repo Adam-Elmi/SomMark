@@ -1,5 +1,29 @@
 # Changelog
 
+## v5.2.1 (2026-07-08)
+
+### Fixed
+
+- **Lite bundle crashed on import** — `EvaluatorStub` was missing `setDefaultEnv` and `setDefaultAsyncLocalStorage`. Closes #19.
+
+  ```js
+  class EvaluatorStub {
+      setDefaultFs(_fs) {}
+      setDefaultEnv(_env) {}               // added
+      setDefaultAsyncLocalStorage(_cls) {} // added
+  }
+  ```
+
+- **`fs.stat` mutation crashed host processes** — `index.js` overwrote `fs.stat` on the shared `node:fs` singleton, breaking any other package using callback-based `fs.stat`. Closes #20.
+
+  ```js
+  // Before
+  nodeFs.stat = (p) => nodeFs.promises.stat(p);
+
+  // After
+  const s = await nodeFs.promises.stat(abs);
+  ```
+
 ## v5.2.0 (2026-07-04)
 
 ### Added

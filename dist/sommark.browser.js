@@ -8628,7 +8628,7 @@ function registerHostSettings(settings) {
     hostSettings = settings || {};
 }
 
-const version = "5.2.0";
+const version = "5.2.1";
 
 const SomMark$1 = {
     version,
@@ -9100,7 +9100,7 @@ class EvaluatorState {
                 if (!this.nodeFs) throw new Error("[SomMark] fileHandler.lastModified is not available in browser mode.");
                 const abs = posix.resolve(this.rootDir, filePath);
                 if (!abs.startsWith(this.rootDir)) throw new Error("[SomMark] fileHandler.lastModified: path traversal outside project root is not allowed.");
-                const stat = await this.nodeFs.stat(abs);
+                const stat = await this.nodeFs.promises.stat(abs);
                 return stat.mtimeMs;
             },
             __hostFileStat: async (filePath) => {
@@ -9108,7 +9108,7 @@ class EvaluatorState {
                 const abs = posix.resolve(this.rootDir, filePath);
                 if (!abs.startsWith(this.rootDir)) throw new Error(`[SomMark] fileHandler.stat: path traversal outside project root is not allowed.\nAttempted path: ${abs}`);
                 try {
-                    const s = await this.nodeFs.stat(abs);
+                    const s = await this.nodeFs.promises.stat(abs);
                     return JSON.stringify({
                         size: s.size,
                         mtime: s.mtimeMs,
