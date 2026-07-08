@@ -10,6 +10,8 @@ export function withEvaluator(fn) { return fn(); }
 
 class EvaluatorStub {
     setDefaultFs(_fs) {}
+    setDefaultEnv(_env) {}
+    setDefaultAsyncLocalStorage(_cls) {}
 
     get active() {
         return this;
