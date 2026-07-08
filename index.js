@@ -13,7 +13,6 @@ if (typeof process !== "undefined" && process.versions?.node) {
 		// Add async interface so modules.js can use await fs.exists / await fs.readFile
 		nodeFs.exists = (p) => nodeFs.promises.access(p).then(() => true).catch(() => false);
 		nodeFs.readFile = (p, enc) => nodeFs.promises.readFile(p, enc);
-		nodeFs.stat = (p) => nodeFs.promises.stat(p);
 		nodeFs.__isNodeFs = true;
 		nodeFs.glob = async (pattern, opts) => {
 			const results = [];
@@ -118,7 +117,7 @@ export const fileHandler = {
             );
         }
         try {
-            const s = await nodeFs.stat(abs);
+            const s = await nodeFs.promises.stat(abs);
             return {
                 size: s.size,
                 mtime: s.mtimeMs,
