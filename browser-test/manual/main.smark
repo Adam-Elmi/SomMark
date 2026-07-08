@@ -8,29 +8,29 @@
     Module system works in browser.
   [end]
 
-  [Card = title: "Static Logic"]
-    static ${ new Date().getFullYear() }$ edition.
-  [end]
+  # [Card = title: "Static Logic"]
+  #   static ${ new Date().getFullYear() }$ edition.
+  # [end]
 
-  [Card = title: "Runtime Logic"]
-    [div]
-        runtime ${
-        self.textContent = "Manipulating element via runtime block";
-        }$
-    [end]
-  [end]
+  # [Card = title: "Runtime Logic"]
+  #   [div]
+  #       runtime ${
+  #       self.textContent = "Manipulating element via runtime block";
+  #       }$
+  #   [end]
+  # [end]
 
-   [Card = title: "SomMark Version"]
-    Lastest version is static ${ SomMark.version }$.
-   [end]
+  #  [Card = title: "SomMark Version"]
+  #   Lastest version is static ${ SomMark.version }$.
+  #  [end]
 
-   [Card = title: "Add Function - import"]
-   Sum of \[1, 2, 3, 4, 5\] is 
-    static ${ 
-    import { add } from "../public/add.js";
-    return add(1, 2, 3, 4, 5); 
-    }$.
-   [end]
+  #  [Card = title: "Add Function - import"]
+  #  Sum of \[1, 2, 3, 4, 5\] is 
+  #   static ${ 
+  #   import { add } from "../public/add.js";
+  #   return add(1, 2, 3, 4, 5); 
+  #   }$.
+  #  [end]
    
    [Card = title: "Svg - Icon"]
    [svg = xmlns: "http://www.w3.org/2000/svg", width: "2em", height: "2em", viewBox: "0 0 256 256"]

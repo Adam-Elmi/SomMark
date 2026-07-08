@@ -18,7 +18,7 @@
     <div id="output"></div>
     <script type="module">
   import SomMark, { resolveBaseDir, renderCompiledHTML }
-    from "../../dist/sommark.browser.js";
+    from "../../dist/sommark.browser.lite.js";
 
   const src = await fetch("./main.smark").then(r => r.text());
   console.log(src);
