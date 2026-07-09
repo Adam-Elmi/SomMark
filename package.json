@@ -1,6 +1,6 @@
 {
 	"name": "sommark",
-	"version": "5.2.1",
+	"version": "5.3.0",
 	"description": "SomMark is a template language that compiles to multiple output formats — HTML, JSON, YAML, TOML, CSV, Markdown, XML, and more.",
 	"main": "index.js",
 	"files": [

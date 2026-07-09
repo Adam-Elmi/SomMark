@@ -1,5 +1,29 @@
 # Changelog
 
+## v5.3.0 (2026-07-09)
+
+### Added
+
+- **`transpileProps(props)`** — converts raw parser props into real JavaScript values. String `"true"` becomes `true`, `"42"` becomes `42`, `StaticLogic` nodes are evaluated, `RuntimeLogic` nodes are skipped.
+
+  ```js
+  import { parseSync, transpileProps } from "sommark";
+
+  const nodes = parseSync(`[Metadata = title: "My Page", published: "true", count: "3" !]`);
+  const meta = nodes.find(n => n.id === "Metadata");
+
+  const props = await transpileProps(meta.props);
+  // props.title     → "My Page"
+  // props.published → true
+  // props.count     → 3
+  ```
+
+- **`Evaluator.hasActive`** — returns `true` if a QuickJS context is currently running, `false` otherwise. Safe to call anywhere — does not throw outside a transpile.
+
+### Removed
+
+- **`helpers/safeDataParser.js`** — unused internal file, deleted.
+
 ## v5.2.1 (2026-07-08)
 
 ### Fixed

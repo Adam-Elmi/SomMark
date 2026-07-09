@@ -2,7 +2,7 @@ import { VirtualFS } from "./helpers/virtual-fs.js";
 import { FetchFS } from "./helpers/fetch-fs.js";
 import lexer from "./core/lexer.js";
 import parser from "./core/parser.js";
-import transpiler from "./core/transpiler.js";
+import transpiler, { transpileProps } from "./core/transpiler.js";
 import Mapper from "./mappers/mapper.js";
 import { registerSharedOutputs } from "./mappers/shared/index.js";
 import HTML from "./mappers/languages/html.js";
@@ -462,6 +462,7 @@ export {
 	safeArg,
 	findAndLoadConfig,
 	Evaluator,
-	preprocessRuntimeLogic
+	preprocessRuntimeLogic,
+	transpileProps
 };
 export default SomMark;

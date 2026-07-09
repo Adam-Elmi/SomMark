@@ -5,6 +5,7 @@ import { matchedValue } from "../helpers/utils.js";
 import { dedentBy } from "../helpers/dedent.js";
 import { preprocessRuntimeLogic } from "./helpers/preprocessor.js";
 import { wrapRuntimeLogic } from "./helpers/runtimeOutput.js";
+
 import path from "pathe";
 
 function warnDroppedVariables(variables) {
@@ -798,6 +799,61 @@ async function transpileArgs(props) {
 			result[key] = value;
 		}
 	}
+	return result;
+}
+
+/**
+ * Evaluates raw parser props into plain values.
+ *
+ * - StaticLogic nodes (${ }$) are executed through the active QuickJS evaluator
+ *   when one is running (Node.js or browser during a transpile), or via
+ *   new Function as a fallback for standalone calls.
+ * - RuntimeLogic nodes are skipped — they belong in the browser, not in data.
+ * - String values are coerced to their natural types: "true" → true, "42" → 42,
+ *   JSON-like objects/arrays are parsed, everything else stays a string.
+ *
+ * This is the host-side counterpart to transpileArgs. Use it anywhere you need
+ * evaluated props from raw parser output (e.g. reading [Metadata] blocks).
+ * Inside QuickJS, use new Function directly — it is already sandboxed.
+ */
+export async function transpileProps(props) {
+	const result = {};
+	if (!props) return result;
+
+	for (const [key, value] of Object.entries(props)) {
+		if (!isNaN(Number(key))) continue;
+
+		if (value && typeof value === "object") {
+			if (value.type === RUNTIME_LOGIC) {
+				continue;
+			} else if (value.type === STATIC_LOGIC && typeof value.code === "string") {
+				try {
+					if (evaluator.hasActive) {
+						result[key] = await evaluator.execute(value.code, value.baseDir || null);
+					} else {
+						result[key] = new Function(`return (${value.code.trim()})`)();
+					}
+				} catch {
+					result[key] = value.code;
+				}
+			} else {
+				result[key] = value;
+			}
+		} else if (typeof value === "string") {
+			if (value === "true") result[key] = true;
+			else if (value === "false") result[key] = false;
+			else if (value === "null") result[key] = null;
+			else if (value.trim() !== "" && !isNaN(Number(value))) result[key] = Number(value);
+			else if ((value.startsWith("{") && value.endsWith("}")) || (value.startsWith("[") && value.endsWith("]"))) {
+				try { result[key] = JSON.parse(value); } catch { result[key] = value; }
+			} else {
+				result[key] = value;
+			}
+		} else {
+			result[key] = value;
+		}
+	}
+
 	return result;
 }
 

@@ -1221,6 +1221,10 @@ class Evaluator {
         setDefaultAsyncLocalStorage(cls);
     }
 
+    get hasActive() {
+        try { return this._getStack().length > 0; } catch { return false; }
+    }
+
     get active() {
         const stack = this._getStack();
         if (stack.length === 0) {
