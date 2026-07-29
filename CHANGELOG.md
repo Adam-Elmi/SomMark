@@ -1,5 +1,55 @@
 # Changelog
 
+## v5.3.1 (2026-07-29)
+
+### Fixed
+
+- **`[for-each]` inside `handleAst`-mode blocks now auto-expands at the core level.** Previously, a block registered with `handleAst: true` (`[List]`, `[Table]`, `[Object]`, `[mapping]`, `[table]`, etc.) received a raw, unexpanded `FOR_EACH` node in `ast.body` and had to notice and resolve it itself. `[Table]` did this; `[List]` didn't, so `[for-each]` nested inside `[List]` silently produced empty output with no error. Closes #21.
+
+  The core `handleAst` body walk in `core/transpiler.js` now expands `[for-each]` into real per-iteration `BLOCK`/`TEXT` nodes before any block ever sees them, via a new `expandForEachForHandleAst` helper. `BLOCK` children are tagged with a `__loopScope` snapshot (loop variable, `i`, `length`), since a block may call `renderChild` on them arbitrarily later, after the loop that produced them has ended. `generateOutput` restores that exact scope around a tagged node's evaluation, wherever and whenever it's actually rendered.
+
+  This is a structural fix, not a per-block one: `[List]` needed no changes at all, and neither did any other `handleAst` block across every mapper (`json.js`'s `[Object]`/`[Array]`, `yaml.js`'s `[mapping]`/`[seq]`, `toml.js`'s `[table]`/`[array-table]`, `html.js`, `xml.js`, `mdx.js`). All now support `[for-each]` for free, and any future `handleAst` block will too.
+
+  ```ini
+  [List = "dot"]
+    [for-each = ${ ["a", "b", "c"] }$, as: "v"]
+      [item]${ v }$[end]
+    [end:for-each]
+  [end:List]
+  ```
+
+  ```markdown
+  - a
+  - b
+  - c
+  ```
+
+- **`${ }$` results inside `handleAst`-mode blocks are now also pushed into `ast.body`, not just folded into `textContent`.** The `handleAst` walk previously evaluated a `STATIC_LOGIC` child and appended its result onto a flattened `richText` string, but never added any node for it to `cleanBody`. Blocks that read `textContent` (like `[Table]`) never noticed, but blocks that manually walk `ast.body` in document order — like markdown's `[item]` — silently dropped any bare `${ x }$` interpolation, with or without `[for-each]` involved. A resolved `STATIC_LOGIC` value is now also pushed into `cleanBody` as a synthesized `TEXT` node, in its correct position.
+
+  ```ini
+  [item]${ f.title }$[end]
+  ```
+
+  Previously rendered as an empty list item; now renders the interpolated value correctly.
+
+- **`[string]`/`[number]`/`[bool]` in the JSON mapper ignored the value in the two-positional-arg key-value form outside `[Array]`.** `[string = "name", "SomMark" !]` produced `"name": ""` instead of `"name": "SomMark"` — the key resolved correctly, the value silently didn't. Closes #22.
+
+  Root cause: SomMark's parser mirrors every named prop into a positional slot too, in declaration order, so `[string = key: "bio", trim: true]` produces `props` shaped like `{"0":"bio","1":"true",key:"bio",trim:"true"}`. The value lookup previously used a fixed `index: inArray ? 0 : undefined`, which disabled positional lookup entirely outside arrays, so it always fell through to a `value:` named prop or `textContent` — neither present for the bare two-positional-arg form. Fixed to check whether `key` was actually named before trusting position `1`: `index: inArray ? 0 : (props.key === undefined ? 1 : undefined)`. This also fixes the documented dynamic-key pattern from `docs/languages/json.md`: `[string = ${ key }$, ${ value }$ !]` inside a `[for-each]`.
+
+  ```ini
+  [Object]
+    [string = "name", "SomMark" !]
+    [number = "port", "5432" !]
+  [end:Object]
+  ```
+
+  ```json
+  {
+    "name": "SomMark",
+    "port": 5432
+  }
+  ```
+
 ## v5.3.0 (2026-07-09)
 
 ### Added

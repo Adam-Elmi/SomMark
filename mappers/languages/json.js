@@ -58,18 +58,18 @@ Json.register(["string", "str"], ({ props, textContent, inArray }) => {
 		setType: v => v === "true" || v === true,
 		fallBack: false
 	});
-	const raw = safeArg({ props, index: inArray ? 0 : undefined, key: "value", fallBack: textContent });
+	const raw = safeArg({ props, index: inArray ? 0 : (props.key === undefined ? 1 : undefined), key: "value", fallBack: textContent });
 	return renderMember(props, escapeString(raw, trim), inArray);
 }, { handleAst: true });
 
 Json.register("number", ({ props, textContent, inArray }) => {
-	const raw = String(safeArg({ props, index: inArray ? 0 : undefined, key: "value", fallBack: textContent })).trim();
+	const raw = String(safeArg({ props, index: inArray ? 0 : (props.key === undefined ? 1 : undefined), key: "value", fallBack: textContent })).trim();
 	const val = (isNaN(Number(raw)) || raw === "") ? "0" : raw;
 	return renderMember(props, val, inArray);
 }, { handleAst: true });
 
 Json.register("bool", ({ props, textContent, inArray }) => {
-	const raw = String(safeArg({ props, index: inArray ? 0 : undefined, key: "value", fallBack: textContent })).trim().toLowerCase();
+	const raw = String(safeArg({ props, index: inArray ? 0 : (props.key === undefined ? 1 : undefined), key: "value", fallBack: textContent })).trim().toLowerCase();
 	return renderMember(props, (raw === "true" || raw === "1") ? "true" : "false", inArray);
 }, { handleAst: true });
 

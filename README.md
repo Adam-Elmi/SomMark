@@ -9,9 +9,6 @@
 
 Write your content once with a single consistent block syntax. Add loops, compile-time logic, and file imports. Compile to whatever format your project needs.
 
-> **v5 is the official stable release and the recommended version to start with.**
-> SomMark has reached its main goal — a single consistent block syntax that compiles to any output format. v5 is the last major version. Future releases will be minor updates or patches.
-
 ---
 
 ## Install

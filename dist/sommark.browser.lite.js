@@ -8956,9 +8956,157 @@ function getNodeText(node) {
 }
 
 
-/** 
+/**
+ * Validates a [for-each] node's props and returns its resolved items array and alias name.
+ * Shared by the top-level FOR_EACH evaluator and the handleAst structural expander below —
+ * both need identical validation, so this is the single source of truth for it.
+ *
+ * @param {Object} node - The FOR_EACH ast node.
+ * @param {Object} mapper_file - The active mapper, used to resolve safeArg/transpileArgs.
+ * @returns {Promise<{items: Array, asVar: string}|null>} - null if validation failed (error already reported).
+ */
+async function resolveForEachIteration(node, mapper_file) {
+	const transpiledArgs = await transpileArgs(node.props);
+
+	if (!node.props || (node.props[0] === undefined && node.props["items"] === undefined)) {
+		const line = node.range?.start?.line + 1 || 1;
+		transpilerError([
+			`<$red:Missing Prop Error in [for-each]:$>{line}`,
+			`[for-each] requires an array as its first prop, e.g. [for-each = \${ array }\$]{line}`,
+			`at line <$yellow:${line}$>{line}`
+		]);
+		return null;
+	}
+
+	const items = mapper_file ? mapper_file.safeArg({ props: transpiledArgs, index: 0, key: "items", fallBack: [] }) : [];
+
+	if (!Array.isArray(items)) {
+		const line = node.range?.start?.line + 1 || 1;
+		transpilerError([
+			`<$red:Type Error in [for-each]:$>{line}`,
+			`Expected an <$green:Array$> for 'items', but received <$yellow:${typeof items}$>:<$cyan: ${JSON.stringify(items)}$>{line}`,
+			`at line <$yellow:${line}$>{line}`
+		]);
+		return null;
+	}
+
+	const asVar = transpiledArgs.as || "value";
+	if (asVar === "i" || asVar === "length") {
+		const line = node.range?.start?.line + 1 || 1;
+		transpilerError([
+			`<$red:Reserved Variable Error in [for-each]:$>{line}`,
+			`'${asVar}' is a reserved variable name.{N}Use a different name for the 'as' prop, e.g. as: "item"{line}`,
+			`at line <$yellow:${line}$>{line}`
+		]);
+		return null;
+	}
+
+	return { items, asVar };
+}
+
+/**
+ * Trims structural leading/trailing whitespace-only TEXT nodes from a [for-each] body,
+ * matching the formatting behavior of the top-level FOR_EACH evaluator.
+ *
+ * @param {Array} body - The raw body array of a FOR_EACH node.
+ * @returns {Array} - The trimmed body array (new array, does not mutate the input).
+ */
+function trimForEachBody(body) {
+	if (!body) return [];
+	let cleanedBody = [...body];
+
+	while (cleanedBody.length > 0 && cleanedBody[0].type === TEXT$1 && /^\s*$/.test(cleanedBody[0].text)) {
+		cleanedBody.shift();
+	}
+	if (cleanedBody.length > 0 && cleanedBody[0].type === TEXT$1) {
+		cleanedBody[0] = { ...cleanedBody[0], text: cleanedBody[0].text.replace(/^\s+/, "") };
+	}
+
+	while (cleanedBody.length > 0 && cleanedBody[cleanedBody.length - 1].type === TEXT$1 && /^\s*$/.test(cleanedBody[cleanedBody.length - 1].text)) {
+		cleanedBody.pop();
+	}
+	if (cleanedBody.length > 0 && cleanedBody[cleanedBody.length - 1].type === TEXT$1) {
+		cleanedBody[cleanedBody.length - 1] = { ...cleanedBody[cleanedBody.length - 1], text: cleanedBody[cleanedBody.length - 1].text.replace(/\s+$/, "") };
+	}
+
+	return cleanedBody;
+}
+
+/**
+ * Structurally expands a [for-each] node found inside a handleAst-mode tag's body
+ * (e.g. [List], [Table]) into real per-iteration nodes, instead of leaving a single
+ * opaque FOR_EACH node for the mapper to deal with itself.
+ *
+ * BLOCK children are cloned and tagged with `__loopScope` — a snapshot of that
+ * iteration's loop variable(s) — because a handleAst mapper may call `renderChild`
+ * on them arbitrarily later (after this function returns and the loop scope that
+ * produced them is long gone). `generateOutput` checks for `__loopScope` on every
+ * node it processes and temporarily restores it around that node's own evaluation,
+ * so nested ${ }$ expressions and props resolve exactly as if the loop var were
+ * still live. TEXT children need no such handling, they carry no code to evaluate.
+ * STATIC_LOGIC children are evaluated immediately, right here, while the real scope
+ * is live, and folded into a plain TEXT node — mirroring how the handleAst walk
+ * already treats STATIC_LOGIC siblings outside of any [for-each].
+ *
+ * @param {Object} forEachNode - The FOR_EACH ast node found inside a handleAst tag's body.
+ * @param {Object} mapper_file - The active mapper.
+ * @returns {Promise<Array>} - Flat array of expanded nodes, ready to push into cleanBody.
+ */
+async function expandForEachForHandleAst(forEachNode, mapper_file) {
+	const resolved = await resolveForEachIteration(forEachNode, mapper_file);
+	if (!resolved) return [];
+	const { items, asVar } = resolved;
+	const cleanedBody = trimForEachBody(forEachNode.body);
+
+	const expanded = [];
+	let idx = 0;
+	const length = items.length;
+
+	for (const item of items) {
+		const loopScope = { [asVar]: item, i: idx++, length };
+
+		for (const child of cleanedBody) {
+			if (child.type === BLOCK) {
+				expanded.push({ ...child, __loopScope: { ...(child.__loopScope || {}), ...loopScope } });
+			} else if (child.type === TEXT$1) {
+				expanded.push(child);
+			} else if (child.type === FOR_EACH) {
+				// Nested [for-each]: expand recursively, then layer this level's loop
+				// variable underneath so both are visible to the innermost nodes.
+				const nested = await expandForEachForHandleAst(child, mapper_file);
+				for (const n of nested) {
+					expanded.push(n.type === BLOCK ? { ...n, __loopScope: { ...loopScope, ...(n.__loopScope || {}) } } : n);
+				}
+			} else if (child.type === STATIC_LOGIC) {
+				Evaluator.pushScope();
+				Evaluator.inject(loopScope);
+				try {
+					const val = await Evaluator.execute(child.code, child.baseDir || null);
+					if (val !== undefined && typeof val !== "object") {
+						expanded.push({ type: TEXT$1, text: String(val), range: child.range, depth: child.depth });
+					}
+				} catch (err) {
+					const line = child.range?.start?.line + 1 || 1;
+					transpilerError([
+						`<$red:Logic Error:$> ${err.message}{line}`,
+						`<$yellow:Code:$> <$blue:${child.code}$>{line}`,
+						`at line <$yellow:${line}$>{line}`
+					]);
+				} finally {
+					await Evaluator.popScope();
+				}
+			}
+			// COMMENT / COMMENT_BLOCK / RUNTIME_LOGIC are not structurally meaningful
+			// to a handleAst mapper's ast.body walk, same as they aren't outside a loop.
+		}
+	}
+
+	return expanded;
+}
+
+/**
  * Converts a code node into its final format (like HTML).
- * 
+ *
  * @param {Object|Object[]} ast - The node or list of nodes to convert.
  * @param {number} i - The current position in the list.
  * @param {string} format - The target format (e.g., 'html').
@@ -8966,6 +9114,20 @@ function getNodeText(node) {
  * @returns {Promise<string>} - The final text for this node.
  */
 async function generateOutput(ast, i, format, mapper_file, security = {}, parentId = null, generateRuntimeOutput = false, hideRuntimeOutput = false, instance = null, idState = null, extraCtx = {}) {
+	const node = Array.isArray(ast) ? ast[i] : ast;
+	if (node && node.__loopScope) {
+		Evaluator.pushScope();
+		Evaluator.inject(node.__loopScope);
+		try {
+			return await generateOutputCore(ast, i, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState, extraCtx);
+		} finally {
+			await Evaluator.popScope();
+		}
+	}
+	return await generateOutputCore(ast, i, format, mapper_file, security, parentId, generateRuntimeOutput, hideRuntimeOutput, instance, idState, extraCtx);
+}
+
+async function generateOutputCore(ast, i, format, mapper_file, security = {}, parentId = null, generateRuntimeOutput = false, hideRuntimeOutput = false, instance = null, idState = null, extraCtx = {}) {
 	const node = Array.isArray(ast) ? ast[i] : ast;
 	if (!node) return "";
 
@@ -9231,15 +9393,30 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 			Evaluator.pushScope();
 			try {
 				for (const child of (node.body || [])) {
-					if (child.type === BLOCK || child.type === TEXT$1 || child.type === FOR_EACH) {
+					if (child.type === BLOCK || child.type === TEXT$1) {
 						cleanBody.push(child);
 						if (child.type === TEXT$1) {
 							richText += mapper_file ? mapper_file.text(String(child.text || ""), target.options) : String(child.text || "");
 						}
+					} else if (child.type === FOR_EACH) {
+						const expandedNodes = await expandForEachForHandleAst(child, mapper_file);
+						for (const en of expandedNodes) {
+							cleanBody.push(en);
+							if (en.type === TEXT$1) {
+								richText += mapper_file ? mapper_file.text(String(en.text || ""), target.options) : String(en.text || "");
+							}
+						}
 					} else if (child.type === STATIC_LOGIC) {
 						try {
 							const val = await Evaluator.execute(child.code, child.baseDir || null);
-							if (val !== undefined && typeof val !== "object") richText += String(val);
+							if (val !== undefined && typeof val !== "object") {
+								const resolvedText = String(val);
+								richText += resolvedText;
+								// Also push into cleanBody as a real TEXT node — tags that manually
+								// walk ast.body (instead of relying on textContent) need this to see
+								// interpolated values in their correct position, e.g. [item]${ x }$[end].
+								cleanBody.push({ type: TEXT$1, text: resolvedText, range: child.range, depth: child.depth });
+							}
 						} catch (err) {
 							const line = child.range?.start?.line + 1 || 1;
 							transpilerError([
@@ -9258,7 +9435,6 @@ async function generateOutput(ast, i, format, mapper_file, security = {}, parent
 							richText += mapper_file ? mapper_file.runtimeLogic(preprocessed, child.depth === 1, secretId || parentId) : "";
 						}
 					}
-					// FOR_EACH → silently ignored
 				}
 
 				const cleanAst = { ...node, body: cleanBody };
@@ -11493,18 +11669,18 @@ Json.register(["string", "str"], ({ props, textContent, inArray }) => {
 		setType: v => v === "true" || v === true,
 		fallBack: false
 	});
-	const raw = safeArg$1({ props, index: inArray ? 0 : undefined, key: "value", fallBack: textContent });
+	const raw = safeArg$1({ props, index: inArray ? 0 : (props.key === undefined ? 1 : undefined), key: "value", fallBack: textContent });
 	return renderMember(props, escapeString(raw, trim), inArray);
 }, { handleAst: true });
 
 Json.register("number", ({ props, textContent, inArray }) => {
-	const raw = String(safeArg$1({ props, index: inArray ? 0 : undefined, key: "value", fallBack: textContent })).trim();
+	const raw = String(safeArg$1({ props, index: inArray ? 0 : (props.key === undefined ? 1 : undefined), key: "value", fallBack: textContent })).trim();
 	const val = (isNaN(Number(raw)) || raw === "") ? "0" : raw;
 	return renderMember(props, val, inArray);
 }, { handleAst: true });
 
 Json.register("bool", ({ props, textContent, inArray }) => {
-	const raw = String(safeArg$1({ props, index: inArray ? 0 : undefined, key: "value", fallBack: textContent })).trim().toLowerCase();
+	const raw = String(safeArg$1({ props, index: inArray ? 0 : (props.key === undefined ? 1 : undefined), key: "value", fallBack: textContent })).trim().toLowerCase();
 	return renderMember(props, (raw === "true" || raw === "1") ? "true" : "false", inArray);
 }, { handleAst: true });
 
