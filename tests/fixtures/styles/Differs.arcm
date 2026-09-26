@@ -1,0 +1,5 @@
+${ const { color } = ArcMoon.props(); }$
+[p]x[end]
+[style]
+  p { color: ${ color }$; }
+[end:style]
