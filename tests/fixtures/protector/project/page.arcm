@@ -1,0 +1,2 @@
+[import = Post: "../external/blog/Post.arcm" !]
+[main][Post!][end:main]

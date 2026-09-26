@@ -1,0 +1,30 @@
+[import = Layout: "./Layout.arcm"!]
+[import = A: "./A.arcm"!]
+[import = B: "./B.arcm"!]
+
+${
+  import {version} from "../package.json";
+  export { version };
+}$
+
+runtime ${
+  import { svgTagNames } from "svg-tag-names";
+}$
+
+${
+  import { htmlTagNames } from "html-tag-names";
+}$
+
+[Layout]
+[A]
+[B !]
+[end]
+
+
+[div]Current version is:  runtime ${ version }$[end]
+
+[p]npm at compile time: ${ htmlTagNames.length }$ HTML tags[end]
+
+[p]npm at runtime: runtime ${ svgTagNames.length }$ SVG tags[end]
+
+[end:Layout]

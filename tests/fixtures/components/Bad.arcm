@@ -1,0 +1,3 @@
+[p]
+  ${ const x = null; x.title }$
+[end:p]

@@ -1,0 +1,5 @@
+${ const { title, tone = "gray" } = ArcMoon.props(); }$
+[div = class: ${ `card card-${tone}` }$]
+  [h2]${ title }$[end:h2]
+  [slot!]
+[end:div]

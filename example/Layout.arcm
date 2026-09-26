@@ -1,0 +1,7 @@
+[Doctype !]
+[html]
+[head][end:head]
+[body]
+[slot !]
+[end:body]
+[end:html]

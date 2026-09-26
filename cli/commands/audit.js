@@ -1,0 +1,30 @@
+// ###################
+// audit: show what templates do, run nothing
+// ###################
+
+import path from "node:path";
+import { arcmFiles } from "../helpers/file.js";
+import { loadConfig } from "../helpers/config.js";
+import { graph } from "../helpers/compile.js";
+import { cliError } from "../helpers/errors.js";
+import { analyze, readTrust, formatReport } from "../../node/protector.js";
+
+export async function runAudit(target) {
+	if (!target) cliError("missing file or folder: arcmoon audit <file|dir>");
+	try {
+		const config = await loadConfig();
+		const trusted = (await readTrust(process.cwd())).templates ?? {};
+		for (const file of await arcmFiles(target)) {
+			const result = await analyze(await graph(file, config), { root: process.cwd() });
+			console.log(`\n${file}`);
+			if (result.own) console.log(`  Your files (${result.own.files.length}):\n${formatReport(result.own)}`);
+			for (const t of result.templates) {
+				const state = trusted[t.key]?.hash === t.hash ? "✓ trusted" : trusted[t.key] ? "⚠ changed since trusted" : "⚠ not trusted";
+				console.log(`\n  Template "${t.key}" (${state}):\n${formatReport(t)}`);
+			}
+			if (!result.templates.length) console.log(`\n  No templates from outside ${path.basename(process.cwd())}.`);
+		}
+	} catch (err) {
+		cliError(err.message);
+	}
+}

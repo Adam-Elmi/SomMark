@@ -1,0 +1,110 @@
+// ###################
+// Runtime logic tests: bundle runs in jsdom
+// ###################
+
+import { describe, it, expect, vi } from "vitest";
+import { fileURLToPath } from "node:url";
+import { JSDOM } from "jsdom";
+import ArcMoon from "../node/compiler.js";
+
+const FIXTURES = fileURLToPath(new URL("./fixtures", import.meta.url));
+
+const compile = (src, options = {}) => new ArcMoon({ src, cwd: FIXTURES, ...options }).compile();
+
+// ###################
+// jsdom doesn't run module scripts; the bundle has no import/export left
+// ###################
+const open = (html) => new JSDOM(html.replace(`<script type="module">`, "<script>"), { runScripts: "dangerously" }).window.document;
+
+const PAGE =
+	`[import = Counter: "./components/Counter.arcm" !]\n` +
+	`\${ export const title = "Runtime"; export const when = new Date(0); }\$\n` +
+	`[html][body]\n` +
+	`[h1 = arcm-ref: "title"]\${ title }\$[end:h1]\n` +
+	`[span = arcm-shared-ref: "items"]1[end:span][span = arcm-shared-ref: "items"]2[end:span]\n` +
+	`[Counter = start: 5 !][Counter = start: 10 !]\n` +
+	`[end:body][end:html]\n` +
+	`runtime \${\n` +
+	`  ArcMoon.ref(ArcMoon.defineRef("title")).dataset.ok = title + "|" + when.getTime();\n` +
+	`  ArcMoon.refs(ArcMoon.defineRef("items")).forEach((s) => (s.dataset.n = "x" + s.textContent));\n` +
+	`}\$`;
+
+describe("runtime", () => {
+	it("puts one module script at the end of <body>", async () => {
+		const html = await compile(PAGE);
+		expect(html.match(/<script type="module">/g)).toHaveLength(1);
+		expect(html).toMatch(/<\/script><\/body><\/html>\n?$/);
+	});
+
+	it("writes unique ref ids and initial live values", async () => {
+		const html = await compile(PAGE);
+		expect(html).toContain(`<h1 data-arcm-ref="title-u0">`);
+		expect(html).toContain(`<span data-arcm-ref="items-u0">1</span><span data-arcm-ref="items-u0">2</span>`);
+		expect(html).toContain(`<button data-arcm-ref="btn-u1"><!--arcm:t0-->5<!--/arcm--></button>`);
+		expect(html).toContain(`<button data-arcm-ref="btn-u2"><!--arcm:t1-->10<!--/arcm--></button>`);
+	});
+
+	it("runs refs, exported values and live values in the browser", async () => {
+		const doc = open(await compile(PAGE));
+		const [a, b] = doc.querySelectorAll("button");
+		a.click();
+		b.click();
+		b.click();
+		expect(a.textContent).toBe("6");
+		expect(b.textContent).toBe("12");
+		expect(a.className).toBe("cold");
+		expect(b.className).toBe("hot");
+		expect(a.dataset.ready).toBe("yes");
+		expect(doc.querySelector("h1").dataset.ok).toBe("Runtime|0");
+		expect([...doc.querySelectorAll("span")].map((s) => s.dataset.n)).toEqual(["x1", "x2"]);
+	});
+
+	it("leaves arcmoon/reactive out of pages without live values or signals", async () => {
+		const refOnly = await compile(`[div = arcm-ref: "r"][end]\nruntime \${ ArcMoon.ref(ArcMoon.defineRef("r")).textContent = 5; }\$`);
+		const live = await compile(`runtime \${ const sum = 5; }\$\n[div]runtime \${ sum }\$[end]`);
+		expect(refOnly).not.toMatch(/depsTail/);
+		expect(live).toMatch(/depsTail/);
+		expect(open(refOnly).querySelector("div").textContent).toBe("5");
+		expect(open(live).querySelector("div").textContent).toBe("5");
+	});
+
+	it("sends an exported import to runtime code", async () => {
+		const doc = open(await compile(`\${ import { name } from "./data.json"; export { name }; }\$\n[p]runtime \${ name }\$[end]`));
+		expect(doc.querySelector("p").textContent).toBe("demo");
+	});
+
+	it("keeps the text around a live value", async () => {
+		const doc = open(await compile(`runtime \${ const n = 94; }\$\n[p]before runtime \${ n }\$ after[end]`));
+		expect(doc.querySelector("p").textContent).toBe("before 94 after");
+		const named = open(await compile(`runtime \${ const el = "e"; const n = "n"; const on = () => {}; }\$\n[p = title: runtime \${ el }\$, onclick: runtime \${ on }\$]\${ "x" }\$runtime \${ n }\$[end]`));
+		expect(named.querySelector("p").title).toBe("e");
+		expect(named.querySelector("p").textContent).toBe("xn");
+	});
+
+	it("adds no script when there is no runtime code", async () => {
+		expect(await compile(`[p]a[end]`)).toBe(`<p>a</p>`);
+	});
+
+	it("warns about refs no runtime code uses", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		await compile(`[p = arcm-ref: "lonely"]a[end]`);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining(`arcm-ref "lonely" is never used`));
+		warn.mockRestore();
+	});
+
+	it.each([
+		[`\${ const secret = "x"; }\$[p]a[end]\nruntime \${ console.log(secret); }\$`, /uses "secret", which is not exported/],
+		[`\${ import { name } from "./data.json"; }\$[p]runtime \${ name }\$[end]`, /uses "name", which is not exported .*export \{ name \}/],
+		[`[b = arcm-ref: "my-btn"]x[end]\nruntime \${ ArcMoon.defineRef("my-bnt"); }\$`, /matches no arcm-ref .*did you mean "my-btn"/],
+		[`[b = arcm-ref: "x"]1[end][b = arcm-ref: "x"]2[end]\nruntime \${ ArcMoon.defineRef("x"); }\$`, /single ref "x" is attached to 2 elements/],
+		[`[b = arcm-shared-ref: "it"]1[end]\nruntime \${ const r = ArcMoon.defineRef("it"); ArcMoon.ref(r); }\$`, /ArcMoon\.ref\(\) used with shared ref "it"/],
+		[`[p]a[end]\nruntime \${ import c from "canvas-confetti"; c(); }\$`, /"canvas-confetti" is not listed in bundle/],
+		[`[p]a[end]\nruntime \${ import fs from "node:fs"; }\$`, /"node:fs" is a Node\.js module/],
+		[`\${ export const f = () => 1; }\$[p]a[end]\nruntime \${ f(); }\$`, /"f" is a function/],
+		[`[p]a[end]\nruntime \${ export const x = 1; }\$`, /export is not allowed in runtime code/],
+		[`[div]runtime \${ import { a } from "./a.js"; a(); }\$[end]`, /runtime \$\{ \}\$ inside \[div\] must be one expression .*\n.*move this runtime \$\{ \}\$ to the top level/],
+		[`[p = class: runtime \${ const a = 1; a }\$]x[end]`, /runtime \$\{ \}\$ for "class" on \[p\] must be one expression/]
+	])("rejects %s", async (src, message) => {
+		await expect(compile(src)).rejects.toThrow(message);
+	});
+});

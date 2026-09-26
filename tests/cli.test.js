@@ -1,0 +1,125 @@
+// ###################
+// CLI tests: run the real arcmoon command in a temp project
+// ###################
+
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import pkg from "../package.json" with { type: "json" };
+
+const CLI = fileURLToPath(new URL("../cli/cli.mjs", import.meta.url));
+const exec = promisify(execFile);
+
+let dir;
+let site;
+
+// ###################
+// Run arcmoon; never throws, returns code and output
+// ###################
+const arcmoon = async (...args) => {
+	try {
+		const { stdout, stderr } = await exec("node", [CLI, ...args], { cwd: site });
+		return { code: 0, stdout, stderr };
+	} catch (err) {
+		return { code: err.code, stdout: err.stdout, stderr: err.stderr };
+	}
+};
+
+beforeEach(async () => {
+	dir = await mkdtemp(join(tmpdir(), "arcmoon-cli-"));
+	site = join(dir, "site");
+	await mkdir(join(site, "src/components"), { recursive: true });
+	await mkdir(join(site, "pages"), { recursive: true });
+	await mkdir(join(dir, "theme"), { recursive: true });
+	await writeFile(join(site, "src/components/Card.arcm"), `\${ const { title } = ArcMoon.props(); }\$\n[div = class: "card"][h2]\${ title }\$[end][slot!][end]`);
+	await writeFile(join(site, "pages/index.arcm"), `[import = Card: "@/components/Card.arcm" !]\n[main][Card = title: "Home"]Hi[end:Card][end:main]`);
+	await writeFile(join(site, "pages/themed.arcm"), `[import = Hero: "../../theme/Hero.arcm" !]\n[Hero!]`);
+	await writeFile(join(dir, "theme/Hero.arcm"), `\${ const key = process.env.SECRET_KEY; }\$\n[section]hero[end]`);
+});
+
+afterEach(async () => {
+	await rm(dir, { recursive: true, force: true });
+});
+
+describe("cli", () => {
+	it("prints the header, version and help", async () => {
+		expect((await arcmoon()).stdout).toContain(`ArcMoon-${pkg.version}`);
+		expect((await arcmoon("-v")).stdout.trim()).toBe(pkg.version);
+		expect((await arcmoon("--help")).stdout).toContain("Usage: arcmoon <command>");
+	});
+
+	it("rejects unknown commands", async () => {
+		const r = await arcmoon("frobnicate");
+		expect(r.code).toBe(1);
+		expect(r.stdout).toContain("Unrecognized option 'frobnicate'");
+	});
+
+	it("init creates the config once", async () => {
+		expect((await arcmoon("init")).stdout).toContain("✓ Created");
+		expect((await arcmoon("init")).stdout).toContain("Config already exists");
+		expect(await readFile(join(site, "arcmoon.config.js"), "utf8")).toContain(`outDir: "./dist"`);
+	});
+
+	it("show reads the config from the current folder only", async () => {
+		expect((await arcmoon("show", "--path-config")).stdout).toContain("no arcmoon.config.js");
+		await arcmoon("init");
+		const r = await arcmoon("show", "config");
+		expect(JSON.parse(r.stdout)).toMatchObject({ importAliases: { "@": "./src" }, outDir: "./dist" });
+	});
+
+	it("warns when the config exports nothing", async () => {
+		await writeFile(join(site, "arcmoon.config.js"), "");
+		const r = await arcmoon("show", "config");
+		expect(r.stderr).toContain("arcmoon.config.js exports nothing; using the default settings");
+		expect(JSON.parse(r.stdout)).toEqual({});
+	});
+
+	it("build -p prints HTML using the config aliases", async () => {
+		await arcmoon("init");
+		const r = await arcmoon("build", "pages/index.arcm", "-p");
+		expect(r.stdout.replace(/\s*\n\s*/g, "")).toBe(`<main><div class="card"><h2>Home</h2>Hi</div></main>`);
+	});
+
+	it("build writes files to -o", async () => {
+		await arcmoon("init");
+		const r = await arcmoon("build", "pages/index.arcm", "-o", "out");
+		expect(r.stdout).toContain("✓ pages/index.arcm → out/index.html");
+		expect(await readdir(join(site, "out"))).toEqual(["index.html"]);
+	});
+
+	it("build stops at an untrusted template, then works after trust", async () => {
+		await arcmoon("init");
+		const blocked = await arcmoon("build", "pages");
+		expect(blocked.code).toBe(1);
+		expect(blocked.stderr).toMatch(/^⚠ Template "\.\.\/theme" is not trusted/);
+		expect(blocked.stderr).toContain("SECRET_KEY");
+
+		const audit = await arcmoon("audit", "pages/themed.arcm");
+		expect(audit.stdout).toContain(`Template "../theme" (⚠ not trusted)`);
+
+		expect((await arcmoon("trust", "pages/themed.arcm")).stdout).toContain(`✓ Trusted "../theme"`);
+		expect((await arcmoon("trust", "--list")).stdout).toContain("../theme");
+		expect((await arcmoon("audit", "pages/themed.arcm")).stdout).toContain(`Template "../theme" (✓ trusted)`);
+
+		const built = await arcmoon("build", "pages");
+		expect(built.code).toBe(0);
+		expect((await readdir(join(site, "dist"))).sort()).toEqual(["index.html", "themed.html"]);
+
+		expect((await arcmoon("untrust", "../theme")).stdout).toContain(`✓ Untrusted "../theme"`);
+		expect((await arcmoon("build", "pages/themed.arcm")).code).toBe(1);
+	});
+
+	it("reports missing files and arguments", async () => {
+		expect((await arcmoon("build", "nope.arcm")).stderr).toContain(`✗ "nope.arcm" is not found`);
+		expect((await arcmoon("build", "pages/index.arcm", "-o")).stderr).toContain("✗ missing folder after -o");
+	});
+
+	it("prints tokens and the AST", async () => {
+		expect(JSON.parse((await arcmoon("--lex", "pages/index.arcm")).stdout)[0].type).toBe("OPEN_BRACKET");
+		expect(JSON.parse((await arcmoon("--parse", "pages/index.arcm")).stdout)[0]).toMatchObject({ type: "Import", name: "Card" });
+	});
+});
