@@ -1,0 +1,9 @@
+[import = Inner: "./Inner.arcm" !]
+[div = class: "box"][h2]Box[end][slot!][Inner!][end]
+[style]
+  .box { padding: 1rem; }
+  h2, p::before { color: tomato; }
+  :global(.dark) h2 { color: white; }
+  @media (max-width: 600px) { .box { padding: 0; } }
+  @keyframes spin { from { opacity: 0; } }
+[end:style]
