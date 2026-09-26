@@ -1,0 +1,4 @@
+[p]x[end]
+[style]
+  p { color: runtime ${ c() }$; }
+[end:style]
