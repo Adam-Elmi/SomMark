@@ -116,6 +116,12 @@ describe("runtime", () => {
 		expect(large).toEqual([{ source: expect.stringMatching(/anonymous\.arcm$/), position: { line: 2, character: 23 }, message: `exported value "big" is 58.6 kB; it is copied into the page's JS for each use. Export only what runtime code needs` }]);
 	});
 
+	it("names files relative to the project, never by absolute path", async () => {
+		const html = await compile(`runtime \${ const x = 1; }\$\n[p]a[end]`, { filename: "page.arcm" });
+		expect(html).toContain(`file:"page.arcm"`);
+		expect(html).not.toContain(FIXTURES);
+	});
+
 	it("adds no script when there is no runtime code", async () => {
 		expect(await compile(`[p]a[end]`)).toBe(`<p>a</p>`);
 	});

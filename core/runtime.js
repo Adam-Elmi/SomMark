@@ -431,7 +431,7 @@ export default function prepareRuntime(result) {
 			}
 			if (!found) {
 				const names = [u, ...descendants(u)].flatMap((d) => [...d.attached.keys()]);
-				throw new RuntimeError(`defineRef("${name}") matches no arcm-ref in ${u.module}${suggest(name, names)}`, f.id, pos);
+				throw new RuntimeError(`defineRef("${name}") matches no arcm-ref in ${fileName(u.module)}${suggest(name, names)}`, f.id, pos);
 			}
 			found.used = true;
 			refs[name] = ids ? { name, id: found.id, ids, shared: true } : { name, id: found.id, shared: found.shared };
@@ -509,14 +509,17 @@ export default function prepareRuntime(result) {
 	// The entry module: imports [script] files, the client and each file, runs each use
 	// dom is an optional JS expression passed as run()'s third argument
 	// ###################
-	const entry = ({ client, fileSpecs, scriptSpecs = [], version, dom = null }) =>
+	// ###################
+	// label(id) names a file in runtime error messages; Node passes a project-relative path
+	// ###################
+	const entry = ({ client, fileSpecs, scriptSpecs = [], version, dom = null, label = (id) => id }) =>
 		[
 			...scriptSpecs.map((spec) => `import ${JSON.stringify(spec)};`),
 			...(runs.length ? [`import { run } from ${JSON.stringify(client)};`] : []),
 			...fileSpecs.map((spec, i) => `import m${i} from ${JSON.stringify(spec)};`),
 			...runs.map((r) => {
 				const i = fileList.indexOf(r.file);
-				const use = `{ file: ${JSON.stringify(r.use.module)}, version: ${JSON.stringify(version)}, refs: ${JSON.stringify(r.refs)}, live: ${JSON.stringify(r.live)}, values: ${r.values}${r.use.styles ? `, styles: ${JSON.stringify(r.use.styles)}` : ""} }`;
+				const use = `{ file: ${JSON.stringify(label(r.use.module))}, version: ${JSON.stringify(version)}, refs: ${JSON.stringify(r.refs)}, live: ${JSON.stringify(r.live)}, values: ${r.values}${r.use.styles ? `, styles: ${JSON.stringify(r.use.styles)}` : ""} }`;
 				return `run(m${i}, ${use}${dom ? `, ${dom}` : ""});`;
 			})
 		].join("\n");

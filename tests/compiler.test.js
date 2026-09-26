@@ -6,6 +6,7 @@ import { describe, it, expect, vi } from "vitest";
 import { readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import ArcMoon from "../node/compiler.js";
+import pkg from "../package.json" with { type: "json" };
 
 const FIXTURES = fileURLToPath(new URL("./fixtures", import.meta.url));
 
@@ -105,7 +106,7 @@ describe("compile: ${ }$ in Node.js", () => {
 
 	it("reads page props and ArcMoon.version", async () => {
 		const html = await compile(`\${ const { name } = ArcMoon.props(); }\$[p]\${ name }\$ \${ ArcMoon.version }\$[end]`, { props: { name: "Adam" } });
-		expect(html).toBe(`<p>Adam 1.0.0</p>`);
+		expect(html).toBe(`<p>Adam ${pkg.version}</p>`);
 	});
 
 	it("gives an element's own props inside it", async () => {

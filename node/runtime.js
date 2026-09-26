@@ -3,7 +3,7 @@
 // Inline (one page, one string) or files (many pages, shared chunks)
 // ###################
 
-import { dirname, isAbsolute, resolve, sep } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { builtinModules } from "node:module";
@@ -44,7 +44,8 @@ const pluginFor = (pages, { allowed, version, cwd }) => {
 					client: CLIENT,
 					fileSpecs: prepared.files.map((_, i) => `arcm-file:${page.index}:${i}`),
 					scriptSpecs: prepared.scripts.map((s) => scriptPath(s, cwd)),
-					version
+					version,
+					label: (id) => (isAbsolute(id) ? relative(cwd, id).split(sep).join("/") : id)
 				});
 				return { contents, loader: "js", resolveDir: cwd };
 			});

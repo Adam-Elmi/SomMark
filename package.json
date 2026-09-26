@@ -1,15 +1,36 @@
 {
   "name": "arcmoon",
-  "version": "1.0.0",
+  "version": "1.0.0-beta.0",
   "description": "ArcMoon is a template language that compiles to HTML.",
+  "keywords": [
+    "template-language",
+    "html",
+    "ssg",
+    "static-site-generator",
+    "components",
+    "signals",
+    "reactivity",
+    "esbuild",
+    "arcmoon"
+  ],
+  "homepage": "https://github.com/Adam-Elmi/ArcMoon#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Adam-Elmi/ArcMoon.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Adam-Elmi/ArcMoon/issues"
+  },
   "scripts": {
     "test": "vitest run",
     "build": "node scripts/build.js",
     "prepublishOnly": "npm test && npm run build"
   },
-  "keywords": [],
   "author": "Adam Elmi",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.10"
+  },
   "type": "module",
   "dependencies": {
     "@babel/code-frame": "^8.0.6",
