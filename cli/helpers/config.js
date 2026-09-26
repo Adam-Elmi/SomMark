@@ -7,6 +7,7 @@ import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { isExist } from "./file.js";
 import { CONFIG_FILE } from "../constants.js";
+import { reportWarning } from "./report.js";
 
 let resolvedConfigPath = null;
 
@@ -20,7 +21,7 @@ export async function loadConfig(root = process.cwd()) {
 	const loaded = await import(`${pathToFileURL(file).href}?t=${Date.now()}`);
 	const empty = !(await readFile(file, "utf8")).trim();
 	if (empty || loaded.default === undefined) {
-		console.warn(`⚠ ${file} exports nothing; using the default settings. Add "export default { … }".`);
+		reportWarning({ message: `${file} exports nothing; using the default settings. Add "export default { … }".` });
 	}
 	const config = loaded.default ?? {};
 	if (typeof config !== "object" || Array.isArray(config)) throw new Error(`${CONFIG_FILE} must export an object`);
