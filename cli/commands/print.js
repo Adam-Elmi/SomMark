@@ -18,7 +18,7 @@ export async function printLex(file) {
 	try {
 		console.log(JSON.stringify(lexer(await load(file), file), null, 2));
 	} catch (err) {
-		cliError(err.message);
+		cliError(err);
 	}
 }
 
@@ -26,6 +26,6 @@ export async function printParse(file) {
 	try {
 		console.log(JSON.stringify(parser(lexer(await load(file), file)), null, 2));
 	} catch (err) {
-		cliError(err.message);
+		cliError(err);
 	}
 }
