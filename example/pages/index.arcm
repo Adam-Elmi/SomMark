@@ -1,0 +1,58 @@
+[import = Layout: "@/layouts/Layout.arcm" !]
+[import = Card: "@/components/Card.arcm" !]
+[import = Counter: "@/components/Counter.arcm" !]
+[import = Tag: "@/components/Tag.arcm" !]
+
+# Compile time: runs in Node.js when the page is built
+${
+  import projects from "../src/data/projects.json";
+  import { htmlTagNames } from "html-tag-names";
+  export const first = "svg";
+}$
+
+[Layout = title: "Home"]
+  [h1]ArcMoon example[end]
+  [p]At build time, ArcMoon knows ${ htmlTagNames.length }$ HTML tag names.[end]
+
+  [h2]Cards: [code]for-each[end], props and slots[end]
+  [div = class: "grid"]
+    [for-each = ${ projects }$, as: "project"]
+      [Card = title: ${ `${i + 1}. ${project.name}` }$, accent: ${ project.color }$]${ project.about }$[end]
+    [end]
+    [Card = title: "Empty card" !]
+  [end]
+
+  [h2]Counters: each use has its own state[end]
+  [Counter = start: 2, max: 5 !]
+  [Counter !]
+
+  [h2]Tags: one shared ref from many components[end]
+  [for-each = ${ ["html", "css", "js"] }$, as: "name"][Tag = name: ${ name }$ !] [end]
+  [p]Selected: runtime ${ selected() }$[end]
+
+  [h2]npm in the browser[end]
+  [p]Random SVG tag: [code]runtime ${ tag() }$[end] [button = onclick: runtime ${ () => tag(pick(svgTagNames)) }$]Pick[end][end]
+[end:Layout]
+
+# Runtime: bundled for the browser
+runtime ${
+  import { signal } from "arcmoon/reactive";
+  import { svgTagNames } from "svg-tag-names";
+  import { pick } from "../src/scripts/pick.js";
+
+  const tag = signal(first);
+  const selected = signal("none");
+
+  const tags = ArcMoon.refs(ArcMoon.defineRef("tag"));
+  for (const t of tags) {
+    t.onclick = () => {
+      t.classList.toggle("on");
+      selected(tags.filter((x) => x.classList.contains("on")).map((x) => x.textContent).join(", ") || "none");
+    };
+  }
+}$
+
+# A page [style] is global
+[style]
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 1rem; }
+[end:style]
