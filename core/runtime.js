@@ -353,8 +353,9 @@ export default function prepareRuntime(result) {
 		// A live value using an unknown name close to a declared one: likely a typo
 		// ###################
 		for (const l of lives) {
+			const own = declaredIn(l.ast);
 			for (const name of referencedIn(l.ast)) {
-				if (declared.has(name) || info.staticNames.has(name) || name === "ArcMoon" || name in globalThis) continue;
+				if (declared.has(name) || own.has(name) || info.staticNames.has(name) || name === "ArcMoon" || name in globalThis) continue;
 				const best = closest(name, [...declared]);
 				if (!best) continue;
 				const pos = usedAt.get(name) ?? at(l.marker);

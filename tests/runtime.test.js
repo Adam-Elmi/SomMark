@@ -90,6 +90,14 @@ describe("runtime", () => {
 		expect(messages[0]).toMatch(/"cout" is not defined in this file's runtime code \(did you mean "count"\?\)/);
 	});
 
+	it("doesn't warn about names a live value declares itself", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		await compile(`runtime \${ import { signal } from "arcmoon/reactive"; const on = signal(""); }\$\n[input = oninput: runtime \${ (e) => on(e.target.value) }\$ !][p]runtime \${ on() }\$[end]`);
+		const messages = warn.mock.calls.map((c) => c[0]);
+		warn.mockRestore();
+		expect(messages).toEqual([]);
+	});
+
 	it.each([
 		[`[b = arcm-ref: "x"]1[end]\n  [i = arcm-ref: "x"]2[end]\nruntime \${ ArcMoon.defineRef("x"); }\$`, /anonymous\.arcm:2:3 {2}single ref "x"/],
 		[`[p]a[end]\nruntime \${\n  import c from "canvas-confetti";\n}\$`, /anonymous\.arcm:3:17 {2}runtime import "canvas-confetti" is not listed/],
