@@ -1,0 +1,169 @@
+// @vitest-environment jsdom
+// ###################
+// Browser API tests: render() and compile() in a DOM, with a stand-in worker
+// ###################
+
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { compileInWorker } from "../browser/compile.js";
+import ArcMoon from "../browser/index.js";
+
+const toModuleURL = (code) => `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`;
+
+// ###################
+// Same messages as a real worker, cloned like postMessage does
+// ###################
+const fakeWorker = () => {
+	const listeners = new Set();
+	return {
+		addEventListener: (_, f) => listeners.add(f),
+		removeEventListener: (_, f) => listeners.delete(f),
+		postMessage: async ({ id, request }) => {
+			let data;
+			try {
+				data = structuredClone({ id, ok: true, result: await compileInWorker(request, { toModuleURL }) });
+			} catch (err) {
+				data = { id, ok: false, error: { name: err.name, message: err.message } };
+			}
+			listeners.forEach((f) => f({ data }));
+		}
+	};
+};
+
+const am = (options) => new ArcMoon({ worker: fakeWorker(), toModuleURL, ...options });
+const tick = () => new Promise((r) => setTimeout(r, 50));
+
+const mount = async (options) => {
+	const host = document.createElement("div");
+	host.append(await am(options).render());
+	document.body.append(host);
+	await tick();
+	return host;
+};
+
+afterEach(() => {
+	document.body.innerHTML = "";
+});
+
+describe("render()", () => {
+	it("returns a DocumentFragment of real elements", async () => {
+		const fragment = await am({ src: `[main = class: "a  b"][p]Hi \${ 20 + 1 }\$[end][end]` }).render();
+		expect(fragment).toBeInstanceOf(DocumentFragment);
+		expect(fragment.querySelector("main").className).toBe("a b");
+		expect(fragment.querySelector("p").textContent).toBe("Hi 21");
+	});
+
+	it("turns { raw } HTML into elements", async () => {
+		const fragment = await am({ src: `[div]\${ { raw: "<em>x</em><b>y</b>" } }\$[end]` }).render();
+		expect(fragment.querySelector("em").textContent).toBe("x");
+		expect(fragment.querySelector("b").textContent).toBe("y");
+	});
+
+	it("runs runtime code after insertion: signals, events, live attributes, refs", async () => {
+		const host = await mount({
+			src:
+				`runtime \${\n  import { signal, computed } from "arcmoon/reactive";\n  const count = signal(0);\n  const hot = computed(() => count() > 1);\n  ArcMoon.ref(ArcMoon.defineRef("btn")).dataset.ready = "yes";\n}\$\n` +
+				`[button = arcm-ref: "btn", class: runtime \${ hot() ? "hot" : "cold" }\$, onclick: runtime \${ () => count(count() + 1) }\$]runtime \${ count() }\$ clicks[end]`
+		});
+		const button = host.querySelector("button");
+		expect(button.hasAttribute("data-arcm-ref")).toBe(false);
+		expect(button.dataset.ready).toBe("yes");
+		button.click();
+		button.click();
+		expect(button.textContent).toBe("2 clicks");
+		expect(button.className).toBe("hot");
+	});
+
+	it("gives each component use its own runtime state", async () => {
+		const host = await mount({
+			src: `[import = Counter: "./Counter.arcm" !][Counter!][Counter!]`,
+			files: {
+				"Counter.arcm": `runtime \${ import { signal } from "arcmoon/reactive"; const n = signal(0); }\$\n[button = onclick: runtime \${ () => n(n() + 1) }\$]runtime \${ n() }\$[end]`
+			}
+		});
+		const [a, b] = host.querySelectorAll("button");
+		a.click();
+		expect([a.textContent, b.textContent]).toEqual(["1", "0"]);
+	});
+
+	it("updates live values in a page [style] and -- props", async () => {
+		const host = await mount({
+			src:
+				`runtime \${ import { signal } from "arcmoon/reactive"; const c = signal("red"); const w = signal("10px"); }\$\n` +
+				`[style]p { color: runtime \${ c() }\$; }[end]\n` +
+				`[p = --w: runtime \${ w() }\$, onclick: runtime \${ () => { c("blue"); w("20px"); } }\$]x[end]`
+		});
+		const p = host.querySelector("p");
+		expect(host.querySelector("style").textContent).toBe("p { color: red; }");
+		expect(p.style.getPropertyValue("--w")).toBe("10px");
+		p.click();
+		expect(host.querySelector("style").textContent).toBe("p { color: blue; }");
+		expect(p.style.getPropertyValue("--w")).toBe("20px");
+	});
+
+	it("collects a shared ref from several components, in page order", async () => {
+		const host = await mount({
+			src: `[import = A: "./A.arcm" !][import = B: "./B.arcm" !]\n[B!][A!][B!]\nruntime \${ ArcMoon.refs(ArcMoon.defineRef("btn")).forEach((b, i) => (b.dataset.i = i)); }\$`,
+			files: {
+				"A.arcm": `[button = arcm-shared-ref: "btn"]a[end]`,
+				"B.arcm": `[button = arcm-shared-ref: "btn"]b[end]`
+			}
+		});
+		expect([...host.querySelectorAll("button")].map((b) => b.textContent + b.dataset.i)).toEqual(["b0", "a1", "b2"]);
+	});
+
+	it("names the files when a ref can't be collected", async () => {
+		const files = { "A.arcm": `[button = arcm-ref: "btn"]a[end]`, "B.arcm": `[button = arcm-shared-ref: "btn"]b[end]` };
+		const src = (uses) => `[import = A: "./A.arcm" !][import = B: "./B.arcm" !]\n${uses}\nruntime \${ ArcMoon.defineRef("btn"); }\$`;
+		await expect(am({ src: src("[A!][B!]"), files }).render()).rejects.toThrow(
+			/anonymous\.arcm:3:12 {2}ref "btn" is attached in more than one component: A\.arcm \(arcm-ref\), B\.arcm \(arcm-shared-ref\)\. A parent can only collect shared refs/
+		);
+		await expect(am({ src: src("[A!][A!]"), files }).render()).rejects.toThrow(/more than one component: A\.arcm \(arcm-ref\) ×2\./);
+	});
+
+	it("loads runtime imports from files and the packages map", async () => {
+		const host = await mount({
+			src: `runtime \${ import { add } from "./add.js"; import shout from "shout"; const out = shout(String(add(2, 3))); }\$\n[p]runtime \${ out }\$[end]`,
+			files: { "add.js": "export const add = (a, b) => a + b;" },
+			packages: { shout: toModuleURL(`export default (s) => s + "!";`) }
+		});
+		expect(host.querySelector("p").textContent).toBe("5!");
+	});
+
+	it("loads [script = src] files from files", async () => {
+		await mount({
+			src: `[p]a[end][script = src: "./lib/app.js" !]`,
+			files: { "lib/app.js": `import { two } from "./two.js"; window.__fromScript = two * 21;`, "lib/two.js": "export const two = 2;" }
+		});
+		expect(window.__fromScript).toBe(42);
+	});
+
+	it("rejects node: modules in runtime code", async () => {
+		await expect(am({ src: `runtime \${ import fs from "node:fs"; }\$[p]a[end]` }).render()).rejects.toThrow(/"node:fs" is a Node\.js module/);
+	});
+
+	it("passes worker errors and warnings on", async () => {
+		await expect(am({ src: `[p]\${ nope() }\$[end]` }).render()).rejects.toThrow(/anonymous\.arcm:1:7 {2}ReferenceError: nope is not defined/);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		await am({ src: `[dvi]x[end]` }).render();
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining("did you mean [div]"));
+		warn.mockRestore();
+	});
+});
+
+describe("compile() in the browser", () => {
+	it("gives the same HTML as render() for markup", async () => {
+		const src = `[import = Card: "./Card.arcm" !]\n[main][Card = title: "A & B" !][svg = viewBox: "0 0 1 1"][circle = r: 1 !][end][input = checked: true, disabled: false !][end]`;
+		const files = { "Card.arcm": `\${ const { title } = ArcMoon.props(); }\$[div = class: "card"][h2]\${ title }\$[end][end]` };
+		const fromString = document.createElement("div");
+		fromString.innerHTML = await am({ src, files }).compile();
+		const fromDom = document.createElement("div");
+		fromDom.append(await am({ src, files }).render());
+		expect(fromDom.innerHTML).toBe(fromString.innerHTML);
+	});
+
+	it("adds runtime code as one inline module script", async () => {
+		const html = await am({ src: `runtime \${ const n = 1; }\$\n[p]runtime \${ n }\$[end]` }).compile();
+		expect(html.match(/<script type="module">/g)).toHaveLength(1);
+		expect(html).toContain(`<p><!--arcm:t0--><!--/arcm--></p>`);
+	});
+});
