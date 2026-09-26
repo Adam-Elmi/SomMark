@@ -1,0 +1,4 @@
+[head][link = rel: "stylesheet", href: "./shell.css" !][end]
+[style]
+  head { display: none; }
+[end:style]

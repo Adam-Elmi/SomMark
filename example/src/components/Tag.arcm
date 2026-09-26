@@ -1,0 +1,7 @@
+# Tag: every Tag's button joins the shared ref "tag"; the page collects them all
+${ const { name } = ArcMoon.props(); }$
+[button = class: "tag", arcm-shared-ref: "tag"]${ name }$[end]
+[style]
+  .tag { border: 1px solid; border-radius: 99px; padding: 0.2rem 0.8rem; background: none; }
+  .tag.on { background: gold; }
+[end:style]

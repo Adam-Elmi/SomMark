@@ -1,0 +1,5 @@
+[
+	{ "name": "Lexer", "about": "Turns .arcm text into tokens.", "color": "#0984e3" },
+	{ "name": "Evaluator", "about": "Runs ${ }$ in Node.js.", "color": "#00b894" },
+	{ "name": "Runtime", "about": "Live values, refs and signals in the browser.", "color": "#e17055" }
+]

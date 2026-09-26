@@ -1,0 +1,21 @@
+# Counter: exported values start the signal; live text, class, disabled, event and --fill
+${
+  const { start = 0, max = 10 } = ArcMoon.props();
+  export const initial = start;
+  export const limit = max;
+}$
+runtime ${
+  import { signal, computed } from "arcmoon/reactive";
+  const count = signal(initial);
+  const full = computed(() => count() >= limit);
+}$
+[div = class: "counter"]
+  [button = onclick: runtime ${ () => count(count() + 1) }$, disabled: runtime ${ full() }$]+1[end]
+  [span = class: runtime ${ full() ? "full" : "" }$]runtime ${ count() }$[end] / ${ max }$
+  [div = class: "bar", --fill: runtime ${ (count() / limit) * 100 + "%" }$][end]
+[end]
+[style]
+  .counter { margin: 0.5rem 0; }
+  .bar { height: 6px; width: var(--fill); background: tomato; transition: width 0.2s; }
+  .full { color: tomato; font-weight: bold; }
+[end:style]

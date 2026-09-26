@@ -1,0 +1,32 @@
+# Layout: every page puts its content in [slot]
+${ const { title = "ArcMoon" } = ArcMoon.props(); }$
+[doctype!]
+[html = lang: "en"]
+  [head]
+    [meta = charset: "utf-8" !]
+    [meta = name: "viewport", content: "width=device-width, initial-scale=1" !]
+    [title]${ title }$ · ArcMoon example[end]
+    [link = rel: "stylesheet", href: "../styles/main.css" !]
+  [end]
+  [body]
+    [header = class: "site"]
+      [nav][a = href: "./index.html"]Home[end] [a = href: "./about.html"]About[end][end]
+      [button = arcm-ref: "theme"]Dark / light[end]
+    [end]
+    [main][slot]Nothing here yet.[end][end]
+    [footer]Built with ArcMoon ${ ArcMoon.version }$[end]
+    [script = src: "../scripts/visit.js" !]
+  [end]
+[end]
+
+runtime ${
+  const theme = ArcMoon.ref(ArcMoon.defineRef("theme"));
+  theme.onclick = () => document.documentElement.classList.toggle("dark");
+}$
+
+# Scoped: only the layout's own header and footer
+[style]
+  header.site { display: flex; justify-content: space-between; align-items: center; }
+  footer { margin-top: 3rem; font-size: 0.85rem; color: #666; }
+  :global(.dark) footer { color: #aaa; }
+[end:style]

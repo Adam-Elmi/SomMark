@@ -1,0 +1,10 @@
+# Card: a title prop, a --accent CSS variable, slot content with a fallback
+${ const { title, accent = "#6c5ce7" } = ArcMoon.props(); }$
+[article = class: "card", --accent: ${ accent }$]
+  [h3]${ title }$[end]
+  [slot]No description.[end]
+[end]
+[style]
+  .card { border: 2px solid var(--accent); border-radius: 8px; padding: 1rem; }
+  h3 { color: var(--accent); margin: 0 0 0.5rem; }
+[end:style]
