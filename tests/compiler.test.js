@@ -43,8 +43,39 @@ describe("compile: markup", () => {
 	});
 
 	it("removes comments unless asked to keep them", async () => {
-		expect(await compile(`# hi\n[p]a[end]`)).toBe(`\n<p>a</p>`);
+		expect(await compile(`# hi\n[p]a[end]`)).toBe(`<p>a</p>`);
 		expect(await compile(`# hi\n[p]a[end]`, { removeComments: false })).toBe(`<!-- hi-->\n<p>a</p>`);
+	});
+});
+
+describe("compile: lines with no output", () => {
+	it("removes lines that hold only imports, silent ${ }$ blocks, runtime blocks or comments", async () => {
+		const src = [
+			`[import = Card: "./components/Card.arcm" !]`,
+			`\${`,
+			`  const n = 2;`,
+			`}\$`,
+			`runtime \${ const r = 1; }\$`,
+			`# a note`,
+			`[main]`,
+			`  \${ const inner = 1; }\$`,
+			`  [p]\${ n }\$[end]`,
+			``,
+			`  [p]b[end]`,
+			`[end]`
+		].join("\n");
+		const html = await compile(src);
+		expect(html.split("<script")[0]).toBe(`<main>\n  <p>2</p>\n\n  <p>b</p>\n</main>`);
+	});
+
+	it("keeps lines where a ${ }$ outputs something, or other content shares the line", async () => {
+		expect(await compile(`\${ 1 + 1 }\$\n[p]a[end]`)).toBe(`2\n<p>a</p>`);
+		expect(await compile(`x \${ const a = 1; }\$\n[p]a[end]`)).toBe(`x \n<p>a</p>`);
+		expect(await compile(`[import = C: "./components/Card.arcm" !] [import = D: "./components/Bad.arcm" !]\n[p]a[end]`)).toBe(`<p>a</p>`);
+	});
+
+	it("puts nothing before <!doctype html>", async () => {
+		expect(await compile(`\n\n  [doctype!]\n[html][end]`)).toBe(`<!doctype html>\n<html></html>`);
 	});
 });
 
@@ -129,9 +160,30 @@ describe("compile: unknown tag warnings", () => {
 		]);
 	});
 
+	it("warns when a capitalized block that isn't imported is written as HTML", async () => {
+		expect(await warnings(`[A !][B]x[end][a]y[end][Doctype !]`)).toEqual([
+			`1:1  [A] is not imported; it is written as <a>. Did you forget [import = A: "./A.arcm" !]?`,
+			`1:6  [B] is not imported; it is written as <b>. Did you forget [import = B: "./B.arcm" !]?`
+		]);
+	});
+
+	it("warns when ArcMoon.props() inside an element reads a prop it doesn't have", async () => {
+		const w = await warnings(`[div][h2 = id: "t"]\${ ArcMoon.props().title }\$ \${ ArcMoon.props().id }\$[end][end]`);
+		expect(w).toEqual([`1:22  ArcMoon.props() inside [h2] returns the [h2]'s props, which have no "title"; for the component's props, call it at the top of the file`]);
+	});
+
+	it("warns when a ${ name }$ output is undefined", async () => {
+		const w = await warnings(`\${ const { title } = ArcMoon.props(); const obj = {}; }\$[p]\${ title }\$ \${ obj.name }\$ \${ obj.x ?? "ok" }\$[end]`);
+		expect(w).toEqual([
+			`1:62  \${ title }\$ is undefined (prop "title" wasn't passed)`,
+			`1:74  \${ obj.name }\$ is undefined`
+		]);
+		expect(await warnings(`\${ const { title } = ArcMoon.props(); }\$[p]\${ title }\$[end]`)).toHaveLength(1);
+	});
+
 	it("accepts HTML, SVG, MathML, custom elements, doctype and components", async () => {
 		expect(await warnings(
-			`[import = Card: "./components/Card.arcm" !]\n[Doctype !][Section][svg][foreignObject][end][clippath][end][end][math][mrow][end][end][my-widget][end][Card = title: "x" !][end]`
+			`[import = Card: "./components/Card.arcm" !]\n[Doctype !][section][svg][foreignObject][end][clippath][end][end][math][mrow][end][end][my-widget][end][Card = title: "x" !][end]`
 		)).toEqual([]);
 	});
 });
@@ -146,7 +198,7 @@ describe("compile: errors point to the .arcm file", () => {
 		[`[import = L: "./components/Loop.arcm" !][L!]`, /circular import/],
 		[`\${ if (1) { return 2 } }\$`, /return is only allowed as the last statement/],
 		[`\${ ({ a: 1 }) }\$`, /can't render \[object Object\]/],
-		[`[div]\${ add(2,3) }\$[end]`, /anonymous\.arcm:1:8 {2}ReferenceError: add is not defined/],
+		[`[div]\${ add(2,3) }\$[end]`, /anonymous\.arcm:1:9 {2}ReferenceError: add is not defined/],
 		[`\${ import x from "not-a-real-pkg"; }\$`, /anonymous\.arcm {2}can't find package "not-a-real-pkg"; run npm install not-a-real-pkg/],
 		[`\${ import x from "./nope.js"; }\$`, /anonymous\.arcm {2}can't find file ".*nope\.js"/]
 	])("%s", async (src, message) => {

@@ -99,7 +99,7 @@ export default async function loadModules(entry, host, options = {}) {
 
 		markComponents(ast, imports);
 		stack.pop();
-		modules.set(id, { id, ast, imports });
+		modules.set(id, { id, src, ast, imports });
 	};
 
 	await visit(entry.id, entry.src, null);

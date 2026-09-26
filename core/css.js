@@ -169,6 +169,7 @@ export const addStyleHref = (tree, href) => addToHead(tree, { type: "element", t
 
 const isLocal = (href) => typeof href === "string" && href !== "" && !/^([a-z][a-z\d+.-]*:|\/\/|#)/i.test(href);
 const LINK_PROPS = new Set(["rel", "href", "type"]);
+const SCOPE_ATTR = /^data-a-[0-9a-z]+$/;
 
 // ###################
 // Take the page's CSS out of the tree, in page order, for bundling:
@@ -179,23 +180,39 @@ const LINK_PROPS = new Set(["rel", "href", "type"]);
 export function collectStyles(tree) {
 	const pieces = [];
 	const scoped = [];
+
+	// ###################
+	// Take a node out; a line it had alone goes too (like §5.7)
+	// ###################
+	const remove = (children, k) => {
+		children.splice(k, 1);
+		const before = children[k - 1];
+		const after = children[k];
+		const isText = (n) => n?.type === "text";
+		const lineStart = !before || (isText(before) && (/\n[ \t]*$/.test(before.value) || (k - 1 === 0 && /^[ \t]*$/.test(before.value))));
+		const lineEnd = !after || (isText(after) && /^[ \t]*(\r?\n|$)/.test(after.value));
+		if (!lineStart || !lineEnd) return;
+		if (isText(before)) before.value = before.value.replace(/[ \t]*$/, "");
+		if (isText(after)) after.value = after.value.replace(/^[ \t]*\r?\n?/, "");
+	};
+
 	const visit = (children, inSvg) => {
 		for (let k = 0; k < children.length; k++) {
 			const node = children[k];
 			if (node.type !== "element") continue;
 			const tag = node.tagName.toLowerCase();
-			const props = Object.keys(node.properties).filter((key) => !/^\d+$/.test(key));
+			const props = Object.keys(node.properties).filter((key) => !/^\d+$/.test(key) && !SCOPE_ATTR.test(key));
 			const { source, position } = node.data ?? {};
 
 			if (tag === "link" && !inSvg && isLocal(node.properties.href) && String(node.properties.rel ?? "").split(/\s+/).includes("stylesheet") && props.every((key) => LINK_PROPS.has(key))) {
 				pieces.push({ file: node.properties.href, source, position });
-				children.splice(k--, 1);
+				remove(children, k--);
 				continue;
 			}
 			if (tag === "style" && !inSvg && !props.length && node.data?.directives?.raw !== true && node.children.every((c) => c.type === "text" || c.type === "raw")) {
 				if (node.data?.sheets) scoped.push(...node.data.sheets.map((s) => ({ css: s.css, source: s.source, position: null })));
 				else pieces.push({ css: cssText(node), source, position });
-				children.splice(k--, 1);
+				remove(children, k--);
 				continue;
 			}
 			visit(node.children, inSvg || tag === "svg");

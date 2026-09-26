@@ -52,6 +52,13 @@ describe("protector: analyze", () => {
 		expect(t.hash).toMatch(/^sha256-[0-9a-f]{64}$/);
 	});
 
+	it("reports [script = src] files and hashes them", async () => {
+		const g = await loadModules({ id: join(PROJECT, "page.arcm"), src: `[script = src: "../external/blog/helper.js" !]` }, host);
+		const { own } = await analyze(g, { root: PROJECT });
+		expect([...own.report.localScripts]).toEqual([fileURLToPath(new URL("./fixtures/protector/external/blog/helper.js", import.meta.url))]);
+		expect(own.report.scriptTags).toBe(1);
+	});
+
 	it("names node_modules templates by package and reads fs as read-only", async () => {
 		const { templates } = await analyze(await graphOf("uses-package.arcm"), { root: PROJECT });
 		expect(templates[0].key).toBe("fancy-ui");

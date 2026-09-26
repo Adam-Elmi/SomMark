@@ -18,18 +18,29 @@ const liveComment = (id) => {
 	return comments.get(id);
 };
 
-const byRef = (id) => [...document.querySelectorAll(`[data-arcm-ref="${id}"]`)];
+// ###################
+// Where elements are found: the whole page, or elements render() already built
+// ###################
+const pageDom = {
+	byRef: (id) => [...document.querySelectorAll(`[data-arcm-ref="${id}"]`)],
+	liveComment
+};
 
 // ###################
 // Set an attribute the same way the compiler writes it
 // ###################
 const setAttr = (el, name, value) => {
+	if (name.startsWith("--")) {
+		if (value === null || value === undefined || value === false) el.style.removeProperty(name);
+		else el.style.setProperty(name, String(value));
+		return;
+	}
 	if (name === "value" || name === "checked") el[name] = value;
 	if (value === null || value === undefined || value === false) el.removeAttribute(name);
 	else el.setAttribute(name, value === true ? "" : String(value));
 };
 
-export const run = (fn, use) => {
+export const run = (fn, use, dom = pageDom) => {
 	const ArcMoon = Object.freeze({
 		version: use.version,
 		defineRef(name) {
@@ -39,21 +50,33 @@ export const run = (fn, use) => {
 		},
 		ref(ref) {
 			if (ref.shared) throw new Error(`"${ref.name}" is a shared ref; use ArcMoon.refs()`);
-			return byRef(ref.id)[0] ?? null;
+			return dom.byRef(ref.id)[0] ?? null;
 		},
 		refs(ref) {
 			if (!ref.shared) throw new Error(`"${ref.name}" is a single ref; use ArcMoon.ref()`);
-			return byRef(ref.id);
+			if (!ref.ids) return dom.byRef(ref.id);
+			// ###################
+			// Shared refs collected from several components, in page order
+			// ###################
+			return ref.ids.flatMap((id) => dom.byRef(id)).sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
 		}
 	});
 
 	const live = (k, bind) => {
 		for (const target of use.live[k] ?? []) {
-			if (target.text) {
+			if (target.part !== undefined) {
+				// ###################
+				// Live text inside <style>: rebuild the whole CSS text
+				// ###################
+				const el = dom.byRef(target.id)[0];
+				const parts = use.styles?.[target.id];
+				if (!el || !parts) continue;
+				bind({ set data(v) { parts[target.part] = v; el.textContent = parts.join(""); } });
+			} else if (target.text) {
 				// ###################
 				// Live text sits between <!--arcm:id--> and <!--/arcm-->
 				// ###################
-				const mark = liveComment(target.id);
+				const mark = dom.liveComment(target.id);
 				if (!mark) continue;
 				while (mark.nextSibling && !(mark.nextSibling.nodeType === Node.COMMENT_NODE && mark.nextSibling.data === "/arcm")) {
 					mark.nextSibling.remove();
@@ -62,7 +85,7 @@ export const run = (fn, use) => {
 				mark.after(node);
 				bind(node);
 			} else {
-				const el = byRef(target.id)[0];
+				const el = dom.byRef(target.id)[0];
 				if (el) bind(el);
 			}
 		}

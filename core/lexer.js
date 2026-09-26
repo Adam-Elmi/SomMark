@@ -70,6 +70,8 @@ export default function lexer(src, filename = "anonymous") {
 	let rawKey = false;
 	let rawOn = false;
 	let selfClosing = false;
+	let blockName = null;
+	let inStyle = false;
 
 	const fail = (message) => {
 		throw new LexerError(message, filename, line, character);
@@ -265,6 +267,7 @@ export default function lexer(src, filename = "anonymous") {
 		rawKey = false;
 		rawOn = false;
 		selfClosing = false;
+		blockName = null;
 	};
 
 	const closeBlock = () => {
@@ -272,7 +275,28 @@ export default function lexer(src, filename = "anonymous") {
 		inHeader = false;
 		atBlockName = false;
 		if (rawOn && !selfClosing) readRaw();
+		else if (blockName === "style" && !selfClosing) inStyle = true;
 		rawOn = false;
+	};
+
+	// ###################
+	// [style] body: only text, logic, \[end and \${; the rest is plain CSS
+	// ###################
+	const atStyleEnd = (j) => src.startsWith("[end]", j) || src.startsWith("[end:", j);
+
+	const readStyle = () => {
+		if (src.startsWith("\\[end", i)) return add(T.TEXT, "[end", "\\[end");
+		if (src.startsWith("\\${", i)) return add(T.TEXT, "${", "\\${");
+		let j = i + 1;
+		while (j < src.length) {
+			const d = src[j];
+			if (d === "\n" || atStyleEnd(j)) break;
+			if (d === "$" && src[j + 1] === "{") break;
+			if (d === "\\" && (src.startsWith("\\[end", j) || src.startsWith("\\${", j))) break;
+			if (d === "r" && runtimeAt(j)) break;
+			j++;
+		}
+		add(T.TEXT, src.slice(i, j));
 	};
 
 	// ###################
@@ -294,6 +318,7 @@ export default function lexer(src, filename = "anonymous") {
 			atBlockName = false;
 			const name = readWhile(NAME_STOP);
 			if (name === "end" || name.startsWith("end:")) return add(T.END_KEYWORD, name);
+			blockName = name;
 			return add(BLOCK_KEYWORDS[name] ?? T.IDENTIFIER, name);
 		}
 
@@ -333,6 +358,7 @@ export default function lexer(src, filename = "anonymous") {
 
 	while (i < src.length) {
 		const c = src[i];
+		if (inStyle && atStyleEnd(i)) inStyle = false;
 
 		if (c === "\n") {
 			add(T.WHITESPACE, "\n");
@@ -340,6 +366,8 @@ export default function lexer(src, filename = "anonymous") {
 			let j = i;
 			while (j < src.length && isSpace(src[j])) j++;
 			add(T.WHITESPACE, src.slice(i, j));
+		} else if (inStyle && !(c === "$" && src[i + 1] === "{") && !(c === "r" && runtimeAt(i))) {
+			readStyle();
 		} else if (c === "#") {
 			readComment();
 		} else if (c === "\\") {

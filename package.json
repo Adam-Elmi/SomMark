@@ -2,21 +2,31 @@
   "name": "arcmoon",
   "version": "1.0.0",
   "description": "ArcMoon is a template language that compiles to HTML.",
-  "main": "index.js",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "node scripts/build.js",
+    "prepublishOnly": "npm test && npm run build"
   },
   "keywords": [],
   "author": "Adam Elmi",
   "license": "MIT",
   "type": "module",
   "dependencies": {
+    "@babel/code-frame": "^8.0.6",
     "acorn": "^8.18.0",
     "alien-signals": "^3.2.1",
+    "buffer": "^6.0.3",
     "esbuild": "^0.28.2",
+    "events": "^3.3.0",
+    "hast-util-from-html": "^2.0.3",
+    "hast-util-to-dom": "^4.0.1",
     "hast-util-to-html": "^9.0.5",
     "html-tag-names": "^2.1.0",
     "mathml-tag-names": "^4.0.0",
+    "pathe": "^2.0.3",
+    "picocolors": "^1.1.1",
+    "postcss": "^8.5.28",
+    "postcss-selector-parser": "^7.1.6",
     "property-information": "^7.2.0",
     "svg-tag-names": "^3.0.1"
   },
@@ -27,5 +37,25 @@
   "bin": {
     "arcmoon": "cli/cli.mjs",
     "arcm": "cli/cli.mjs"
-  }
+  },
+  "exports": {
+    ".": {
+      "browser": "./dist/browser.js",
+      "node": "./dist/node.js"
+    },
+    "./core": "./dist/core.js",
+    "./reactive": "./dist/reactive.js"
+  },
+  "files": [
+    "dist/node.js",
+    "dist/browser.js",
+    "dist/worker.js",
+    "dist/core.js",
+    "dist/reactive.js",
+    "core",
+    "node",
+    "runtime",
+    "cli",
+    "assets"
+  ]
 }

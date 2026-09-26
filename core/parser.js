@@ -70,9 +70,9 @@ export default function parser(tokens) {
 			while (peek().type === T.WHITESPACE) i++;
 		}
 		expect(T.LOGIC_OPEN, "expected ${ after runtime");
-		const code = tokens[i++].value;
+		const codeToken = tokens[i++];
 		const close = tokens[i++];
-		return { type, code, range: { start: start.range.start, end: close.range.end } };
+		return { type, code: codeToken.value, codeStart: codeToken.range.start, range: { start: start.range.start, end: close.range.end } };
 	};
 
 	// ###################

@@ -2,7 +2,9 @@
 // Print an error and stop
 // ###################
 
-export const cliError = (message) => {
-	console.error(message.startsWith("⚠") ? message : `✗ ${message}`);
+import { reportError } from "./report.js";
+
+export const cliError = (error) => {
+	reportError(typeof error === "string" ? { message: error } : error);
 	process.exit(1);
 };

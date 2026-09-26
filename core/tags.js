@@ -28,7 +28,16 @@ export default function unknownTags(graph) {
 		const components = [...mod.imports.keys()];
 		const visit = (nodes) => {
 			for (const node of nodes) {
-				if (node.type === N.BLOCK && !isKnown(node.id)) {
+				// ###################
+				// [A] without an import: only HTML when case is ignored, likely a missing import
+				// ###################
+				if (node.type === N.BLOCK && /^[A-Z]/.test(node.id) && isKnown(node.id) && node.id.toLowerCase() !== "doctype") {
+					warnings.push({
+						source: mod.id,
+						position: node.range.start,
+						message: `[${node.id}] is not imported; it is written as <${node.id.toLowerCase()}>. Did you forget [import = ${node.id}: "./${node.id}.arcm" !]?`
+					});
+				} else if (node.type === N.BLOCK && !isKnown(node.id)) {
 					const hint = closest(node.id, components) ?? closest(node.id.toLowerCase(), KNOWN);
 					warnings.push({
 						source: mod.id,

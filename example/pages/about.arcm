@@ -20,7 +20,7 @@ ${
   [h2]Raw body[end]
   [pre = arcm-raw: true, arcm-syntax: "arcm"][Card = title: "Hi"]Body\[end:Card] ${ not run }$[end]
 
-  [h2]Raw HTML from ${ }$[end]
+  [h2]Raw HTML from \${ }$[end]
   [p]${ { raw: "<em>This is HTML</em>, not text." } }$[end]
 
   [h2]CSS variables as props[end]

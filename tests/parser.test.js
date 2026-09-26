@@ -36,7 +36,7 @@ describe("parser", () => {
 
 	it("keeps runtime values in props", () => {
 		const [block] = clean(parse(`[button = onclick: runtime \${ go() }\$]x[end]`));
-		expect(block.props.onclick).toEqual({ type: "RuntimeLogic", code: " go() " });
+		expect(block.props.onclick).toEqual({ type: "RuntimeLogic", code: " go() ", codeStart: { line: 0, character: 29 } });
 	});
 
 	it.each([

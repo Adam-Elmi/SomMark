@@ -81,6 +81,33 @@ describe("runtime", () => {
 		expect(named.querySelector("p").textContent).toBe("xn");
 	});
 
+	it("warns about a likely typo in a live value", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		await compile(`runtime \${ import { signal } from "arcmoon/reactive"; const count = signal(0); }\$\n[p]runtime \${ cout() }\$ runtime \${ innerWidth }\$[end]`);
+		const messages = warn.mock.calls.map((c) => c[0]);
+		warn.mockRestore();
+		expect(messages).toHaveLength(1);
+		expect(messages[0]).toMatch(/"cout" is not defined in this file's runtime code \(did you mean "count"\?\)/);
+	});
+
+	it.each([
+		[`[b = arcm-ref: "x"]1[end]\n  [i = arcm-ref: "x"]2[end]\nruntime \${ ArcMoon.defineRef("x"); }\$`, /anonymous\.arcm:2:3 {2}single ref "x"/],
+		[`[p]a[end]\nruntime \${\n  import c from "canvas-confetti";\n}\$`, /anonymous\.arcm:3:17 {2}runtime import "canvas-confetti" is not listed/],
+		[`[p]a[end]\nruntime \${ import fs from "node:fs"; }\$`, /anonymous\.arcm:2:27 {2}runtime import "node:fs"/],
+		[`\${ export const f = () => 1; }\$[p]a[end]\nruntime \${ const x = 1;\n  f(); }\$`, /anonymous\.arcm:3:3 {2}"f" is a function/],
+		[`\${ const secret = 1; }\$\n[p]runtime \${ secret }\$[end]`, /anonymous\.arcm:2:15 {2}runtime code uses "secret"/],
+		[`[b = arcm-shared-ref: "it"]1[end]\nruntime \${ const r = ArcMoon.defineRef("it"); ArcMoon.ref(r); }\$`, /anonymous\.arcm:2:47 {2}ArcMoon\.ref\(\) used with shared ref/]
+	])("points runtime errors at the exact spot: %s", async (src, message) => {
+		await expect(compile(src)).rejects.toThrow(message);
+	});
+
+	it("warns once about a large exported value", async () => {
+		const onWarning = vi.fn();
+		await compile(`\${ export const big = "x".repeat(60000); export const small = 1; }\$\n[p]a[end]\nruntime \${ console.log(big.length, small); }\$`, { onWarning });
+		const large = onWarning.mock.calls.map((c) => c[0]).filter((w) => /exported value/.test(w.message));
+		expect(large).toEqual([{ source: expect.stringMatching(/anonymous\.arcm$/), position: { line: 2, character: 23 }, message: `exported value "big" is 58.6 kB; it is copied into the page's JS for each use. Export only what runtime code needs` }]);
+	});
+
 	it("adds no script when there is no runtime code", async () => {
 		expect(await compile(`[p]a[end]`)).toBe(`<p>a</p>`);
 	});

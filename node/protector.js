@@ -66,6 +66,7 @@ const emptyReport = () => ({
 	remote: new Set(),
 	dynamic: [],
 	runtimeBlocks: 0,
+	scriptTags: 0,
 	runtimeImports: new Set(),
 	exports: []
 });
@@ -157,13 +158,22 @@ const scanRuntime = (code, file, report, packages) => {
 // ###################
 // Walk one file's AST and fill its report
 // ###################
-const scanModule = (mod, report, packages) => {
+const scanModule = (mod, report, packages, root) => {
 	const statics = (v) => v && typeof v === "object" && v.type === N.STATIC_LOGIC;
 	const runtimes = (v) => v && typeof v === "object" && v.type === N.RUNTIME_LOGIC;
 
 	const visit = (nodes, top) => {
 		for (const node of nodes) {
 			if (node.type === N.IMPORT && /^https?:/.test(node.path)) report.remote.add(node.path);
+
+			// ###################
+			// A local [script = src] file ships to visitors: report it and hash it
+			// ###################
+			const src = node.props?.src;
+			if (node.type === N.BLOCK && node.id.toLowerCase() === "script" && typeof src === "string" && !/^([a-z][a-z\d+.-]*:|\/\/)/i.test(src)) {
+				report.localScripts.add(src.startsWith("/") ? resolve(root, `.${src}`) : resolve(dirname(mod.id), src));
+				report.scriptTags++;
+			}
 			if (node.type === N.STATIC_LOGIC) scanStatic(node.code, mod.id, node.range.start, report, packages);
 			if (node.type === N.RUNTIME_LOGIC) {
 				if (top) report.runtimeBlocks++;
@@ -251,7 +261,7 @@ export async function analyze(graph, options = {}) {
 		if (!groups.has(dir)) groups.set(dir, { dir, key: dir ? keyOf(dir, root) : null, own: !dir, files: [], report: emptyReport(), packages: new Set() });
 		const g = groups.get(dir);
 		g.files.push(mod.id);
-		scanModule(mod, g.report, g.packages);
+		scanModule(mod, g.report, g.packages, root);
 	}
 
 	for (const g of groups.values()) {
@@ -307,9 +317,11 @@ export const formatReport = (g) => {
 	row("env", r.env);
 	row("remote", r.remote);
 	row("dynamic", r.dynamic);
-	if (r.runtimeBlocks || r.runtimeImports.size) {
+	if (r.runtimeBlocks || r.runtimeImports.size || r.scriptTags) {
+		const blocks = `${r.runtimeBlocks} runtime block${r.runtimeBlocks === 1 ? "" : "s"}`;
+		const tags = r.scriptTags ? `, ${r.scriptTags} [script] file${r.scriptTags === 1 ? "" : "s"}` : "";
 		const ships = r.runtimeImports.size ? `, ships ${[...r.runtimeImports].join(", ")} to visitors` : "";
-		rows.push(`    ${"runtime".padEnd(10)} ${r.runtimeBlocks} script${r.runtimeBlocks === 1 ? "" : "s"}${ships}`);
+		rows.push(`    ${"runtime".padEnd(10)} ${blocks}${tags}${ships}`);
 	}
 	row("exports", r.exports.map((e) => (e.fromEnv ? `${e.name} (from process.env!)` : e.name)));
 	if (!rows.length) rows.push("    (no code)");
