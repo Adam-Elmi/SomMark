@@ -1,7 +1,7 @@
 {
   "name": "arcmoon",
   "version": "1.0.0-beta.0",
-  "description": "ArcMoon is a template language that compiles to HTML.",
+  "description": "ArcMoon is a template language that compiles to web pages.",
   "keywords": [
     "template-language",
     "html",
