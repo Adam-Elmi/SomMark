@@ -62,12 +62,36 @@ const scopeSelector = (selector, attr) =>
 // ###################
 // Rewrite every rule's selectors; @keyframes stay as they are
 // ###################
+// ###################
+// Keyframes get the component's suffix (spin → spin-2kule8), and animation / animation-name
+// in the same [style] follow; "-global-spin" stays global as "spin"
+// ###################
+const ANIMATION = /^(-webkit-)?animation(-name)?$/i;
+
+const scopeKeyframes = (root, attr) => {
+	const suffix = attr.replace(/^data-a-/, "");
+	const renamed = new Map();
+	root.walkAtRules(/keyframes$/i, (rule) => {
+		const name = rule.params.trim();
+		if (name.startsWith("-global-")) rule.params = name.slice("-global-".length);
+		else if (name) {
+			renamed.set(name, `${name}-${suffix}`);
+			rule.params = `${name}-${suffix}`;
+		}
+	});
+	if (!renamed.size) return;
+	root.walkDecls(ANIMATION, (decl) => {
+		decl.value = decl.value.replace(/[A-Za-z_][\w-]*/g, (word) => renamed.get(word) ?? word);
+	});
+};
+
 const scopeCss = (css, attr) => {
 	const root = postcss.parse(css);
 	root.walkRules((rule) => {
 		if (rule.parent?.type === "atrule" && /keyframes$/i.test(rule.parent.name)) return;
 		rule.selector = scopeSelector(rule.selector, attr);
 	});
+	scopeKeyframes(root, attr);
 	return root.toString();
 };
 

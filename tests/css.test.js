@@ -47,7 +47,7 @@ describe("scoped component styles", () => {
 		const attr = /<div class="box" (data-a-[a-z0-9]+)>/.exec(html)[1];
 		expect(html.match(/<style>/g)).toHaveLength(1);
 		expect(flat(html)).toContain(
-			`<head><title>t</title><style>.box[${attr}]{padding:1rem}h2[${attr}],p[${attr}]:before{color:tomato}.dark h2[${attr}]{color:#fff}@media(max-width:600px){.box[${attr}]{padding:0}}@keyframes spin{0%{opacity:0}}</style></head>`
+			`<head><title>t</title><style>.box[${attr}]{padding:1rem}h2[${attr}],p[${attr}]:before{color:tomato}.dark h2[${attr}]{color:#fff}@media(max-width:600px){.box[${attr}]{padding:0}}@keyframes spin-${attr.slice(7)}{0%{opacity:0}}</style></head>`
 		);
 		// Slot content keeps the caller's scope; a child component's insides are not affected
 		expect(flat(html)).toContain(`<div class="box" ${attr}><h2 ${attr}>Box</h2><h2>mine</h2><span class="inner">in</span></div>`);
@@ -101,5 +101,30 @@ describe("-- props", () => {
 	it("start live values from the signal", async () => {
 		const html = await compile(`runtime \${ import { signal } from "arcmoon/reactive"; const p = signal("30%"); }\$\n[div = --p: runtime \${ p() }\$][end]`);
 		expect(html).toMatch(/<div data-arcm-ref="e0" style="--p: 30%"><\/div>/);
+	});
+});
+
+describe("scoped @keyframes", () => {
+	it("gives each component its own keyframes; page and -global- keyframes stay global", async () => {
+		const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+		const { tmpdir } = await import("node:os");
+		const { join } = await import("node:path");
+		const dir = await mkdtemp(join(tmpdir(), "arcmoon-keyframes-"));
+		try {
+			await writeFile(join(dir, "A.arcm"), `[div]a[end]\n[style]\n  @keyframes spin { to { rotate: 360deg } }\n  @keyframes -global-fade { to { opacity: 0 } }\n  div { animation: spin 1s linear infinite, pulse 2s; }\n[end]`);
+			await writeFile(join(dir, "B.arcm"), `[p]b[end]\n[style]\n  @keyframes spin { to { opacity: 0 } }\n  p { animation-name: spin; }\n[end]`);
+			const html = await new ArcMoon({ src: `[import = A: "./A.arcm" !][import = B: "./B.arcm" !]\n[A!][B!]\n[style]\n  @keyframes pulse { to { scale: 1.1 } }\n[end]`, cwd: dir }).compile();
+			const a = /<div (data-a-[a-z0-9]+)>/.exec(html)[1].slice(7);
+			const b = /<p (data-a-[a-z0-9]+)>/.exec(html)[1].slice(7);
+			expect(a).not.toBe(b);
+			expect(html).toContain(`@keyframes spin-${a}{to{rotate:360deg}}`);
+			expect(html).toContain(`@keyframes spin-${b}{to{opacity:0}}`);
+			expect(html).toContain(`animation:spin-${a} 1s linear infinite,pulse 2s`);
+			expect(html).toContain(`animation-name:spin-${b}`);
+			expect(html).toContain("@keyframes pulse{");
+			expect(html).toContain("@keyframes fade{");
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
 	});
 });
