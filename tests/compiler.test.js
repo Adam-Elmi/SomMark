@@ -206,3 +206,24 @@ describe("compile: errors point to the .arcm file", () => {
 		await expect(compile(src)).rejects.toThrow(message);
 	});
 });
+
+describe("compile: regex literals in ${ }$", () => {
+	it.each([
+		[`[p]\${ "a\\"b".replace(/"/g, "x") }\$[end]`, "<p>axb</p>"],
+		[`[p]\${ "x}\$y".replace(/}\\$/, "-") }\$[end]`, "<p>x-y</p>"],
+		[`[p]\${ "a/b".replace(/[/]/g, "-") }\$[end]`, "<p>a-b</p>"],
+		[`[p]\${ const r = /a"b/i; return r.flags }\$[end]`, "<p>i</p>"],
+		[`[p]\${ typeof /x/ }\$[end]`, "<p>object</p>"]
+	])("skips the regex in %s", async (src, html) => {
+		expect(await compile(src)).toBe(html);
+	});
+
+	it.each([
+		[`[p]\${ 10 / 2 }\$[end]`, "<p>5</p>"],
+		[`[p]\${ (4 + 6) / 2 / 1 }\$[end]`, "<p>5</p>"],
+		[`[p]\${ [10][0] / 5 }\$[end]`, "<p>2</p>"],
+		[`[p]\${ 6 / 2 + "px" }\$[end]`, "<p>3px</p>"]
+	])("still divides in %s", async (src, html) => {
+		expect(await compile(src)).toBe(html);
+	});
+});

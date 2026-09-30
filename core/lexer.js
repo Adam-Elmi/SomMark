@@ -43,6 +43,7 @@ const BLOCK_KEYWORDS = {
 };
 
 const ID_START = /[A-Za-z0-9_$]/;
+const REGEX_KEYWORDS = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "do", "else", "yield", "await"]);
 const NUMBER_RE = /^-?\d+(\.\d+)?$/;
 const RUNTIME_RE = /runtime[ \t]*\$\{/y;
 const NAME_STOP = "[]=,\"'#\\ \t\n\r!";
@@ -163,7 +164,49 @@ export default function lexer(src, filename = "anonymous") {
 	};
 
 	// ###################
-	// ${ ... }$ with JS strings and comments skipped
+	// A "/" starts a regex after an operator, "(", ",", a keyword or the start of the code;
+	// after a name, a number, ")" or "]" it divides
+	// ###################
+	const regexStartsAt = (j, codeStart) => {
+		let k = j - 1;
+		while (k >= codeStart && /\s/.test(src[k])) k--;
+		if (k < codeStart) return true;
+		if (/[(,=:[!&|?{};+\-*%<>~^]/.test(src[k])) return true;
+		if (!/[\w$]/.test(src[k])) return false;
+		let w = k;
+		while (w >= codeStart && /[\w$]/.test(src[w])) w--;
+		return REGEX_KEYWORDS.has(src.slice(w + 1, k + 1));
+	};
+
+	// ###################
+	// The end of a regex literal (after its flags), or -1 if the line ends first
+	// ###################
+	const skipRegex = (j) => {
+		let k = j + 1;
+		let inClass = false;
+		while (k < src.length) {
+			const ch = src[k];
+			if (ch === "\n") return -1;
+			if (ch === "\\") {
+				k += 2;
+				continue;
+			}
+			if (inClass) {
+				if (ch === "]") inClass = false;
+			} else if (ch === "[") {
+				inClass = true;
+			} else if (ch === "/") {
+				k++;
+				while (k < src.length && /[a-z]/i.test(src[k])) k++;
+				return k;
+			}
+			k++;
+		}
+		return -1;
+	};
+
+	// ###################
+	// ${ ... }$ with JS strings, comments and regex literals skipped
 	// ###################
 	const readLogic = () => {
 		let j = i + 2;
@@ -197,6 +240,13 @@ export default function lexer(src, filename = "anonymous") {
 				const end = src.indexOf("*/", j + 2);
 				j = end === -1 ? src.length : end + 2;
 				continue;
+			}
+			if (c === "/" && regexStartsAt(j, i + 2)) {
+				const end = skipRegex(j);
+				if (end !== -1) {
+					j = end;
+					continue;
+				}
 			}
 			if (c === "\"" || c === "'" || c === "`") str = c;
 			else if (c === "{") depth++;
