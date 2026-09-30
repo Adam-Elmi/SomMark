@@ -104,6 +104,8 @@ describe("runtime", () => {
 		[`[p]a[end]\nruntime \${ import fs from "node:fs"; }\$`, /anonymous\.arcm:2:27 {2}runtime import "node:fs"/],
 		[`\${ export const f = () => 1; }\$[p]a[end]\nruntime \${ const x = 1;\n  f(); }\$`, /anonymous\.arcm:3:3 {2}"f" is a function/],
 		[`\${ const secret = 1; }\$\n[p]runtime \${ secret }\$[end]`, /anonymous\.arcm:2:15 {2}runtime code uses "secret"/],
+		[`\${ const xs = [1]; }\$\n[for-each = \${ xs }\$, as: "item"][p]runtime \${ item }\$[end][end]`, /anonymous\.arcm:2:48 {2}runtime code uses "item", a \[for-each\] name that only exists at build time/],
+		[`\${ const xs = [1]; }\$\n[for-each = \${ xs }\$][p = onclick: runtime \${ () => i }\$]x[end][end]`, /runtime code uses "i", a \[for-each\] name/],
 		[`[b = arcm-shared-ref: "it"]1[end]\nruntime \${ const r = ArcMoon.defineRef("it"); ArcMoon.ref(r); }\$`, /anonymous\.arcm:2:47 {2}ArcMoon\.ref\(\) used with shared ref/]
 	])("points runtime errors at the exact spot: %s", async (src, message) => {
 		await expect(compile(src)).rejects.toThrow(message);
@@ -120,6 +122,11 @@ describe("runtime", () => {
 		const html = await compile(`runtime \${ const x = 1; }\$\n[p]a[end]`, { filename: "page.arcm" });
 		expect(html).toContain(`file:"page.arcm"`);
 		expect(html).not.toContain(FIXTURES);
+	});
+
+	it("lets runtime code declare its own i, next to a [for-each]", async () => {
+		const html = await compile(`\${ const xs = [1, 2]; }\$\n[for-each = \${ xs }\$, as: "item"][p = data-item: \${ item }\$]\${ i }\$[end][end]\nruntime \${ for (let i = 0; i < 2; i++) console.log(i); }\$`);
+		expect(html).toContain(`<p data-item="1">0</p>`);
 	});
 
 	it("adds no script when there is no runtime code", async () => {

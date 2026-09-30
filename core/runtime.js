@@ -244,7 +244,7 @@ export default function prepareRuntime(result) {
 	};
 
 	const parseFile = (f) => {
-		const info = modules.get(f.id) ?? { staticNames: new Set(), exportNames: new Set() };
+		const info = modules.get(f.id) ?? { staticNames: new Set(), exportNames: new Set(), loopNames: new Set() };
 		const hoisted = new Set();
 		const importAt = new Map();
 		const usedAt = new Map();
@@ -342,7 +342,14 @@ export default function prepareRuntime(result) {
 
 		const values = [];
 		for (const name of used) {
-			if (declared.has(name) || !info.staticNames.has(name)) continue;
+			if (declared.has(name)) continue;
+			// ###################
+			// A [for-each] name only exists while the page is built
+			// ###################
+			if (!info.staticNames.has(name) && info.loopNames?.has(name)) {
+				throw new RuntimeError(`runtime code uses "${name}", a [for-each] name that only exists at build time. To use it in the browser, write it into the markup (for example data-${name}: \${ ${name} }$) and read it there.`, f.id, usedAt.get(name));
+			}
+			if (!info.staticNames.has(name)) continue;
 			if (!info.exportNames.has(name)) {
 				throw new RuntimeError(`runtime code uses "${name}", which is not exported from \${ }$. Add "export" to its declaration, or write export { ${name} }, to send it to visitors' browsers.`, f.id, usedAt.get(name));
 			}

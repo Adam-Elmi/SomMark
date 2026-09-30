@@ -173,6 +173,7 @@ const generate = (mod, removeComments = true, isComponent = false) => {
 	const warnings = [];
 	const staticNames = new Set();
 	const exportNames = new Set();
+	const loopNames = new Set();
 	const map = [];
 	const topAsts = [];
 	let body = "";
@@ -406,6 +407,7 @@ const generate = (mod, removeComments = true, isComponent = false) => {
 			case N.FOR_EACH:
 				if (node.source.type === N.RUNTIME_LOGIC) fail("live [for-each] (runtime ${ }$) is not supported yet", node.range.start);
 				if (!ID_RE.test(node.as) || node.as === "i") fail(`as: "${node.as}" must be a valid JS name (not "i")`, node.range.start);
+				loopNames.add(node.as).add("i");
 				out(`{ const __src${n} = `);
 				value(node.source, isTop, el);
 				out(`;\nfor (const [i, ${node.as}] of Array.from(__src${n} ?? []).entries()) {\n`);
@@ -431,6 +433,7 @@ const generate = (mod, removeComments = true, isComponent = false) => {
 		readProps: readPropsOf(topAsts),
 		staticNames,
 		exportNames,
+		loopNames,
 		warnings
 	};
 };
@@ -603,7 +606,7 @@ export default async function evaluate(graph, options = {}) {
 		const children = await run(graph.entry, pageProps, null, null);
 		const tree = { type: "root", children };
 		scopeStyles(tree, graph).forEach((w) => warn(w.source, w.position, w.message));
-		const modules = new Map([...compiled].map(([id, r]) => [id, { staticNames: r.staticNames, exportNames: r.exportNames }]));
+		const modules = new Map([...compiled].map(([id, r]) => [id, { staticNames: r.staticNames, exportNames: r.exportNames, loopNames: r.loopNames }]));
 		return { tree, uses, modules, warnings };
 	} catch (err) {
 		rethrow(err);
