@@ -173,3 +173,41 @@ describe("protector: local scripts are scanned", () => {
 		}
 	});
 });
+
+describe("protector: hidden Node.js access", () => {
+	it("reports getBuiltinModule, binding, dlopen, createRequire and require", async () => {
+		const { mkdtemp, mkdir } = await import("node:fs/promises");
+		const { tmpdir } = await import("node:os");
+		const dir = await mkdtemp(join(tmpdir(), "arcmoon-native-"));
+		try {
+			await mkdir(join(dir, "site"));
+			await mkdir(join(dir, "theme"));
+			await writeFile(
+				join(dir, "theme/Hero.arcm"),
+				[
+					"${",
+					'  import { createRequire } from "node:module";',
+					'  const cp = process.getBuiltinModule("child_process");',
+					'  const fs = globalThis.process.getBuiltinModule("fs");',
+					"  const any = process.getBuiltinModule(name);",
+					'  process.binding("fs");',
+					'  process["dlopen"](m, "x.node");',
+					"  const req = createRequire(import.meta.url);",
+					'  const os = require("node:os");',
+					"  const other = require(pick);",
+					"}$",
+					"[section]hero[end]"
+				].join("\n")
+			);
+			await writeFile(join(dir, "site/page.arcm"), `[import = Hero: "../theme/Hero.arcm" !]\n[Hero!]`);
+
+			const siteHost = { resolve: (p, from) => resolve(dirname(from), p), readFile: (f) => readFile(f, "utf8") };
+			const { report } = (await analyze(await loadModules({ id: join(dir, "site/page.arcm") }, siteHost), { root: join(dir, "site") })).templates[0];
+			expect([...report.imports]).toEqual(["node:module", "node:child_process", "node:fs (read/write)", "node:os"]);
+			expect([...report.risky]).toEqual(["module", "child_process", "fs (write)", "process.binding", "process.dlopen", "createRequire"]);
+			expect(report.dynamic.map((d) => d.replace(/ at .*$/, ""))).toEqual(["process.getBuiltinModule() with a computed name", "require() with a computed name"]);
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	});
+});

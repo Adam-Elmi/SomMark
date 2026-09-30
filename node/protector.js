@@ -12,7 +12,7 @@ import { NODE_TYPES as N } from "../core/parser.js";
 
 const TRUST_FILE = "arcmoon.trust.json";
 const BUILTINS = new Set(builtinModules);
-const RISKY = new Set(["child_process", "net", "dgram", "tls", "vm", "worker_threads", "cluster"]);
+const RISKY = new Set(["child_process", "net", "dgram", "tls", "vm", "worker_threads", "cluster", "module"]);
 const FS_WRITES = new Set([
 	"writeFile", "writeFileSync", "appendFile", "appendFileSync", "rm", "rmSync", "rmdir", "rmdirSync",
 	"unlink", "unlinkSync", "rename", "renameSync", "mkdir", "mkdirSync", "copyFile", "copyFileSync",
@@ -52,6 +52,16 @@ const parseJS = (code) => {
 		return null;
 	}
 };
+
+// ###################
+// process, also as globalThis.process / global.process; property names, also computed ["name"]
+// ###################
+const GLOBAL_NAMES = new Set(["globalThis", "global", "window", "self"]);
+const NATIVE = new Set(["getBuiltinModule", "binding", "_linkedBinding", "dlopen"]);
+const propName = (m) => (m.computed ? (m.property.type === "Literal" ? String(m.property.value) : null) : m.property.name);
+const isProcess = (n) =>
+	(n?.type === "Identifier" && n.name === "process") ||
+	(n?.type === "MemberExpression" && n.object.type === "Identifier" && GLOBAL_NAMES.has(n.object.name) && propName(n) === "process");
 
 const packageName = (spec) => (spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0]);
 const isBare = (spec) => !/^(\.|\/|[a-z]+:)/i.test(spec) || spec.startsWith("node:");
@@ -108,6 +118,21 @@ const scanStatic = (code, file, pos, report, packages, { exports = true } = {}) 
 		} else if (n.type === "ImportExpression") {
 			if (n.source.type === "Literal") addImport(n.source.value, [], true);
 			else report.dynamic.push(`import() with a computed name at ${where(n.loc.start)}`);
+		} else if (n.type === "CallExpression" && n.callee.type === "MemberExpression" && isProcess(n.callee.object) && NATIVE.has(propName(n.callee))) {
+			// ###################
+			// Node access without an import: process.getBuiltinModule("x"), process.binding, process.dlopen
+			// ###################
+			const name = propName(n.callee);
+			const a = n.arguments[0];
+			if (name !== "getBuiltinModule") report.risky.add(`process.${name === "_linkedBinding" ? "binding" : name}`);
+			else if (a?.type === "Literal" && typeof a.value === "string") addImport(a.value.startsWith("node:") ? a.value : `node:${a.value}`, [], true);
+			else report.dynamic.push(`process.getBuiltinModule() with a computed name at ${where(n.loc.start)}`);
+		} else if (n.type === "CallExpression" && ((n.callee.type === "Identifier" && n.callee.name === "createRequire") || (n.callee.type === "MemberExpression" && propName(n.callee) === "createRequire"))) {
+			report.risky.add("createRequire");
+		} else if (n.type === "CallExpression" && n.callee.type === "Identifier" && n.callee.name === "require") {
+			const a = n.arguments[0];
+			if (a?.type === "Literal" && typeof a.value === "string") addImport(a.value, [], true);
+			else report.dynamic.push(`require() with a computed name at ${where(n.loc.start)}`);
 		} else if (n.type === "CallExpression" && n.callee.type === "Identifier" && n.callee.name === "eval") {
 			report.dynamic.push(`eval() at ${where(n.loc.start)}`);
 		} else if ((n.type === "CallExpression" || n.type === "NewExpression") && n.callee.type === "Identifier" && n.callee.name === "Function") {
