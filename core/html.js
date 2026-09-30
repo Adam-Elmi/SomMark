@@ -23,14 +23,21 @@ const notYet = (node) => {
 // ###################
 // .arcm prop names to hast property names
 // ###################
-const toProperties = (props, schema, tagName) => {
+const toProperties = (props, schema, tagName, data = {}) => {
 	const properties = {};
 	const vars = [];
 	for (const [key, value] of Object.entries(props)) {
 		if (/^\d+$/.test(key)) continue;
 		if (key.startsWith("--")) {
 			if (isRuntime(value)) notYet(value);
-			if (value !== null && value !== undefined && value !== false) vars.push(`${key}: ${value}`);
+			if (value === null || value === undefined || value === false) continue;
+			// ###################
+			// ; { } would end the declaration and add other CSS to the style attribute
+			// ###################
+			if (/[;{}]/.test(String(value))) {
+				throw new CompilerError(`${key} on [${tagName}] can't contain ";", "{" or "}": it would add other CSS to the element. Got ${JSON.stringify(String(value))}`, data.source ?? "", data.position);
+			}
+			vars.push(`${key}: ${value}`);
 			continue;
 		}
 		if (value === null || value === undefined || value === false) continue;
@@ -103,7 +110,7 @@ export const toHast = (node, inSvg = false) => {
 			return {
 				type: "element",
 				tagName: node.tagName,
-				properties: toProperties(node.properties, svgHere ? svg : html, node.tagName),
+				properties: toProperties(node.properties, svgHere ? svg : html, node.tagName, node.data),
 				children: node.children.map((c) => {
 					const out = toHast(c, childSvg);
 					return node.tagName.toLowerCase() === "style" && out.type === "text" ? { ...out, value: styleText(out.value) } : out;

@@ -128,3 +128,18 @@ describe("scoped @keyframes", () => {
 		}
 	});
 });
+
+describe("-- prop values are checked", () => {
+	it("refuses ; { } that would add other CSS", async () => {
+		await expect(compile(`\${ const input = "1px; background: url(https://evil.example/t)"; }\$\n[div = --size: \${ input }\$][end]`)).rejects.toThrow(
+			/anonymous\.arcm:2:1 {2}--size on \[div\] can't contain ";", "\{" or "\}": it would add other CSS to the element/
+		);
+		await expect(compile(`[p = --x: "a { b }"]x[end]`)).rejects.toThrow(/--x on \[p\] can't contain/);
+	});
+
+	it("accepts normal values: calc, quotes, url", async () => {
+		expect(await compile(`[div = --size: "calc(1px + 2px)", --font: "\\"Inter\\", sans-serif", --img: "url(a.png)"][end]`)).toBe(
+			`<div style="--size: calc(1px + 2px); --font: &quot;Inter&quot;, sans-serif; --img: url(a.png)"></div>`
+		);
+	});
+});
