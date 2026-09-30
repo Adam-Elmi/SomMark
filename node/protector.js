@@ -57,15 +57,13 @@ const parseJS = (code) => {
 // process, also as globalThis.process / global.process; property names, also computed ["name"]
 // ###################
 const GLOBAL_NAMES = new Set(["globalThis", "global", "window", "self"]);
+const PROCESS = new Set(["process"]);
+const FETCH = new Set(["fetch"]);
 const NATIVE = new Set(["getBuiltinModule", "binding", "_linkedBinding", "dlopen"]);
 const propName = (m) => (m.computed ? (m.property.type === "Literal" ? String(m.property.value) : null) : m.property.name);
-const isProcess = (n) =>
-	(n?.type === "Identifier" && n.name === "process") ||
-	(n?.type === "MemberExpression" && n.object.type === "Identifier" && GLOBAL_NAMES.has(n.object.name) && propName(n) === "process");
 
 const packageName = (spec) => (spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0]);
 const isBare = (spec) => !/^(\.|\/|[a-z]+:)/i.test(spec) || spec.startsWith("node:");
-const isEnv = (n) => n?.type === "MemberExpression" && n.object.type === "Identifier" && n.object.name === "process" && !n.computed && n.property.name === "env";
 
 const emptyReport = () => ({
 	imports: new Set(),
@@ -111,14 +109,130 @@ const scanStatic = (code, file, pos, report, packages, { exports = true } = {}) 
 		}
 	};
 
-	walk(ast, (n, p) => {
+	// ###################
+	// Parents, and the names that stand for process / process.env (import … from "node:process")
+	// ###################
+	const parents = new Map();
+	walk(ast, (n, p) => parents.set(n, p));
+	const processNames = new Set(["process"]);
+	const envNames = new Set();
+	for (const s of ast.body) {
+		if (s.type !== "ImportDeclaration" || !/^(node:)?process$/.test(s.source.value)) continue;
+		for (const sp of s.specifiers) {
+			if (sp.type !== "ImportSpecifier") processNames.add(sp.local.name);
+			else if ((sp.imported.name ?? sp.imported.value) === "env") envNames.add(sp.local.name);
+		}
+	}
+
+	// ###################
+	// A name used as a value: not a key, a property name, or the template's own declaration
+	// ###################
+	const isValue = (n) => {
+		const p = parents.get(n);
+		if (!p) return true;
+		if (p.type === "MemberExpression" && p.property === n && !p.computed) return false;
+		if ((p.type === "Property" || p.type === "PropertyDefinition" || p.type === "MethodDefinition") && p.key === n && !p.computed) return p.type === "Property" && p.shorthand && p.value === n;
+		if ((p.type === "VariableDeclarator" || p.type === "ClassDeclaration") && p.id === n) return false;
+		if (/Function/.test(p.type) && (p.id === n || p.params.includes(n))) return false;
+		if (/^(Import|Export)/.test(p.type)) return false;
+		return true;
+	};
+	// ###################
+	// A name the template declares itself (a parameter, const, function …) around this spot
+	// ###################
+	const names = (pattern, out = new Set()) => {
+		if (!pattern) return out;
+		if (pattern.type === "Identifier") out.add(pattern.name);
+		else if (pattern.type === "ObjectPattern") pattern.properties.forEach((q) => names(q.type === "RestElement" ? q.argument : q.value, out));
+		else if (pattern.type === "ArrayPattern") pattern.elements.forEach((e) => names(e, out));
+		else if (pattern.type === "RestElement") names(pattern.argument, out);
+		else if (pattern.type === "AssignmentPattern") names(pattern.left, out);
+		return out;
+	};
+	const declares = (statement, name) =>
+		(statement.type === "VariableDeclaration" && statement.declarations.some((d) => names(d.id).has(name))) ||
+		((statement.type === "FunctionDeclaration" || statement.type === "ClassDeclaration") && statement.id?.name === name);
+	const shadowed = (n) => {
+		for (let a = parents.get(n); a; a = parents.get(a)) {
+			if (/Function/.test(a.type) && a.params.some((q) => names(q).has(n.name))) return true;
+			if ((a.type === "BlockStatement" || a.type === "Program") && a.body.some((st) => declares(st, n.name))) return true;
+		}
+		return false;
+	};
+	const globalProp = (n, names) => n.type === "MemberExpression" && n.object.type === "Identifier" && GLOBAL_NAMES.has(n.object.name) && names.has(propName(n));
+	const isProcessRef = (n) =>
+		(n?.type === "Identifier" && processNames.has(n.name) && isValue(n) && (n.name !== "process" || !shadowed(n))) || (n?.type === "MemberExpression" && globalProp(n, PROCESS));
+	const isFetchRef = (n) => (n.type === "Identifier" && n.name === "fetch" && isValue(n) && !shadowed(n)) || globalProp(n, FETCH);
+
+	// ###################
+	// process.env.NAME, process.env["NAME"], const { A } = process.env; anything else is all of it
+	// ###################
+	const envAccess = (node) => {
+		const p = parents.get(node);
+		if (p?.type === "MemberExpression" && p.object === node) report.env.add(propName(p) ?? "(computed name)");
+		else if (p?.type === "VariableDeclarator" && p.init === node && p.id.type === "ObjectPattern") {
+			p.id.properties.forEach((q) => report.env.add(q.type === "RestElement" ? "(all)" : q.key.name ?? q.key.value));
+		} else report.env.add("(all)");
+	};
+
+	// ###################
+	// Every use of process: .env is read, .cwd() and the like are fine, anything else is reported
+	// ###################
+	const processUse = (ref) => {
+		const p = parents.get(ref);
+		if (p?.type === "MemberExpression" && p.object === ref) {
+			const name = propName(p);
+			if (name === "env") return envAccess(p);
+			if (name !== null) return;
+			report.env.add("(all)");
+			report.dynamic.push(`process[…] with a computed name at ${where(ref.loc.start)}`);
+			return;
+		}
+		report.env.add("(all)");
+		report.dynamic.push(`process used indirectly at ${where(ref.loc.start)}`);
+	};
+
+	// ###################
+	// Every use of fetch: a call reports its host, anything else any host
+	// ###################
+	const fetchUse = (ref) => {
+		const p = parents.get(ref);
+		if (p?.type === "CallExpression" && p.callee === ref) {
+			const a = p.arguments[0];
+			const text = a?.type === "Literal" ? a.value : a?.type === "TemplateLiteral" ? a.quasis[0].value.cooked : null;
+			try {
+				report.fetch.add(new URL(text).host);
+			} catch {
+				report.fetch.add(`unknown host (${where(ref.loc.start)})`);
+			}
+		} else {
+			report.fetch.add(`any host (fetch used indirectly at ${where(ref.loc.start)})`);
+		}
+	};
+
+	const readsEnv = (node) => {
+		let found = false;
+		walk(node, (x) => {
+			if (x.type === "Identifier" && envNames.has(x.name) && isValue(x)) found = true;
+			if (!isProcessRef(x)) return;
+			const p = parents.get(x);
+			if (!(p?.type === "MemberExpression" && p.object === x) || propName(p) === "env" || propName(p) === null) found = true;
+		});
+		return found;
+	};
+
+	walk(ast, (n) => {
+		if (isProcessRef(n)) processUse(n);
+		else if (n.type === "Identifier" && envNames.has(n.name) && isValue(n)) envAccess(n);
+		else if (isFetchRef(n)) fetchUse(n);
+
 		if (n.type === "ImportDeclaration") {
 			const names = n.specifiers.map((s) => (s.type === "ImportSpecifier" ? s.imported.name : "*"));
 			addImport(n.source.value, names, names.includes("*"));
 		} else if (n.type === "ImportExpression") {
 			if (n.source.type === "Literal") addImport(n.source.value, [], true);
 			else report.dynamic.push(`import() with a computed name at ${where(n.loc.start)}`);
-		} else if (n.type === "CallExpression" && n.callee.type === "MemberExpression" && isProcess(n.callee.object) && NATIVE.has(propName(n.callee))) {
+		} else if (n.type === "CallExpression" && n.callee.type === "MemberExpression" && isProcessRef(n.callee.object) && NATIVE.has(propName(n.callee))) {
 			// ###################
 			// Node access without an import: process.getBuiltinModule("x"), process.binding, process.dlopen
 			// ###################
@@ -137,30 +251,9 @@ const scanStatic = (code, file, pos, report, packages, { exports = true } = {}) 
 			report.dynamic.push(`eval() at ${where(n.loc.start)}`);
 		} else if ((n.type === "CallExpression" || n.type === "NewExpression") && n.callee.type === "Identifier" && n.callee.name === "Function") {
 			report.dynamic.push(`Function() at ${where(n.loc.start)}`);
-		} else if (n.type === "CallExpression" && n.callee.type === "Identifier" && n.callee.name === "fetch") {
-			const a = n.arguments[0];
-			const text = a?.type === "Literal" ? a.value : a?.type === "TemplateLiteral" ? a.quasis[0].value.cooked : null;
-			try {
-				report.fetch.add(new URL(text).host);
-			} catch {
-				report.fetch.add(`unknown host (${where(n.loc.start)})`);
-			}
-		} else if (isEnv(n)) {
-			if (p?.type === "MemberExpression" && p.object === n) {
-				const key = p.computed ? (p.property.type === "Literal" ? p.property.value : null) : p.property.name;
-				report.env.add(key ?? "(computed name)");
-			} else if (p?.type === "VariableDeclarator" && p.id.type === "ObjectPattern") {
-				p.id.properties.forEach((q) => report.env.add(q.type === "RestElement" ? "(all)" : q.key.name ?? q.key.value));
-			} else {
-				report.env.add("(all)");
-			}
 		} else if (exports && n.type === "ExportNamedDeclaration" && n.declaration?.type === "VariableDeclaration") {
 			for (const d of n.declaration.declarations) {
-				let fromEnv = false;
-				walk(d.init, (x) => {
-					if (isEnv(x)) fromEnv = true;
-				});
-				if (d.id.type === "Identifier") report.exports.push({ name: d.id.name, fromEnv });
+				if (d.id.type === "Identifier") report.exports.push({ name: d.id.name, fromEnv: Boolean(d.init && readsEnv(d.init)) });
 			}
 		}
 	});

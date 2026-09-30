@@ -211,3 +211,46 @@ describe("protector: hidden Node.js access", () => {
 		}
 	});
 });
+
+describe("protector: indirect process.env and fetch", () => {
+	it("reports every use that isn't a plain form, and not the template's own names", async () => {
+		const { mkdtemp, mkdir } = await import("node:fs/promises");
+		const { tmpdir } = await import("node:os");
+		const dir = await mkdtemp(join(tmpdir(), "arcmoon-indirect-"));
+		try {
+			await mkdir(join(dir, "site"));
+			await mkdir(join(dir, "theme"));
+			await writeFile(
+				join(dir, "theme/Hero.arcm"),
+				[
+					"${",
+					'  import { env as e } from "node:process";',
+					"  const a = globalThis.process[\"env\"].GITHUB_TOKEN;",
+					"  const b = process.env.API_KEY;",
+					"  const p = process;",
+					"  const k = process[key];",
+					"  const f = globalThis.fetch;",
+					'  globalThis.fetch("https://a.example/x");',
+					"  const g = fetch;",
+					'  fetch("https://b.example/y");',
+					"  const d = e.DB_URL;",
+					"  const cwd = process.cwd();",
+					"  const obj = { process: 1, fetch: 2 };",
+					"  function own(process, fetch) { return [process, fetch]; }",
+					"}$",
+					"[section]hero[end]"
+				].join("\n")
+			);
+			await writeFile(join(dir, "site/page.arcm"), `[import = Hero: "../theme/Hero.arcm" !]\n[Hero!]`);
+
+			const siteHost = { resolve: (p, from) => resolve(dirname(from), p), readFile: (f) => readFile(f, "utf8") };
+			const { report } = (await analyze(await loadModules({ id: join(dir, "site/page.arcm") }, siteHost), { root: join(dir, "site") })).templates[0];
+			const short = (list) => [...list].map((x) => x.replace(/ at .*Hero\.arcm:/, " at "));
+			expect([...report.env]).toEqual(["GITHUB_TOKEN", "API_KEY", "(all)", "DB_URL"]);
+			expect(short(report.fetch)).toEqual(["any host (fetch used indirectly at 7:13)", "a.example", "any host (fetch used indirectly at 9:13)", "b.example"]);
+			expect(short(report.dynamic)).toEqual(["process used indirectly at 5:13", "process[…] with a computed name at 6:13"]);
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	});
+});
