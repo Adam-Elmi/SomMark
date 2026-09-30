@@ -171,6 +171,7 @@ const standalone = (nodes, isTop, removeComments, isComponent) => {
 const generate = (mod, removeComments = true, isComponent = false) => {
 	const hoisted = new Set();
 	const warnings = [];
+	const srcLines = (mod.src ?? "").split("\n");
 	const staticNames = new Set();
 	const exportNames = new Set();
 	const loopNames = new Set();
@@ -376,8 +377,14 @@ const generate = (mod, removeComments = true, isComponent = false) => {
 				return;
 			case N.STATIC_LOGIC:
 				return transform(node, "block", T, isTop, el);
-			case N.RUNTIME_LOGIC:
-				return out(`${T}.push(__am.runtime(${JSON.stringify(node.code)}, ${JSON.stringify(node.range)}, ${isTop ? '"block"' : '"live"'}, ${JSON.stringify(node.codeStart)}));\n`);
+			case N.RUNTIME_LOGIC: {
+				// ###################
+				// "The runtime ${ x }$": right after a word in text, maybe meant as the English word
+				// ###################
+				const before = (srcLines[node.range.start.line] ?? "").slice(0, node.range.start.character);
+				const afterWord = !isTop && /[A-Za-z][.,!?]?\s+$/.test(before);
+				return out(`${T}.push(__am.runtime(${JSON.stringify(node.code)}, ${JSON.stringify(node.range)}, ${isTop ? '"block"' : '"live"'}, ${JSON.stringify(node.codeStart)}, ${afterWord}));\n`);
+			}
 			case N.BLOCK:
 				if (isComponent && node.id.toLowerCase() === "style") {
 					const live = node.body.find((c) => c.type === N.RUNTIME_LOGIC);
@@ -583,7 +590,7 @@ export default async function evaluate(graph, options = {}) {
 				children,
 				data: { directives: { ...directives }, use: use.id, source: id, position }
 			}),
-			runtime: (code, range, kind, codeStart) => ({ type: "runtime", code, range, kind, codeStart, source: id, use: use.id }),
+			runtime: (code, range, kind, codeStart, afterWord = false) => ({ type: "runtime", code, range, kind, codeStart, afterWord, source: id, use: use.id }),
 			emit,
 			emitCheck: (T, v, label, position) => {
 				if (v === undefined) {

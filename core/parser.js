@@ -213,7 +213,7 @@ export default function parser(tokens) {
 			if (!name) fail("write the block name after end: like [end:div]", endToken);
 			if (name !== open.block.id) {
 				const { line, character } = open.block.range.start;
-				fail(`[end:${name}] does not match [${open.block.id}] opened at ${line + 1}:${character + 1}`, endToken);
+				fail(`[end:${name}] does not match [${open.block.id}] opened at ${line + 1}:${character + 1}${swallowedEnd(open.block.range.start)}`, endToken);
 			}
 		}
 
@@ -222,6 +222,17 @@ export default function parser(tokens) {
 		stack.pop();
 		const node = finish(open.block);
 		addNode(node, endOpen);
+	};
+
+	// ###################
+	// A "#" comment that swallowed an [end] after this point: a hint for the error
+	// ###################
+	const swallowedEnd = (from) => {
+		const t = tokens.find(
+			(x) => x.type === T.COMMENT && x.value.includes("[end") && (x.range.start.line > from.line || (x.range.start.line === from.line && x.range.start.character > from.character))
+		);
+		if (!t) return "";
+		return `. The "#" on line ${t.range.start.line + 1} starts a comment, which hides the rest of that line, including its [end]. For the character itself, write \\#`;
 	};
 
 	const current = () => (stack.length ? stack[stack.length - 1].block.body : root);
@@ -283,7 +294,7 @@ export default function parser(tokens) {
 	if (stack.length) {
 		const { block } = stack[stack.length - 1];
 		const { line, character } = block.range.start;
-		fail(`[${block.id}] opened at ${line + 1}:${character + 1} is missing [end]`);
+		fail(`[${block.id}] opened at ${line + 1}:${character + 1} is missing [end]${swallowedEnd(block.range.start)}`);
 	}
 
 	return root;

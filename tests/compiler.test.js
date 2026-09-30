@@ -227,3 +227,23 @@ describe("compile: regex literals in ${ }$", () => {
 		expect(await compile(src)).toBe(html);
 	});
 });
+
+describe("compile: hints in confusing errors", () => {
+	it("points at a # comment that swallowed an [end]", async () => {
+		await expect(compile(`[p]Issue #5 is fixed[end]`)).rejects.toThrow(
+			/\[p\] opened at 1:1 is missing \[end\]\. The "#" on line 1 starts a comment, which hides the rest of that line, including its \[end\]\. For the character itself, write \\#/
+		);
+		await expect(compile(`[div]\n  [li]I like C# a lot[end]\n[end:div]`)).rejects.toThrow(/does not match \[li\] opened at 2:3\. The "#" on line 2 starts a comment/);
+	});
+
+	it("says nothing extra when no comment hid an [end]", async () => {
+		const error = await compile(`[p]a[end]\n# a normal comment\n[div]`).catch((e) => e);
+		expect(error.message).toMatch(/is missing \[end\]$/);
+	});
+
+	it("suggests \\runtime when runtime ${ comes right after a word in text", async () => {
+		await expect(compile(`\${ const x = 1; }\$\n[p]The runtime \${ x }\$ value[end]`)).rejects.toThrow(/If you meant the word "runtime" before a build-time value, write \\runtime \$\{ … \}\$\./);
+		const plain = await compile(`\${ const x = 1; }\$\n[p]runtime \${ x }\$[end]`).catch((e) => e);
+		expect(plain.message).not.toMatch(/If you meant the word/);
+	});
+});

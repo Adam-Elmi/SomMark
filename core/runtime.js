@@ -334,11 +334,19 @@ export default function prepareRuntime(result) {
 		// ###################
 		// Where each name is first used, for exact error positions
 		// ###################
+		const usedIn = new Map();
 		for (const x of [...bodies, ...lives]) {
 			walk(x.ast, (n) => {
-				if (n.type === "Identifier" && used.has(n.name) && !usedAt.has(n.name)) usedAt.set(n.name, at(x.marker, n.loc.start, lives.includes(x)));
+				if (n.type === "Identifier" && used.has(n.name) && !usedAt.has(n.name)) {
+					usedAt.set(n.name, at(x.marker, n.loc.start, lives.includes(x)));
+					usedIn.set(n.name, x.marker);
+				}
 			});
 		}
+		// ###################
+		// "The runtime ${ x }$" in text: maybe the word "runtime" was meant
+		// ###################
+		const wordHint = (name) => (usedIn.get(name)?.afterWord ? ` If you meant the word "runtime" before a build-time value, write \\runtime \${ … }$.` : "");
 
 		const values = [];
 		for (const name of used) {
@@ -347,11 +355,11 @@ export default function prepareRuntime(result) {
 			// A [for-each] name only exists while the page is built
 			// ###################
 			if (!info.staticNames.has(name) && info.loopNames?.has(name)) {
-				throw new RuntimeError(`runtime code uses "${name}", a [for-each] name that only exists at build time. To use it in the browser, write it into the markup (for example data-${name}: \${ ${name} }$) and read it there.`, f.id, usedAt.get(name));
+				throw new RuntimeError(`runtime code uses "${name}", a [for-each] name that only exists at build time. To use it in the browser, write it into the markup (for example data-${name}: \${ ${name} }$) and read it there.${wordHint(name)}`, f.id, usedAt.get(name));
 			}
 			if (!info.staticNames.has(name)) continue;
 			if (!info.exportNames.has(name)) {
-				throw new RuntimeError(`runtime code uses "${name}", which is not exported from \${ }$. Add "export" to its declaration, or write export { ${name} }, to send it to visitors' browsers.`, f.id, usedAt.get(name));
+				throw new RuntimeError(`runtime code uses "${name}", which is not exported from \${ }$. Add "export" to its declaration, or write export { ${name} }, to send it to visitors' browsers.${wordHint(name)}`, f.id, usedAt.get(name));
 			}
 			values.push(name);
 		}
