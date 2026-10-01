@@ -16,23 +16,61 @@
 
 ## What is ArcMoon?
 
-A `.arcm` file holds a page's markup, styles and code. ArcMoon builds it into a web page.
+Here is what a `.arcm` file can hold.
 
-- **Markup:** blocks like `[p]Hello[end]` become HTML elements. Pages are built from components and layouts.
-- **Code at build time:** code in `${ }$` runs in Node.js while the page is built. It can read files, use npm packages and fill the page with data.
-- **Code in the browser:** code in `runtime ${ }$` runs in the browser. Live values update the page when their data changes.
-- **Styles:** a component's `[style]` only styles that component.
-- **Output:** plain HTML, with only the CSS and JavaScript each page needs.
+**Blocks become HTML tags.**
 
 ```ini
-[import = Layout: "./Layout.arcm" !]
+[p = class: "note"]Hello[end]
+```
 
-${ const name = "World"; }$
+```html
+<p class="note">Hello</p>
+```
 
-[Layout = title: "Home"]
-  [h1]Hello, ${ name }$![end]
+**`${ }$` runs once, while the page is built.** It runs in Node.js, so it can read files and use npm packages. Its result is written into the page.
+
+```ini
+${ const year = new Date().getFullYear(); }$
+[footer]© ${ year }$[end]
+```
+
+```html
+<footer>© 2026</footer>
+```
+
+**`runtime ${ }$` runs in the visitor's browser.** Use it for things that change after the page loads, like clicks. The count below updates on each click.
+
+```ini
+runtime ${
+  import { signal } from "arcmoon/reactive";
+  const count = signal(0);
+}$
+[button = onclick: runtime ${ () => count(count() + 1) }$]
+  Clicked runtime ${ count() }$ times
 [end]
 ```
+
+**Components are `.arcm` files you import.** A component's `[style]` only styles that component.
+
+```ini
+# Card.arcm
+${ const { title } = ArcMoon.props(); }$
+[div = class: "card"]
+  [h2]${ title }$[end]
+[end]
+[style]
+  h2 { color: tomato; }
+[end]
+```
+
+```ini
+# page.arcm
+[import = Card: "./Card.arcm" !]
+[Card = title: "Lua" !]
+```
+
+**The output is plain HTML**, with only the CSS and JavaScript that page needs.
 
 ## Installation
 
