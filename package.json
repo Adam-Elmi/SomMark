@@ -43,6 +43,7 @@
     "hast-util-to-dom": "^4.0.1",
     "hast-util-to-html": "^9.0.5",
     "html-tag-names": "^2.1.0",
+    "known-css-properties": "^0.37.0",
     "mathml-tag-names": "^4.0.0",
     "pathe": "^2.0.3",
     "picocolors": "^1.1.1",
@@ -69,6 +70,7 @@
   },
   "files": [
     "dist/node.js",
+    "dist/eval-worker.js",
     "dist/browser.js",
     "dist/worker.js",
     "dist/core.js",

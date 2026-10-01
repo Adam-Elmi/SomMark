@@ -14,6 +14,15 @@ export class CompilerError extends Error {
 	}
 }
 
+// ###################
+// An attribute name can't be empty or hold spaces, quotes, ">", "/", "=" or control characters
+// ###################
+export const badAttribute = (key, tagName, data = {}) => {
+	if (key && !/[\s"'>/=\x00-\x1f\x7f]/.test(key)) return null;
+	const what = key ? `can't contain spaces, quotes, ">", "/", "=" or control characters` : "can't be empty";
+	return new CompilerError(`${JSON.stringify(key)} on [${tagName}] is not a valid attribute name: it ${what}`, data.source ?? "", data.position);
+};
+
 const isRuntime = (v) => v !== null && typeof v === "object" && v.type === "runtime";
 
 const notYet = (node) => {
@@ -21,14 +30,36 @@ const notYet = (node) => {
 };
 
 // ###################
+// Keys hast would rename (dataX -> data-x, "data:x" -> data-:x) are kept out of hast: the element
+// gets a marker, and the keys are written as typed after HTML (writeExact) or DOM (setExact)
+// ###################
+const CSS_NAME = /^-{0,2}[A-Za-z][A-Za-z0-9-]*$/;
+const EXACT = "data-arcm-exact";
+const nonce = Math.random().toString(36).slice(2, 10);
+let nextExact = 0;
+
+const sameName = (info, key, schema) => (schema.space === "svg" ? info.attribute === key : info.attribute.toLowerCase() === key.toLowerCase());
+
+// ###################
 // .arcm prop names to hast property names
 // ###################
-const toProperties = (props, schema, tagName, data = {}) => {
+const toProperties = (props, schema, tagName, data = {}, exact = []) => {
 	const properties = {};
-	const vars = [];
+	// ###################
+	// style:, css.name and --name join one style attribute, in the order written
+	// ###################
+	const styles = [];
+	let extra = false;
 	for (const [key, value] of Object.entries(props)) {
 		if (/^\d+$/.test(key)) continue;
-		if (key.startsWith("--")) {
+		const bad = badAttribute(key, tagName, data);
+		if (bad) throw bad;
+		const css = key.startsWith("css.");
+		if (css || key.startsWith("--")) {
+			const name = css ? key.slice(4) : key;
+			if (css && !CSS_NAME.test(name)) {
+				throw new CompilerError(`${key} on [${tagName}] is not a valid CSS property name; write css.name, like css.font-size`, data.source ?? "", data.position);
+			}
 			if (isRuntime(value)) notYet(value);
 			if (value === null || value === undefined || value === false) continue;
 			// ###################
@@ -37,7 +68,8 @@ const toProperties = (props, schema, tagName, data = {}) => {
 			if (/[;{}]/.test(String(value))) {
 				throw new CompilerError(`${key} on [${tagName}] can't contain ";", "{" or "}": it would add other CSS to the element. Got ${JSON.stringify(String(value))}`, data.source ?? "", data.position);
 			}
-			vars.push(`${key}: ${value}`);
+			styles.push(`${name}: ${value}`);
+			extra = true;
 			continue;
 		}
 		if (value === null || value === undefined || value === false) continue;
@@ -45,21 +77,20 @@ const toProperties = (props, schema, tagName, data = {}) => {
 		if (typeof value === "object") {
 			throw new CompilerError(`prop "${key}" on [${tagName}] is an object; attributes must be text, numbers or booleans`, "");
 		}
+		if (key === "style" && typeof value === "string") styles.push(value.trim().replace(/;$/, ""));
 
 		const info = find(schema, key);
+		if (!sameName(info, key, schema)) {
+			exact.push([key, value === true ? true : String(value)]);
+			continue;
+		}
 		let v = value;
 		if (typeof v === "string" && info.spaceSeparated) v = v.split(/\s+/).filter(Boolean);
 		else if (typeof v === "string" && info.commaSeparated) v = v.split(",").map((x) => x.trim()).filter(Boolean);
 		properties[info.property] = v;
 	}
 
-	// ###################
-	// --name props join the style attribute: style="color: red; --x: 1"
-	// ###################
-	if (vars.length) {
-		const style = typeof properties.style === "string" ? properties.style.trim().replace(/;$/, "") : "";
-		properties.style = [style, ...vars].filter(Boolean).join("; ");
-	}
+	if (extra) properties.style = styles.filter(Boolean).join("; ");
 	return properties;
 };
 
@@ -107,18 +138,58 @@ export const toHast = (node, inSvg = false) => {
 			}
 			const svgHere = inSvg || node.tagName === "svg";
 			const childSvg = svgHere && node.tagName !== "foreignObject";
-			return {
+			const exact = [];
+			const out = {
 				type: "element",
 				tagName: node.tagName,
-				properties: toProperties(node.properties, svgHere ? svg : html, node.tagName, node.data),
+				properties: toProperties(node.properties, svgHere ? svg : html, node.tagName, node.data, exact),
 				children: node.children.map((c) => {
 					const out = toHast(c, childSvg);
 					return node.tagName.toLowerCase() === "style" && out.type === "text" ? { ...out, value: styleText(out.value) } : out;
 				})
 			};
+			if (exact.length) {
+				const token = `${nonce}-${nextExact++}`;
+				out.properties[EXACT] = token;
+				out.data = { exact, token };
+			}
+			return out;
 		}
 		default:
 			throw new CompilerError(`unknown tree node ${node.type}`, "");
+	}
+};
+
+// ###################
+// Keys written as typed: in the HTML string, or on the built DOM
+// ###################
+const exactOf = (node, map = new Map()) => {
+	if (node.data?.exact) map.set(node.data.token, node.data.exact);
+	for (const c of node.children ?? []) exactOf(c, map);
+	return map;
+};
+
+const attrText = (value) => value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+
+export const writeExact = (htmlText, tree) => {
+	const map = exactOf(tree);
+	if (!map.size) return htmlText;
+	return htmlText.replace(new RegExp(` ${EXACT}="(${nonce}-\\d+)"`, "g"), (m, token) =>
+		map.has(token) ? map.get(token).map(([k, v]) => (v === true ? ` ${k}` : ` ${k}="${attrText(v)}"`)).join("") : m
+	);
+};
+
+export const setExact = (fragment, tree) => {
+	const map = exactOf(tree);
+	if (!map.size) return;
+	for (const el of fragment.querySelectorAll(`[${EXACT}]`)) {
+		const exact = map.get(el.getAttribute(EXACT)) ?? [];
+		el.removeAttribute(EXACT);
+		for (const [k, v] of exact) {
+			try {
+				el.setAttribute(k, v === true ? "" : v);
+			} catch {}
+		}
 	}
 };
 

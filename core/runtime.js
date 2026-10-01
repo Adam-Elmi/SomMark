@@ -77,6 +77,7 @@ const referencedIn = (ast, out = new Set()) => {
 // ###################
 const toJS = (v, name, seen = new Set()) => {
 	if (v === undefined) return "undefined";
+	if (v !== null && typeof v === "object" && typeof v.__arcmUnsendable === "string") throw new Error(v.__arcmUnsendable);
 	if (v === null || typeof v === "boolean" || typeof v === "string") return JSON.stringify(v);
 	if (typeof v === "number") return Number.isFinite(v) ? String(v) : v !== v ? "NaN" : v > 0 ? "Infinity" : "-Infinity";
 	if (typeof v === "bigint") return `${v}n`;
@@ -103,6 +104,18 @@ const fileName = (id) => id.split(/[\\/]/).pop();
 const suggest = (name, names) => {
 	const best = closest(name, names);
 	return best ? ` (did you mean "${best}"?)` : "";
+};
+
+// ###################
+// The same check, for the build worker: an error message, or null when the value can go to the browser
+// ###################
+export const unsendable = (v, name) => {
+	try {
+		toJS(v, name);
+		return null;
+	} catch (err) {
+		return err.message;
+	}
 };
 
 // ###################
@@ -185,6 +198,13 @@ export default function prepareRuntime(result) {
 
 			for (const [key, value] of Object.entries(node.properties)) {
 				if (!isMarker(value)) continue;
+				// ###################
+				// The browser's setAttribute refuses these names; say so at build time
+				// ###################
+				if (!key || /[\s"'>/=\x00-\x1f\x7f]/.test(key)) {
+					const what = key ? `can't contain spaces, quotes, ">", "/", "=" or control characters` : "can't be empty";
+					throw new RuntimeError(`${JSON.stringify(key)} on [${node.tagName}] is not a valid attribute name: it ${what}`, node.data.source ?? u.module, node.data.position);
+				}
 				delete node.properties[key];
 				value.where = `for "${key}" on [${node.tagName}]`;
 				node.properties["data-arcm-ref"] ??= `e${elementCount++}`;

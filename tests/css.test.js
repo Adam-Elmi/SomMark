@@ -143,3 +143,46 @@ describe("-- prop values are checked", () => {
 		);
 	});
 });
+
+describe("css. props", () => {
+	const warnings = async (src) => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			const html = await compile(src);
+			return { html, warnings: warn.mock.calls.map((c) => c[0].replace(/^.*anonymous\.arcm:/, "")) };
+		} finally {
+			warn.mockRestore();
+		}
+	};
+
+	it("sets CSS properties in style, with fixed and compile-time values", async () => {
+		expect(await compile(`\${ const bg = "black"; }\$[p = css.color: "white", css.background: \${ bg }\$, css.opacity: 0.5]Hi[end]`)).toBe(
+			`<p style="color: white; background: black; opacity: 0.5">Hi</p>`
+		);
+	});
+
+	it("joins style:, css. and -- props in the order written", async () => {
+		expect(await compile(`[div = css.color: "red", style: "margin: 0;", --x: "1" !]`)).toBe(`<div style="color: red; margin: 0; --x: 1"></div>`);
+	});
+
+	it("keeps the attribute and the CSS apart", async () => {
+		expect(await compile(`[img = width: 100, css.width: "50%" !]`)).toBe(`<img width="100" style="width: 50%">`);
+	});
+
+	it("leaves out false and passes css. to a component's outer element", async () => {
+		const html = await compile(`[import = Card: "./components/Card.arcm" !][Card = title: "T", css.border: "1px solid", css.color: false !]`, { cwd: fileURLToPath(new URL("./fixtures", import.meta.url)) });
+		expect(html).toContain(`<div class="card card-gray" style="border: 1px solid">`);
+	});
+
+	it("refuses ; { } and bad names", async () => {
+		await expect(compile(`[p = css.color: "red; background: url(x)"]x[end]`)).rejects.toThrow(/css\.color on \[p\] can't contain ";", "\{" or "\}"/);
+		await expect(compile(`[p = css.: "red"]x[end]`)).rejects.toThrow(/css\. on \[p\] is not a valid CSS property name/);
+		await expect(compile(`[p = css.1x: "red"]x[end]`)).rejects.toThrow(/css\.1x on \[p\] is not a valid CSS property name/);
+	});
+
+	it("warns about names that are not CSS properties, and still writes them", async () => {
+		const { html, warnings: w } = await warnings(`[p = css.colr: "red", css.-webkit-line-clamp: 2, css.--y: "3", css.font-size: "2rem" !]`);
+		expect(w).toEqual(["1:1  css.colr on [p] is not a CSS property (did you mean css.color?)"]);
+		expect(html).toBe(`<p style="colr: red; -webkit-line-clamp: 2; --y: 3; font-size: 2rem"></p>`);
+	});
+});

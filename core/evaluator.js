@@ -483,7 +483,8 @@ export default async function evaluate(graph, options = {}) {
 		removeComments = true,
 		timeout = 5000,
 		version = "0.0.0",
-		importModule
+		importModule,
+		onRun = null
 	} = options;
 	if (typeof importModule !== "function") throw new TypeError("evaluate: options.importModule is required");
 
@@ -568,6 +569,7 @@ export default async function evaluate(graph, options = {}) {
 	// Every render of a file is one use, with its own exported values
 	// ###################
 	const run = async (id, props, slot, parent) => {
+		onRun?.(id);
 		const result = await load(id);
 		const use = { id: uses.length, module: id, parent, values: {} };
 		uses.push(use);

@@ -7,7 +7,7 @@ import { toHtml } from "hast-util-to-html";
 import { toDom } from "hast-util-to-dom";
 import { fromHtml } from "hast-util-from-html";
 import prepareRuntime from "../core/runtime.js";
-import { toHast, addScript, CompilerError, formatWarning } from "../core/html.js";
+import { toHast, addScript, writeExact, setExact, CompilerError, formatWarning } from "../core/html.js";
 import { createHost, toId } from "./host.js";
 import { createLoader } from "./modules.js";
 import * as reactive from "../runtime/reactive.js";
@@ -31,16 +31,30 @@ const defaultWorker = () => {
 	return sharedWorker;
 };
 
+// ###################
+// A worker stuck in ${ }$ (while (true) {}) never answers: after the timeout (plus a little,
+// so the worker's own timeout can answer first) it is terminated, and the next compile starts a new one
+// ###################
 const ask = (worker, request) =>
 	new Promise((resolve, reject) => {
 		const id = nextMessage++;
+		let timer = null;
 		const onMessage = (event) => {
 			if (event.data?.id !== id) return;
+			clearTimeout(timer);
 			worker.removeEventListener("message", onMessage);
 			if (event.data.ok) resolve(event.data.result);
 			else reject(Object.assign(new Error(event.data.error.message), { name: event.data.error.name }));
 		};
 		worker.addEventListener("message", onMessage);
+		if (request.timeout) {
+			timer = setTimeout(() => {
+				worker.removeEventListener("message", onMessage);
+				worker.terminate?.();
+				if (worker === sharedWorker) sharedWorker = null;
+				reject(Object.assign(new Error(`\${ }$ code took longer than ${request.timeout} ms and was stopped`), { name: "EvaluatorError" }));
+			}, request.timeout + 500);
+		}
 		worker.postMessage({ id, request });
 	});
 
@@ -133,7 +147,7 @@ export default class ArcMoon {
 		const { result, prepared } = await this.#build();
 		const tree = toHast(result.tree);
 		if (prepared) addScript(tree, await this.#runtimeModules(prepared, null));
-		return toHtml(tree, HTML_OPTIONS);
+		return writeExact(toHtml(tree, HTML_OPTIONS), tree);
 	}
 
 	// ###################
@@ -145,6 +159,7 @@ export default class ArcMoon {
 		const tree = toHast(result.tree);
 		parseRaw(tree);
 		const fragment = toDom(tree, { fragment: true, document });
+		setExact(fragment, tree);
 
 		if (prepared) {
 			// ###################

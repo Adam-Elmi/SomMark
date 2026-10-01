@@ -30,9 +30,10 @@ const pageDom = {
 // Set an attribute the same way the compiler writes it
 // ###################
 const setAttr = (el, name, value) => {
-	if (name.startsWith("--")) {
-		if (value === null || value === undefined || value === false) el.style.removeProperty(name);
-		else el.style.setProperty(name, String(value));
+	if (name.startsWith("--") || name.startsWith("css.")) {
+		const prop = name.startsWith("css.") ? name.slice(4) : name;
+		if (value === null || value === undefined || value === false) el.style.removeProperty(prop);
+		else el.style.setProperty(prop, String(value));
 		return;
 	}
 	if (name === "value" || name === "checked") el[name] = value;

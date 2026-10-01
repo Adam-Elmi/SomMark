@@ -52,6 +52,14 @@ describe("render()", () => {
 		expect(fragment.querySelector("p").textContent).toBe("Hi 21");
 	});
 
+	it("writes keys exactly as typed (B12)", async () => {
+		const fragment = await am({ src: `[div = "data:x": "1", dataX: "2", dataFlag: true !]` }).render();
+		const div = fragment.querySelector("div");
+		expect(div.getAttributeNames().sort()).toEqual(["data:x", "dataflag", "datax"]);
+		expect(div.getAttribute("data:x")).toBe("1");
+		expect(div.getAttribute("datax")).toBe("2");
+	});
+
 	it("turns { raw } HTML into elements", async () => {
 		const fragment = await am({ src: `[div]\${ { raw: "<em>x</em><b>y</b>" } }\$[end]` }).render();
 		expect(fragment.querySelector("em").textContent).toBe("x");
@@ -98,6 +106,20 @@ describe("render()", () => {
 		p.click();
 		expect(host.querySelector("style").textContent).toBe("p { color: blue; }");
 		expect(p.style.getPropertyValue("--w")).toBe("20px");
+	});
+
+	it("updates live css. props", async () => {
+		const host = await mount({
+			src:
+				`runtime \${ import { signal } from "arcmoon/reactive"; const w = signal(10); }\$\n` +
+				`[p = css.width: runtime \${ w() + "px" }\$, css.color: runtime \${ w() > 10 ? "red" : false }\$, onclick: runtime \${ () => w(20) }\$]x[end]`
+		});
+		const p = host.querySelector("p");
+		expect(p.style.getPropertyValue("width")).toBe("10px");
+		expect(p.style.getPropertyValue("color")).toBe("");
+		p.click();
+		expect(p.style.getPropertyValue("width")).toBe("20px");
+		expect(p.style.getPropertyValue("color")).toBe("red");
 	});
 
 	it("collects a shared ref from several components, in page order", async () => {
@@ -165,5 +187,15 @@ describe("compile() in the browser", () => {
 		const html = await am({ src: `runtime \${ const n = 1; }\$\n[p]runtime \${ n }\$[end]` }).compile();
 		expect(html.match(/<script type="module">/g)).toHaveLength(1);
 		expect(html).toContain(`<p><!--arcm:t0--><!--/arcm--></p>`);
+	});
+});
+
+describe("browser timeout", () => {
+	it("terminates a worker that never answers, and says why", async () => {
+		const stuck = { addEventListener() {}, removeEventListener() {}, postMessage() {}, terminated: false, terminate() { this.terminated = true; } };
+		const started = Date.now();
+		await expect(new ArcMoon({ src: "${ while (true) {} }$", worker: stuck, timeout: 200 }).render()).rejects.toThrow(/\$\{ \}\$ code took longer than 200 ms and was stopped/);
+		expect(stuck.terminated).toBe(true);
+		expect(Date.now() - started).toBeLessThan(2000);
 	});
 });

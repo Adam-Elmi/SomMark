@@ -14,7 +14,7 @@ import bundleStyles from "./styles.js";
 import { collectStyles, addStyle, addStyleHref } from "../core/css.js";
 import { check } from "./protector.js";
 import unknownTags from "../core/tags.js";
-import { toHast, addScript, addScriptSrc, CompilerError, formatWarning } from "../core/html.js";
+import { toHast, addScript, addScriptSrc, writeExact, CompilerError, formatWarning } from "../core/html.js";
 
 export { CompilerError };
 import pkg from "../package.json" with { type: "json" };
@@ -62,11 +62,11 @@ const defaultWarning = (w) => console.warn(formatWarning(w));
 // One page up to the page tree: load, warnings, protector, ${ }$
 // ###################
 const evaluatePage = async (options) => {
-	const { props = {}, removeComments = true, timeout = 5000, cwd = process.cwd(), root = cwd, onWarning = defaultWarning } = options;
+	const { props = {}, removeComments = true, timeout = 5000, cwd = process.cwd(), root = cwd, onWarning = defaultWarning, worker } = options;
 	const graph = await loadGraph(options);
 	unknownTags(graph).forEach((w) => onWarning(w));
 	await check(graph, { root });
-	const result = await evaluate(graph, { props, removeComments, timeout, version: pkg.version, cwd });
+	const result = await evaluate(graph, { props, removeComments, timeout, version: pkg.version, cwd, worker });
 	result.warnings.forEach((w) => onWarning(w));
 	return result;
 };
@@ -128,7 +128,7 @@ export async function buildPages(list, shared = {}) {
 			if (js) addScript(tree, js);
 			const entry = scripts.entries.get(name);
 			if (entry) addScriptSrc(tree, urlOf(entry, name, { outDir, base: shared.base }));
-			return { name, html: toHtml(tree, HTML_OPTIONS) };
+			return { name, html: writeExact(toHtml(tree, HTML_OPTIONS), tree) };
 		}),
 		files: [...styles.files, ...scripts.files]
 	};
@@ -153,7 +153,7 @@ export default class ArcMoon {
 		warnings.forEach((w) => onWarning(w));
 		const tree = toHast(result.tree);
 		if (js) addScript(tree, js);
-		return toHtml(tree, HTML_OPTIONS);
+		return writeExact(toHtml(tree, HTML_OPTIONS), tree);
 	}
 
 	// ###################

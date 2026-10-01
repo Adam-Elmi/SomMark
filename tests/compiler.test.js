@@ -19,6 +19,22 @@ describe("compile: markup", () => {
 		expect(flat(html)).toBe(`<main id="m" class="a b" data-count="2"><p>Hi</p></main>`);
 	});
 
+	it("writes keys exactly as typed (B12)", async () => {
+		const html = await compile(`[div = "data:x": "1", dataX: "2", datax: "a&\\"b", dataFlag: true, aria-label: "L", "xml:lang": "so" !][svg = viewBox: "0 0 1 1"][circle = dataQ: "q" !][end]`);
+		expect(html).toBe(`<div aria-label="L" xml:lang="so" data:x="1" dataX="2" datax="a&amp;&quot;b" dataFlag></div><svg viewBox="0 0 1 1"><circle dataQ="q"></circle></svg>`);
+	});
+
+	it("refuses attribute names that break HTML (B13)", async () => {
+		const bad = /on \[p\] is not a valid attribute name: it can't contain spaces, quotes, ">", "\/", "=" or control characters/;
+		await expect(compile(`[p = "a b": "1" !]`)).rejects.toThrow(bad);
+		await expect(compile(`[p = "x=y": "1" !]`)).rejects.toThrow(bad);
+		await expect(compile(`[p = "say\\"hi": "1" !]`)).rejects.toThrow(bad);
+		await expect(compile(`[p = "a b": runtime \${ 1 }\$ !]`)).rejects.toThrow(bad);
+		await expect(compile(`[p = "": "1" !]`)).rejects.toThrow(/"" on \[p\] is not a valid attribute name: it can't be empty/);
+		expect(await compile(`[p = "xml:lang": "so", "[f]": "1", @click: "a" !]`)).toBe(`<p xml:lang="so" [f]="1" @click="a"></p>`);
+		await expect(compile(`[import = Card: "./components/Card.arcm" !][Card = title: "T", "a b": "1" !]`)).rejects.toThrow(/"a b" on \[div\] is not a valid attribute name/);
+	});
+
 	it("handles booleans, numbers and void elements", async () => {
 		const html = await compile(`[input = type: "checkbox", checked: true, disabled: false !][img = src: "a.png", width: 100 !]`);
 		expect(html).toBe(`<input type="checkbox" checked><img src="a.png" width="100">`);
@@ -165,6 +181,13 @@ describe("compile: unknown tag warnings", () => {
 		expect(await warnings(`[A !][B]x[end][a]y[end][Doctype !]`)).toEqual([
 			`1:1  [A] is not imported; it is written as <a>. Did you forget [import = A: "./A.arcm" !]?`,
 			`1:6  [B] is not imported; it is written as <b>. Did you forget [import = B: "./B.arcm" !]?`
+		]);
+	});
+
+	it("warns about positional values on HTML elements, not on components (B14)", async () => {
+		expect(await warnings(`[import = Card: "./components/Card.arcm" !]\n[div = "first", id: "x" !][p = "a", 3, \${ 1 }\$]x[end][Card = "x", title: "T" !]`)).toEqual([
+			`2:1  positional value "first" on [div] is not used; HTML elements only take named props (key: value)`,
+			`2:27  positional values "a", 3, \${ … }\$ on [p] are not used; HTML elements only take named props (key: value)`
 		]);
 	});
 

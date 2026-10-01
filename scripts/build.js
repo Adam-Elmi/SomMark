@@ -13,13 +13,14 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 // ###################
 const entries = [
 	{ in: "node/compiler.js", out: "dist/node.js", platform: "node" },
+	{ in: "node/eval-worker.js", out: "dist/eval-worker.js", platform: "node" },
 	{ in: "core/index.js", out: "dist/core.js", platform: "neutral" },
 	{ in: "runtime/reactive.js", out: "dist/reactive.js", platform: "browser" },
 	{ in: "browser/worker.js", out: "dist/worker.js", platform: "browser", standalone: true },
 	{ in: "browser/index.js", out: "dist/browser.js", platform: "browser", standalone: true }
 ];
 
-for (const file of ["node.js", "core.js", "reactive.js", "worker.js", "browser.js"]) {
+for (const file of ["node.js", "eval-worker.js", "core.js", "reactive.js", "worker.js", "browser.js"]) {
 	await rm(`${root}dist/${file}`, { force: true });
 }
 
